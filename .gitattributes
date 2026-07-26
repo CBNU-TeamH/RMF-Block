@@ -1,0 +1,14 @@
+* text=auto eol=lf
+
+# 바이너리
+*.png binary
+*.jpg binary
+*.pdf binary
+*.woff2 binary
+
+# Windows 전용 스크립트는 CRLF 유지
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# 생성물 (PR diff에서 접기)
+dist/* linguist-generated=true
