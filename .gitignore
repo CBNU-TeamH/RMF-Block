@@ -52,5 +52,3 @@ docs/**/export/
 .design-canvas.state.json
 .thumbnail
 
-# migration scratch — the SSOT integration plan, kept locally, not part of the repo
-SSOT-통합-계획.md
