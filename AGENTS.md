@@ -86,6 +86,7 @@ Which document to open for which job.
 ## 7. TODO / undecided
 
 - [ ] Write `docs/adr/001-realtime-sync.md` recording the Yorkie + WS server + local Git decision.
-- [ ] Define block Lock (occupancy): how it is acquired and released, and whether a block held by another user can be edited. `docs/SRS-ko.md` requires the state (`FR-022-06`) but never defines it.
+- [x] Define block Lock (occupancy): how it is acquired and released, and whether a block held by another user can be edited. Defined in `docs/SRS-ko.md` SIR003 and `FR-022-06` — occupancy is acquired on selection/cursor placement and released on deselection, and does not block another user from editing.
 - [ ] Set the grace period for edits during a disconnect — `docs/SRS-ko.md` UC-022 still says `n ms`.
 - [ ] Set the load-test baseline that `docs/SRS-ko.md` §2.4 defers.
+- [ ] Confirm whether `FR-022-05, 07, 08, 10, 11` were intentionally removed or are missing requirements — `docs/SRS-ko.md` 3.3.4 jumps from `FR-022-04` to `06`, `06` to `09`, and `09` to `12`.
