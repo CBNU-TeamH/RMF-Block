@@ -126,7 +126,7 @@
 
 **시스템 환경 및 상호작용**
 
-본 시스템은 클라이언트, Yorkie 서버, Application / WS Server, 서버 로컬 Git 저장소 간 상호작용을 통해 동작한다.
+본 시스템은 클라이언트 Yorkie-js-SDK, Yorkie server, Application / WS Server, 서버 로컬 Git 저장소 간 상호작용을 통해 동작한다.
 
 사용자는 클라이언트 애플리케이션에서 문서를 수정하며, 문서 내용의 실시간 동기화와 충돌 해소는 Yorkie를 통해 수행된다. Application / WS Server는 워크스페이스 관리, 파일 관리, 권한 판단, Git 기록 등 협업에 필요한 비즈니스 로직을 처리한다.
 
