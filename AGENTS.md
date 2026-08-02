@@ -90,3 +90,4 @@ Which document to open for which job.
 - [ ] Set the grace period for edits during a disconnect — `docs/SRS-ko.md` UC-022 still says `n ms`.
 - [ ] Set the load-test baseline that `docs/SRS-ko.md` §2.4 defers.
 - [ ] Confirm whether `FR-022-05, 07, 08, 10, 11` were intentionally removed or are missing requirements — `docs/SRS-ko.md` 3.3.4 jumps from `FR-022-04` to `06`, `06` to `09`, and `09` to `12`.
+- [ ] Decide block/text color and styling (block background/text color, and whether it extends to inline text ranges) — not in `docs/SRS-ko.md` today. Deferring is low-risk: block-level color is an additive `content` field per type, and inline color can ride `yorkie.Text`'s native range-style attributes without changing the block schema, so it doesn't block finishing the base 12-type schema in `docs/design/document-editing.md`.
