@@ -23,9 +23,11 @@ These shape every path below:
 | Host | The server generates a bootstrap secret at startup and prints it to container stdout alongside the join URL (FR-010-03 already puts the join address on the host's screen). Only whoever ran the container can read stdout, so possession of that secret proves host identity. It is exchanged once for a host session token. |
 | Guest | Nickname + workspace password (FR-020-02/03). A known nickname re-attaches to the existing user rather than creating a new one (FR-020-08). |
 
-Tokens are short-lived and refreshed periodically. Refresh-token reuse is treated as a theft signal: it invalidates the token family and forces the host to re-read the bootstrap secret from stdout.
+Access tokens live 30 minutes; refresh tokens live 7 days. Refresh-token reuse is treated as a theft signal: it invalidates the token family and forces the host to re-read the bootstrap secret from stdout.
 
 Rotation bounds how long a leaked token stays replayable. It does **not** protect against a token leaking live — most plausibly by appearing in the address bar during screen sharing (UC-030) — so the client strips the token from the URL immediately after handoff and keeps it out of persistent storage. LAN traffic is unencrypted, so rotation narrows the replay window rather than preventing interception.
+
+There is no separate "revoke all sessions" endpoint. The host runs the container directly, so restarting it is the revoke path: a fresh bootstrap secret is printed to stdout and every existing session token is invalidated. Adding a dedicated revoke action would duplicate that and overlap with the existing per-guest kick (`DELETE /api/workspace/members/:userId`).
 
 ## 1. REST — client ↔ rmf-block-server
 
@@ -93,12 +95,12 @@ Chat has two candidate implementations (§5). These REST endpoints belong to **v
 | Direction | Call | Purpose | Traceability |
 | --- | --- | --- | --- |
 | Yorkie → server | `POST /internal/yorkie/auth` (auth webhook) | Yorkie asks us to authorize each client operation: validate the session token and check workspace membership plus document access | Execution arm of the FR-010/FR-020 auth chain, NFR-SEC-002/005 |
-| Yorkie → server | Event webhook — **under review** | Notify the server of document changes so it can update metadata and trigger the delayed write | ADR-001 (`scheduleWrite`) |
+| Server → Yorkie | `Watch`, as an ordinary client attached to every open document | The App/WS Server drives `scheduleWrite` off its own subscription rather than a Yorkie-pushed event — Yorkie has no document-change webhook, only the auth webhook above | ADR-001 (`scheduleWrite`) |
 | Server → Yorkie | Admin API, read-only — document summaries and active editors | Supplementary source for who is editing what | FR-040 (support), FR-022-06 (support) |
 
 The auth webhook is where short-lived tokens meet Yorkie: a token that expires mid-session must be refreshed on the client before Yorkie's next authorized call, or the webhook starts rejecting operations. How the SDK re-supplies a rotated token needs verifying against the pinned `@yorkie-js/sdk` version before the Sync module is built — the same caution `document-editing.md` applies to concurrent-move convergence.
 
-Document keys need a type prefix (e.g. document vs. chat) so the webhook's access check can tell what it is authorizing. The key format is settled with the Sync module's design.
+Document keys carry no type prefix — a Yorkie key can only contain `a-z A-Z 0-9 - . _ ~` (120 chars max), which rules out a `:`-delimited scheme and makes any other delimiter ambiguous against UUIDs. Instead the key **is** the document's id as issued by `POST /api/documents`, and the webhook resolves its type by looking the id up in the App/WS Server's own document table — which it already needs for the Document Tree API. `chat` is a reserved literal key (version B, §5) rather than an id, since it's a workspace-wide singleton.
 
 ## 3. RPC — yorkie-js-sdk ↔ Yorkie
 
@@ -164,14 +166,10 @@ FR-060 is being built twice, as agreed: one conventional, one Yorkie-native. A s
 
 **Version B — Yorkie document module**
 
-One dedicated Yorkie document per workspace (key prefix `chat`) holding messages as a CRDT array. Clients attach to it like any other document and send by updating it; delivery rides `PushPullChanges`/`Watch`, so **rmf-block-server relays nothing**. Persistence comes free from the Yorkie storage already in place, satisfying FR-060-05 without a chat table.
+One dedicated Yorkie document per workspace (reserved key `chat`) holding messages as a CRDT array. Clients attach to it like any other document and send by updating it; delivery rides `PushPullChanges`/`Watch`, so **rmf-block-server relays nothing**. Persistence comes free from the Yorkie storage already in place, satisfying FR-060-05 without a chat table.
 
-Version B requires the document key parser and the auth webhook's access check (§2) to recognize the `chat` key type. File attachments still upload over REST either way.
+Version B requires the auth webhook's access check (§2) to recognize the literal `chat` key ahead of the document-table lookup. File attachments still upload over REST either way.
 
 ## Open questions
-
-- Host bootstrap secret handling: token lifetime, rotation interval, and the manual revoke/regenerate path.
-- Whether the Yorkie event webhook is needed at all, or whether the delayed write can be driven from the server's own document subscription.
-- Yorkie document key format, including the type prefix the auth webhook depends on.
 - Whether the two chat versions can share one client-facing interface.
 - Presenter highlight tooling (FR-030-12/13).
