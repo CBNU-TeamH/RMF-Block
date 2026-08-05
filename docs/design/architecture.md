@@ -76,7 +76,7 @@ Presence/Follow is server-mediated business logic, not raw Yorkie Presence: SRS 
 
 Internal module boundary, not a network call. Two operations only, matching what ADR-001 and the NFRs actually require:
 
-- `scheduleWrite(documentId)` — debounced trigger; materializes the current Yorkie document state to `.md` and commits it. Debounce interval is undecided (`AGENTS.md` §7).
+- `scheduleWrite(documentId)` — debounced trigger; materializes the current Yorkie document state to `.md` and commits it. Debounce: commit 10s after the last change (quiet period), forced every 60s while edits keep arriving (max wait, avoids starving a continuously-edited document). Triggered by the server's own `Watch` subscription on the document (`api.md` §2) — not a Yorkie-pushed event, since Yorkie has no document-change webhook.
 - `restoreLatest(documentId)` — reads the last commit back into a Yorkie document on server start, for crash/restart recovery (NFR-REL-002, NFR-SAF-003).
 
 ### (d) Git Management Component ↔ local Git repository / filesystem
@@ -91,14 +91,16 @@ The one hard constraint fixed here: **every block type must have a defined, roun
 
 | Decided here / already fixed | Deferred to module design |
 | --- | --- |
-| Block occupancy ≠ edit lock (SIR003, FR-022-06) | Reconnect grace period value ("n ms", UC-022 비고 — `AGENTS.md` §7) |
-| Yorkie owns realtime sync; Git is off the realtime path (ADR-001) | Git write-debounce interval (ADR-001) |
-| Component boundaries and API groups (this doc) | Block schema field-level detail per type |
-| Presence carries occupancy + role; session state (present/follow) is server-owned | Yorkie↔Markdown mapping table per block type |
-| | Auth/session token format for the API groups |
-| | Presenter/follower session state model |
-| | Load-test baseline (SRS §2.4 — `AGENTS.md` §7) |
-| | FR-022 numbering gap (05/07/08/10/11 — `AGENTS.md` §7) |
+| Block occupancy ≠ edit lock (SIR003, FR-022-06) | Yorkie↔Markdown mapping table per block type |
+| Yorkie owns realtime sync; Git is off the realtime path (ADR-001) | Presenter/follower session state model |
+| Component boundaries and API groups (this doc) | Load-test baseline (SRS §2.4 — `AGENTS.md` §7) |
+| Presence carries occupancy + role; session state (present/follow) is server-owned | |
+| App/WS Server runs as one process — a Next.js custom server handling REST + WebSocket + Git Management together, not split across services | |
+| Reconnect grace period = 30s (UC-022 비고) | |
+| Git write-debounce = 10s quiet / 60s max wait | |
+| Block schema field-level detail per type (`document-editing.md`, all 12 types agreed) | |
+| Auth/session token format: access 30min / refresh 7d, document key = plain id (no prefix), revoke-all = container restart (`api.md`) | |
+| FR-022 numbering gap (05/07/08/10/11) confirmed intentional | |
 
 ## 5. Relation to task workflow
 
