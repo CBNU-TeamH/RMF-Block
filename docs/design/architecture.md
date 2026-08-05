@@ -70,6 +70,8 @@ Transport is REST + WebSocket (SOIR001). Grouped by concern; full request/respon
 
 Presence/Follow is server-mediated business logic, not raw Yorkie Presence: SRS UC-030/UC-040 describe multi-step session state (start presenting → notify others → join → lock follower input → pause/resume) that needs the App/WS Server to track, beyond what a per-client Presence field expresses.
 
+> in this section b, Workspace API means join our service (rmf-block) not meaning yorkie client attaching.
+
 ### (c) App/WS Server ↔ Git Management Component
 
 Internal module boundary, not a network call. Two operations only, matching what ADR-001 and the NFRs actually require:
