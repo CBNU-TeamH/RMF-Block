@@ -1,0 +1,177 @@
+# API Design — Endpoint Catalog
+
+- **Status**: Draft. Endpoints only — no request/response schemas yet.
+- **Related**: [`docs/design/architecture.md`](architecture.md) §3(b); [`docs/adr/001-realtime-sync.md`](../adr/001-realtime-sync.md); [`docs/SRS-ko.md`](../SRS-ko.md) §3.2, §3.3
+
+## Scope
+
+`architecture.md` §3(b) fixes the API **groups** and defers endpoint-level detail to a separate API design doc (SRS §1.2 schedules it for "개발 중"). This is that doc.
+
+It lists **which endpoints exist, on which transport, and which requirement each one serves**. Request/response bodies, status codes, and error shapes are deliberately out of scope — they are settled per module, alongside that module's design doc. The point of writing the catalog first is that the client, server, and Yorkie integration can be built in parallel against an agreed surface.
+
+## Deployment assumptions
+
+These shape every path below:
+
+- **One workspace per server instance.** The host runs one container for one collaboration session (SRS UC-010; restore in E1-1 reopens *the* workspace, not one of many). Paths are therefore singular — `/api/workspace`, not `/api/workspaces/:id`.
+- **Two roles**: host and guest (SRS §3.1.1). A guest authenticates with a nickname plus the workspace password. Host identity derives from container access — see below.
+
+## Authentication model
+
+| Actor | How identity is established |
+| --- | --- |
+| Host | The server generates a bootstrap secret at startup and prints it to container stdout alongside the join URL (FR-010-03 already puts the join address on the host's screen). Only whoever ran the container can read stdout, so possession of that secret proves host identity. It is exchanged once for a host session token. |
+| Guest | Nickname + workspace password (FR-020-02/03). A known nickname re-attaches to the existing user rather than creating a new one (FR-020-08). |
+
+Tokens are short-lived and refreshed periodically. Refresh-token reuse is treated as a theft signal: it invalidates the token family and forces the host to re-read the bootstrap secret from stdout.
+
+Rotation bounds how long a leaked token stays replayable. It does **not** protect against a token leaking live — most plausibly by appearing in the address bar during screen sharing (UC-030) — so the client strips the token from the URL immediately after handoff and keeps it out of persistent storage. LAN traffic is unencrypted, so rotation narrows the replay window rather than preventing interception.
+
+## 1. REST — client ↔ rmf-block-server
+
+`host` in the Auth column means host-only; FR-011-07 requires the server to reject these from anyone else.
+
+### Health
+
+| Method | Path | Purpose | Auth | Traceability |
+| --- | --- | --- | --- | --- |
+| `GET` | `/health` | Liveness of this server and its Yorkie dependency | — | HIR001, SOIR002 |
+
+### Auth
+
+| Method | Path | Purpose | Auth | Traceability |
+| --- | --- | --- | --- | --- |
+| `POST` | `/api/auth/host` | Exchange the stdout bootstrap secret for a host session token | — | FR-011-07 |
+| `POST` | `/api/auth/refresh` | Rotate an expiring session token (host and guest) | refresh token | NFR-SEC-002 |
+
+### Workspace
+
+| Method | Path | Purpose | Auth | Traceability |
+| --- | --- | --- | --- | --- |
+| `POST` | `/api/workspace` | Create the workspace — name + access password | host | FR-010-01~04 |
+| `GET` | `/api/workspace` | Initial snapshot: document tree + member list; reports whether preserved data exists to restore | guest | FR-010-05, FR-020-06 |
+| `POST` | `/api/workspace/join` | Guest join — nickname + workspace password; issues a session token | — | FR-020-01~05, FR-020-08 |
+| `PATCH` | `/api/workspace/password` | Change the access password; existing sessions stay valid | host | FR-011-04~07 |
+| `DELETE` | `/api/workspace/members/:userId` | Kick a guest and close their connection | host | FR-011-01~03, FR-011-07 |
+
+### Documents
+
+| Method | Path | Purpose | Auth | Traceability |
+| --- | --- | --- | --- | --- |
+| `POST` | `/api/documents` | Create a document or folder, resolving name collisions | guest | FR-021-01~05 |
+| `PATCH` | `/api/documents/:id` | Rename or move to another folder | guest | FR-023-01~03 |
+| `DELETE` | `/api/documents/:id` | Delete, cascading to child documents | guest | FR-023-04~06 |
+| `POST` | `/api/documents/:id/files` | Upload a file to embed as a file block | guest | FR-022-13/14 |
+
+Tree mutations are relayed to other clients over the workspace WebSocket (§4), not polled — FR-021-06 and FR-023-07 both require realtime reflection in every client's tree.
+
+### Files
+
+| Method | Path | Purpose | Auth | Traceability |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/files` | Workspace-wide list of embedded files, grouped by kind | guest | FR-050-01/02 |
+| `GET` | `/api/files/:id/preview` | In-app preview render/stream | guest | FR-050-03, FR-080-01~03 |
+| `GET` | `/api/files/:id/download` | Download the original bytes | guest | FR-050-04, FR-061-04, FR-080-05 |
+
+File bytes never travel through Yorkie — blocks carry only a `fileId` reference (`document-editing.md` §8~10), so every read of actual content lands here.
+
+### Chat
+
+Chat has two candidate implementations (§5). These REST endpoints belong to **version A**; the paths that survive under version B are marked.
+
+| Method | Path | Purpose | Auth | Traceability | B? |
+| --- | --- | --- | --- | --- | --- |
+| `GET` | `/api/chat` | Message history | guest | FR-060-05 | — |
+| `POST` | `/api/chat` | Send and persist a message | guest | FR-060-01~03/05 | — |
+| `POST` | `/api/chat/files` | Upload a file to attach to a message | guest | FR-060-02 | ✅ |
+| `GET` | `/api/chat/files` | List files shared in chat | guest | FR-061-01/02 | ✅ |
+
+`POST /api/chat/files` is not in the original draft but is unavoidable: chat attachments are bytes, and bytes cannot go through Yorkie, so both chat versions need this REST path even when version B carries the messages themselves over CRDT.
+
+## 2. RPC — rmf-block-server ↔ Yorkie
+
+| Direction | Call | Purpose | Traceability |
+| --- | --- | --- | --- |
+| Yorkie → server | `POST /internal/yorkie/auth` (auth webhook) | Yorkie asks us to authorize each client operation: validate the session token and check workspace membership plus document access | Execution arm of the FR-010/FR-020 auth chain, NFR-SEC-002/005 |
+| Yorkie → server | Event webhook — **under review** | Notify the server of document changes so it can update metadata and trigger the delayed write | ADR-001 (`scheduleWrite`) |
+| Server → Yorkie | Admin API, read-only — document summaries and active editors | Supplementary source for who is editing what | FR-040 (support), FR-022-06 (support) |
+
+The auth webhook is where short-lived tokens meet Yorkie: a token that expires mid-session must be refreshed on the client before Yorkie's next authorized call, or the webhook starts rejecting operations. How the SDK re-supplies a rotated token needs verifying against the pinned `@yorkie-js/sdk` version before the Sync module is built — the same caution `document-editing.md` applies to concurrent-move convergence.
+
+Document keys need a type prefix (e.g. document vs. chat) so the webhook's access check can tell what it is authorizing. The key format is settled with the Sync module's design.
+
+## 3. RPC — yorkie-js-sdk ↔ Yorkie
+
+Not our API to design — listed so the boundary is visible and each call is tied to a requirement.
+
+| Call | Purpose | Traceability |
+| --- | --- | --- |
+| `ActivateClient` / `DeactivateClient` | Start and end a client session | FR-020-04 |
+| `AttachDocument` / `DetachDocument` | Enter and leave a document editing session | Basis of all of FR-022 |
+| `PushPullChanges` | CRDT change sync | FR-022-02~04/09/12 |
+| `Watch` | Realtime change and presence stream | FR-022-06, FR-022-09 |
+| `Broadcast` | Realtime messaging outside document content | Candidate for chat version B (§5) |
+| Revision APIs (create/get/list/restore) | Yorkie-native version history | Candidate for a version-history UI; distinct from the Git history of ADR-001 |
+
+Exact method names and availability must be confirmed against the pinned SDK version before implementation.
+
+## 4. WebSocket — client ↔ rmf-block-server
+
+For state that is neither request/response nor scoped to a single Yorkie document. SRS §2.1's component diagram already routes client traffic through this server as "API / 웹소켓 요청".
+
+### 4.1 Workspace presence index (FR-040)
+
+Yorkie presence is per-document, so it cannot answer "who is in this workspace and where". The server keeps a workspace-level index of `userId → documentId | null`.
+
+| Direction | Event | Meaning |
+| --- | --- | --- |
+| client → server | `presence:enter` | Joining the workspace socket; server adds the user with `null` |
+| client → server | `presence:attach` | Opened a document; server sets the value |
+| client → server | `presence:detach` | Closed the document; server resets to `null` |
+| client → server | *(socket close)* | Server removes the key entirely |
+| server → all | `presence:sync` | Full index snapshot, on connect |
+| server → all | `presence:changed` | One user's location changed |
+| server → all | `presence:left` | A user's key was removed |
+
+Presence in the index means connected; absence of the key means offline. That distinction is what FR-040-04 renders as the dimmed, unclickable state — no separate online flag.
+
+### 4.2 Presentation session (FR-030) — draft, implementation deferred
+
+Direction agreed, build postponed by team decision.
+
+| Direction | Event | Meaning |
+| --- | --- | --- |
+| client (presenter) → server | `presentation:start` | Begin presenting a document |
+| server → all | `presentation:started` | Announce presenter and document |
+| client (presenter) → server | `presentation:end` | End the session |
+| server → all | `presentation:ended` | Release followers |
+
+The server only announces *who* is presenting. Followers then subscribe to that presenter's Yorkie presence on the shared document directly and pin their own view to it client-side — reusing the existing `Watch`/presence stream instead of relaying viewport state through this server. Pause and resume (FR-030-08) are a client-side toggle and need no server call.
+
+Presenter highlight tools (FR-030-12/13) are not covered here and need their own design.
+
+### 4.3 Chat realtime delivery (FR-060-04)
+
+See §5 — the events depend on which chat version is in use. Under version A the server broadcasts `chat:message` to every workspace socket after persisting; under version B this server carries no chat traffic at all.
+
+## 5. Chat — two parallel implementations
+
+FR-060 is being built twice, as agreed: one conventional, one Yorkie-native. A shared client-facing interface is preferred but not required if the two diverge.
+
+**Version A — server module (REST + WebSocket)**
+
+`POST /api/chat` persists, then the server broadcasts `chat:message` to every socket in the workspace. Reconnecting clients backfill through `GET /api/chat`. The server owns ordering and delivery guarantees. Conventional and predictable.
+
+**Version B — Yorkie document module**
+
+One dedicated Yorkie document per workspace (key prefix `chat`) holding messages as a CRDT array. Clients attach to it like any other document and send by updating it; delivery rides `PushPullChanges`/`Watch`, so **rmf-block-server relays nothing**. Persistence comes free from the Yorkie storage already in place, satisfying FR-060-05 without a chat table.
+
+Version B requires the document key parser and the auth webhook's access check (§2) to recognize the `chat` key type. File attachments still upload over REST either way.
+
+## Open questions
+
+- Host bootstrap secret handling: token lifetime, rotation interval, and the manual revoke/regenerate path.
+- Whether the Yorkie event webhook is needed at all, or whether the delayed write can be driven from the server's own document subscription.
+- Yorkie document key format, including the type prefix the auth webhook depends on.
+- Whether the two chat versions can share one client-facing interface.
+- Presenter highlight tooling (FR-030-12/13).
