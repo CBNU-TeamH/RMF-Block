@@ -18,7 +18,7 @@ This version (16.2.12) has breaking changes — APIs, conventions, and file stru
 - **What**: a LAN-based real-time document collaboration system. Full requirements: [`docs/SRS-ko.md`](docs/SRS-ko.md).
 - **Who**: CBNU Team H capstone project.
 - **Current stage**: this repository holds both the docs and the code — Next.js + TypeScript, single package, pnpm.
-- **Architecture**: real-time sync runs on **self-hosted Yorkie (CRDT)**; the app/WS server owns business logic and state relay; the local **Git repository is not on the real-time path** — it is the persistence and history layer written on a delayed-write → commit cycle. See [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2. An ADR recording this decision is still to be written.
+- **Architecture**: real-time sync runs on **self-hosted Yorkie (CRDT)**; the app/WS server is a single Next.js custom server (REST + WebSocket + Git Management) owning business logic and state relay; the local **Git repository is not on the real-time path** — it is the persistence and history layer written on a delayed-write → commit cycle. See [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2 and [`docs/adr/001-realtime-sync.md`](docs/adr/001-realtime-sync.md).
 
 ---
 
