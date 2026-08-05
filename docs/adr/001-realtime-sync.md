@@ -37,7 +37,7 @@ App/WS Server ──delayed write──▶ server filesystem (.md) ──commit�
 
 **Trade-offs / new open questions**
 
-- Git history granularity is coarser than actual edit history — it reflects write-debounce batches, not individual edits. Acceptable per SRS §2.3.2, but the debounce interval itself is undecided (tracked in `AGENTS.md` §7).
+- Git history granularity is coarser than actual edit history — it reflects write-debounce batches, not individual edits. Acceptable per SRS §2.3.2. Debounce: commit 10s after the last change, forced every 60s under continuous editing (see `architecture.md` §3(c)).
 - The Yorkie document → Markdown materialization (and the reverse, on restore) is a real translation layer per block type; it needs its own module design when the Git Management Component is built — not specified here.
 - The App/WS Server is a single point of failure for both relay and persistence (accepted under SRS §2.3.1's assumption that the host's server is up for the duration of collaboration).
 

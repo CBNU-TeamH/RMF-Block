@@ -1,6 +1,6 @@
 # Document Editing — Block Schema
 
-- **Status**: All 12 block types drafted. Not yet committed — kept as a working file until the open questions below are resolved.
+- **Status**: Agreed. All 12 block types finalized. The one remaining open question (SDK convergence check) is a pre-implementation verification step, not a blocker to agreement.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(a), §5; [`docs/SRS-ko.md`](../SRS-ko.md) §4.1
 
 ## Scope
