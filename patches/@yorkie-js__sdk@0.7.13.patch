@@ -1,0 +1,21 @@
+diff --git a/package.json b/package.json
+index 014c4117ba78056f30111b627c04b1cfa2e13f62..44adfb7699fee49efb2c44e4599b51381d2417f1 100755
+--- a/package.json
++++ b/package.json
+@@ -3,6 +3,16 @@
+   "version": "0.7.13",
+   "description": "Yorkie JS SDK",
+   "main": "./dist/yorkie-js-sdk.js",
++  "module": "./dist/yorkie-js-sdk.es.js",
++  "exports": {
++    ".": {
++      "types": "./dist/yorkie-js-sdk.d.ts",
++      "import": "./dist/yorkie-js-sdk.es.js",
++      "require": "./dist/yorkie-js-sdk.js"
++    },
++    "./dist/*": "./dist/*",
++    "./package.json": "./package.json"
++  },
+   "publishConfig": {
+     "access": "public"
+   },

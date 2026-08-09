@@ -1,0 +1,21 @@
+diff --git a/package.json b/package.json
+index e0d97a4278c790cef35fa91fd530ae31517fb437..86baf2b41ad4e0cf3f356936ee7f1017ad25fb2e 100755
+--- a/package.json
++++ b/package.json
+@@ -3,6 +3,16 @@
+   "version": "0.7.13",
+   "description": "ProseMirror binding for Yorkie collaborative editing",
+   "main": "./dist/yorkie-js-prosemirror.js",
++  "module": "./dist/yorkie-js-prosemirror.es.js",
++  "exports": {
++    ".": {
++      "types": "./dist/yorkie-js-prosemirror.d.ts",
++      "import": "./dist/yorkie-js-prosemirror.es.js",
++      "require": "./dist/yorkie-js-prosemirror.js"
++    },
++    "./dist/*": "./dist/*",
++    "./package.json": "./package.json"
++  },
+   "publishConfig": {
+     "access": "public"
+   },

@@ -44,6 +44,9 @@ next-env.d.ts
 Thumbs.db
 desktop.ini
 
+# the watcher's git workspace — a repository of its own, spike output only
+/.data
+
 # design exports — see docs/ui/README.md: readable source only, never bundles.
 # These are the files that blow up repo weight permanently once committed.
 *(Standalone).html

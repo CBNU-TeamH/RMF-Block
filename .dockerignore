@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+.data
+.claude
+docs
+tasks
+skills
+scripts
+*.md
