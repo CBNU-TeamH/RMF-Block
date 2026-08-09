@@ -1,0 +1,6 @@
+# Every change needs a review from someone here.
+#
+# GitHub never counts the PR author as a code owner for their own PR, so in
+# practice this means the other maintainer has to approve. There is no org team
+# to point at yet — replace this list with @CBNU-TeamH/<team> once one exists.
+* @taejinchoi-cbnu @ujin999
