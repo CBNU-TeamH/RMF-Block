@@ -65,8 +65,10 @@ round trip — not diff readability — the criterion that picks the format.
      belongs to whoever runs milestone 4.
 - **Shape**:
   1. ensure `.data/workspace/` exists, `git init` if absent
-  2. **restore before attach**: if `<docKey>.yson` exists → `YSON.parse` → `.tree.root` →
-     `new yorkie.Tree(root)` → `client.attach(doc, { initialRoot: { tree } })`.
+  2. **restore before attach**: if `<docKey>.yson` exists → slice the `Tree(...)` wrapper off →
+     `JSON.parse` what is left → `new yorkie.Tree(root)` →
+     `client.attach(doc, { initialRoot: { tree } })`. Not `yorkie.YSON.parse` — its `Tree(...)`
+     regex only matches three levels of nested braces in 0.7.13, so any list throws.
      `initialRoot` only fills fields the doc lacks (`client.ts:770`), so it no-ops when Yorkie
      is still live. Already proven by the milestone-1 smoke test, which attached exactly this way.
   3. `doc.subscribe` → debounced flush

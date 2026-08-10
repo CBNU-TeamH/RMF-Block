@@ -17,19 +17,21 @@ FR-020-01~05) is the next task.
 
 ## Milestones
 
-### 1. The image the host runs ✅
+### 1. The image the host runs 🟡
 
 - **What**: `docker compose up --build` starts the app, reachable from other machines on the LAN.
 - **Files**: `Dockerfile`, `.dockerignore`, `docker-compose.yml`, `next.config.ts`, `package.json`.
 - **Reuse**: the existing `docker-compose.yml` (Yorkie service untouched) and the pinned pnpm
   patches, which have to be applied inside the image too.
-- **Done**: `docker compose up --build` serves `http://localhost:3000`, and the published port is
-  reachable from a second device.
+- **Done**: `docker compose up --build` serves `http://localhost:3000`. Reaching the published port
+  from a second device is the one acceptance check still unverified (see below), so this milestone
+  is partial.
 
 ### 2. Host identity from container stdout ✅
 
-- **What**: the server mints a bootstrap secret at startup and prints a one-time link; opening it
-  trades the secret for a cookie.
+- **What**: the server mints a bootstrap secret at startup and prints the link that carries it;
+  opening it trades the secret for a cookie. The secret stays valid until restart — it is not
+  consumed by use.
 - **Files**: `instrumentation.ts`, `lib/host-secret.ts`, `app/api/auth/host/route.ts`.
 - **Reuse**: nothing existed — this is the first server-side code outside the spike watcher.
 - **Done**: the printed link shows `hello host!`; anything else shows `hello guest!`.

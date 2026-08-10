@@ -18,7 +18,11 @@ jobs:
     name: lint · test · build
     runs-on: ubuntu-latest
     steps:
+      # The token the default checkout leaves in .git/config is of no use to
+      # `pnpm build`, so do not leave it there.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       # Reads the pnpm version from `packageManager` in package.json.
       - uses: pnpm/action-setup@v4
@@ -36,8 +40,13 @@ jobs:
   container:
     name: container smoke test
     runs-on: ubuntu-latest
+    # A container that accepts the connection but never answers would otherwise
+    # hold a runner for the 6h default.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Build and start the image the host runs
         run: docker compose up -d --build app

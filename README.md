@@ -40,9 +40,10 @@ Root config files (`next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, `post
 docker compose up --build
 ```
 
-Startup prints two lines. The `Host:` link is a one-time link that proves you are the host — opening
-it gives you a cookie and drops the secret from the address bar. The `Guest:` line is what anyone
-else on the same subnet types into their browser.
+Startup prints two lines. The `Host:` link proves you are the host — opening it gives you a cookie
+and drops the secret from the address bar. The secret stays valid until the container restarts, so
+treat the line as a credential, not a used-up ticket. The `Guest:` line is what anyone else on the
+same subnet types into their browser.
 
 ```
 rmf-app  |   Host:  http://localhost:3000/api/auth/host?secret=…

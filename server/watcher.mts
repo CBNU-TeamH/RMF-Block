@@ -54,6 +54,10 @@ async function ensureWorkspace() {
   // so that would happily report the parent one.
   if (!existsSync(path.join(WORKSPACE, '.git'))) {
     await git('init', '-b', 'main');
+    // Repository-local, so `git commit` works on a machine with no global
+    // identity — every commit here is the watcher's, never a person's.
+    await git('config', 'user.name', 'rmf-watcher');
+    await git('config', 'user.email', 'watcher@rmf-block.local');
     log(`git init ${WORKSPACE}`);
   }
 }
@@ -120,5 +124,9 @@ doc.subscribe(() => {
     queue = queue.then(() => flush(doc)).catch((e) => log(`ERROR ${e}`));
   }, DEBOUNCE_MS);
 });
+
+// Yorkie may already hold edits made while nothing was watching; without this
+// they stay unpersisted until the next keystroke. A no-op on a matching restore.
+queue = queue.then(() => flush(doc)).catch((e) => log(`ERROR ${e}`));
 
 log(`watching — debounce ${DEBOUNCE_MS}ms, workspace ${WORKSPACE}`);
