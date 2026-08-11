@@ -85,13 +85,13 @@ jobs:
             fi
           }
 
-          assert_body "$(curl -sS -c jar.txt -L "http://localhost:3000/api/auth/host?secret=$secret")" \
+          assert_body "$(curl -sS --connect-timeout 5 --max-time 10 -c jar.txt -L "http://localhost:3000/api/auth/host?secret=$secret")" \
             'hello host!' 'the printed host link did not grant host'
 
-          assert_body "$(curl -sS http://localhost:3000/)" \
+          assert_body "$(curl -sS --connect-timeout 5 --max-time 10 http://localhost:3000/)" \
             'hello guest!' 'a visitor with no cookie was not treated as a guest'
 
-          assert_body "$(curl -sS -c wrong.txt -L 'http://localhost:3000/api/auth/host?secret=wrong')" \
+          assert_body "$(curl -sS --connect-timeout 5 --max-time 10 -c wrong.txt -L 'http://localhost:3000/api/auth/host?secret=wrong')" \
             'hello guest!' 'a wrong secret granted host'
 
           # The join address must never come out empty (compose passes
