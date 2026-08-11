@@ -23,19 +23,54 @@ Read [`AGENTS.md`](AGENTS.md) first. It is the single entry point: workflow, cod
 | [`tasks/`](tasks/) | Work in progress (`active/`) and finished work (`archive/YYYY/MM/`). See [`tasks/README.md`](tasks/README.md). |
 | [`scripts/`](scripts/) | Repo bookkeeping. Currently just the task index and archive helpers (`pnpm tasks:index`, `pnpm tasks:archive`). |
 | [`app/`](app/) | Next.js App Router — pages, layouts, route handlers. |
+| [`lib/`](lib/) | Shared code that both the app and server-side processes import. |
+| [`server/`](server/) | Node processes that run alongside the app (currently the Yorkie → Git watcher). |
 | [`public/`](public/) | Static assets served as-is. |
+| [`instrumentation.ts`](instrumentation.ts) | Server startup hook — prints the host link and the guest join address. |
+| [`Dockerfile`](Dockerfile) · [`docker-compose.yml`](docker-compose.yml) | The image the host runs, plus the self-hosted Yorkie server. |
 | [`skills/`](skills/) | Skills for Claude Code. Empty for now — add them as we find workflows worth packaging. |
 
 Root config files (`next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, `postcss.config.mjs`) are the real, live settings — not templates.
 
 ## Running it
 
+**As the host would** — one command, the way the product ships:
+
+```bash
+docker compose up --build
+```
+
+Startup prints two lines. The `Host:` link proves you are the host — opening it gives you a cookie
+and drops the secret from the address bar. The secret stays valid until the container restarts, so
+treat the line as a credential, not a used-up ticket. The `Guest:` line is what anyone else on the
+same subnet types into their browser.
+
+```
+rmf-app  |   Host:  http://localhost:3000/api/auth/host?secret=…
+rmf-app  |   Guest: http://192.168.0.14:3000
+```
+
+A container can only see Docker's own network, so it usually cannot work out the LAN address by
+itself. When it says so, run `hostname -I` (Linux/macOS) or `ipconfig` (Windows) on the host machine
+and restart with that address: `HOST_LAN_IP=192.168.0.14 docker compose up`, or put the same line in
+a `.env` file next to `docker-compose.yml`.
+
+Restarting the container mints a new secret and invalidates every host session — that is the revoke
+path ([`docs/design/api.md`](docs/design/api.md)), not an accident.
+
+**While developing:**
+
 ```bash
 pnpm install
-pnpm dev      # http://localhost:3000
-pnpm build
+docker compose up -d yorkie   # Yorkie on :8080 — realtime sync needs it
+pnpm dev                      # http://localhost:3000, same two lines on stdout
 pnpm lint
+pnpm test                     # node:test, no framework
+pnpm build
 ```
+
+Yorkie runs on its in-memory store, so restarting the container wipes every document. Git is the
+durable layer — see [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2.
 
 ## Ground rules
 

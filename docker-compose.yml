@@ -1,0 +1,22 @@
+services:
+  app:
+    build: .
+    container_name: rmf-app
+    ports:
+      - "3000:3000"
+    environment:
+      # The container sees Docker's network, not the LAN, so it cannot work out
+      # the address guests type in. Startup says so and prints how to find it —
+      # then either `HOST_LAN_IP=192.168.0.14 docker compose up` or put the same
+      # line in a `.env` file next to this one.
+      HOST_LAN_IP: ${HOST_LAN_IP:-}
+
+  yorkie:
+    image: yorkieteam/yorkie:0.7.13
+    container_name: rmf-yorkie
+    # ponytail: no --mongo-connection-uri, so Yorkie runs on its in-memory MemDB.
+    # Documents and Yorkie's own revisions are lost on restart — git is the durable
+    # store (SRS-ko.md:472). Add mongo here if Yorkie itself ever needs to survive.
+    command: ["server"]
+    ports:
+      - "8080:8080"

@@ -22,7 +22,10 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 ## Active
 
-Nothing in progress.
+| Task | Lessons |
+| :--- | :--- |
+| [Host / Guest entry](active/20260809-host-guest-entry-todo.md) | [lessons](active/20260809-host-guest-entry-lessons.md) |
+| [Spike: Yorkie ↔ server ↔ git round trip](active/20260728-yorkie-git-spike-todo.md) | [lessons](active/20260728-yorkie-git-spike-lessons.md) |
 
 ## Archive
 

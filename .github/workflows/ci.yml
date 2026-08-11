@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to the same PR makes the previous run pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: lint · test · build
+    runs-on: ubuntu-latest
+    steps:
+      # The token the default checkout leaves in .git/config is of no use to
+      # `pnpm build`, so do not leave it there.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Reads the pnpm version from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+
+  container:
+    name: container smoke test
+    runs-on: ubuntu-latest
+    # A container that accepts the connection but never answers would otherwise
+    # hold a runner for the 6h default.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build and start the image the host runs
+        run: docker compose up -d --build app
+
+      # `register()` lands a few seconds after Next prints "Ready", so wait for
+      # the banner itself rather than for the port.
+      - name: Wait for the startup banner
+        shell: bash
+        run: |
+          set -uo pipefail
+          for _ in $(seq 1 60); do
+            if docker compose logs app | grep -q 'Host:  http'; then exit 0; fi
+            sleep 2
+          done
+          echo "::error::server never printed the host link"
+          docker compose logs app
+          exit 1
+
+      # The two bugs this task shipped past `pnpm dev` — a redirect to
+      # http://0.0.0.0:3000/ that dropped the cookie, and an empty HOST_LAN_IP
+      # printing "http://:3000" — were only visible from in here.
+      - name: The printed link grants host, everything else is a guest
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # `|| true` so a missing secret reaches the check below instead of
+          # dying inside the pipeline under `pipefail`.
+          secret=$(docker compose logs app | grep -o 'secret=[a-z0-9-]*' | tail -1 | cut -d= -f2 || true)
+          [ -n "$secret" ] || { echo "::error::no secret in the startup banner"; exit 1; }
+
+          assert_body() {
+            if ! grep -q "$2" <<<"$1"; then
+              echo "::error::$3"
+              exit 1
+            fi
+          }
+
+          assert_body "$(curl -sS --connect-timeout 5 --max-time 10 -c jar.txt -L "http://localhost:3000/api/auth/host?secret=$secret")" \
+            'hello host!' 'the printed host link did not grant host'
+
+          assert_body "$(curl -sS --connect-timeout 5 --max-time 10 http://localhost:3000/)" \
+            'hello guest!' 'a visitor with no cookie was not treated as a guest'
+
+          assert_body "$(curl -sS --connect-timeout 5 --max-time 10 -c wrong.txt -L 'http://localhost:3000/api/auth/host?secret=wrong')" \
+            'hello guest!' 'a wrong secret granted host'
+
+          # The join address must never come out empty (compose passes
+          # HOST_LAN_IP through as "" when it is unset).
+          if docker compose logs app | grep -q 'Guest: http://:'; then
+            echo "::error::guest join address printed with no host"
+            exit 1
+          fi
+
+          echo "host/guest split verified against the container"
+
+      - name: Server log
+        if: always()
+        run: docker compose logs app
