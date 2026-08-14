@@ -7,11 +7,10 @@ import type { NextConfig } from "next";
 // the `exports` map the packages are missing, which fixes the bundler and plain
 // Node (`server/watcher.mts`) alike, so the alias is gone. Drop the patches once
 // upstream declares `exports` itself.
-const nextConfig: NextConfig = {
-  // Traces the server and its dependencies into `.next/standalone`, so the
-  // Docker image the host runs carries a `server.js` and no `node_modules`
-  // install step. See `Dockerfile`.
-  output: "standalone",
-};
+// No `output: "standalone"`: it generates its own `server.js` and cannot
+// coexist with `server/index.mts` (needed for WebSocket upgrades — see
+// `docs/design/chat.md`). The Dockerfile installs full `node_modules` in the
+// runtime stage instead of copying a standalone trace.
+const nextConfig: NextConfig = {};
 
 export default nextConfig;
