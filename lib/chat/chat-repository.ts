@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { ChatMessage, ChatRepository } from "./types.ts";
@@ -43,12 +43,31 @@ export class JsonChatRepository implements ChatRepository {
     const messages = await this.readAll();
     messages.push(message);
     await mkdir(path.dirname(this.storePath), { recursive: true });
-    await writeFile(this.storePath, JSON.stringify(messages, null, 2));
+    // Write-then-rename, not a direct writeFile(): writeFile() truncates the
+    // file before writing the new content, so a concurrent list() (which
+    // doesn't go through `queue`) can observe a partial file mid-write, and a
+    // process crash in that window leaves the store corrupted. rename() on
+    // the same filesystem is atomic — readers only ever see the old complete
+    // file or the new complete file, never something in between.
+    const tempPath = `${this.storePath}.tmp`;
+    await writeFile(tempPath, JSON.stringify(messages, null, 2));
+    await rename(tempPath, this.storePath);
   }
 
   private async readAll(): Promise<Array<ChatMessage>> {
-    const text = await readFile(this.storePath, "utf8").catch(() => null);
-    return text ? JSON.parse(text) : [];
+    try {
+      const text = await readFile(this.storePath, "utf8");
+      return JSON.parse(text);
+    } catch (error) {
+      // Only a missing file means "no history yet". Anything else (a
+      // permission error, a disk error) must not be swallowed into an empty
+      // result — writeAppend() would then persist just the new message and
+      // silently destroy whatever history actually exists on disk.
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return [];
+      }
+      throw error;
+    }
   }
 }
 

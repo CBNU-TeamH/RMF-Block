@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -63,4 +63,19 @@ test("concurrent append() calls don't lose messages (the read-modify-write race)
     assert.equal(stored.length, messages.length);
     assert.deepEqual(new Set(stored.map((m) => m.id)), new Set(messages.map((m) => m.id)));
   });
+});
+
+test("list() surfaces a non-ENOENT read failure instead of treating it as empty", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "chat-repo-test-"));
+  try {
+    // A directory where a file is expected — readFile() fails with EISDIR,
+    // not ENOENT, so this must propagate rather than come back as [].
+    const storePath = path.join(dir, "messages.json");
+    await mkdir(storePath);
+
+    const repo = new JsonChatRepository(storePath);
+    await assert.rejects(() => repo.list());
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

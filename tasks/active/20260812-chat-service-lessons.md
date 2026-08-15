@@ -66,3 +66,12 @@
   import directly** — Node's native type stripping can't compile them. Spell out the field +
   constructor assignment instead. Worth a line in `AGENTS.md` or wherever code conventions end up
   documented, since this bites any class shared between Next-bundled code and Node-native code.
+- A CodeRabbit pass on the PR caught two real gaps our own manual verification didn't: `list()`
+  bypasses the `append()` queue entirely, so a concurrent read during a `writeFile()` truncate could
+  observe a partial file — fixed with write-to-temp + `rename()` (atomic on the same filesystem).
+  And `readAll()`'s blanket `.catch(() => null)` treated *any* read failure (not just "file missing")
+  as an empty store, which meant a transient permission/I/O error could make `writeAppend()` silently
+  overwrite real history with just the new message — fixed to re-throw everything except `ENOENT`.
+  Both are the same root habit as the `route.ts` catch-block issue found earlier in this task:
+  **swallowing an error and substituting a plausible-looking default is the failure mode to watch
+  for in this codebase**, not just "forgetting to catch."
