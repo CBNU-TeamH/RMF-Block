@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Chat service — Version A, text slice](active/20260812-chat-service-todo.md) | [lessons](active/20260812-chat-service-lessons.md) |
 | [Host / Guest entry](active/20260809-host-guest-entry-todo.md) | [lessons](active/20260809-host-guest-entry-lessons.md) |
 | [Spike: Yorkie ↔ server ↔ git round trip](active/20260728-yorkie-git-spike-todo.md) | [lessons](active/20260728-yorkie-git-spike-lessons.md) |
 
