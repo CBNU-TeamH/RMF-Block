@@ -23,6 +23,13 @@ class WsHub {
   handleUpgrade(request: IncomingMessage, socket: Duplex, head: Buffer): void {
     this.server.handleUpgrade(request, socket, head, (ws) => {
       this.connections.add(ws);
+      // A protocol error (a malformed frame) or a failed send emits 'error' on
+      // the socket. With no listener, EventEmitter rethrows it and takes the
+      // whole process down — Next included, since this is one process.
+      ws.on('error', (error) => {
+        console.error('ws connection error', error);
+        ws.close();
+      });
       ws.on('close', () => this.connections.delete(ws));
     });
   }
