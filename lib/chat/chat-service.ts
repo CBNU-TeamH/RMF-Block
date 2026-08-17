@@ -35,6 +35,12 @@ export class ChatService {
     if (!text?.trim()) {
       throw new ChatValidationError("text is required");
     }
+    // Neither `request.json()` (App Router) nor the custom server caps body
+    // size, and every append rewrites the whole JSON file — so unbounded text
+    // is both a disk-fill and a per-message O(n) rewrite.
+    if (text.length > 2000) {
+      throw new ChatValidationError("text is too long");
+    }
 
     const message: ChatMessage = {
       id: randomUUID(),

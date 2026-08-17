@@ -37,6 +37,16 @@ test("send() rejects a missing or blank text", async () => {
   await assert.rejects(() => service.send({ sender: "alice", text: "   " }), ChatValidationError);
 });
 
+test("send() rejects text over 2000 characters", async () => {
+  const service = new ChatService(fakeRepository(), fakeBroadcaster());
+  await assert.rejects(
+    () => service.send({ sender: "alice", text: "x".repeat(2001) }),
+    ChatValidationError,
+  );
+  // Exactly at the limit is still fine — off-by-one check.
+  await assert.doesNotReject(() => service.send({ sender: "alice", text: "x".repeat(2000) }));
+});
+
 test("send() trims sender but leaves text as-is, and stamps id/sentAt", async () => {
   const service = new ChatService(fakeRepository(), fakeBroadcaster());
   const message = await service.send({ sender: "  alice  ", text: "  hi  " });
