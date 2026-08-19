@@ -28,8 +28,10 @@ export async function register() {
     lines.push(
       `         Only ${best ? `a Docker/NAT address (${best})` : "loopback"} is visible from here,`,
       `         which guests on the LAN almost certainly cannot reach.`,
-      `         Run \`hostname -I\` (Linux/macOS) or \`ipconfig\` (Windows) on the host`,
-      `         machine, then restart with HOST_LAN_IP set to it (see docker-compose.yml).`,
+      `         Start with \`pnpm docker:up\` instead — it detects the address and writes`,
+      `         .env for you. By hand: \`ip -4 addr\` on Linux (including WSL) or`,
+      `         \`ipconfig getifaddr en0\` on macOS, then restart with HOST_LAN_IP set`,
+      `         to it (see docker-compose.yml).`,
     );
   } else if (!override) {
     lines.push(`         (guessed — set HOST_LAN_IP if guests cannot reach it)`);
