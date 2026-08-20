@@ -29,8 +29,10 @@ export async function register() {
       `         Only ${best ? `a Docker/NAT address (${best})` : "loopback"} is visible from here,`,
       `         which guests on the LAN almost certainly cannot reach.`,
       `         Start with \`pnpm docker:up\` instead — it detects the address and writes`,
-      `         .env for you. By hand: \`ip -4 addr\` on Linux (including WSL) or`,
-      `         \`ipconfig getifaddr en0\` on macOS, then restart with HOST_LAN_IP set`,
+      `         .env for you. By hand: \`ipconfig\` on Windows (the Windows adapter's`,
+      `         address, not WSL's — \`ip -4 addr\` inside WSL returns an address guests`,
+      `         cannot reach unless mirrored networking is on), \`ip -4 addr\` on Linux,`,
+      `         \`ipconfig getifaddr en0\` on macOS. Then restart with HOST_LAN_IP set`,
       `         to it (see docker-compose.yml).`,
     );
   } else if (!override) {

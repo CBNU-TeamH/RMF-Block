@@ -6,8 +6,8 @@
 #
 # Two platforms only: Linux and macOS. A Windows host runs Docker Desktop on
 # the WSL2 backend, so `pnpm docker:up` lands in WSL and the Linux branch is the
-# right one there -- see the mirrored-networking note at the bottom for the
-# one case where that assumption bites.
+# right one there -- see the mirrored-networking gate below for the one case
+# where that assumption bites, and why it runs before .env is touched.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -113,6 +113,51 @@ if [[ ! "$chosen" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
   exit 0
 fi
 
+# --- Mirrored networking gate (WSL2 only) ----------------------------------
+# Checked *before* .env is touched. Without mirrored networking WSL2 sits on
+# its own NAT, so everything detected above is WSL's address rather than the
+# one guests need -- and writing it would replace a correct hand-set
+# HOST_LAN_IP with an address nobody on the LAN can reach.
+wsl_mirrored_off() {
+  is_wsl || return 1
+  # powershell.exe is only used to locate %UserProfile% -- the Windows user
+  # name need not match the WSL one, so /mnt/c/Users/$USER is not reliable.
+  local wslconfig
+  wslconfig=$(powershell.exe -NoProfile -Command \
+    'if (Test-Path "$env:UserProfile\.wslconfig") { Get-Content "$env:UserProfile\.wslconfig" -Raw }' \
+    2>/dev/null | tr -d '\r')
+
+  # Anchored and whitespace-tolerant: `networkingMode = mirrored` is valid INI
+  # that WSL honours, and a commented-out `#networkingMode=mirrored` must not
+  # count as enabled.
+  ! echo "$wslconfig" | grep -qiE '^[[:space:]]*networkingMode[[:space:]]*=[[:space:]]*mirrored'
+}
+
+if wsl_mirrored_off; then
+  echo "[detect-host-ip] Mirrored networking is not enabled -- .env left alone."
+  echo "  $chosen is WSL's own NAT address, not the one guests on your LAN need,"
+  echo "  so writing it would only overwrite a HOST_LAN_IP you set by hand."
+  cat <<'EOF'
+
+  Either enable mirrored networking:
+    1. Open (or create) %UserProfile%\.wslconfig on Windows.
+    2. Add:
+         [wsl2]
+         networkingMode=mirrored
+    3. In PowerShell, run: wsl --shutdown
+       (this closes every WSL session, not just this one)
+    4. Restart Docker Desktop, then run this again.
+
+  Or set it yourself: run `ipconfig` on *Windows* -- not `ip -4 addr` in WSL,
+  which returns this same unusable address -- and put that adapter's IPv4 into
+  .env as HOST_LAN_IP=<address>.
+
+  Docker Desktop may also forward ports only to 127.0.0.1 without mirrored
+  networking, so guests can be unreachable even once the address is right.
+EOF
+  exit 0
+fi
+
 # Rewrite through a sibling temp file rather than `sed -i`: the in-place flag
 # takes a mandatory suffix argument on BSD sed (macOS), where the GNU spelling
 # fails outright -- and under `set -e` that would take `docker compose` down
@@ -130,45 +175,4 @@ others=$(echo "$candidates" | grep -vxF "$chosen" || true)
 if [[ -n "$others" ]]; then
   echo "  Other candidates found: $(echo "$others" | tr '\n' ' ')"
   echo "  If guests can't connect, try one of those instead."
-fi
-
-# --- Mirrored networking check (WSL2 only) ---------------------------------
-# This is also the guard for the assumption at the top of the file. Without
-# mirrored networking, WSL2's own eth* sits on a private NAT that is *not* the
-# Windows host's LAN address, so the address chosen above is likely wrong.
-if is_wsl; then
-  # powershell.exe is only used to locate %UserProfile% -- the Windows user
-  # name need not match the WSL one, so /mnt/c/Users/$USER is not reliable.
-  wslconfig=$(powershell.exe -NoProfile -Command \
-    'if (Test-Path "$env:UserProfile\.wslconfig") { Get-Content "$env:UserProfile\.wslconfig" -Raw }' \
-    2>/dev/null | tr -d '\r')
-
-  # Anchored and whitespace-tolerant: `networkingMode = mirrored` is valid INI
-  # that WSL honours, and a commented-out `#networkingMode=mirrored` must not
-  # count as enabled.
-  if ! echo "$wslconfig" | grep -qiE '^[[:space:]]*networkingMode[[:space:]]*=[[:space:]]*mirrored'; then
-    cat <<'EOF'
-
-[detect-host-ip] Mirrored networking is not enabled.
-  Two consequences, and the first one means the address above may be wrong:
-    - Without it, WSL2 sits on its own NAT, so the address detected here is
-      WSL's, not the address guests on your LAN need.
-    - Docker Desktop may also only forward ports to 127.0.0.1, not the real
-      network adapter, so guests could not reach you even with the right IP.
-
-  To fix it:
-    1. Open (or create) %UserProfile%\.wslconfig on Windows.
-    2. Add:
-         [wsl2]
-         networkingMode=mirrored
-    3. In PowerShell, run: wsl --shutdown
-       (this closes every WSL session, not just this one)
-    4. Restart Docker Desktop.
-    5. Run this command again.
-
-  Skip this if guests only need localhost, or your network already works
-  without it. Otherwise run `ipconfig` on Windows and put that address in
-  .env as HOST_LAN_IP by hand.
-EOF
-  fi
 fi
