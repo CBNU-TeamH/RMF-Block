@@ -120,8 +120,24 @@ fi
 # HOST_LAN_IP with an address nobody on the LAN can reach.
 wsl_mirrored_off() {
   is_wsl || return 1
-  # powershell.exe is only used to locate %UserProfile% -- the Windows user
-  # name need not match the WSL one, so /mnt/c/Users/$USER is not reliable.
+
+  # wslinfo reports the mode actually in effect. .wslconfig only records what
+  # was asked for: a networkingMode outside the [wsl2] section, or one saved
+  # since the last `wsl --shutdown`, reads as enabled while WSL is still on
+  # NAT. Prefer the live answer whenever the engine is new enough to give one.
+  local mode
+  if command -v wslinfo >/dev/null 2>&1; then
+    mode=$(wslinfo --networking-mode 2>/dev/null || true)
+    if [[ "$mode" == "mirrored" ]]; then
+      return 1
+    fi
+    # nat, bridged, virtioproxy, or no answer at all -- all fail closed.
+    return 0
+  fi
+
+  # Older WSL engines have no wslinfo, so fall back to the file. powershell.exe
+  # is only used to locate %UserProfile% -- the Windows user name need not
+  # match the WSL one, so /mnt/c/Users/$USER is not reliable.
   local wslconfig
   wslconfig=$(powershell.exe -NoProfile -Command \
     'if (Test-Path "$env:UserProfile\.wslconfig") { Get-Content "$env:UserProfile\.wslconfig" -Raw }' \
@@ -165,10 +181,28 @@ fi
 # duplicates left behind by a hand-edited .env.
 env_file=".env"
 tmp_file="$env_file.tmp.$$"
+trap 'rm -f "$tmp_file"' EXIT
 touch "$env_file"
-grep -v '^HOST_LAN_IP=' "$env_file" >"$tmp_file" || true
+
+# grep exits 1 for "no lines selected" -- expected when .env holds nothing but
+# HOST_LAN_IP -- and 2 for a real read error. `|| true` collapsed both into
+# success, so an unreadable .env left $tmp_file empty and the rewrite below
+# would drop every other setting in the file.
+set +e
+grep -v '^HOST_LAN_IP=' "$env_file" >"$tmp_file"
+grep_status=$?
+set -e
+if (( grep_status > 1 )); then
+  echo "[detect-host-ip] Could not read $env_file -- leaving it alone."
+  echo "  Set HOST_LAN_IP=$chosen in it by hand."
+  exit 0
+fi
+
 printf 'HOST_LAN_IP=%s\n' "$chosen" >>"$tmp_file"
-mv -f "$tmp_file" "$env_file"
+# `cat >` rather than `mv`: it keeps the original inode, and with it the file's
+# mode and ownership. `mv` would swap in the temp file's umask defaults, quietly
+# loosening a .env someone had chmod 600'd to protect other values in it.
+cat "$tmp_file" >"$env_file"
 
 echo "[detect-host-ip] HOST_LAN_IP set to $chosen (.env updated)."
 others=$(echo "$candidates" | grep -vxF "$chosen" || true)
