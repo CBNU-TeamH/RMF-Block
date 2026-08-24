@@ -31,3 +31,10 @@ export type JoinResult = {
 
 /** Thrown for input the guest controls — the route maps this to a 400, not a 500. */
 export class JoinValidationError extends Error {}
+
+/**
+ * Thrown when the workspace has taken as many distinct members as it will hold.
+ * Separate from `JoinValidationError` because the request was fine — the room is
+ * not — so it deserves a 503 rather than a 400.
+ */
+export class WorkspaceFullError extends Error {}

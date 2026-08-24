@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { sessionRegistry } from "@/lib/auth/session-registry";
-import { SESSION_COOKIE, JoinValidationError } from "@/lib/auth/types";
+import {
+  SESSION_COOKIE,
+  JoinValidationError,
+  WorkspaceFullError,
+} from "@/lib/auth/types";
 import { isWorkspacePassword } from "@/lib/workspace-config";
 import { wsHub } from "@/server/ws-hub.mts";
 
@@ -36,6 +40,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof JoinValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (error instanceof WorkspaceFullError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
     }
     throw error;
   }

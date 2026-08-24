@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   JoinValidationError,
+  WorkspaceFullError,
   type JoinResult,
   type WorkspaceMember,
 } from "./types.ts";
@@ -15,6 +16,14 @@ import {
  */
 
 const NICKNAME_MAX_LENGTH = 20;
+
+/**
+ * Every distinct nickname adds a member that is never removed, so without a
+ * ceiling a guest who knows the password could spend the process's memory one
+ * join at a time. SRS §2.4 sizes a workspace at 8 people; this leaves room for
+ * nicknames changing their mind through a session and still bounds the damage.
+ */
+const MAX_MEMBERS = 64;
 
 // Enough to tell eight people apart at a glance, which is the workspace size
 // SRS §2.4 assumes. Handed out in order and reused once it wraps.
@@ -52,7 +61,16 @@ export class SessionRegistry {
       );
     }
 
-    const member = this.membersByNickname.get(nickname) ?? this.addMember(nickname);
+    // Checked before creating, so a returning nickname is never turned away by a
+    // workspace that is already full.
+    const existing = this.membersByNickname.get(nickname);
+    if (!existing && this.membersByNickname.size >= MAX_MEMBERS) {
+      throw new WorkspaceFullError(
+        `this workspace already holds ${MAX_MEMBERS} members`,
+      );
+    }
+
+    const member = existing ?? this.addMember(nickname);
 
     // Read before the new session overwrites it, or the displaced device is
     // never told to stop.

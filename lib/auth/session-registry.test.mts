@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { SessionRegistry } from "./session-registry.ts";
-import { JoinValidationError } from "./types.ts";
+import { JoinValidationError, WorkspaceFullError } from "./types.ts";
 
 describe("SessionRegistry.join", () => {
   it("creates a member for a new nickname", () => {
@@ -112,5 +112,29 @@ describe("SessionRegistry.resolve", () => {
 
     assert.equal(registry.resolve("not-a-session"), null);
     assert.equal(registry.resolve(undefined), null);
+  });
+});
+
+describe("SessionRegistry capacity", () => {
+  const fill = (registry: SessionRegistry, count: number) => {
+    for (let i = 0; i < count; i += 1) registry.join(`member-${i}`);
+  };
+
+  it("refuses a new nickname once the workspace is full", () => {
+    const registry = new SessionRegistry();
+    fill(registry, 64);
+
+    assert.throws(() => registry.join("one-too-many"), WorkspaceFullError);
+  });
+
+  it("still lets an existing member back in when full", () => {
+    // A returning device must not be turned away by a ceiling meant for abuse —
+    // this is the case that makes the order of the check matter.
+    const registry = new SessionRegistry();
+    fill(registry, 64);
+
+    const again = registry.join("member-0");
+    assert.equal(again.member.nickname, "member-0");
+    assert.ok(registry.resolve(again.sessionId));
   });
 });
