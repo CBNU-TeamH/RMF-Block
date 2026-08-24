@@ -18,7 +18,7 @@ This version (16.2.12) has breaking changes — APIs, conventions, and file stru
 - **What**: a LAN-based real-time document collaboration system. Full requirements: [`docs/SRS-ko.md`](docs/SRS-ko.md).
 - **Who**: CBNU Team H capstone project.
 - **Current stage**: this repository holds both the docs and the code — Next.js + TypeScript, single package, pnpm.
-- **Architecture**: real-time sync runs on **self-hosted Yorkie (CRDT)**; the app/WS server is a single Next.js custom server (REST + WebSocket + Git Management) owning business logic and state relay; the local **Git repository is not on the real-time path** — it is the persistence and history layer written on a delayed-write → commit cycle. See [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2 and [`docs/adr/001-realtime-sync.md`](docs/adr/001-realtime-sync.md).
+- **Architecture**: real-time sync runs on **self-hosted Yorkie (CRDT)**; the app/WS server is a single Next.js custom server (REST + WebSocket) owning business logic and state relay. **Yorkie also owns document persistence and version history** — it runs on MongoDB, and history comes from its revision API. MongoDB is Yorkie's internal store and the app never connects to it; the app's own state (chat, workspace metadata, auth records) lives in host-held JSON files under `.data/`. See [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2 and [`docs/adr/002-persistence-on-yorkie-mongo.md`](docs/adr/002-persistence-on-yorkie-mongo.md).
 
 ---
 
@@ -86,10 +86,12 @@ Which document to open for which job.
 
 ## 7. TODO / undecided
 
-- [x] Write `docs/adr/001-realtime-sync.md` recording the Yorkie + WS server + local Git decision. Done — see [`docs/adr/001-realtime-sync.md`](docs/adr/001-realtime-sync.md) and [`docs/design/architecture.md`](docs/design/architecture.md).
+- [x] Write `docs/adr/001-realtime-sync.md` recording the Yorkie + WS server + local Git decision. Done — see [`docs/adr/001-realtime-sync.md`](docs/adr/001-realtime-sync.md) and [`docs/design/architecture.md`](docs/design/architecture.md). **Its Git half is now superseded by [`docs/adr/002-persistence-on-yorkie-mongo.md`](docs/adr/002-persistence-on-yorkie-mongo.md)** — persistence and history moved to Yorkie + MongoDB.
 - [x] Define block Lock (occupancy): how it is acquired and released, and whether a block held by another user can be edited. Defined in `docs/SRS-ko.md` SIR003 and `FR-022-06` — occupancy is acquired on selection/cursor placement and released on deselection, and does not block another user from editing.
 - [x] Set the grace period for edits during a disconnect. Done — 30s, see `docs/SRS-ko.md` UC-022 비고.
 - [ ] Set the load-test baseline that `docs/SRS-ko.md` §2.4 defers.
 - [x] Confirm whether `FR-022-05, 07, 08, 10, 11` were intentionally removed or are missing requirements. Done — confirmed intentional, noted in `docs/SRS-ko.md` 3.3.4.
 - [ ] Decide block/text color and styling (block background/text color, and whether it extends to inline text ranges) — not in `docs/SRS-ko.md` today. Deferring is low-risk: block-level color is an additive `content` field per type, and inline color can ride `yorkie.Text`'s native range-style attributes without changing the block schema, so it doesn't block finishing the base 12-type schema in `docs/design/document-editing.md`.
-- [ ] Reconcile Yorkie MongoDB: `docs/SRS-ko.md` §2.1's diagram shows Yorkie backed by MongoDB, but the merged `docker-compose.yml` (`feat/host-setup`) runs Yorkie without `--mongo-connection-uri` (MemDB only, wiped on restart) — team has reportedly agreed to use Yorkie's MongoDB, but the compose file doesn't reflect it yet. Needs a mongo service + `--mongo-connection-uri` added, or the SRS diagram corrected if MemDB-only was in fact the final call.
+- [x] Reconcile Yorkie MongoDB. Decided in favour of Mongo — [`docs/adr/002-persistence-on-yorkie-mongo.md`](docs/adr/002-persistence-on-yorkie-mongo.md) makes Yorkie + MongoDB the persistence and history layer, and the docs now match the SRS §2.1 diagram. **The compose file still runs MemDB**, so document durability is unimplemented until a mongo service and `--mongo-connection-uri` land — tracked as its own issue, and Phase 0 is not done before it.
+- [ ] Decide when Yorkie revisions are created — automatically on some cadence, or explicitly by a user or event (ADR-002). No FR or UC covers version history today, so nothing forces the answer yet.
+- [ ] Decide whether the App/WS Server keeps a Yorkie `Watch` subscription at all. Its only purpose was driving the deleted delayed-write trigger; the Admin API for active editors and FR-040 presence may still want one. Falls out of the revision-cadence answer above.

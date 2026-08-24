@@ -1,7 +1,7 @@
 # API Design — Endpoint Catalog
 
 - **Status**: Draft. Endpoints only — no request/response schemas yet.
-- **Related**: [`docs/design/architecture.md`](architecture.md) §3(b); [`docs/adr/001-realtime-sync.md`](../adr/001-realtime-sync.md); [`docs/SRS-ko.md`](../SRS-ko.md) §3.2, §3.3
+- **Related**: [`docs/design/architecture.md`](architecture.md) §3(b); [`docs/adr/002-persistence-on-yorkie-mongo.md`](../adr/002-persistence-on-yorkie-mongo.md); [`docs/SRS-ko.md`](../SRS-ko.md) §3.2, §3.3
 
 ## Scope
 
@@ -51,7 +51,7 @@ There is no separate "revoke all sessions" endpoint. The host runs the container
 | Method | Path | Purpose | Auth | Traceability |
 | --- | --- | --- | --- | --- |
 | `POST` | `/api/workspace` | Create the workspace — name + access password | host | FR-010-01~04 |
-| `GET` | `/api/workspace` | Initial snapshot: document tree + member list; reports whether preserved data exists to restore | guest | FR-010-05, FR-020-06 |
+| `GET` | `/api/workspace` | Initial snapshot: document tree + member list; reports whether preserved data exists to restore — the tree and members come from `.data/`, while document content is already live in Yorkie/MongoDB | guest | FR-010-05, FR-020-06 |
 | `POST` | `/api/workspace/join` | Guest join — nickname + workspace password; issues a session token | — | FR-020-01~05, FR-020-08 |
 | `PATCH` | `/api/workspace/password` | Change the access password; existing sessions stay valid | host | FR-011-04~07 |
 | `DELETE` | `/api/workspace/members/:userId` | Kick a guest and close their connection | host | FR-011-01~03, FR-011-07 |
@@ -95,7 +95,7 @@ Chat has two candidate implementations (§5). These REST endpoints belong to **v
 | Direction | Call | Purpose | Traceability |
 | --- | --- | --- | --- |
 | Yorkie → server | `POST /internal/yorkie/auth` (auth webhook) | Yorkie asks us to authorize each client operation: validate the session token and check workspace membership plus document access | Execution arm of the FR-010/FR-020 auth chain, NFR-SEC-002/005 |
-| Server → Yorkie | `Watch`, as an ordinary client attached to every open document | The App/WS Server drives `scheduleWrite` off its own subscription rather than a Yorkie-pushed event — Yorkie has no document-change webhook, only the auth webhook above | ADR-001 (`scheduleWrite`) |
+| Server → Yorkie | `Watch`, as an ordinary client attached to every open document — **retention undecided** | This subscription existed only to drive the delayed-write trigger, which ADR-002 deletes. Whether the server stays an attached client depends on the revision-cadence decision, and on whether the Admin API row below and FR-040 presence need it | ADR-002 (open question) |
 | Server → Yorkie | Admin API, read-only — document summaries and active editors | Supplementary source for who is editing what | FR-040 (support), FR-022-06 (support) |
 
 The auth webhook is where short-lived tokens meet Yorkie: a token that expires mid-session must be refreshed on the client before Yorkie's next authorized call, or the webhook starts rejecting operations. How the SDK re-supplies a rotated token needs verifying against the pinned `@yorkie-js/sdk` version before the Sync module is built — the same caution `document-editing.md` applies to concurrent-move convergence.
@@ -113,7 +113,7 @@ Not our API to design — listed so the boundary is visible and each call is tie
 | `PushPullChanges` | CRDT change sync | FR-022-02~04/09/12 |
 | `Watch` | Realtime change and presence stream | FR-022-06, FR-022-09 |
 | `Broadcast` | Realtime messaging outside document content | Candidate for chat version B (§5) |
-| Revision APIs (create/get/list/restore) | Yorkie-native version history | Candidate for a version-history UI; distinct from the Git history of ADR-001 |
+| Revision APIs (`createRevision`/`getRevision`/`listRevisions`/`restoreRevision`) | Yorkie-native version history — **the system's only history mechanism** since ADR-002. Snapshots come back as YSON | ADR-002; SOIR003, NFR-REL-002, NFR-SAF-003 |
 
 Exact method names and availability must be confirmed against the pinned SDK version before implementation.
 
