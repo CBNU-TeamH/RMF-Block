@@ -41,13 +41,13 @@ ENV PORT=3000
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
-# Only the files the running process needs — not `watcher.mts` (a separate,
-# manually-run spike script) or `*.test.mts` (never executed here).
+# Only the files the running process needs — not `*.test.mts`, which is never
+# executed here.
 COPY --from=build /app/server/index.mts /app/server/ws-hub.mts ./server/
 COPY --from=build /app/next.config.ts /app/package.json ./
-# `.data/` is written at runtime by `lib/chat/chat-repository.ts` (and by
-# `server/watcher.mts` in dev). Everything else above is COPYed in as root, so
-# without this the `node` user below can't create it — first chat message
+# `.data/` is the app's own state directory (ADR-002) — chat today, workspace
+# metadata and auth records later. Everything else above is COPYed in as root,
+# so without this the `node` user below can't create it — first chat message
 # would 500.
 RUN mkdir -p /app/.data && chown node:node /app/.data
 USER node

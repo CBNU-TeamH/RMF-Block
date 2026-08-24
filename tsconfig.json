@@ -11,8 +11,9 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    // `server/*.mts` runs on Node's type stripping, which resolves import
-    // specifiers literally — the schema has to be imported as `.ts`.
+    // `*.test.mts` runs on Node's type stripping, which resolves import
+    // specifiers literally — the modules under test have to be imported as
+    // `.ts`.
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "incremental": true,
