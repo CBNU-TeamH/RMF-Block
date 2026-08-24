@@ -47,6 +47,15 @@ services:
     # cannot land silently between two runs of the same compose file.
     image: mongo:8
     container_name: rmf-mongo
+    # `--quiet` drops the per-connection accepted/ended lines, which are most of
+    # the volume: Yorkie opens a pool and reconnects on a timer, so an idle stack
+    # still produces a steady stream of them.
+    command: ["mongod", "--quiet"]
+    # Keeps `docker compose up` readable. The host's terminal is where the join
+    # address is printed, and hundreds of storage-engine lines scroll it away
+    # before anyone can read it. Nothing is lost — `docker compose logs mongo`
+    # still has everything.
+    attach: false
     restart: unless-stopped
     # No published port: only Yorkie talks to it, over the compose network. This
     # runs on an open campus LAN, so an exposed unauthenticated database would
