@@ -48,6 +48,33 @@ jobs:
         with:
           persist-credentials: false
 
+      # Yorkie owns document persistence against MongoDB (ADR-002), and nothing
+      # else in CI touches that wiring — `app` has no depends_on, so the steps
+      # below start it alone. A bad URI or flag fails here instead of silently
+      # falling back to MemDB and losing every document on the next restart.
+      # Mongo comes along via yorkie's depends_on.
+      #
+      # `--wait` alone is not enough: the Yorkie image can carry no healthcheck
+      # (no curl, wget, nc, or /dev/tcp inside it), so compose reports it ready
+      # as soon as it is running. Probe the health endpoint from the runner to
+      # assert it is actually serving rather than mid-restart.
+      - name: Verify Yorkie is serving against MongoDB
+        shell: bash
+        run: |
+          set -uo pipefail
+          docker compose up -d --wait yorkie
+          for _ in $(seq 1 30); do
+            if curl -sf -m 5 -X POST http://localhost:8080/grpc.health.v1.Health/Check \
+                 -H 'Content-Type: application/json' -d '{}' \
+                 | grep -q SERVING_STATUS_SERVING; then
+              echo "Yorkie is serving"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Yorkie never reported SERVING — check the MongoDB wiring"
+          docker compose logs mongo yorkie
+          exit 1
+
       - name: Build and start the image the host runs
         run: docker compose up -d --build app
 

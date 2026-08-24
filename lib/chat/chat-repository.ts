@@ -13,8 +13,7 @@ const DEFAULT_STORE_PATH = path.resolve(".data/chat/messages.json");
 export class JsonChatRepository implements ChatRepository {
   // Two concurrent `append()` calls would otherwise race: both read the same
   // array, both write back, the second write silently drops the first's
-  // message. Serialized through one promise chain — same hazard and same fix
-  // as `server/watcher.mts`'s `queue`.
+  // message. Serialized through one promise chain.
   private queue: Promise<unknown> = Promise.resolve();
 
   // `storePath` is injectable so tests can point at a scratch file instead of
