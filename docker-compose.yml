@@ -14,9 +14,33 @@ services:
   yorkie:
     image: yorkieteam/yorkie:0.7.13
     container_name: rmf-yorkie
-    # ponytail: no --mongo-connection-uri, so Yorkie runs on its in-memory MemDB.
-    # Documents and Yorkie's own revisions are lost on restart — git is the durable
-    # store (SRS-ko.md:472). Add mongo here if Yorkie itself ever needs to survive.
-    command: ["server"]
+    # Yorkie owns document persistence and version history (ADR-002), so it runs
+    # against MongoDB rather than its in-memory MemDB. Without this flag every
+    # document and revision is lost on restart, and there is no other durable
+    # store. `--mongo-yorkie-database` defaults to `yorkie-meta`, so the URI
+    # needs no database suffix.
+    command: ["server", "--mongo-connection-uri", "mongodb://mongo:27017"]
+    # Plain `depends_on` only orders startup, so Yorkie can still lose the race
+    # to Mongo's first accepting connection. Restarting is the cheaper fix than
+    # a healthcheck — it retries until Mongo answers. Same shape Yorkie's own
+    # compose example uses.
+    restart: unless-stopped
+    depends_on:
+      - mongo
     ports:
       - "8080:8080"
+
+  mongo:
+    # Pinned rather than `latest` (which Yorkie's example uses) so a new major
+    # cannot land silently between two runs of the same compose file.
+    image: mongo:8
+    container_name: rmf-mongo
+    restart: unless-stopped
+    # No published port: only Yorkie talks to it, over the compose network. This
+    # runs on an open campus LAN, so an exposed unauthenticated database would
+    # be reachable by anyone on the subnet.
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
