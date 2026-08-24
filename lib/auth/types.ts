@@ -8,6 +8,9 @@
  * persisting members belongs to workspace restore (UC-010 E1-1), not here.
  */
 
+/** Name of the httpOnly cookie carrying the guest's session id. */
+export const SESSION_COOKIE = "workspace_session";
+
 export type WorkspaceMember = {
   id: string;
   nickname: string;

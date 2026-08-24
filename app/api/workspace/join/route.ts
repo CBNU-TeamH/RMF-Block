@@ -1,10 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { sessionRegistry } from "@/lib/auth/session-registry";
-import { JoinValidationError } from "@/lib/auth/types";
+import { SESSION_COOKIE, JoinValidationError } from "@/lib/auth/types";
 import { isWorkspacePassword } from "@/lib/workspace-config";
-
-export const SESSION_COOKIE = "workspace_session";
 
 /**
  * FR-020-02~05. Nickname plus the workspace access password; on a match the
