@@ -1,29 +1,29 @@
-import { isNatRange, lanAddresses } from "./lan-address.ts";
+const DEFAULT_YORKIE_PORT = 8080;
 
-const YORKIE_PORT = 8080;
+export type YorkieClientConfig = {
+  /** A complete address that wins outright, for a Yorkie on another machine. */
+  override: string | null;
+  /** Port to reach Yorkie on, alongside whichever host the page came from. */
+  port: number;
+};
 
 /**
- * The Yorkie address a *browser* should connect to.
+ * What the browser cannot work out for itself — and deliberately *not* the host.
  *
- * This cannot be a `NEXT_PUBLIC_` variable. Next inlines those when the bundle
- * is built, and the address depends on the machine the host happens to run the
- * image on — so a baked-in value is wrong for everyone but whoever built it.
- * Worse, the obvious default (`localhost:8080`) works in the host's own browser
- * and fails for every guest, which is exactly the bug that would survive local
- * testing. Resolve it per request instead and hand it to the client component.
+ * Resolving the host here was a real bug: the server handed every client the LAN
+ * address, so a page opened at `localhost:3000` was told to fetch
+ * `192.168.0.9:8080`. That leaves the loopback address space for the private one,
+ * and desktop Chrome, Brave, and Firefox all refused it while a phone — already
+ * on the LAN address, so not crossing anything — connected fine.
  *
- * `YORKIE_PUBLIC_ADDR` overrides everything, for setups where Yorkie is not on
- * the same host as the app.
+ * Whatever host someone typed to reach the app is by definition a host they can
+ * reach, so the client pairs that host with this port instead.
  */
-export function yorkiePublicAddress(): string {
-  const override = process.env.YORKIE_PUBLIC_ADDR;
-  if (override) return override;
+export function yorkieClientConfig(): YorkieClientConfig {
+  const port = Number(process.env.YORKIE_PORT ?? DEFAULT_YORKIE_PORT);
 
-  // Same resolution the startup banner uses for the join URL (`instrumentation.ts`):
-  // HOST_LAN_IP wins, otherwise the best-guess interface, and a Docker/NAT
-  // address is rejected because guests cannot reach it.
-  const [best] = lanAddresses();
-  const host = best && !isNatRange(best) ? best : "localhost";
-
-  return `http://${host}:${YORKIE_PORT}`;
+  return {
+    override: process.env.YORKIE_PUBLIC_ADDR || null,
+    port: Number.isFinite(port) && port > 0 ? port : DEFAULT_YORKIE_PORT,
+  };
 }
