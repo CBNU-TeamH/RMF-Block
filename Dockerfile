@@ -41,9 +41,13 @@ ENV PORT=3000
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
-# Only the files the running process needs — not `*.test.mts`, which is never
-# executed here.
+# `server/index.mts` is run by Node directly, not bundled by Next, so every
+# module it imports has to exist on disk here — including `lib/`, which it
+# reaches for the session cookie parser. Listing server files one by one but not
+# lib/ is how that broke once: it resolved fine under `pnpm dev` and the
+# container exited on startup.
 COPY --from=build /app/server/index.mts /app/server/ws-hub.mts ./server/
+COPY --from=build /app/lib ./lib
 COPY --from=build /app/next.config.ts /app/package.json ./
 # `.data/` is the app's own state directory (ADR-002) — chat today, workspace
 # metadata and auth records later. Everything else above is COPYed in as root,
