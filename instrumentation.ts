@@ -9,6 +9,11 @@ export async function register() {
 
   const { getHostSecret } = await import("./lib/host-secret");
   const { isNatRange, lanAddresses } = await import("./lib/lan-address");
+  const { assertWorkspaceConfigured } = await import("./lib/workspace-config");
+
+  // Before anything is printed: a workspace with no access password cannot be
+  // joined, and the host should find that out here rather than from a guest.
+  assertWorkspaceConfigured();
 
   const port = process.env.PORT ?? "3000";
   // `||`, not `??`: compose passes HOST_LAN_IP through as "" when it is unset.

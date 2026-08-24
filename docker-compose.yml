@@ -10,6 +10,10 @@ services:
       # then either `HOST_LAN_IP=192.168.0.14 docker compose up` or put the same
       # line in a `.env` file next to this one.
       HOST_LAN_IP: ${HOST_LAN_IP:-}
+      # Set by the host in `.env` before starting — see `.env.sample`. The
+      # server refuses to start without a password of at least 4 characters.
+      WORKSPACE_NAME: ${WORKSPACE_NAME:-}
+      WORKSPACE_PASSWORD: ${WORKSPACE_PASSWORD:-}
 
   yorkie:
     image: yorkieteam/yorkie:0.7.13
