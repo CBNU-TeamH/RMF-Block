@@ -1,6 +1,6 @@
 # ADR-001: Realtime sync on Yorkie, business logic on the App/WS Server, Git off the realtime path
 
-- **Status**: Accepted
+- **Status**: Partially superseded by [ADR-002](002-persistence-on-yorkie-mongo.md) — Decision 1 stands; Decision 3 and the Git write path in Decision 2 are replaced by Yorkie + MongoDB persistence.
 - **Date**: 2026-08-02
 - **Related**: [`docs/SRS-ko.md`](../SRS-ko.md) §2.1 (시스템 구성 요소), §2.3.2 (의존 관계); [`docs/design/architecture.md`](../design/architecture.md)
 

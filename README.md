@@ -10,7 +10,7 @@ CBNU Team H capstone project.
 
 Read [`AGENTS.md`](AGENTS.md) first. It is the single entry point: workflow, coding principles, doc routing, and team conventions.
 
-**Stack:** TypeScript · Next.js (App Router) · [Yorkie](https://yorkie.dev) (CRDT) for real-time sync · local Git for persistence and history. Single package, single process, pnpm. Decided in [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2.
+**Stack:** TypeScript · Next.js (App Router) · [Yorkie](https://yorkie.dev) (CRDT) for real-time sync, document persistence, and version history, backed by MongoDB · host-held JSON files for the app's own state. Single package, single app process, pnpm. Decided in [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2 and [`docs/adr/002-persistence-on-yorkie-mongo.md`](docs/adr/002-persistence-on-yorkie-mongo.md).
 
 ## Structure
 
@@ -24,10 +24,10 @@ Read [`AGENTS.md`](AGENTS.md) first. It is the single entry point: workflow, cod
 | [`scripts/`](scripts/) | Repo bookkeeping. Currently just the task index and archive helpers (`pnpm tasks:index`, `pnpm tasks:archive`). |
 | [`app/`](app/) | Next.js App Router — pages, layouts, route handlers. |
 | [`lib/`](lib/) | Shared code that both the app and server-side processes import. |
-| [`server/`](server/) | Node processes that run alongside the app (currently the Yorkie → Git watcher). |
+| [`server/`](server/) | The custom server entry point and the WebSocket hub. |
 | [`public/`](public/) | Static assets served as-is. |
 | [`instrumentation.ts`](instrumentation.ts) | Server startup hook — prints the host link and the guest join address. |
-| [`Dockerfile`](Dockerfile) · [`docker-compose.yml`](docker-compose.yml) | The image the host runs, plus the self-hosted Yorkie server. |
+| [`Dockerfile`](Dockerfile) · [`docker-compose.yml`](docker-compose.yml) | The image the host runs, plus the self-hosted Yorkie server and its MongoDB store. |
 | [`skills/`](skills/) | Skills for Claude Code. Empty for now — add them as we find workflows worth packaging. |
 
 Root config files (`next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, `postcss.config.mjs`) are the real, live settings — not templates.
@@ -96,8 +96,12 @@ pnpm test                     # node:test, no framework
 pnpm build
 ```
 
-Yorkie runs on its in-memory store, so restarting the container wipes every document. Git is the
-durable layer — see [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2.
+Documents live in Yorkie, which persists them to MongoDB — see [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2.
+The app's own state (chat, workspace metadata, auth records) is written as JSON under `.data/`.
+
+Caveat while the compose change is still open: `docker-compose.yml` currently starts Yorkie without
+`--mongo-connection-uri`, so it runs on its in-memory store and restarting the container still wipes
+every document.
 
 ## Ground rules
 

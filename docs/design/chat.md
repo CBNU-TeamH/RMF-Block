@@ -37,7 +37,7 @@ server/
   index.mts               — custom server entry point (HTTP + Next handler + WS upgrade routing)
 app/api/chat/
   route.ts                — GET (history) / POST (send)
-.data/chat/messages.json — persisted history (gitignored, mirrors `.data/workspace/`'s existing use)
+.data/chat/messages.json — persisted history (gitignored; `.data/` is the app's own state directory, per ADR-002)
 ```
 
 **`ChatService` depends on two small interfaces, not concrete classes**:
@@ -56,10 +56,11 @@ WebSocket specifics; (2) `ChatBroadcaster` is implemented by `ws-hub.mts`, which
 will need the same "broadcast to connected clients" primitive later (NFR-MAI-001: independent
 module structure), and this way it doesn't have to be extracted out of chat code after the fact.
 
-**Storage — JSON file, not in-memory or SQLite**: chosen so history survives a server restart
-(closer to FR-060-05's intent than in-memory) without introducing a new DB dependency this early.
-Matches the file-based-persistence posture already established by `server/watcher.mts` (git-backed
-`.md`/`.yson` files) — same philosophy, applied to a much simpler record.
+**Storage — JSON file, not in-memory or a database**: chosen so history survives a server restart
+(closer to FR-060-05's intent than in-memory). A database does exist in the deployment — MongoDB —
+but it is Yorkie's internal store, and ADR-002 fixes the boundary that the app never connects to it.
+So app-owned state stays as JSON files under `.data/`, and this module is the reference
+implementation of that pattern.
 
 **Message shape** (no real user-identity system exists yet — that's UC-020's guest login,
 FR-020-01~05, not built):

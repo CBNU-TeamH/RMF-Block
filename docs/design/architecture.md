@@ -1,7 +1,7 @@
 # System Architecture & Component Interfaces
 
 - **Status**: Baseline — component boundaries and interfaces only.
-- **Related**: [`docs/SRS-ko.md`](../SRS-ko.md) §2.1, §3.2 (인터페이스 요구사항); [`docs/adr/001-realtime-sync.md`](../adr/001-realtime-sync.md)
+- **Related**: [`docs/SRS-ko.md`](../SRS-ko.md) §2.1, §3.2 (인터페이스 요구사항); [`docs/adr/002-persistence-on-yorkie-mongo.md`](../adr/002-persistence-on-yorkie-mongo.md) (supersedes [ADR-001](../adr/001-realtime-sync.md) on persistence)
 
 ## 0. Scope
 
@@ -11,7 +11,7 @@ Full endpoint-level API specs are out of scope here too — SRS §1.2 already as
 
 ## 1. Component inventory
 
-Mapped from SRS §2.1's six components onto where each one runs:
+Mapped from SRS §2.1's five components onto where each one runs, plus the external systems they depend on:
 
 | Component | Runs on | SRS origin |
 | --- | --- | --- |
@@ -21,9 +21,11 @@ Mapped from SRS §2.1's six components onto where each one runs:
 | Block/File Management | Client | 블록/파일 관리 컴포넌트 |
 | Sync | Client (SDK wrapper) | 동기화 컴포넌트 |
 | Business Logic | App/WS Server | 동기화 컴포넌트 일부 + W2 |
-| Git Management | App/WS Server | Git 관리 컴포넌트 (W1) |
 | Yorkie Server | External, self-hosted | Yorkie 실시간 동기화 엔진 |
-| Local Git repository | External, server filesystem | 서버 로컬 Git 저장소 |
+| MongoDB | External, Yorkie's own store | MongoDB (Yorkie 내부 저장소) |
+| `.data/` JSON files | App/WS Server filesystem | 호스트 로컬 JSON 저장소 |
+
+MongoDB is Yorkie's internal store — the App/WS Server never connects to it, and reaches document state and revisions only through Yorkie (ADR-002 Decision 3).
 
 ## 2. Architecture diagram
 
@@ -34,17 +36,19 @@ Mapped from SRS §2.1's six components onto where each one runs:
 └──────┬───────────────────────────────┬──────────────┘
        │ API / WebSocket               │ CRDT sync + Presence
        ▼                               ▼
-┌─────────────────────┐        ┌───────────────────┐
-│  App / WS Server     │        │   Yorkie Server    │
-│  Business Logic ──┐  │        │  (self-hosted)     │
-│  Git Management  ◀┘  │        └───────────────────┘
-└──────────┬───────────┘
-           │ delayed write + commit
-           ▼
-┌─────────────────────┐
-│ Server filesystem     │
-│  (.md) → local Git    │
-└─────────────────────┘
+┌─────────────────────┐        ┌─────────────────────┐
+│  App / WS Server    │ ─────▶ │   Yorkie Server     │
+│  Business Logic     │revision│   (self-hosted)     │
+│                     │  API   │                     │
+└──────────┬──────────┘        └──────────┬──────────┘
+           │                              │
+           │ chat, workspace,             │ document state
+           │ auth records                 │ + revisions
+           ▼                              ▼
+┌─────────────────────┐        ┌─────────────────────┐
+│    .data/*.json     │        │      MongoDB        │
+│  (App/WS Server)    │        │  (Yorkie's store)   │
+└─────────────────────┘        └─────────────────────┘
 ```
 
 ## 3. Interface contracts
@@ -72,34 +76,34 @@ Presence/Follow is server-mediated business logic, not raw Yorkie Presence: SRS 
 
 > in this section b, Workspace API means join our service (rmf-block) not meaning yorkie client attaching.
 
-### (c) App/WS Server ↔ Git Management Component
+### (c) App/WS Server ↔ Yorkie Server (persistence and history)
 
-Internal module boundary, not a network call. Two operations only, matching what ADR-001 and the NFRs actually require:
+There is no internal persistence module. Document durability is Yorkie's, and crash/restart recovery (NFR-REL-002, NFR-SAF-003) needs no code on our side — Yorkie reloads its own state from MongoDB on start (ADR-002).
 
-- `scheduleWrite(documentId)` — debounced trigger; materializes the current Yorkie document state to `.md` and commits it. Debounce: commit 10s after the last change (quiet period), forced every 60s while edits keep arriving (max wait, avoids starving a continuously-edited document). Triggered by the server's own `Watch` subscription on the document (`api.md` §2) — not a Yorkie-pushed event, since Yorkie has no document-change webhook.
-- `restoreLatest(documentId)` — reads the last commit back into a Yorkie document on server start, for crash/restart recovery (NFR-REL-002, NFR-SAF-003).
+What crosses this boundary is version history only, through Yorkie's revision API: `createRevision`, `listRevisions`, `getRevision`, `restoreRevision`. Snapshots come back as YSON.
 
-### (d) Git Management Component ↔ local Git repository / filesystem
+**Open — decide before building this:** whether revisions are created automatically on some cadence or explicitly by a user or event. That answer also decides whether the App/WS Server keeps a `Watch` subscription on documents at all (`api.md` §2), since the only thing that required one was the deleted delayed-write trigger.
 
-Standard Git operations (write files, `add`, `commit`) and standard filesystem reads. Commit message convention and commit granularity are decided at this module's design time.
+### (d) App/WS Server ↔ `.data/` JSON files
 
-### (e) Yorkie document state ↔ Markdown file (materialization)
+Chat history, workspace metadata, and auth records are read and written as whole JSON files on the host filesystem. `lib/chat/chat-repository.ts` is the reference implementation of the pattern, including serializing concurrent writes through one promise chain.
 
-The one hard constraint fixed here: **every block type must have a defined, round-trippable mapping to a Markdown representation**, so `restoreLatest` can reconstruct a Yorkie document from a commit. The mapping table itself belongs to the Git Management Component's module design, not here.
+This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`.
 
 ## 4. Decided vs. deferred
 
 | Decided here / already fixed | Deferred to module design |
 | --- | --- |
-| Block occupancy ≠ edit lock (SIR003, FR-022-06) | Yorkie↔Markdown mapping table per block type |
-| Yorkie owns realtime sync; Git is off the realtime path (ADR-001) | Presenter/follower session state model |
-| Component boundaries and API groups (this doc) | Load-test baseline (SRS §2.4 — `AGENTS.md` §7) |
+| Block occupancy ≠ edit lock (SIR003, FR-022-06) | Revision cadence: automatic or explicit (ADR-002) |
+| Yorkie owns realtime sync **and** document persistence/history (ADR-002) | Whether the server keeps a Yorkie `Watch` subscription (ADR-002) |
+| MongoDB is Yorkie's store alone; the app never connects to it (ADR-002) | Presenter/follower session state model |
+| App state (chat, workspace, auth) lives in `.data/` JSON, not in Yorkie or Mongo | Load-test baseline (SRS §2.4 — `AGENTS.md` §7) |
+| Component boundaries and API groups (this doc) | |
 | Presence carries occupancy + role; session state (present/follow) is server-owned | |
-| App/WS Server runs as one process — a Next.js custom server handling REST + WebSocket + Git Management together, not split across services | |
+| App/WS Server runs as one process — a Next.js custom server handling REST + WebSocket together, not split across services | |
 | Reconnect grace period = 30s (UC-022 비고) | |
-| Git write-debounce = 10s quiet / 60s max wait | |
 | Block schema field-level detail per type (`document-editing.md`, all 12 types agreed) | |
-| Auth/session token format: access 30min / refresh 7d, document key = plain id (no prefix), revoke-all = container restart (`api.md`) | |
+| Auth/session token format: access 30min / refresh 7d, document key = plain id (no prefix), revoke-all = container restart (`api.md`) — holds only while the session secret stays in memory; persisting it alongside `.data/` auth records would break it | |
 | FR-022 numbering gap (05/07/08/10/11) confirmed intentional | |
 
 ## 5. Relation to task workflow
