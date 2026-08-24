@@ -20,13 +20,21 @@ services:
     # store. `--mongo-yorkie-database` defaults to `yorkie-meta`, so the URI
     # needs no database suffix.
     command: ["server", "--mongo-connection-uri", "mongodb://mongo:27017"]
-    # Plain `depends_on` only orders startup, so Yorkie can still lose the race
-    # to Mongo's first accepting connection. Restarting is the cheaper fix than
-    # a healthcheck — it retries until Mongo answers. Same shape Yorkie's own
-    # compose example uses.
+    # Yorkie exits(1) if it cannot ping Mongo at startup — it is fail-fast, not
+    # lazily initialized. Plain `depends_on` only orders startup, so Yorkie could
+    # lose the race to Mongo's first accepting connection and crash-loop; waiting
+    # for Mongo to report healthy removes that race at the source.
+    #
+    # Yorkie itself gets no healthcheck: its image carries no curl, wget, nc, and
+    # its shell has no /dev/tcp, so nothing in the container can probe port 8080.
+    # Without one, `docker compose up --wait yorkie` reports it healthy the moment
+    # it is running — measured: with a bad Mongo URI, `--wait` still exits 0 while
+    # the container is crash-looping. So `running` is not proof of anything here,
+    # and CI probes the health endpoint from outside instead.
     restart: unless-stopped
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     ports:
       - "8080:8080"
 
@@ -41,6 +49,12 @@ services:
     # be reachable by anyone on the subnet.
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
 volumes:
   mongo-data:
