@@ -6,9 +6,16 @@ import { yorkieClientConfig } from "./yorkie-address.ts";
 const originalOverride = process.env.YORKIE_PUBLIC_ADDR;
 const originalPort = process.env.YORKIE_PORT;
 
+// See the note in `workspace-config.test.mts`: assigning `undefined` stores the
+// string "undefined" instead of clearing the variable.
+function restore(key: string, value: string | undefined) {
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
+}
+
 afterEach(() => {
-  process.env.YORKIE_PUBLIC_ADDR = originalOverride;
-  process.env.YORKIE_PORT = originalPort;
+  restore("YORKIE_PUBLIC_ADDR", originalOverride);
+  restore("YORKIE_PORT", originalPort);
 });
 
 describe("yorkieClientConfig", () => {
@@ -40,11 +47,18 @@ describe("yorkieClientConfig", () => {
     assert.equal(yorkieClientConfig().port, 9090);
   });
 
-  it("falls back when the port is not a usable number", () => {
-    process.env.YORKIE_PORT = "not-a-port";
-    assert.equal(yorkieClientConfig().port, 8080);
+  it("falls back for anything outside a usable TCP port", () => {
+    for (const bad of ["not-a-port", "0", "1.5", "65536", "-1", ""]) {
+      process.env.YORKIE_PORT = bad;
+      assert.equal(yorkieClientConfig().port, 8080, `expected fallback for ${JSON.stringify(bad)}`);
+    }
+  });
 
-    process.env.YORKIE_PORT = "0";
-    assert.equal(yorkieClientConfig().port, 8080);
+  it("accepts the ends of the port range", () => {
+    process.env.YORKIE_PORT = "1";
+    assert.equal(yorkieClientConfig().port, 1);
+
+    process.env.YORKIE_PORT = "65535";
+    assert.equal(yorkieClientConfig().port, 65535);
   });
 });

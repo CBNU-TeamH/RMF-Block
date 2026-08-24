@@ -19,7 +19,17 @@ export function readSessionCookie(header: string | undefined): string | null {
     // Only the first `=` separates name from value — a base64 value can contain
     // more, so splitting on every `=` would truncate it.
     const value = pair.slice(separator + 1).trim();
-    return value === "" ? null : decodeURIComponent(value);
+    if (value === "") return null;
+
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      // `decodeURIComponent` throws on a malformed escape such as a bare `%`,
+      // and this runs inside `server/index.mts`'s `upgrade` handler, where an
+      // uncaught throw takes the whole process down — Next included, since it
+      // is one process. A header nobody could have issued is not a session.
+      return null;
+    }
   }
 
   return null;

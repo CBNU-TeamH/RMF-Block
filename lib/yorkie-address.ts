@@ -22,8 +22,12 @@ export type YorkieClientConfig = {
 export function yorkieClientConfig(): YorkieClientConfig {
   const port = Number(process.env.YORKIE_PORT ?? DEFAULT_YORKIE_PORT);
 
+  // A fractional or out-of-range value would build an address nothing listens
+  // on, which is a worse outcome than ignoring the misconfiguration.
+  const usable = Number.isInteger(port) && port >= 1 && port <= 65535;
+
   return {
     override: process.env.YORKIE_PUBLIC_ADDR || null,
-    port: Number.isFinite(port) && port > 0 ? port : DEFAULT_YORKIE_PORT,
+    port: usable ? port : DEFAULT_YORKIE_PORT,
   };
 }

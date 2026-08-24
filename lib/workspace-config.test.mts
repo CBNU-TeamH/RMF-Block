@@ -11,11 +11,18 @@ import {
 const originalPassword = process.env.WORKSPACE_PASSWORD;
 const originalName = process.env.WORKSPACE_NAME;
 
+// `process.env.X = undefined` stores the *string* "undefined" rather than
+// clearing the variable — and "undefined" is nine characters, so it would sail
+// past the password length check and leak into every later test in this
+// process. Restore only what was actually set.
+function restore(key: string, value: string | undefined) {
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
+}
+
 afterEach(() => {
-  // Restored rather than deleted: another test file in the same `node --test`
-  // process may depend on whatever the environment held.
-  process.env.WORKSPACE_PASSWORD = originalPassword;
-  process.env.WORKSPACE_NAME = originalName;
+  restore("WORKSPACE_PASSWORD", originalPassword);
+  restore("WORKSPACE_NAME", originalName);
 });
 
 describe("isWorkspacePassword", () => {

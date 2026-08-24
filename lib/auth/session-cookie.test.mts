@@ -35,4 +35,13 @@ describe("readSessionCookie", () => {
   it("does not match a cookie whose name merely ends with ours", () => {
     assert.equal(readSessionCookie(`not_${SESSION_COOKIE}=abc123`), null);
   });
+
+  it("does not throw on a malformed escape", () => {
+    // This runs inside the `upgrade` handler in `server/index.mts`, where a
+    // throw is an uncaught exception and kills the process. Anyone on the LAN
+    // can send this header.
+    assert.equal(readSessionCookie(`${SESSION_COOKIE}=%`), null);
+    assert.equal(readSessionCookie(`${SESSION_COOKIE}=%E0%A4%A`), null);
+    assert.equal(readSessionCookie(`role=x; ${SESSION_COOKIE}=%zz`), null);
+  });
 });
