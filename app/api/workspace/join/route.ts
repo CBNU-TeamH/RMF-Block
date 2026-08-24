@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { sessionRegistry } from "@/lib/auth/session-registry";
 import { SESSION_COOKIE, JoinValidationError } from "@/lib/auth/types";
 import { isWorkspacePassword } from "@/lib/workspace-config";
+import { wsHub } from "@/server/ws-hub.mts";
 
 /**
  * FR-020-02~05. Nickname plus the workspace access password; on a match the
@@ -37,6 +38,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     throw error;
+  }
+
+  // FR-020-08: the previous device stops being the live one, so tell it before
+  // it goes on rendering a workspace it is no longer in.
+  if (joined.revokedSessionId) {
+    wsHub.revoke(joined.revokedSessionId);
   }
 
   const response = NextResponse.json({ member: joined.member });
