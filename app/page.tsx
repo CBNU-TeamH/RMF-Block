@@ -4,8 +4,10 @@ import { redirect } from "next/navigation";
 import { sessionRegistry } from "@/lib/auth/session-registry";
 import { SESSION_COOKIE } from "@/lib/auth/types";
 import { isHostSecret } from "@/lib/host-secret";
+import { yorkiePublicAddress } from "@/lib/yorkie-address";
 
 import { SessionWatch } from "./session-watch";
+import { YorkieStatus } from "./yorkie-status";
 
 export default async function Home() {
   const jar = await cookies();
@@ -19,12 +21,17 @@ export default async function Home() {
     redirect("/join");
   }
 
+  // Resolved here, per request, rather than inlined at build time — see
+  // `lib/yorkie-address.ts` for why a NEXT_PUBLIC_ variable cannot work.
+  const yorkieAddress = yorkiePublicAddress();
+
   return (
-    <main className="flex flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
+    <main className="flex flex-1 flex-col items-center justify-center gap-4 bg-zinc-50 px-6 font-sans dark:bg-black">
       {member ? <SessionWatch /> : null}
       <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
         {member ? `hello ${member.nickname}!` : "hello host!"}
       </h1>
+      <YorkieStatus address={yorkieAddress} />
     </main>
   );
 }
