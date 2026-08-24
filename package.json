@@ -9,6 +9,7 @@
     "start": "NODE_ENV=production node server/index.mts",
     "lint": "eslint",
     "test": "node --test",
+    "docker:up": "bash scripts/detect-host-ip.sh && docker compose up --build",
     "spike:watch": "node server/watcher.mts",
     "tasks:index": "bash scripts/tasks-index.sh",
     "tasks:archive": "bash scripts/tasks-archive.sh"
