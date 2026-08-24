@@ -48,6 +48,14 @@ jobs:
         with:
           persist-credentials: false
 
+      # Yorkie owns document persistence against MongoDB (ADR-002), and nothing
+      # else in CI touches that wiring — `app` has no depends_on, so the steps
+      # below start it alone. A bad URI or flag fails here instead of silently
+      # falling back to MemDB and losing every document on the next restart.
+      # Mongo comes along via yorkie's depends_on.
+      - name: Verify Yorkie starts against MongoDB
+        run: docker compose up -d --wait yorkie
+
       - name: Build and start the image the host runs
         run: docker compose up -d --build app
 
