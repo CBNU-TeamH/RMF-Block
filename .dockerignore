@@ -8,3 +8,5 @@ tasks
 skills
 scripts
 *.md
+# never executed in the image, and lib/ is COPYed wholesale into the runtime stage
+**/*.test.mts

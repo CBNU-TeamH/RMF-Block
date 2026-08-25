@@ -40,6 +40,10 @@ jobs:
   container:
     name: container smoke test
     runs-on: ubuntu-latest
+    env:
+      # The server refuses to start without one (lib/workspace-config.ts), and
+      # there is no .env here. Also what the join assertions below type in.
+      WORKSPACE_PASSWORD: ci-smoke-test
     # A container that accepts the connection but never answers would otherwise
     # hold a runner for the 6h default.
     timeout-minutes: 15
@@ -115,11 +119,29 @@ jobs:
           assert_body "$(curl -sS --connect-timeout 5 --max-time 10 -c jar.txt -L "http://localhost:3000/api/auth/host?secret=$secret")" \
             'hello host!' 'the printed host link did not grant host'
 
-          assert_body "$(curl -sS --connect-timeout 5 --max-time 10 http://localhost:3000/)" \
-            'hello guest!' 'a visitor with no cookie was not treated as a guest'
+          # The workspace is password-gated now (FR-020-03/04), so a visitor
+          # with no session lands on the join screen rather than inside.
+          assert_body "$(curl -sS --connect-timeout 5 --max-time 10 -L http://localhost:3000/)" \
+            'name="nickname"' 'a visitor with no session was not sent to the join screen'
 
           assert_body "$(curl -sS --connect-timeout 5 --max-time 10 -c wrong.txt -L 'http://localhost:3000/api/auth/host?secret=wrong')" \
-            'hello guest!' 'a wrong secret granted host'
+            'name="nickname"' 'a wrong secret granted host'
+
+          # A wrong password must not get in, and must not say which field was
+          # wrong — that would confirm nicknames to a stranger.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 10 \
+            -X POST http://localhost:3000/api/workspace/join \
+            -H 'Content-Type: application/json' \
+            -d '{"nickname":"ci-guest","password":"not-the-password"}')
+          [ "$code" = 401 ] || { echo "::error::a wrong workspace password returned $code, not 401"; exit 1; }
+
+          curl -sS --connect-timeout 5 --max-time 10 -c guest.txt \
+            -X POST http://localhost:3000/api/workspace/join \
+            -H 'Content-Type: application/json' \
+            -d "{\"nickname\":\"ci-guest\",\"password\":\"$WORKSPACE_PASSWORD\"}" >/dev/null
+
+          assert_body "$(curl -sS --connect-timeout 5 --max-time 10 -b guest.txt http://localhost:3000/)" \
+            'hello ci-guest' 'the workspace password did not get a guest in'
 
           # The join address must never come out empty (compose passes
           # HOST_LAN_IP through as "" when it is unset).
@@ -128,7 +150,7 @@ jobs:
             exit 1
           fi
 
-          echo "host/guest split verified against the container"
+          echo "host/guest split and the join flow verified against the container"
 
       - name: Server log
         if: always()
