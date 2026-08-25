@@ -24,8 +24,6 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
-| [Docs: move persistence and history from Git to Yorkie + MongoDB](active/20260824-persistence-on-yorkie-mongo-todo.md) | [lessons](active/20260824-persistence-on-yorkie-mongo-lessons.md) |
-| [Chat service — Version A, text slice](active/20260812-chat-service-todo.md) | [lessons](active/20260812-chat-service-lessons.md) |
 | [Host / Guest entry](active/20260809-host-guest-entry-todo.md) | [lessons](active/20260809-host-guest-entry-lessons.md) |
 
 ## Archive

@@ -2,7 +2,7 @@
 
 **Created**: 2026-08-24
 **Issue**: #18
-**Design**: [`docs/adr/002-persistence-on-yorkie-mongo.md`](../../docs/adr/002-persistence-on-yorkie-mongo.md) — written as part of this task, since the decision itself is the deliverable.
+**Design**: [`docs/adr/002-persistence-on-yorkie-mongo.md`](../../../../docs/adr/002-persistence-on-yorkie-mongo.md) — written as part of this task, since the decision itself is the deliverable.
 
 ## Milestones
 
@@ -29,21 +29,23 @@
 
 ## Acceptance
 
-- [ ] `grep -rn "Git\|git" docs/ AGENTS.md ROADMAP.md README.md` returns only this repo's own VCS conventions, ADR-001 as superseded history, and `HOST-GUEST-ENTRY-ko.md`'s narrative
-- [ ] The §2.1 Mermaid block renders with no phantom node and no orphaned `style` rule
-- [ ] SRS §2.1 component numbering and §2.3.2 dependency numbering are both contiguous after the deletions
-- [ ] The requirements that leaned on the deleted §2.3.2 durability contract (FR-010-05, SIR001, SOIR002, NFR-SAF-001/003, NFR-REL-002) each still have a stated basis
-- [ ] `pnpm lint && pnpm test && pnpm build` pass
-- [ ] PR links #18 and ticks the agreed-docs checkbox
+- [x] `grep -rn "Git\|git" docs/ AGENTS.md ROADMAP.md README.md` returns only this repo's own VCS conventions, ADR-001 as superseded history, and `HOST-GUEST-ENTRY-ko.md`'s narrative
+- [x] The §2.1 Mermaid block renders with no phantom node and no orphaned `style` rule
+- [x] SRS §2.1 component numbering and §2.3.2 dependency numbering are both contiguous after the deletions
+- [x] The requirements that leaned on the deleted §2.3.2 durability contract (FR-010-05, SIR001, SOIR002, NFR-SAF-001/003, NFR-REL-002) each still have a stated basis
+- [x] `pnpm lint && pnpm test && pnpm build` pass
+- [x] PR links #18 and ticks the agreed-docs checkbox
 
 ## Cross-cutting
 
-Requirements touched: SOIR003 (retitled, ID kept for traceability), NFR-SAF-003 (redefined against Yorkie's persisted state), UC-023 비고 (deleted-document history claim removed — unverified under Yorkie).
+Requirements touched: SOIR003 (retitled, ID kept for traceability), NFR-SAF-003 (redefined against Yorkie's persisted state), UC-023 비고 (deleted-document history claim removed as unverified at the time — since verified in #24, with proposed wording in #28).
 
 Deliberately out of scope, each becoming its own issue: the `docker-compose.yml` mongo service and volumes; deleting `server/watcher.mts`, `lib/pm-schema.ts` and the `prosemirror-markdown` dependency; the missing FR/UC for version history; and whether Yorkie revisions survive `document.remove()`.
 
-Two open questions are recorded rather than answered — the revision cadence, and whether the server keeps a Yorkie `Watch` subscription. They are in ADR-002, `architecture.md` §4, `api.md` §2, and `AGENTS.md` §7.
+Two open questions were recorded rather than answered — the revision cadence, and whether the server keeps a Yorkie `Watch` subscription. Both have since been settled: the server keeps no `Watch` subscription, and what remains open is only which app-side event should call `createRevision` (#28). See ADR-002, `architecture.md` §4, `api.md` §2, and `AGENTS.md` §7.
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+Shipped: ADR-002, the SRS Git removal (§2.1/§2.3.1/§2.3.2, UC-023 비고, SOIR003, NFR-SAF-003), and the propagation to `architecture.md`/`api.md`/`ROADMAP.md`/`AGENTS.md`/`README.md`. Nothing was cut from the milestones as scoped.
+
+What moved to their own issues, as planned: the `docker-compose.yml` mongo service and volumes (#21, shipped), the missing FR/UC for version history (#23, open), whether Yorkie revisions survive `document.remove()` (#24, verified and closed), and `.data/` durability across container recreation (#22, open). This docs-sync PR closed out the stale "MemDB"/Watch-subscription language that lingered in the docs after #21 and #24 landed.

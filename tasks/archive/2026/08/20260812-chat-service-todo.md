@@ -2,7 +2,7 @@
 
 **Created**: 2026-08-12
 **Issue**: —
-**Design**: [`docs/design/chat.md`](../../docs/design/chat.md)
+**Design**: [`docs/design/chat.md`](../../../../docs/design/chat.md)
 
 ## Milestones
 
