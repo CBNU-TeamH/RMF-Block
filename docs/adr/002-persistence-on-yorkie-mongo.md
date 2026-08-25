@@ -22,7 +22,7 @@ Two further facts settled this:
 
 1. **Yorkie owns document persistence and version history.** The Yorkie server runs with MongoDB as its backend store (`--mongo-connection-uri`), not MemDB. Document state survives restart because Yorkie persists it; version history is recorded through the revision API. There is no delayed write, no materialization to files, and no commit step.
 
-2. **The App/WS Server owns its own state as JSON files under `.data/`.** Chat history, workspace metadata, and auth records are written as plain JSON on the host filesystem — the pattern `lib/chat/chat-repository.ts` already establishes. This state is not CRDT document content and does not belong to Yorkie.
+2. **The App/WS Server owns its own state as JSON files under `.data/`.** Chat history, workspace metadata, and auth records are written as plain JSON on the host filesystem — the pattern `lib/chat/chat-repository.ts` already establishes, and chat is the only one of the three actually persisting there so far; workspace metadata and auth records remain in-memory until that lands. This state is not CRDT document content and does not belong to Yorkie.
 
 3. **MongoDB is Yorkie's internal store and nothing else.** The App/WS Server never connects to it. Document state and revisions are reachable only through Yorkie. This boundary is stated explicitly because the alternative — the app writing its own collections into Yorkie's database — is the obvious wrong turn.
 
@@ -60,10 +60,10 @@ App/WS Server ──revision API──▶ Yorkie Server
 
 **Trade-offs / new open questions**
 
-- MongoDB becomes a required service. Until `docker-compose.yml` adds it and passes `--mongo-connection-uri`, Yorkie still runs on MemDB and NFR-SAF-003 / NFR-REL-002 / SOIR002 are unsatisfiable — the Git safety net is gone before its replacement is wired. This is the immediate follow-up to this ADR.
-- `.data/` needs the same durability attention: it is currently written inside the container with no volume bound to it, so app-owned state does not survive container recreation.
-- **Open: when revisions are created.** Automatic (server-driven, on some cadence) or explicit (user- or event-triggered) is undecided. No FR or UC currently covers version history at all, so nothing forces the answer yet.
-- **Open: whether the App/WS Server stays a Yorkie client.** Its `Watch` subscription existed to drive `scheduleWrite`. If revisions are explicit and nothing else needs it, the server stops subscribing to documents entirely — but the Admin API for active editors (`api.md` §2) and FR-040 presence may still want it. Decide alongside the question above.
+- MongoDB is now a required service, and `docker-compose.yml` runs Yorkie with `--mongo-connection-uri` against it, so NFR-SAF-003 / NFR-REL-002 / SOIR002 are satisfied.
+- `.data/` needs the same durability attention: it is currently written inside the container with no volume bound to it, so app-owned state does not survive container recreation (tracked in #22).
+- **Open: what triggers a revision.** `createRevision` is always an explicit call — Yorkie never snapshots on its own — so the question is narrower than originally framed: what app-side event or cadence should make that call. No FR or UC currently covers version history at all, so nothing forces the answer yet (issue #28).
+- **Decided: the App/WS Server does not keep a Yorkie `Watch` subscription.** Its only purpose was driving the deleted `scheduleWrite`; Mongo now provides durability directly, so nothing left in this design needs it.
 - Markdown export, if ever wanted, must be re-derived as a one-way feature. It is no longer a correctness constraint, so nothing in the system depends on it being lossless.
 
 ## Alternatives considered

@@ -82,11 +82,13 @@ There is no internal persistence module. Document durability is Yorkie's, and cr
 
 What crosses this boundary is version history only, through Yorkie's revision API: `createRevision`, `listRevisions`, `getRevision`, `restoreRevision`. Snapshots come back as YSON.
 
-**Open — decide before building this:** whether revisions are created automatically on some cadence or explicitly by a user or event. That answer also decides whether the App/WS Server keeps a `Watch` subscription on documents at all (`api.md` §2), since the only thing that required one was the deleted delayed-write trigger.
+**Decided:** the App/WS Server does not keep a `Watch` subscription on documents — the only thing that required one was the deleted delayed-write trigger, and Mongo now provides durability directly.
+
+**Open — decide before building this:** `createRevision` is always an explicit call (Yorkie never snapshots on its own), so what remains open is which app-side event or cadence should trigger it (issue #28).
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 
-Chat history, workspace metadata, and auth records are read and written as whole JSON files on the host filesystem. `lib/chat/chat-repository.ts` is the reference implementation of the pattern, including serializing concurrent writes through one promise chain.
+Chat history is read and written as whole JSON files on the host filesystem — `lib/chat/chat-repository.ts` is the reference implementation of the pattern, including serializing concurrent writes through one promise chain. Workspace metadata and auth records are planned to follow the same pattern but are still in-memory only today (`lib/auth/session-registry.ts`).
 
 This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`.
 

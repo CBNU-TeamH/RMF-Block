@@ -1,6 +1,6 @@
 # API Design — Endpoint Catalog
 
-- **Status**: Draft. Endpoints only — no request/response schemas yet.
+- **Status**: Draft. Endpoints only — no request/response schemas yet. Shipped so far: `/api/auth/host` (as a simplified interim `GET` + query param, not the `POST` below — see `app/api/auth/host/route.ts`), `/api/chat`, and `/api/workspace/join`. Every other row below is target design, not yet built.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(b); [`docs/adr/002-persistence-on-yorkie-mongo.md`](../adr/002-persistence-on-yorkie-mongo.md); [`docs/SRS-ko.md`](../SRS-ko.md) §3.2, §3.3
 
 ## Scope
@@ -95,7 +95,7 @@ Chat has two candidate implementations (§5). These REST endpoints belong to **v
 | Direction | Call | Purpose | Traceability |
 | --- | --- | --- | --- |
 | Yorkie → server | `POST /internal/yorkie/auth` (auth webhook) | Yorkie asks us to authorize each client operation: validate the session token and check workspace membership plus document access | Execution arm of the FR-010/FR-020 auth chain, NFR-SEC-002/005 |
-| Server → Yorkie | `Watch`, as an ordinary client attached to every open document — **retention undecided** | This subscription existed only to drive the delayed-write trigger, which ADR-002 deletes. Whether the server stays an attached client depends on the revision-cadence decision, and on whether the Admin API row below and FR-040 presence need it | ADR-002 (open question) |
+| Server → Yorkie | ~~`Watch`~~ — **decided: not kept.** This subscription existed only to drive the delayed-write trigger, which ADR-002 deletes; Mongo now provides durability directly | — | ADR-002 |
 | Server → Yorkie | Admin API, read-only — document summaries and active editors | Supplementary source for who is editing what | FR-040 (support), FR-022-06 (support) |
 
 The auth webhook is where short-lived tokens meet Yorkie: a token that expires mid-session must be refreshed on the client before Yorkie's next authorized call, or the webhook starts rejecting operations. How the SDK re-supplies a rotated token needs verifying against the pinned `@yorkie-js/sdk` version before the Sync module is built — the same caution `document-editing.md` applies to concurrent-move convergence.
@@ -158,7 +158,7 @@ See §5 — the events depend on which chat version is in use. Under version A t
 
 ## 5. Chat — two parallel implementations
 
-FR-060 is being built twice, as agreed: one conventional, one Yorkie-native. A shared client-facing interface is preferred but not required if the two diverge.
+FR-060 was designed as two candidates, as agreed: one conventional, one Yorkie-native. A shared client-facing interface is preferred but not required if the two diverge. **Version A has shipped** (`lib/chat/`, `20260812-chat-service`); Version B remains an unstarted proposal below, not a second implementation in progress.
 
 **Version A — server module (REST + WebSocket)**
 

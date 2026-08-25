@@ -97,11 +97,12 @@ pnpm build
 ```
 
 Documents live in Yorkie, which persists them to MongoDB — see [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2.
-The app's own state (chat, workspace metadata, auth records) is written as JSON under `.data/`.
+The app's own state is written as JSON under `.data/` — chat today, with workspace metadata and auth
+records planned but still in-memory only.
 
-Caveat while the compose change is still open: `docker-compose.yml` currently starts Yorkie without
-`--mongo-connection-uri`, so it runs on its in-memory store and restarting the container still wipes
-every document.
+Caveat: `docker-compose.yml` mounts nothing onto `/app/.data`, so it lives in the container's writable
+layer — it survives `restart` but is lost on `down` or `up --build` (tracked in #22). Documents don't
+have this problem; Mongo has a named volume.
 
 ## Ground rules
 
