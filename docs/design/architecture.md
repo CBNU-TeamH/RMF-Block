@@ -96,10 +96,11 @@ This store is separate from Yorkie's. Restoring a workspace after a restart requ
 
 | Decided here / already fixed | Deferred to module design |
 | --- | --- |
-| Block occupancy ≠ edit lock (SIR003, FR-022-06) | Revision cadence: automatic or explicit (ADR-002) |
-| Yorkie owns realtime sync **and** document persistence/history (ADR-002) | Whether the server keeps a Yorkie `Watch` subscription (ADR-002) |
-| MongoDB is Yorkie's store alone; the app never connects to it (ADR-002) | Presenter/follower session state model |
-| App state (chat, workspace, auth) lives in `.data/` JSON, not in Yorkie or Mongo | Load-test baseline (SRS §2.4 — `AGENTS.md` §7) |
+| Block occupancy ≠ edit lock (SIR003, FR-022-06) | What triggers a `createRevision` call (ADR-002, issue #28) |
+| Yorkie owns realtime sync **and** document persistence/history (ADR-002) | Presenter/follower session state model |
+| The server keeps **no** Yorkie `Watch` subscription (ADR-002) | Load-test baseline (SRS §2.4 — `AGENTS.md` §7) |
+| MongoDB is Yorkie's store alone; the app never connects to it (ADR-002) | |
+| App state lives in `.data/` JSON, not in Yorkie or Mongo — chat today, workspace and auth to follow | |
 | Component boundaries and API groups (this doc) | |
 | Presence carries occupancy + role; session state (present/follow) is server-owned | |
 | App/WS Server runs as one process — a Next.js custom server handling REST + WebSocket together, not split across services | |
