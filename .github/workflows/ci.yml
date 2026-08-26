@@ -116,8 +116,15 @@ jobs:
             fi
           }
 
-          assert_body "$(curl -sS --connect-timeout 5 --max-time 10 -c jar.txt -L "http://localhost:3000/api/auth/host?secret=$secret")" \
-            'hello host!' 'the printed host link did not grant host'
+          # `/` used to answer `hello host!`. It is the workspace home now, and the
+          # host and a guest see the same shell — what separates them is that the
+          # host got in at all, and the identity the page hands its presence
+          # provider. Both are in the server-rendered HTML.
+          host_home=$(curl -sS --connect-timeout 5 --max-time 10 -c jar.txt -L "http://localhost:3000/api/auth/host?secret=$secret")
+          assert_body "$host_home" \
+            'WorkSpace overview' 'the printed host link did not grant host'
+          assert_body "$host_home" \
+            'Host' 'the host reached the workspace but not as the host'
 
           # The workspace is password-gated now (FR-020-03/04), so a visitor
           # with no session lands on the join screen rather than inside.
@@ -140,8 +147,11 @@ jobs:
             -H 'Content-Type: application/json' \
             -d "{\"nickname\":\"ci-guest\",\"password\":\"$WORKSPACE_PASSWORD\"}" >/dev/null
 
-          assert_body "$(curl -sS --connect-timeout 5 --max-time 10 -b guest.txt http://localhost:3000/)" \
-            'hello ci-guest' 'the workspace password did not get a guest in'
+          guest_home=$(curl -sS --connect-timeout 5 --max-time 10 -b guest.txt http://localhost:3000/)
+          assert_body "$guest_home" \
+            'WorkSpace overview' 'the workspace password did not get a guest in'
+          assert_body "$guest_home" \
+            'ci-guest' 'the guest reached the workspace under the wrong name'
 
           # The join address must never come out empty (compose passes
           # HOST_LAN_IP through as "" when it is unset).
