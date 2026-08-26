@@ -1,24 +1,39 @@
 "use client";
 
 import yorkie from "@yorkie-js/sdk";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { rosterFrom } from "@/lib/presence/roster";
 import { WORKSPACE_DOC_KEY, type WorkspacePresence } from "@/lib/presence/types";
 
-type Connection =
-  | { state: "connecting" }
-  | { state: "active"; address: string }
-  | { state: "failed"; address: string; reason: string };
+export type PresenceState =
+  | { status: "connecting"; members: Array<WorkspacePresence> }
+  | { status: "active"; members: Array<WorkspacePresence> }
+  | { status: "failed"; members: Array<WorkspacePresence> };
+
+const PresenceContext = createContext<PresenceState>({ status: "connecting", members: [] });
+
+/** Read the workspace roster. Every consumer shares one Yorkie connection. */
+export function useWorkspacePresence(): PresenceState {
+  return useContext(PresenceContext);
+}
 
 /**
- * The connected-user list (FR-020-06/07), and the proof that this browser can
- * reach Yorkie at all — one component because they are one connection.
+ * Owns the browser's single Yorkie connection and hands the roster down
+ * (FR-020-06/07).
  *
  * Attaching to the workspace document *is* the act of being present: Yorkie
  * publishes `DocWatched` to the other clients on attach and `DocUnwatched` when
  * the watch stream ends, whether that was a clean detach, a closed tab, or Wi-Fi
  * dropping. Nothing here polls, and nothing here has to notice a disconnect.
+ *
+ * It is a provider rather than a component that renders the roster itself
+ * because two things need the same list — the top bar's stack and the Members
+ * screen — and two components each opening a `yorkie.Client` would mean two
+ * connections per browser. Living in the workspace layout also keeps the
+ * connection up across navigations inside the group: a per-page component would
+ * detach and re-attach on every move, and everyone else would watch you leave
+ * and rejoin.
  *
  * Identity arrives as three strings rather than one member object on purpose:
  * a fresh object every render would give the effect a new dependency every
@@ -30,20 +45,22 @@ type Connection =
  * `localhost:3000` was told to fetch the LAN address and every browser refused
  * to cross out of the loopback address space.
  */
-export function WorkspacePresenceList({
+export function PresenceProvider({
   memberId,
   nickname,
   colorTag,
   override,
   port,
+  children,
 }: {
   memberId: string;
   nickname: string;
   colorTag: string;
   override: string | null;
   port: number;
+  children: React.ReactNode;
 }) {
-  const [connection, setConnection] = useState<Connection>({ state: "connecting" });
+  const [status, setStatus] = useState<PresenceState["status"]>("connecting");
   const [members, setMembers] = useState<Array<WorkspacePresence>>([]);
 
   useEffect(() => {
@@ -65,79 +82,48 @@ export function WorkspacePresenceList({
     // a browser.
     const readRoster = () => setMembers(rosterFrom(doc.getPresences()));
 
-    client
-      .activate()
-      .then(() =>
-        client.attach(doc, {
-          initialPresence: { id: memberId, nickname, colorTag },
-        }),
-      )
-      .then(() => {
-        if (cancelled) return;
-        // Subscribed before the first read so an arrival between the two is not
-        // missed. `others` covers all three of watched, unwatched, and a peer
-        // changing their own presence.
-        unsubscribe = doc.subscribe("others", readRoster);
-        setConnection({ state: "active", address });
-        readRoster();
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setConnection({
-          state: "failed",
-          address,
-          reason: error instanceof Error ? error.message : String(error),
-        });
-      });
+    const setup = (async () => {
+      await client.activate();
+      // #32: cleanup during activate() returns immediately, because deactivate()
+      // is a no-op on a client that is still Deactivated. Without this guard the
+      // chain would go on to attach, start a watch stream, and leave this
+      // browser present in everyone else's roster with nothing pointing at it.
+      if (cancelled) return;
+
+      await client.attach(doc, { initialPresence: { id: memberId, nickname, colorTag } });
+      if (cancelled) return;
+
+      // Subscribed before the first read so an arrival between the two is not
+      // missed. `others` covers all three of watched, unwatched, and a peer
+      // changing their own presence.
+      unsubscribe = doc.subscribe("others", readRoster);
+      setStatus("active");
+      readRoster();
+    })().catch((error: unknown) => {
+      if (cancelled) return;
+      setStatus("failed");
+      // ponytail: the address and the reason go to the console until someone
+      // asks for a real error surface. A 44px top bar has room for a state, not
+      // for a stack trace, and this is the one place a guest can be told
+      // anything at all about it.
+      console.error(`Yorkie is not reachable at ${address}`, error);
+    });
 
     return () => {
       cancelled = true;
-      unsubscribe?.();
-      // Detaches every document this client holds, which is what tells the other
-      // browsers to drop this member. Deactivating a client that never activated
-      // rejects, and there is nothing left to report by then.
-      client.deactivate().catch(() => undefined);
+      // Tear down only once setup has settled. Doing it mid-flight is what left
+      // a client attached with nothing pointing at it — the same shape
+      // `app/spike/prosemirror/page.tsx` already uses.
+      void setup.finally(() => {
+        unsubscribe?.();
+        // Detaches every document this client holds, which is what tells the
+        // other browsers to drop this member.
+        client.deactivate().catch(() => undefined);
+      });
     };
   }, [memberId, nickname, colorTag, override, port]);
 
-  if (connection.state === "failed") {
-    return (
-      <div className="max-w-md text-center">
-        <p className="text-sm font-medium text-red-600 dark:text-red-400">
-          Yorkie is not reachable at {connection.address}
-        </p>
-        <p className="mt-1 text-xs text-zinc-500">{connection.reason}</p>
-      </div>
-    );
-  }
+  const value = useMemo<PresenceState>(() => ({ status, members }), [status, members]);
 
-  if (connection.state === "connecting") {
-    return <p className="text-sm text-zinc-500">Connecting to Yorkie…</p>;
-  }
-
-  return (
-    <section className="w-full max-w-xs">
-      <h2 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-        In this workspace ({members.length})
-      </h2>
-      <ul className="mt-2 flex flex-col gap-1">
-        {members.map((member) => (
-          <li
-            key={member.id}
-            className="flex items-center gap-2 text-sm text-black dark:text-zinc-50"
-          >
-            <span
-              aria-hidden
-              className="size-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: member.colorTag }}
-            />
-            <span className="truncate">{member.nickname}</span>
-            {member.id === memberId ? (
-              <span className="text-xs text-zinc-500">(you)</span>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
+  return <PresenceContext.Provider value={value}>{children}</PresenceContext.Provider>;
 }

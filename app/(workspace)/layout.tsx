@@ -9,7 +9,8 @@ import { getWorkspaceName } from "@/lib/workspace-config";
 import { yorkieClientConfig } from "@/lib/yorkie-address";
 
 import { SessionWatch } from "../session-watch";
-import { WorkspacePresenceList } from "../workspace-presence";
+import { PresenceProvider } from "./presence-provider";
+import { PresenceStack } from "./presence-stack";
 
 /** Phase 2 owns these three; a nav item that looks clickable and is not is
  * worse than one that says it is not yet. */
@@ -55,54 +56,56 @@ export default async function WorkspaceLayout({
   const workspaceName = getWorkspaceName();
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-shell">
-      {member ? <SessionWatch /> : null}
+    <PresenceProvider
+      colorTag={me.colorTag}
+      memberId={me.id}
+      nickname={me.nickname}
+      override={yorkie.override}
+      port={yorkie.port}
+    >
+      <div className="flex min-h-full flex-1 flex-col bg-shell">
+        {member ? <SessionWatch /> : null}
 
-      <header className="flex h-11 flex-none items-center gap-3 border-b border-ink bg-paper px-4">
-        <span className="text-sm font-semibold text-ink">{workspaceName}</span>
-        <span className="flex-1" />
-        <WorkspacePresenceList
-          colorTag={me.colorTag}
-          memberId={me.id}
-          nickname={me.nickname}
-          override={yorkie.override}
-          port={yorkie.port}
-        />
-      </header>
-
-      <div className="flex min-h-0 flex-1">
-        <nav className="flex w-50 flex-none flex-col border-r border-ink bg-paper">
-          <div className="border-b border-ink/60 px-3 py-2 text-sm font-bold text-ink">
-            {workspaceName}
-          </div>
-          <ul className="flex flex-col gap-0.5 p-2">
-            {NAV.map((item) => (
-              <li key={item.label}>
-                <span
-                  aria-current={item.current ? "page" : undefined}
-                  aria-disabled={!item.current}
-                  className={`flex items-center gap-2 rounded px-2.5 py-1.5 text-sm ${
-                    item.current
-                      ? "bg-sky-soft font-bold text-ink"
-                      : "text-ink-faint line-through decoration-ink-faint/50"
-                  }`}
-                >
-                  <span aria-hidden>{item.icon}</span>
-                  {item.label}
-                </span>
-              </li>
-            ))}
-          </ul>
+        <header className="flex h-11 flex-none items-center gap-3 border-b border-ink bg-paper px-4">
+          <span className="text-sm font-semibold text-ink">{workspaceName}</span>
           <span className="flex-1" />
-          <p className="p-3 font-mono text-[10px] leading-relaxed tracking-wide text-ink-faint">
-            전체 문서는 오른쪽 목록에서
-            <br />
-            확인하고 검색하세요.
-          </p>
-        </nav>
+          <PresenceStack memberId={me.id} />
+        </header>
 
-        <main className="min-w-0 flex-1 overflow-hidden bg-paper px-8 py-7">{children}</main>
+        <div className="flex min-h-0 flex-1">
+          <nav className="flex w-50 flex-none flex-col border-r border-ink bg-paper">
+            <div className="border-b border-ink/60 px-3 py-2 text-sm font-bold text-ink">
+              {workspaceName}
+            </div>
+            <ul className="flex flex-col gap-0.5 p-2">
+              {NAV.map((item) => (
+                <li key={item.label}>
+                  <span
+                    aria-current={item.current ? "page" : undefined}
+                    aria-disabled={!item.current}
+                    className={`flex items-center gap-2 rounded px-2.5 py-1.5 text-sm ${
+                      item.current
+                        ? "bg-sky-soft font-bold text-ink"
+                        : "text-ink-faint line-through decoration-ink-faint/50"
+                    }`}
+                  >
+                    <span aria-hidden>{item.icon}</span>
+                    {item.label}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <span className="flex-1" />
+            <p className="p-3 font-mono text-[10px] leading-relaxed tracking-wide text-ink-faint">
+              전체 문서는 오른쪽 목록에서
+              <br />
+              확인하고 검색하세요.
+            </p>
+          </nav>
+
+          <main className="min-w-0 flex-1 overflow-hidden bg-paper px-8 py-7">{children}</main>
+        </div>
       </div>
-    </div>
+    </PresenceProvider>
   );
 }
