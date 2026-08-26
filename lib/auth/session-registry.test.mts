@@ -138,3 +138,38 @@ describe("SessionRegistry capacity", () => {
     assert.ok(registry.resolve(again.sessionId));
   });
 });
+
+describe("SessionRegistry.hasLiveSession", () => {
+  it("is false for a nickname nobody has used", () => {
+    const registry = new SessionRegistry();
+
+    assert.equal(registry.hasLiveSession("alice"), false);
+    assert.equal(registry.hasLiveSession(""), false);
+    assert.equal(registry.hasLiveSession(undefined), false);
+  });
+
+  it("is true while that member holds a valid session", () => {
+    const registry = new SessionRegistry();
+    registry.join("alice");
+
+    assert.equal(registry.hasLiveSession("alice"), true);
+    assert.equal(registry.hasLiveSession("  alice  "), true);
+  });
+
+  it("stays true after a takeover, because the new session is live too", () => {
+    // The point of the flag is "would this throw someone out", and after a
+    // takeover the answer is still yes — just a different device.
+    const registry = new SessionRegistry();
+    registry.join("alice");
+    registry.join("alice");
+
+    assert.equal(registry.hasLiveSession("alice"), true);
+  });
+
+  it("does not confuse one member's live session for another's", () => {
+    const registry = new SessionRegistry();
+    registry.join("alice");
+
+    assert.equal(registry.hasLiveSession("bob"), false);
+  });
+});

@@ -53,11 +53,11 @@ export class SessionRegistry {
     const nickname = rawNickname?.trim() ?? "";
 
     if (!nickname) {
-      throw new JoinValidationError("nickname is required");
+      throw new JoinValidationError("닉네임을 입력해 주세요.");
     }
     if (nickname.length > NICKNAME_MAX_LENGTH) {
       throw new JoinValidationError(
-        `nickname must be at most ${NICKNAME_MAX_LENGTH} characters`,
+        `닉네임은 ${NICKNAME_MAX_LENGTH}자 이하여야 합니다.`,
       );
     }
 
@@ -66,7 +66,7 @@ export class SessionRegistry {
     const existing = this.membersByNickname.get(nickname);
     if (!existing && this.membersByNickname.size >= MAX_MEMBERS) {
       throw new WorkspaceFullError(
-        `this workspace already holds ${MAX_MEMBERS} members`,
+        `이 워크스페이스는 ${MAX_MEMBERS}명까지만 참여할 수 있습니다.`,
       );
     }
 
@@ -84,6 +84,27 @@ export class SessionRegistry {
     this.sessionByMemberId.set(member.id, sessionId);
 
     return { member, sessionId, revokedSessionId };
+  }
+
+  /**
+   * Whether joining under this nickname would throw someone out.
+   *
+   * True means a session for that member is still valid, so `join()` would
+   * revoke it (FR-020-08) — which is right for one person's second device and
+   * wrong for two people who happened to pick the same name. The registry
+   * cannot tell those apart, so the route asks the guest instead of guessing.
+   *
+   * `sessionByMemberId` alone is not the answer: it keeps the newest session id
+   * forever, so it would say "live" for anyone who ever joined. A session is
+   * live only while `memberBySession` still resolves it, which is exactly what
+   * a takeover deletes.
+   */
+  hasLiveSession(rawNickname: string | undefined): boolean {
+    const member = this.membersByNickname.get(rawNickname?.trim() ?? "");
+    if (!member) return false;
+
+    const sessionId = this.sessionByMemberId.get(member.id);
+    return sessionId !== undefined && this.memberBySession.has(sessionId);
   }
 
   /** The member a session belongs to, or null once it has been displaced. */
