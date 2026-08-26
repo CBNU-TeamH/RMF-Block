@@ -22,7 +22,7 @@ The system's core value: shared block editing. Highest UC priority (매우 높�
 - Block create/edit/delete/move (UC-022), including the Yorkie document schema for all block types in SRS §4.1.
 - Block occupancy display (SIR003, FR-022-06) — visual only, never a lock.
 - File-block upload (FR-022-13/14).
-- Reconnect resync during a disconnect (FR-022-12, NFR-REL-001). Grace-period value is still open — `AGENTS.md` §7.
+- Reconnect resync during a disconnect (FR-022-12, NFR-REL-001), using the 30s grace period fixed in `docs/SRS-ko.md` UC-022 비고.
 
 **Exit criteria**: two clients editing the same document see each other's block changes in under a second (NFR-PER-002); restarting the app server leaves every open document intact; and restarting the Yorkie container brings back the same document content from MongoDB. The two restarts are separate failure modes and are tested separately.
 
@@ -57,6 +57,6 @@ Management features layered on top of an already-working workspace and editor �
 - Load-test baseline for the 8-user assumption (NFR-PER-001/006) — open item, `AGENTS.md` §7.
 - Security pass: input validation, upload restrictions, unauthorized-access checks (NFR-SEC-003/004/005).
 - Crash/restart recovery verification (NFR-SAF-003, NFR-REL-002) — against Yorkie/MongoDB for document content and `.data/` for app state, the two stores ADR-002 leaves.
-- Close out remaining `AGENTS.md` §7 items: reconnect grace period, load-test baseline, and confirming whether `FR-022-05/07/08/10/11` are intentionally absent.
+- Close out the remaining `AGENTS.md` §7 item that belongs here: the load-test baseline above. The other two open items — block/text colour (#6) and what triggers `createRevision` (#23) — are design decisions, not hardening, and land with the modules that need them.
 
 **Exit criteria**: NFRs in SRS §3.4 are verified, not just assumed.
