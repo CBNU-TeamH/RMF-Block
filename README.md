@@ -110,9 +110,9 @@ Documents live in Yorkie, which persists them to MongoDB — see [`docs/SRS-ko.m
 The app's own state is written as JSON under `.data/` — chat today, with workspace metadata and auth
 records planned but still in-memory only.
 
-Caveat: `docker-compose.yml` mounts nothing onto `/app/.data`, so it lives in the container's writable
-layer — it survives `restart` but is lost on `down` or `up --build` (tracked in #22). Documents don't
-have this problem; Mongo has a named volume.
+It survives `down` and `up --build` on the `app-data` volume, the same way documents survive on
+`mongo-data`. Both are named volumes, so `docker compose down -v` still wipes them — that is the
+"start the session over" button, and it is the only thing that does.
 
 ## Ground rules
 
