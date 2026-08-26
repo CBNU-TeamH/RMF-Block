@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Workspace entry and home](active/20260826-entry-and-home-todo.md) | [lessons](active/20260826-entry-and-home-lessons.md) |
 | [Connected-user list](active/20260825-connected-user-list-todo.md) | [lessons](active/20260825-connected-user-list-lessons.md) |
 
 ## Archive
