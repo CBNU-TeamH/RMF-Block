@@ -116,8 +116,9 @@ export function PresenceProvider({
     return () => {
       cancelled = true;
       // Tear down only once setup has settled. Doing it mid-flight is what left
-      // a client attached with nothing pointing at it — the same shape
-      // `app/spike/prosemirror/page.tsx` already uses.
+      // a client attached with nothing pointing at it (#32) — `deactivate()` is
+      // a no-op while the client is still activating, so the chain went on to
+      // attach behind the cleanup's back.
       void setup.finally(() => {
         unsubscribe?.();
         // Detaches every document this client holds, which is what tells the
