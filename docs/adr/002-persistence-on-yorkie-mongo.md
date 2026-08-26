@@ -61,7 +61,7 @@ App/WS Server ──revision API──▶ Yorkie Server
 **Trade-offs / new open questions**
 
 - MongoDB is now a required service, and `docker-compose.yml` runs Yorkie with `--mongo-connection-uri` against it, so NFR-SAF-003 / NFR-REL-002 / SOIR002 are satisfied.
-- `.data/` needs the same durability attention: it is currently written inside the container with no volume bound to it, so app-owned state does not survive container recreation (tracked in #22).
+- `.data/` needed the same durability attention and now has it: `docker-compose.yml` mounts the `app-data` named volume at `/app/.data`, so app-owned state survives container recreation the way documents survive on `mongo-data`. Only `docker compose down -v` clears either (#22).
 - **Open: what triggers a revision.** `createRevision` is always an explicit call — Yorkie never snapshots on its own — so the question is narrower than originally framed: what app-side event or cadence should make that call. No FR or UC currently covers version history at all, so nothing forces the answer yet (issue #28).
 - **Decided: the App/WS Server does not keep a Yorkie `Watch` subscription.** Its only purpose was driving the deleted `scheduleWrite`; Mongo now provides durability directly, so nothing left in this design needs it.
 - Markdown export, if ever wanted, must be re-derived as a one-way feature. It is no longer a correctness constraint, so nothing in the system depends on it being lossless.

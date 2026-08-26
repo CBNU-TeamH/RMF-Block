@@ -92,7 +92,7 @@ What crosses this boundary is version history only, through Yorkie's revision AP
 
 Chat history is read and written as whole JSON files on the host filesystem — `lib/chat/chat-repository.ts` is the reference implementation of the pattern, including serializing concurrent writes through one promise chain. Member records follow the same pattern in `lib/auth/member-repository.ts`, synchronously rather than through a promise chain — sync writes on one thread cannot interleave, so there is nothing for the queue to serialize. Sessions stay in memory on purpose: a session id on disk would be a permanent bearer token. Workspace metadata is still to come.
 
-This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`. **The two are not equally durable today**: `docker-compose.yml` gives Mongo a named volume and the app none, so `.data/` lives only inside the container and a `docker compose down` takes it with it (issue #22).
+This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`. Both are now named volumes — `mongo-data` for Yorkie's store, `app-data` for `.data/` — so a container recreation leaves either intact and only `docker compose down -v` clears them (#22).
 
 ## 4. Decided vs. deferred
 
