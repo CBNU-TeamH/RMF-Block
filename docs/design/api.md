@@ -56,10 +56,16 @@ There is no separate "revoke all sessions" endpoint. The host runs the container
 | Method | Path | Purpose | Auth | Traceability |
 | --- | --- | --- | --- | --- |
 | `POST` | `/api/workspace` | Create the workspace — name + access password | host | FR-010-01~04 |
-| `GET` | `/api/workspace` | Initial snapshot: document tree + member list; reports whether preserved data exists to restore — the tree and members come from `.data/`, while document content is already live in Yorkie/MongoDB | guest | FR-010-05, FR-020-06 |
+| `GET` | `/api/workspace` | Initial snapshot: document tree + the workspace's known members; reports whether preserved data exists to restore — both come from `.data/`, while document content is already live in Yorkie/MongoDB | guest | FR-010-05, FR-020-06 (tree half) |
 | `POST` | `/api/workspace/join` | Guest join — nickname + workspace password; issues a session token | — | FR-020-01~05, FR-020-08 |
 | `PATCH` | `/api/workspace/password` | Change the access password; existing sessions stay valid | host | FR-011-04~07 |
 | `DELETE` | `/api/workspace/members/:userId` | Kick a guest and close their connection | host | FR-011-01~03, FR-011-07 |
+
+`GET /api/workspace`'s members are **who belongs to this workspace**, not who is online — the
+persistent record `.data/` keeps so a kick (`DELETE …/members/:userId`) and a restore have something
+to act on. The live 접속자 목록 that FR-020-06 also asks for is a different thing with a different
+source: it comes from Yorkie document presence and never crosses this API (§4.1, `lib/presence/`).
+One requirement, two halves — the tree half is served here, the roster half is not.
 
 ### Documents
 

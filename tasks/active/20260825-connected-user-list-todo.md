@@ -136,12 +136,18 @@ Not from `pnpm dev` alone. Against a real `yorkieteam/yorkie:0.7.13` backed by `
 2. **Address resolution is split across two places.** `lib/yorkie-address.ts` deliberately refuses
    to resolve the host, and the component completes the address from `window.location`. The
    reasoning is sound and documented in both files, but the rule lives in halves.
-3. **`(you)` is matched on `memberId`.** Fine today. Once the host can kick guests (UC-011) the
+3. **A late attach can outlive the component** — if cleanup runs while `client.activate()` is still
+   pending, `deactivate()` returns immediately (the client is still `Deactivated`) and the chain
+   then attaches anyway, leaving presence published with nothing pointing at it. `beforeunload`
+   covers a closed tab; StrictMode's double-invoke and SPA navigation are not covered. Tracked as
+   issue #32. `app/spike/prosemirror/page.tsx` already solves this by holding the setup promise and
+   tearing down after it settles — that pattern is the fix.
+4. **`(you)` is matched on `memberId`.** Fine today. Once the host can kick guests (UC-011) the
    component will need to know *what* you are, not just which entry is yours.
-4. ~~**The two-device LAN check is still open**~~ — done. A second device on the LAN joined and
+5. ~~**The two-device LAN check is still open**~~ — done. A second device on the LAN joined and
    showed up in the first device's roster. It needed two machines, not two tabs: one browser
    profile shares its cookies, so two tabs are always the same user. The identical box in
-   `20260809-host-guest-entry-todo.md` is satisfied by the same run and can be ticked there too.
+   `20260809-host-guest-entry-todo.md` was ticked from the same run, and that task is now archived.
 
 ### Two environment traps that cost time here
 
