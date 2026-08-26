@@ -142,7 +142,7 @@ For state that is neither request/response nor scoped to a single Yorkie documen
 
 **Superseded in part.** The "who is connected" half shipped over Yorkie instead: every client
 attaches to a reserved `workspace` document and reads `doc.getPresences()` (`lib/presence/`,
-`app/workspace-presence.tsx`). There is no server-held roster and no WS hub involvement — none of
+`app/(workspace)/presence-provider.tsx`). There is no server-held roster and no WS hub involvement — none of
 the six events below exist in the code, and the `/api/workspace/ws` socket that does exist carries
 only `session:revoked`. See the connected-user-list task under `tasks/` for why Yorkie won:
 it already handles disconnect detection, which was the hard half.

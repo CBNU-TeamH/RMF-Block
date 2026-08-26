@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
 
 import { SessionRegistry } from "./session-registry.ts";
-import { JoinValidationError, WorkspaceFullError } from "./types.ts";
+import { JoinValidationError, MemberStoreError, WorkspaceFullError } from "./types.ts";
 
 describe("SessionRegistry.join", () => {
   it("creates a member for a new nickname", () => {
@@ -136,5 +139,198 @@ describe("SessionRegistry capacity", () => {
     const again = registry.join("member-0");
     assert.equal(again.member.nickname, "member-0");
     assert.ok(registry.resolve(again.sessionId));
+  });
+});
+
+describe("SessionRegistry.hasLiveSession", () => {
+  it("is false for a nickname nobody has used", () => {
+    const registry = new SessionRegistry();
+
+    assert.equal(registry.hasLiveSession("alice"), false);
+    assert.equal(registry.hasLiveSession(""), false);
+    assert.equal(registry.hasLiveSession(undefined), false);
+  });
+
+  it("is true while that member holds a valid session", () => {
+    const registry = new SessionRegistry();
+    registry.join("alice");
+
+    assert.equal(registry.hasLiveSession("alice"), true);
+    assert.equal(registry.hasLiveSession("  alice  "), true);
+  });
+
+  it("stays true after a takeover, because the new session is live too", () => {
+    // The point of the flag is "would this throw someone out", and after a
+    // takeover the answer is still yes — just a different device.
+    const registry = new SessionRegistry();
+    registry.join("alice");
+    registry.join("alice");
+
+    assert.equal(registry.hasLiveSession("alice"), true);
+  });
+
+  it("does not confuse one member's live session for another's", () => {
+    const registry = new SessionRegistry();
+    registry.join("alice");
+
+    assert.equal(registry.hasLiveSession("bob"), false);
+  });
+});
+
+describe("SessionRegistry persistence", () => {
+  const scratch = () =>
+    path.join(mkdtempSync(path.join(tmpdir(), "rmf-members-")), "members.json");
+
+  it("keeps nothing on disk when no store path is given", () => {
+    // The default constructor is the unit-test shape: a registry that forgets.
+    const registry = new SessionRegistry();
+    registry.join("alice");
+
+    assert.deepEqual(registry.members().length, 1);
+  });
+
+  it("gives a returning nickname back its id and colour tag", () => {
+    const storePath = scratch();
+
+    const first = new SessionRegistry(storePath).join("alice").member;
+    // A second registry over the same file is what a restart looks like.
+    const second = new SessionRegistry(storePath).join("alice").member;
+
+    assert.equal(second.id, first.id);
+    assert.equal(second.colorTag, first.colorTag);
+  });
+
+  it("does not restore sessions, only members", () => {
+    const storePath = scratch();
+
+    const before = new SessionRegistry(storePath).join("alice");
+    const after = new SessionRegistry(storePath);
+
+    assert.equal(after.resolve(before.sessionId), null);
+    assert.equal(after.hasLiveSession("alice"), false);
+  });
+
+  it("keeps handing out fresh colour tags after a restart", () => {
+    // The rotation counts members, so a restart that lost them would restart the
+    // colours too and hand the second member the first one's tag.
+    const storePath = scratch();
+
+    const alice = new SessionRegistry(storePath).join("alice").member;
+    const bob = new SessionRegistry(storePath).join("bob").member;
+
+    assert.notEqual(bob.colorTag, alice.colorTag);
+  });
+
+  it("stamps lastJoinedAt on every join, not just the first", async () => {
+    const storePath = scratch();
+
+    const registry = new SessionRegistry(storePath);
+    registry.join("alice");
+    const first = registry.members()[0]!.lastJoinedAt;
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    registry.join("alice");
+
+    assert.ok(registry.members()[0]!.lastJoinedAt > first);
+  });
+
+  it("counts persisted members against the capacity ceiling", () => {
+    const storePath = scratch();
+
+    const first = new SessionRegistry(storePath);
+    for (let i = 0; i < 64; i += 1) first.join(`member-${i}`);
+
+    assert.throws(() => new SessionRegistry(storePath).join("one-too-many"), WorkspaceFullError);
+  });
+
+  it("treats a missing store as an empty workspace, not an error", () => {
+    assert.doesNotThrow(() => new SessionRegistry(scratch()));
+  });
+});
+
+describe("SessionRegistry when the store cannot be written", () => {
+  /**
+   * A path whose parent refuses `mkdir`, so `writeMembers` throws.
+   *
+   * `sealed` reports whether the mode actually took: root ignores 0o500 and
+   * Windows does not enforce POSIX bits, and a test that cannot fail is worse
+   * than no test — which this file has already learned once, from a case that
+   * sealed the wrong directory and asserted nothing.
+   */
+  const unwritable = () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "rmf-ro-"));
+    const storePath = path.join(dir, "sub", "members.json");
+    const seal = () => {
+      chmodSync(dir, 0o500);
+      try {
+        writeFileSync(path.join(dir, ".probe"), "");
+        return false;
+      } catch {
+        return true;
+      }
+    };
+    return { storePath, seal, open: () => chmodSync(dir, 0o700) };
+  };
+
+  it("rolls a first-time join back rather than stranding a session", () => {
+    // The bug this pins: leaving the mutations in place made hasLiveSession()
+    // report the nickname as taken, so the guest met a 409 telling them to
+    // displace a device that did not exist, and the name stayed locked.
+    const { storePath, seal, open } = unwritable();
+    const registry = new SessionRegistry(storePath);
+    if (!seal()) return; // the filesystem will not hold the door shut here
+
+    try {
+      assert.throws(() => registry.join("alice"), MemberStoreError);
+      assert.equal(registry.hasLiveSession("alice"), false);
+      assert.equal(registry.members().length, 0);
+    } finally {
+      open();
+    }
+  });
+
+  it("lets the nickname straight back in once the store recovers", () => {
+    const { storePath, seal, open } = unwritable();
+    const registry = new SessionRegistry(storePath);
+    if (!seal()) return;
+    assert.throws(() => registry.join("alice"), MemberStoreError);
+    open();
+
+    const again = registry.join("alice");
+    assert.equal(again.member.nickname, "alice");
+    assert.ok(registry.resolve(again.sessionId));
+  });
+
+  it("lets a returning member through, because their record is already on disk", () => {
+    // All a failed write costs them is a fresher lastJoinedAt, which is not
+    // worth turning away a guest whose identity is already durable.
+    //
+    // The first join has to land before the store is sealed, so the directory
+    // it created has to be the one sealed — sealing only the parent leaves the
+    // second write perfectly able to succeed, and the test proves nothing.
+    const dir = mkdtempSync(path.join(tmpdir(), "rmf-ro-"));
+    const storePath = path.join(dir, "members.json");
+    const registry = new SessionRegistry(storePath);
+    const first = registry.join("alice");
+    const before = readFileSync(storePath, "utf8");
+    chmodSync(dir, 0o500);
+    try {
+      writeFileSync(path.join(dir, ".probe"), "");
+      chmodSync(dir, 0o700);
+      return; // not enforced here — see `unwritable`
+    } catch {
+      // sealed, carry on
+    }
+
+    try {
+      const second = registry.join("alice");
+      assert.equal(second.member.id, first.member.id);
+      assert.equal(second.revokedSessionId, first.sessionId);
+      assert.ok(registry.resolve(second.sessionId));
+      // And the write really did fail — otherwise this asserts nothing.
+      assert.equal(readFileSync(storePath, "utf8"), before);
+    } finally {
+      chmodSync(dir, 0o700);
+    }
   });
 });

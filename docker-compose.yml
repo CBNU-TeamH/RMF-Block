@@ -4,6 +4,17 @@ services:
     container_name: rmf-app
     ports:
       - "3000:3000"
+    # The app's own state (ADR-002) — chat, and the workspace/auth records that
+    # follow it. Without this it lives in the container's writable layer and a
+    # `down` or an `up --build` takes it, while Mongo beside it survives.
+    #
+    # A *named* volume, not a bind mount: the Dockerfile creates /app/.data and
+    # chowns it to `node` because everything else is COPYed in as root. An empty
+    # named volume seeds itself from the image, ownership included; a bind mount
+    # would overlay the host directory's ownership instead and the first write
+    # would fail as EACCES.
+    volumes:
+      - app-data:/app/.data
     environment:
       # The container sees Docker's network, not the LAN, so it cannot work out
       # the address guests type in. Startup says so and prints how to find it —
@@ -71,3 +82,4 @@ services:
 
 volumes:
   mongo-data:
+  app-data:

@@ -347,14 +347,13 @@
               <span style="font-size:22px;font-weight:700;">구성원</span>
               <span style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase;">{{ presenceCount }}명</span>
             </div>
-            <span style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border:1.6px solid var(--sky-deep);border-radius:6px 8px 7px 9px/8px 6px 9px 7px;background:var(--sky);font-size:13px;font-weight:700;color:var(--ink);"><span style="font-weight:400;font-size:15px;">+</span>초대</span>
           </div>
           <div style="border:1.6px solid var(--ink);border-radius:8px 10px 9px 11px/10px 8px 11px 9px;overflow:hidden;">
             <div style="display:grid;grid-template-columns:2.4fr 1fr 1fr 1.2fr;gap:0;padding:9px 14px;background:var(--paper-2);border-bottom:1.4px solid var(--ink);">
               <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">이름</span>
               <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">역할</span>
               <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">상태</span>
-              <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">참여일</span>
+              <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">최근 접속</span>
             </div>
             <sc-for list="{{ members }}" as="m" hint-placeholder-count="4">
               <div style="display:grid;grid-template-columns:2.4fr 1fr 1fr 1.2fr;gap:0;padding:11px 14px;border-bottom:1.2px dashed rgba(28,27,26,.15);align-items:center;background:var(--paper);" style-hover="background:var(--sky-soft);">
@@ -364,7 +363,7 @@
                 </div>
                 <span style="font-size:13px;color:var(--ink-soft);">{{ m.role }}</span>
                 <span style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ink-soft);"><span style="color:{{ m.statusColor }};">●</span>{{ m.status }}</span>
-                <span style="font-size:13px;color:var(--ink-soft);">{{ m.joined }}</span>
+                <span style="font-size:13px;color:var(--ink-soft);">{{ m.lastSeen }}</span>
               </div>
             </sc-for>
           </div>

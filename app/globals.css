@@ -1,26 +1,38 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/**
+ * The confirmed artboard's palette (`docs/ui/dashboard/dashboard.dc.html`), as
+ * theme tokens so screens name colours instead of repeating hex. Tailwind v4
+ * turns each `--color-*` into the matching `bg-`, `text-` and `border-` utility.
+ *
+ * The design is paper-on-warm-grey and has no dark variant, so these are not
+ * paired with dark-mode values, and no screen carries `dark:` classes.
+ */
+@theme {
+  --color-ink: #1c1b1a;
+  --color-ink-soft: #4a4744;
+  --color-ink-faint: #8a847e;
+  --color-paper: #fbfaf6;
+  --color-paper-2: #f3f0e8;
+  --color-shell: #efebe2;
+  --color-sky: #38bdf8;
+  --color-sky-deep: #0ea5e9;
+  --color-sky-soft: #e0f2fe;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* The artboard's own stack. What was here mapped --font-sans to Geist and then
+     set body to Arial, so the loaded font was never the one that rendered — and
+     Geist ships `subsets: ["latin"]`, which is the wrong thing to put in front
+     of a Korean UI anyway.
+
+     JetBrains Mono is named above but deliberately not loaded: the artboard
+     pulls it from Google Fonts, and this app runs on a LAN that may have no
+     route to the internet. The fallback to ui-monospace is what a guest would
+     have got there regardless. */
+  font-family:
+    system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI",
+    "Noto Sans KR", "Malgun Gothic", sans-serif;
 }
