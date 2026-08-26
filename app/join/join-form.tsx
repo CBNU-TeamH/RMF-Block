@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 type FieldError = { field: "nickname" | "password" | null; message: string };
 
 const FIELD_BY_STATUS: Record<number, FieldError["field"]> = {
-  400: "nickname", // the only 400 a filled-in form can produce is the length cap
+  400: "nickname", // length cap, or a nickname that is only whitespace
   401: "password",
 };
 

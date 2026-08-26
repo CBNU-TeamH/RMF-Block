@@ -6,7 +6,9 @@ import { WebSocketServer, type WebSocket } from 'ws';
  * Generic WebSocket connection registry + broadcaster — not chat-specific.
  * `ChatService` only depends on this through the `ChatBroadcaster` interface
  * (`lib/chat/types.ts`); this file never imports anything chat-related, so a
- * future feature (presence, etc.) can reuse it the same way (NFR-MAI-001).
+ * future feature can reuse it the same way (NFR-MAI-001). Presence did not:
+ * it rides Yorkie's own document attach, so the only thing on this socket
+ * besides chat is `session:revoked`.
  *
  * Connections may carry a session id, which is what makes FR-020-08's takeover
  * visible: when the same nickname signs in from another device, `revoke()`
