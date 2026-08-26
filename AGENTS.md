@@ -62,7 +62,7 @@ Which document to open for which job.
 | The overall plan | [`ROADMAP.md`](ROADMAP.md) |
 | Skills for Claude Code | [`skills/`](skills/) |
 | How to run the app (Docker, LAN setup) | [`README.md`](README.md) |
-| Host/guest auth entry flow deep-dive | [`HOST-GUEST-ENTRY-ko.md`](HOST-GUEST-ENTRY-ko.md) |
+| Host/guest auth entry flow deep-dive | [`docs/HOST-GUEST-ENTRY-ko.md`](docs/HOST-GUEST-ENTRY-ko.md) |
 
 ---
 
