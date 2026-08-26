@@ -11,10 +11,9 @@ const FIELD_BY_STATUS: Record<number, FieldError["field"]> = {
   401: "password",
 };
 
-const INPUT_BASE =
-  "rounded-md border bg-white px-3 py-2 text-base text-black dark:bg-zinc-900 dark:text-zinc-50";
-const INPUT_OK = "border-zinc-300 dark:border-zinc-700";
-const INPUT_BAD = "border-red-500 dark:border-red-500";
+const INPUT_BASE = "rounded-md border bg-paper-2 px-3 py-2 text-base text-ink";
+const INPUT_OK = "border-ink";
+const INPUT_BAD = "border-red-600";
 
 /**
  * FR-020-01/02/05/08. Two fields and a button.
@@ -100,7 +99,7 @@ export function JoinForm() {
         }}
         className="flex w-full max-w-xs flex-col gap-3"
       >
-        <label className="flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <label className="flex flex-col gap-1 text-sm text-ink-soft">
           닉네임
           <input
             ref={nicknameRef}
@@ -114,7 +113,7 @@ export function JoinForm() {
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <label className="flex flex-col gap-1 text-sm text-ink-soft">
           워크스페이스 비밀번호
           <input
             ref={passwordRef}
@@ -128,7 +127,7 @@ export function JoinForm() {
         </label>
 
         {error ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          <p role="alert" className="text-sm font-medium text-red-600">
             {error.message}
           </p>
         ) : null}
@@ -136,7 +135,7 @@ export function JoinForm() {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-black px-3 py-2 text-base font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-black"
+          className="rounded-md border border-sky-deep bg-sky px-3 py-2 text-base font-bold text-ink disabled:opacity-40"
         >
           {pending ? "입장하는 중…" : "입장"}
         </button>
@@ -150,11 +149,11 @@ export function JoinForm() {
           setConflict(null);
           nicknameRef.current?.focus();
         }}
-        className="m-auto max-w-sm rounded-lg bg-white p-5 text-black backdrop:bg-black/40 dark:bg-zinc-900 dark:text-zinc-50"
+        className="m-auto max-w-sm rounded-lg border border-ink bg-paper p-5 text-ink backdrop:bg-ink/40"
       >
-        <h2 className="text-base font-semibold">이미 사용 중인 이름입니다</h2>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          <strong className="font-medium text-black dark:text-zinc-50">{conflict}</strong>
+        <h2 className="text-base font-bold text-ink">이미 사용 중인 이름입니다</h2>
+        <p className="mt-2 text-sm text-ink-soft">
+          <strong className="font-bold text-ink">{conflict}</strong>
           (으)로 접속 중인 기기가 있습니다. 계속하면 그 기기의 연결이 끊깁니다. 본인의 다른
           기기가 아니라면 다른 이름을 쓰세요.
         </p>
@@ -165,7 +164,7 @@ export function JoinForm() {
               setConflict(null);
               nicknameRef.current?.focus();
             }}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700"
+            className="rounded-md border border-ink px-3 py-1.5 text-sm text-ink"
           >
             다른 이름 쓰기
           </button>
@@ -173,7 +172,7 @@ export function JoinForm() {
             type="button"
             disabled={pending}
             onClick={() => void join(true)}
-            className="rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-black"
+            className="rounded-md border border-sky-deep bg-sky px-3 py-1.5 text-sm font-bold text-ink disabled:opacity-40"
           >
             계속
           </button>

@@ -6,9 +6,7 @@
  * turns each `--color-*` into the matching `bg-`, `text-` and `border-` utility.
  *
  * The design is paper-on-warm-grey and has no dark variant, so these are not
- * paired with dark-mode values. The join screen still uses Tailwind's stock
- * zinc scale with `dark:` variants; bringing it onto this palette is its own
- * change, not something to slip into a screen it does not touch.
+ * paired with dark-mode values, and no screen carries `dark:` classes.
  */
 @theme {
   --color-ink: #1c1b1a;
