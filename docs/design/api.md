@@ -144,7 +144,8 @@ For state that is neither request/response nor scoped to a single Yorkie documen
 attaches to a reserved `workspace` document and reads `doc.getPresences()` (`lib/presence/`,
 `app/(workspace)/presence-provider.tsx`). There is no server-held roster and no WS hub involvement — none of
 the six events below exist in the code, and the `/api/workspace/ws` socket that does exist carries
-only `session:revoked`. See the connected-user-list task under `tasks/` for why Yorkie won:
+`session:revoked` plus chat — `WsHub.broadcast()` writes to every open connection regardless of which
+path it upgraded on, so a `chat:message` reaches workspace sockets as well and is ignored client-side. See the connected-user-list task under `tasks/` for why Yorkie won:
 it already handles disconnect detection, which was the hard half.
 
 What is **not** superseded is the `documentId` half — which document each connected user has open.
