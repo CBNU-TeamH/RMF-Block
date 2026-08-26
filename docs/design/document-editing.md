@@ -1,6 +1,6 @@
 # Document Editing — Block Schema
 
-- **Status**: Agreed. All 12 block types finalized. The one remaining open question (SDK convergence check) is a pre-implementation verification step, not a blocker to agreement.
+- **Status**: Agreed. All 12 block types finalized. The pre-implementation SDK convergence check it was waiting on has been run — see [Verification](#verification-2026-08-27).
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(a), §5; [`docs/SRS-ko.md`](../SRS-ko.md) §4.1
 
 ## Scope
@@ -17,8 +17,82 @@ Block = { id: string (uuid), type: string, content: <type-specific, see below> }
 - `root.blocks` is a **Yorkie Array**, not an Object keyed by id. Yorkie's Array is RGA-backed, so concurrent inserts at the same position already converge deterministically — block order is the array position itself, not a stored field. This replaces the `order` field originally sketched in `architecture.md` §3(a).
 - Reordering (FR-022-04) uses the array's native `moveBefore`/`moveAfter` — no custom merge logic, per ADR-001.
 - `id` stays on every block regardless of position, since presence (`activeBlockId`) and the future 블록 링크 블록 need a stable reference independent of array order.
-- **Open risk**: `yorkie-team/yorkie#676` reported non-convergence when the moved element is also the reference element in a concurrent `moveAfter`, reported fixed but the fixed version isn't confirmed from the docs alone. Verify this scenario against the pinned `@yorkie-js/sdk` version when the Sync module wires up reordering.
+- ~~**Open risk**: `yorkie-team/yorkie#676` reported non-convergence when the moved element is also the reference element in a concurrent `moveAfter`.~~ **Verified on the pinned 0.7.13, 2026-08-27** — see [Verification](#verification-2026-08-27).
 - Block/text color and styling is an open decision (`AGENTS.md` §7) and intentionally not part of any block's `content` below — see that TODO item for why deferring it doesn't require reworking this schema.
+
+## Why an Array of blocks, and not one `yorkie.Tree`
+
+Recorded after the fact: the structure above was chosen without this comparison
+written down, and the reference project we borrow from went the other way.
+[wafflebase](https://github.com/wafflebase/wafflebase)'s document editor stores a
+whole document as a single root-level `yorkie.Tree`.
+
+Their choice is right for what they build and wrong for what we build.
+
+**What `Tree` is good at.** A word processor's document *is* a hierarchy —
+`doc > table > row > cell > paragraph > inline > text`. Inline formatting
+(bold, font, colour) applies to a *range*, which `Tree.style(from, to, attrs)`
+expresses directly. Splitting and merging paragraphs on Enter/Backspace is one
+tree operation. `@yorkie-js/prosemirror` binds ProseMirror to a `Tree`, which
+buys an enormous amount of editor behaviour for free.
+
+**Why none of that pays here.**
+
+- **SRS asks for no inline formatting.** "Plain text, no inline marks" under
+  the text block below is not a simplification we chose — it is the requirement.
+  `Tree`'s biggest advantage is unused.
+- **Five of the twelve types hold no text at all** — divider, file, image, PDF,
+  and the two link blocks. As tree nodes they are attribute-only leaves, which
+  is a shape the tree model tolerates rather than serves.
+- **FR-022-06 and the block-link block both need a stable per-block id.** A
+  block that is an array element with an `id` field gives that plainly.
+- **`Tree.move` is not implemented.** `packages/sdk/src/document/crdt/tree.ts`
+  throws `ErrUnimplemented` with the note *"TODO: Implement this with keeping
+  references of the nodes."* FR-022-04 is a hard requirement, and the only way
+  to reorder a tree today is delete-and-reinsert — which mints new nodes, so a
+  peer's concurrent edit to the moved block lands on the deleted ones and is
+  lost. `CRDTArray.moveAfter` keeps the element and moves only its position.
+  Measured: see [Verification](#verification-2026-08-27) item 3.
+
+**What the array costs us**, stated plainly so nobody rediscovers it as a
+surprise: everything that crosses a block boundary is ours to build. Splitting a
+block on Enter, merging into the previous one on Backspace at offset 0, and
+selecting across blocks are all free under `Tree` and are the real work of the
+editing module here. Nesting is also flattened — a list's `depth` is a number on
+a flat block, not a real parent-child relation.
+
+## Verification (2026-08-27)
+
+Run against `yorkieteam/yorkie:0.7.13` on `mongo:8` with the pinned
+`@yorkie-js/sdk@0.7.13`, not from the SDK's documentation.
+
+1. **A `yorkie.Text` nested in an array element is a live CRDT.** wafflebase's
+   `slides-document.ts` carries a warning that a `yorkie.Tree` nested inside an
+   array element is serialized to plain JSON — reads see an inert object, writes
+   silently no-op — and that they reverted such a migration. `root.blocks` is
+   that same shape, so it was checked directly: a second client attaching to an
+   existing document receives `blocks[0].content` as a `Text` instance with a
+   working `edit()`, concurrent character-level edits from two clients converge
+   with both edits present, and a third client attaching cold reads the merged
+   result. The same held for a nested `Tree`, so the warning does not reproduce
+   at this depth on this version.
+2. **Concurrent `moveAfter` converges where `yorkie#676` said it might not.**
+   Two clients each moved a block *past the block the other was moving*, so each
+   side's reference element was the other's moved element. Both converged on the
+   same order, no block was lost, and a cold third client agreed. The source
+   supports it: `RGATreeList.moveAfter` resolves competing moves as a
+   last-write-wins position register, and deliberately still creates the losing
+   move's position node — commented *"so that operations referencing this move's
+   position can find it"* — which is the referential-integrity case the issue was
+   about.
+3. **A move preserves the moved block's text, including a peer's concurrent
+   edit.** One client moved a block to the end of the document while another
+   typed into that same block. The order converged and the typed characters
+   survived. This is the property `Tree` cannot offer while `move` is
+   unimplemented, and it is why reordering is safe to build on the array.
+
+Not yet verified: convergence under more than two concurrent movers, and
+`moveAfter` interleaved with a concurrent delete of the reference block.
 
 ## Block types
 
@@ -152,5 +226,7 @@ Matches the "문서 ID + 블록 위치 정보" pair used throughout SRS wherever
 
 ## Open questions
 
-- Concurrent-move convergence on the pinned SDK version (see block-structure note above).
+- ~~Concurrent-move convergence on the pinned SDK version.~~ Closed by
+  [Verification](#verification-2026-08-27) item 2, with two follow-up cases named
+  there that were not covered.
 - Block/text color and styling (`AGENTS.md` §7).
