@@ -56,7 +56,7 @@ Which document to open for which job.
 
 | When you need | Read |
 | --- | --- |
-| Requirements · module design · code conventions · test strategy · ADRs | [`docs/`](docs/) |
+| Requirements · module design · code conventions · test strategy · ADRs · UI wireframes ([`docs/ui/`](docs/ui/)) | [`docs/`](docs/) |
 | Lint / format config | [`eslint.config.mjs`](eslint.config.mjs) |
 | Open work and its status | [`tasks/`](tasks/) (`active/`, `archive/`) |
 | The overall plan | [`ROADMAP.md`](ROADMAP.md) |
@@ -88,12 +88,11 @@ Which document to open for which job.
 
 ## 7. TODO / undecided
 
-- [x] Write `docs/adr/001-realtime-sync.md` recording the Yorkie + WS server + local Git decision. Done — see [`docs/adr/001-realtime-sync.md`](docs/adr/001-realtime-sync.md) and [`docs/design/architecture.md`](docs/design/architecture.md). **Its Git half is now superseded by [`docs/adr/002-persistence-on-yorkie-mongo.md`](docs/adr/002-persistence-on-yorkie-mongo.md)** — persistence and history moved to Yorkie + MongoDB.
-- [x] Define block Lock (occupancy): how it is acquired and released, and whether a block held by another user can be edited. Defined in `docs/SRS-ko.md` SIR003 and `FR-022-06` — occupancy is acquired on selection/cursor placement and released on deselection, and does not block another user from editing.
-- [x] Set the grace period for edits during a disconnect. Done — 30s, see `docs/SRS-ko.md` UC-022 비고.
-- [ ] Set the load-test baseline that `docs/SRS-ko.md` §2.4 defers.
-- [x] Confirm whether `FR-022-05, 07, 08, 10, 11` were intentionally removed or are missing requirements. Done — confirmed intentional, noted in `docs/SRS-ko.md` 3.3.4.
-- [ ] Decide block/text color and styling (block background/text color, and whether it extends to inline text ranges) — not in `docs/SRS-ko.md` today. Deferring is low-risk: block-level color is an additive `content` field per type, and inline color can ride `yorkie.Text`'s native range-style attributes without changing the block schema, so it doesn't block finishing the base 12-type schema in `docs/design/document-editing.md`.
-- [x] Reconcile Yorkie MongoDB. Decided in favour of Mongo — [`docs/adr/002-persistence-on-yorkie-mongo.md`](docs/adr/002-persistence-on-yorkie-mongo.md) makes Yorkie + MongoDB the persistence and history layer, and the docs now match the SRS §2.1 diagram. `docker-compose.yml` runs Yorkie with `--mongo-connection-uri` against a Mongo service, so document durability is wired.
-- [ ] Decide what triggers the App/WS Server to call Yorkie's `createRevision` — Yorkie itself never auto-snapshots, so a revision is only ever created by an explicit call; the open question is what event or cadence in the app should make that call. No FR or UC covers version history today, so nothing forces the answer yet — see issue #28.
-- [x] Decide whether the App/WS Server keeps a Yorkie `Watch` subscription at all. Not needed — its only purpose was driving the deleted delayed-write trigger, and Mongo now provides durability directly.
+Only what is **still open**. Decisions already settled are recorded where they are used —
+[`docs/design/architecture.md`](docs/design/architecture.md) §4 "Decided vs. deferred" holds the
+list, and the ADRs hold the reasoning. Keeping settled items here as ticked boxes just made this
+section the third place to look.
+
+- [ ] Set the load-test baseline that `docs/SRS-ko.md` §2.4 defers. Blocks nothing today; NFR-PER-001/006 cannot be verified without it (`ROADMAP.md` Phase 5).
+- [ ] Decide block/text color and styling (block background/text color, and whether it extends to inline text ranges) — not in `docs/SRS-ko.md` today, tracked as issue #6. Deferring is low-risk: block-level color is an additive `content` field per type, and inline color can ride `yorkie.Text`'s native range-style attributes without changing the block schema, so it doesn't block finishing the base 12-type schema in [`docs/design/document-editing.md`](docs/design/document-editing.md).
+- [ ] Decide what triggers the App/WS Server to call Yorkie's `createRevision` — Yorkie itself never auto-snapshots, so a revision is only ever created by an explicit call; the open question is what event or cadence in the app should make that call. No FR or UC covers version history today, so nothing forces the answer yet — see issue #23.
