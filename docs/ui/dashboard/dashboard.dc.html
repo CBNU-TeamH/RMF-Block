@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1c1b1a;--ink-soft:#4a4744;--ink-faint:#8a847e;--paper:#fbfaf6;--paper-2:#f3f0e8;--sky:#38bdf8;--sky-deep:#0ea5e9;--sky-soft:#e0f2fe;--warm-yellow:#fde68a;--pink:#fbcfe8;--green:#86efac;--mono:'JetBrains Mono', ui-monospace, monospace;}
+  body{margin:0;padding:0;background:#efebe2;}
+  a{color:#0ea5e9;text-decoration:none}
+  a:hover{color:#38bdf8}
+</style>
+</helmet>
+
+<div style="background:#efebe2;min-height:100vh;padding:32px 24px 80px;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Segoe UI','Noto Sans KR','Malgun Gothic',sans-serif;color:var(--ink);overflow-x:auto;">
+
+  <!-- intro -->
+  <div style="max-width:1400px;margin:0 auto 28px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:10px;">{{ workspaceName }} Docs · Wireframes · v0.4</div>
+    <h1 style="font-size:30px;font-weight:700;margin:0 0 4px;">App Shell — 전체 화면 와이어프레임</h1>
+    <div style="width:220px;height:8px;background:var(--sky);border-radius:2px;transform:rotate(-.4deg);margin:6px 0 18px;"></div>
+    <p style="font-size:16px;color:var(--ink-soft);margin:0;max-width:840px;line-height:1.5;">에디터(App Shell) 화면을 그대로 재현하고, Home 대시보드는 확정 버전(사이드바는 워크스페이스 탐색만, 문서 목록은 메인에만)으로 정리했습니다. 같은 사이드바 탭 구조로 Members · Storage · Settings 화면도 한 버전씩 새로 그렸습니다.</p>
+  </div>
+
+  <!-- ================= 1. EDITOR ================= -->
+  <sc-if value="{{ showLegacyShell }}" hint-placeholder-val="{{ true }}">
+  <div>
+    <div style="max-width:1280px;margin:0 auto;">
+      <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;margin-bottom:8px;">1. App Shell — Editor (재현) · 1280 × 820</div>
+      <div style="width:1280px;height:820px;background:var(--paper);border:2px solid var(--ink);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;position:relative;">
+        <div style="display:flex;align-items:flex-end;gap:4px;padding:6px 8px 0 10px;background:var(--paper-2);border-bottom:1.6px solid var(--ink);height:30px;flex:0 0 auto;">
+          <div style="display:flex;align-items:flex-end;gap:4px;flex:1 1 auto;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;padding:4px 9px 4px 8px;min-width:0;max-width:170px;background:var(--paper);border-top-left-radius:8px;border-top-right-radius:8px;position:relative;top:1px;height:24px;font-size:13px;font-weight:700;color:var(--ink);">
+              <span style="font-size:12px;">📄</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Capde Draft</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;padding:4px 9px 4px 8px;min-width:0;max-width:170px;background:var(--paper-2);border-bottom:1.4px solid var(--ink);border-radius:4px 4px 0 0;height:24px;font-size:13px;color:var(--ink-soft);">
+              <span style="font-size:12px;">📄</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">API 명세서</span>
+              <span style="width:6px;height:6px;border-radius:50%;background:var(--sky-deep);"></span>
+              <span style="color:var(--ink-faint);font-size:12px;">×</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;padding:4px 9px 4px 8px;min-width:0;max-width:170px;background:var(--paper-2);border-bottom:1.4px solid var(--ink);border-radius:4px 4px 0 0;height:24px;font-size:13px;color:var(--ink-soft);">
+              <span style="font-size:12px;">📄</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">회의록 05-25</span>
+              <span style="color:var(--ink-faint);font-size:12px;">×</span>
+            </div>
+            <span style="margin-left:4px;margin-bottom:2px;border:1.2px dashed var(--ink-faint);background:transparent;border-radius:4px;width:22px;height:22px;font-size:14px;color:var(--ink-soft);display:inline-flex;align-items:center;justify-content:center;">+</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;margin-left:8px;">
+            <span style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);">─</span>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);">▢</span>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);">×</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 14px;background:var(--paper);border-bottom:1.6px solid var(--ink);height:38px;gap:12px;flex:0 0 auto;">
+          <div style="display:flex;gap:4px;">
+            <span style="width:26px;height:26px;border:1.3px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:var(--paper);display:inline-flex;align-items:center;justify-content:center;font-size:14px;">←</span>
+            <span style="width:26px;height:26px;border:1.3px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:var(--paper);display:inline-flex;align-items:center;justify-content:center;font-size:14px;">→</span>
+          </div>
+          <div style="flex:1 1 auto;min-width:0;overflow:hidden;display:flex;align-items:center;gap:4px;font-size:14px;">
+            <span style="color:var(--ink-soft);">초안</span><span style="color:var(--ink-faint);">/</span><span style="color:var(--ink);font-weight:700;">Capde Draft</span>
+          </div>
+          <div style="display:flex;align-items:center;">
+            <span style="width:22px;height:22px;font-size:12px;box-shadow:0 0 0 2px var(--paper),0 0 0 3.4px var(--sky-deep);border:1.4px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:var(--sky-soft);">M</span>
+            <span style="margin-left:-6px;width:22px;height:22px;font-size:12px;border:1.4px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:var(--warm-yellow);">J</span>
+            <span style="margin-left:-6px;width:22px;height:22px;font-size:12px;border:1.4px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:var(--pink);">S</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="padding:3px 9px;background:var(--paper);color:var(--ink);border:1.6px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;font-size:13px;display:inline-flex;align-items:center;gap:6px;"><span>📡</span><span>공유</span></span>
+            <span style="width:26px;height:26px;border:1.3px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:var(--paper);display:inline-flex;align-items:center;justify-content:center;font-size:14px;">⋯</span>
+          </div>
+        </div>
+        <div style="display:flex;flex:1 1 auto;min-height:0;">
+          <div style="width:232px;flex:0 0 auto;border-right:1.6px solid var(--ink);display:flex;flex-direction:column;background:var(--paper);">
+            <div style="display:flex;align-items:center;gap:6px;padding:8px 10px 6px;border-bottom:1.2px solid var(--ink);">
+              <span style="font-weight:700;font-size:14px;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ workspaceName }}</span>
+              <span style="width:26px;height:26px;border:1.3px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:var(--paper);display:inline-flex;align-items:center;justify-content:center;font-size:14px;">+</span>
+              <span style="width:26px;height:26px;border:1.3px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:var(--paper);display:inline-flex;align-items:center;justify-content:center;font-size:14px;">«</span>
+            </div>
+            <div style="padding:8px 10px 4px;">
+              <div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--paper-2);border:1.6px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;font-size:13px;color:var(--ink-faint);">
+                <span>🔍</span><span>검색…</span>
+              </div>
+            </div>
+            <div style="padding:6px 4px;overflow:hidden;flex:1 1 auto;">
+              <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;padding:4px 8px 4px;">PAGES</div>
+              <div style="display:flex;align-items:center;padding:4px 8px 4px 8px;border-radius:4px;font-size:14px;color:var(--ink);gap:4px;">
+                <span style="width:10px;color:var(--ink-faint);"></span><span style="font-size:12px;">📌</span><span style="flex:1 1 auto;">README</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:4px 8px 4px 8px;border-radius:4px;font-size:14px;color:var(--ink);gap:4px;">
+                <span style="width:10px;color:var(--ink-faint);">▾</span><span style="font-size:12px;">📁</span><span style="flex:1 1 auto;">초안</span>
+                <span style="width:14px;height:14px;font-size:9px;border:1.1px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:var(--warm-yellow);">J</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:4px 8px 4px 22px;background:var(--sky-soft);border-radius:4px;font-size:14px;color:var(--ink);gap:4px;font-weight:700;">
+                <span style="width:10px;"></span><span style="font-size:12px;">📄</span><span style="flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Capde Draft</span>
+                <span style="display:flex;">
+                  <span style="width:14px;height:14px;font-size:9px;border:1.1px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:var(--sky-soft);">M</span>
+                  <span style="margin-left:-4px;width:14px;height:14px;font-size:9px;border:1.1px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:var(--warm-yellow);">J</span>
+                  <span style="margin-left:-4px;width:14px;height:14px;font-size:9px;border:1.1px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:var(--pink);">S</span>
+                </span>
+              </div>
+              <div style="display:flex;align-items:center;padding:4px 8px 4px 22px;border-radius:4px;font-size:14px;color:var(--ink);gap:4px;">
+                <span style="width:10px;"></span><span style="font-size:12px;">📄</span><span style="flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">브레인스토밍</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:4px 8px 4px 22px;border-radius:4px;font-size:14px;color:var(--ink);gap:4px;">
+                <span style="width:10px;"></span><span style="font-size:12px;">📄</span><span style="flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">API 명세서</span>
+                <span style="width:14px;height:14px;font-size:9px;border:1.1px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:var(--green);">D</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:4px 8px 4px 8px;border-radius:4px;font-size:14px;color:var(--ink);gap:4px;">
+                <span style="width:10px;color:var(--ink-faint);">▾</span><span style="font-size:12px;">📁</span><span style="flex:1 1 auto;">회의록</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:4px 8px 4px 22px;border-radius:4px;font-size:14px;color:var(--ink);gap:4px;">
+                <span style="width:10px;"></span><span style="font-size:12px;">📄</span><span style="flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">2026-05-25 킥오프</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:4px 8px 4px 22px;border-radius:4px;font-size:14px;color:var(--ink);gap:4px;">
+                <span style="width:10px;"></span><span style="font-size:12px;">📄</span><span style="flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">2026-05-22 사전 미팅</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:4px 8px 4px 8px;border-radius:4px;font-size:14px;color:var(--ink);gap:4px;">
+                <span style="width:10px;color:var(--ink-faint);">▸</span><span style="font-size:12px;">📁</span><span style="flex:1 1 auto;">리서치</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:4px 8px 4px 8px;border-radius:4px;font-size:14px;color:var(--ink);gap:4px;">
+                <span style="width:10px;color:var(--ink-faint);">▸</span><span style="font-size:12px;">📁</span><span style="flex:1 1 auto;">레퍼런스 자료</span>
+              </div>
+            </div>
+            <div style="padding:6px 10px;border-top:1.2px solid var(--ink);font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.06em;">⌥ + 클릭 → 새 탭</div>
+          </div>
+          <div style="flex:1 1 auto;min-width:0;position:relative;overflow:hidden;background:var(--paper);">
+            <div style="position:relative;padding:36px 80px 40px;max-width:720px;margin:0 auto;color:var(--ink);">
+              <div style="font-weight:700;font-size:28px;line-height:1.1;">Capde Draft</div>
+              <div style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-top:6px;letter-spacing:.06em;">LAST EDITED · 2분 전 · 재훈</div>
+              <div style="height:22px;"></div>
+              <div style="font-weight:700;font-size:19px;margin-bottom:8px;">제품 개요</div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <div style="height:10px;width:95%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div>
+                <div style="height:10px;width:95%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div>
+                <div style="height:10px;width:60%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div>
+              </div>
+              <div style="height:14px;"></div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <div style="height:10px;width:95%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div>
+                <div style="height:10px;width:80%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div>
+              </div>
+              <div style="height:22px;"></div>
+              <div style="font-weight:700;font-size:19px;margin-bottom:8px;">디자인 철학</div>
+              <div style="display:flex;align-items:center;gap:8px;"><span style="width:5px;height:5px;background:var(--ink-soft);border-radius:50%;"></span><div style="height:10px;width:80%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div></div>
+              <div style="height:6px;"></div>
+              <div style="display:flex;align-items:center;gap:8px;"><span style="width:5px;height:5px;background:var(--ink-soft);border-radius:50%;"></span><div style="height:10px;width:80%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div></div>
+              <div style="height:6px;"></div>
+              <div style="display:flex;align-items:center;gap:8px;"><span style="width:5px;height:5px;background:var(--ink-soft);border-radius:50%;"></span><div style="height:10px;width:80%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div></div>
+              <div style="height:18px;"></div>
+              <div style="display:flex;gap:10px;">
+                <div style="width:3px;background:var(--sky-deep);border-radius:2px;"></div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:5px;padding-top:2px;">
+                  <div style="height:10px;width:80%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div>
+                  <div style="height:10px;width:60%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div>
+                </div>
+              </div>
+              <div style="height:22px;"></div>
+              <div style="font-weight:700;font-size:19px;margin-bottom:8px;">App Shell 구조</div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <div style="height:10px;width:95%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div>
+                <div style="height:10px;width:80%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div>
+              </div>
+              <div style="height:12px;"></div>
+              <div style="background:var(--paper-2);border:1.2px dashed var(--ink);border-radius:4px;padding:8px 10px;font-family:var(--mono);font-size:11px;color:var(--ink-soft);">
+                <div style="opacity:.85;">function discover() {</div>
+                <div style="opacity:.65;padding-left:16px;">return mdns.scan('_localguard._tcp')</div>
+                <div style="opacity:.85;">}</div>
+              </div>
+              <div style="height:22px;"></div>
+              <div style="font-weight:700;font-size:19px;margin-bottom:8px;">레퍼런스 스크린샷</div>
+              <div style="height:90px;border:1.4px solid var(--ink);border-radius:4px;background:repeating-linear-gradient(135deg, rgba(28,27,26,.08) 0 1px, transparent 1px 8px), var(--paper-2);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--ink-soft);letter-spacing:.04em;">image placeholder</div>
+              <div style="height:24px;"></div>
+              <div style="font-weight:700;font-size:19px;margin-bottom:8px;">인터랙션 흐름</div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <div style="height:10px;width:95%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div>
+                <div style="height:10px;width:95%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div>
+                <div style="height:10px;width:60%;background:var(--ink-soft);opacity:.55;border-radius:2px;"></div>
+              </div>
+            </div>
+            <div style="position:absolute;right:16px;top:28px;width:150px;font-size:12px;color:var(--ink-soft);display:flex;flex-direction:column;gap:4px;">
+              <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;margin-bottom:4px;">ON THIS PAGE</div>
+              <div style="display:flex;align-items:center;gap:6px;color:var(--ink-soft);"><span style="width:2px;height:12px;background:var(--ink-faint);border-radius:2px;opacity:.35;"></span><span>개요</span></div>
+              <div style="display:flex;align-items:center;gap:6px;color:var(--ink-soft);"><span style="width:2px;height:12px;background:var(--ink-faint);border-radius:2px;opacity:.35;"></span><span>디자인 철학</span></div>
+              <div style="display:flex;align-items:center;gap:6px;color:var(--ink);font-weight:700;"><span style="width:2px;height:12px;background:var(--sky-deep);border-radius:2px;"></span><span>App Shell</span></div>
+              <div style="display:flex;align-items:center;gap:6px;color:var(--ink-soft);"><span style="width:2px;height:12px;background:var(--ink-faint);border-radius:2px;opacity:.35;"></span><span>컴포넌트 명세</span></div>
+              <div style="display:flex;align-items:center;gap:6px;color:var(--ink-soft);"><span style="width:2px;height:12px;background:var(--ink-faint);border-radius:2px;opacity:.35;"></span><span>인터랙션 흐름</span></div>
+              <div style="display:flex;align-items:center;gap:6px;color:var(--ink-soft);"><span style="width:2px;height:12px;background:var(--ink-faint);border-radius:2px;opacity:.35;"></span><span>제약 사항</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:4px 12px;border-top:1.6px solid var(--ink);background:var(--paper-2);height:24px;flex:0 0 auto;font-size:12px;color:var(--ink-soft);gap:12px;">
+          <span style="display:inline-flex;align-items:center;gap:4px;"><span style="color:var(--sky-deep);">●</span><span>📡 LAN — 4명 연결됨</span></span>
+          <span style="color:var(--ink-faint);">·</span>
+          <span style="font-family:var(--mono);font-size:10px;">192.168.4.31 · workspace://hackathon-26</span>
+          <span style="flex:1 1 auto;"></span>
+          <span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border:1.2px solid var(--ink);border-radius:999px;background:var(--paper);">💬 채팅</span>
+        </div>
+      </div>
+    </div>
+    <div style="max-width:1280px;margin:0 auto;">
+      <div style="display:flex;align-items:center;gap:12px;margin:32px 0 24px;">
+        <div style="height:1.6px;flex:1;background:var(--ink);opacity:.2;border-radius:2px;"></div>
+        <div style="display:flex;align-items:center;gap:8px;background:var(--sky-soft);border:1.4px solid var(--sky-deep);border-radius:6px 8px 7px 9px/8px 6px 9px 7px;padding:6px 14px;font-size:13px;font-weight:600;color:var(--sky-deep);"><span style="font-size:16px;">🏠</span>Home 진입<span style="font-size:13px;opacity:.7;">→</span></div>
+        <div style="height:1.6px;flex:1;background:var(--ink);opacity:.2;border-radius:2px;"></div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ================= 2. HOME (확정) ================= -->
+  <div style="max-width:1280px;margin:0 auto;">
+    <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;margin-bottom:8px;">2. Home — WorkSpace overview · 1280 × 820</div>
+    <div style="width:1280px;height:820px;background:var(--paper);border:2px solid var(--ink);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;position:relative;">
+      <div style="display:flex;align-items:center;padding:0 16px;height:44px;border-bottom:1.6px solid var(--ink);background:var(--paper);gap:12px;flex:0 0 auto;">
+        <span style="font-size:14px;font-weight:600;">{{ workspaceName }}</span>
+        <span style="flex:1 1 auto;"></span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.04em;">{{ presenceCount }}명 접속 중</span>
+        <div style="display:flex;align-items:center;">
+          <sc-for list="{{ presenceAll }}" as="u" hint-placeholder-count="4">
+            <span style="margin-left:-6px;width:24px;height:24px;font-size:11px;border:1.4px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:{{ u.bg }};box-shadow:{{ u.ring }};">{{ u.i }}</span>
+          </sc-for>
+        </div>
+        <span style="width:30px;height:30px;border:1.4px solid var(--ink);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;background:var(--paper);">🔔</span>
+      </div>
+      <div style="display:flex;flex:1 1 auto;min-height:0;">
+        <div style="width:200px;flex:0 0 auto;border-right:1.6px solid var(--ink);display:flex;flex-direction:column;background:var(--paper);">
+          <div style="display:flex;align-items:center;gap:6px;padding:8px 10px 6px;border-bottom:1.2px solid var(--ink);">
+            <span style="font-weight:700;font-size:14px;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ workspaceName }}</span>
+            <span style="width:26px;height:26px;border:1.3px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:var(--paper);display:inline-flex;align-items:center;justify-content:center;font-size:14px;">«</span>
+          </div>
+          <div style="padding:10px 8px 6px;display:flex;flex-direction:column;gap:2px;">
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--sky-soft);border-radius:4px;font-size:14px;color:var(--ink);font-weight:700;"><span style="font-size:14px;">⊙</span><span>WorkSpace overview</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;font-size:14px;color:var(--ink-soft);"><span style="font-size:14px;">👥</span><span>Members</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;font-size:14px;color:var(--ink-soft);"><span style="font-size:14px;">🗄</span><span>Storage</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;font-size:14px;color:var(--ink-soft);"><span style="font-size:14px;">⚙</span><span>Settings</span></div>
+          </div>
+          <div style="height:1.2px;background:var(--ink);opacity:.12;margin:8px 10px;"></div>
+          <div style="padding:0 8px;">
+            <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;padding:4px 10px 6px;">★ STARRED</div>
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:4px;font-size:14px;color:var(--ink);"><span style="font-size:12px;">📌</span><span>README</span></div>
+          </div>
+          <span style="flex:1 1 auto;"></span>
+          <div style="padding:10px;font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.04em;line-height:1.5;">전체 문서는 오른쪽 목록에서<br>확인하고 검색하세요.</div>
+        </div>
+        <div style="flex:1 1 auto;min-width:0;overflow:hidden;padding:28px 32px 24px;display:flex;flex-direction:column;background:var(--paper);">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;">
+            <div style="display:flex;align-items:baseline;gap:10px;">
+              <span style="font-size:22px;font-weight:700;">문서</span>
+              <span style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase;">{{ docCount }}개 항목 · 이 워크스페이스</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:8px;flex:1;max-width:380px;padding:7px 12px;border:1.4px solid var(--ink);border-radius:6px 8px 7px 9px/8px 6px 9px 7px;background:var(--paper-2);font-size:13px;color:var(--ink-faint);">
+              <span style="font-size:13px;opacity:.6;">🔍</span><span>제목으로 검색…</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:5px;padding:6px 12px;border:1.4px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:var(--paper);font-size:13px;color:var(--ink-soft);">
+              <span style="font-size:12px;">▤</span><span>유형</span><span style="font-size:11px;opacity:.7;">▾</span>
+            </div>
+            <span style="flex:1 1 auto;"></span>
+            <span style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border:1.6px solid var(--sky-deep);border-radius:6px 8px 7px 9px/8px 6px 9px 7px;background:var(--sky);font-size:13px;font-weight:700;color:var(--ink);"><span style="font-weight:400;font-size:15px;">+</span>새 문서</span>
+          </div>
+          <div style="border:1.6px solid var(--ink);border-radius:8px 10px 9px 11px/10px 8px 11px 9px;overflow:hidden;">
+            <div style="display:grid;grid-template-columns:30px 2.3fr 90px 130px 110px 130px 30px;gap:0;padding:9px 14px;background:var(--paper-2);border-bottom:1.4px solid var(--ink);align-items:center;">
+              <span style="width:14px;height:14px;border:1.4px solid var(--ink);border-radius:3px;display:inline-block;"></span>
+              <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">Title</span>
+              <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">Owner</span>
+              <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">Here now</span>
+              <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">Modified ↓</span>
+              <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">Created</span>
+              <span></span>
+            </div>
+            <sc-for list="{{ docRows }}" as="doc" hint-placeholder-count="6">
+              <div style="display:grid;grid-template-columns:30px 2.3fr 90px 130px 110px 130px 30px;gap:0;padding:10px 14px;border-bottom:1.2px dashed rgba(28,27,26,.15);align-items:center;background:var(--paper);" style-hover="background:var(--sky-soft);">
+                <span style="width:14px;height:14px;border:1.4px solid var(--ink);border-radius:3px;display:inline-block;"></span>
+                <div style="display:flex;align-items:center;gap:9px;min-width:0;">
+                  <span style="width:26px;height:26px;border:1.2px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:{{ doc.iconBg }};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">{{ doc.icon }}</span>
+                  <span style="font-size:13.5px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ doc.name }}</span>
+                </div>
+                <span style="width:22px;height:22px;font-size:11px;border:1.4px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:{{ doc.owner.bg }};">{{ doc.owner.i }}</span>
+                <div style="display:flex;align-items:center;">
+                  <sc-for list="{{ doc.hereNow }}" as="p" hint-placeholder-count="0">
+                    <span style="margin-left:-4px;width:18px;height:18px;font-size:9px;border:1.1px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:{{ p.bg }};">{{ p.i }}</span>
+                  </sc-for>
+                  <sc-if value="{{ doc.hereNowEmpty }}" hint-placeholder-val="{{ false }}">
+                    <span style="color:var(--ink-faint);font-size:13px;">–</span>
+                  </sc-if>
+                </div>
+                <span style="font-size:13px;color:var(--ink);">{{ doc.modified }}</span>
+                <span style="font-size:13px;color:var(--ink-soft);">{{ doc.created }}</span>
+                <span style="color:var(--ink-faint);font-size:14px;">⋯</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+            <span style="padding:6px 14px;border:1.4px solid var(--ink-faint);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;font-size:13px;color:var(--ink-faint);">Previous</span>
+            <span style="padding:6px 14px;border:1.4px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;font-size:13px;color:var(--ink);">Next</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 3. MEMBERS ================= -->
+  <div style="max-width:1280px;margin:32px auto 0;">
+    <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;margin-bottom:8px;">3. Members · 1280 × 820</div>
+    <div style="width:1280px;height:820px;background:var(--paper);border:2px solid var(--ink);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;position:relative;">
+      <div style="display:flex;align-items:center;padding:0 16px;height:44px;border-bottom:1.6px solid var(--ink);background:var(--paper);gap:12px;flex:0 0 auto;">
+        <span style="font-size:14px;font-weight:600;">{{ workspaceName }}</span>
+        <span style="flex:1 1 auto;"></span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.04em;">{{ presenceCount }}명 접속 중</span>
+        <div style="display:flex;align-items:center;">
+          <sc-for list="{{ presenceAll }}" as="u" hint-placeholder-count="4">
+            <span style="margin-left:-6px;width:24px;height:24px;font-size:11px;border:1.4px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:{{ u.bg }};box-shadow:{{ u.ring }};">{{ u.i }}</span>
+          </sc-for>
+        </div>
+        <span style="width:30px;height:30px;border:1.4px solid var(--ink);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;background:var(--paper);">🔔</span>
+      </div>
+      <div style="display:flex;flex:1 1 auto;min-height:0;">
+        <div style="width:200px;flex:0 0 auto;border-right:1.6px solid var(--ink);display:flex;flex-direction:column;background:var(--paper);">
+          <div style="display:flex;align-items:center;gap:6px;padding:8px 10px 6px;border-bottom:1.2px solid var(--ink);">
+            <span style="font-weight:700;font-size:14px;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ workspaceName }}</span>
+            <span style="width:26px;height:26px;border:1.3px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:var(--paper);display:inline-flex;align-items:center;justify-content:center;font-size:14px;">«</span>
+          </div>
+          <div style="padding:10px 8px 6px;display:flex;flex-direction:column;gap:2px;">
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;font-size:14px;color:var(--ink-soft);"><span style="font-size:14px;">⊙</span><span>WorkSpace overview</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--sky-soft);border-radius:4px;font-size:14px;color:var(--ink);font-weight:700;"><span style="font-size:14px;">👥</span><span>Members</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;font-size:14px;color:var(--ink-soft);"><span style="font-size:14px;">🗄</span><span>Storage</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;font-size:14px;color:var(--ink-soft);"><span style="font-size:14px;">⚙</span><span>Settings</span></div>
+          </div>
+          <div style="height:1.2px;background:var(--ink);opacity:.12;margin:8px 10px;"></div>
+          <div style="padding:0 8px;">
+            <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;padding:4px 10px 6px;">★ STARRED</div>
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:4px;font-size:14px;color:var(--ink);"><span style="font-size:12px;">📌</span><span>README</span></div>
+          </div>
+          <span style="flex:1 1 auto;"></span>
+          <div style="padding:10px;font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.04em;line-height:1.5;">전체 문서는 오른쪽 목록에서<br>확인하고 검색하세요.</div>
+        </div>
+        <div style="flex:1 1 auto;min-width:0;overflow:hidden;padding:28px 32px 24px;display:flex;flex-direction:column;background:var(--paper);">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;">
+            <div style="display:flex;align-items:baseline;gap:10px;">
+              <span style="font-size:22px;font-weight:700;">구성원</span>
+              <span style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase;">{{ presenceCount }}명</span>
+            </div>
+            <span style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border:1.6px solid var(--sky-deep);border-radius:6px 8px 7px 9px/8px 6px 9px 7px;background:var(--sky);font-size:13px;font-weight:700;color:var(--ink);"><span style="font-weight:400;font-size:15px;">+</span>초대</span>
+          </div>
+          <div style="border:1.6px solid var(--ink);border-radius:8px 10px 9px 11px/10px 8px 11px 9px;overflow:hidden;">
+            <div style="display:grid;grid-template-columns:2.4fr 1fr 1fr 1.2fr;gap:0;padding:9px 14px;background:var(--paper-2);border-bottom:1.4px solid var(--ink);">
+              <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">이름</span>
+              <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">역할</span>
+              <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">상태</span>
+              <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">참여일</span>
+            </div>
+            <sc-for list="{{ members }}" as="m" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:2.4fr 1fr 1fr 1.2fr;gap:0;padding:11px 14px;border-bottom:1.2px dashed rgba(28,27,26,.15);align-items:center;background:var(--paper);" style-hover="background:var(--sky-soft);">
+                <div style="display:flex;align-items:center;gap:9px;">
+                  <span style="width:26px;height:26px;font-size:12px;border:1.4px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:{{ m.bg }};">{{ m.i }}</span>
+                  <span style="font-size:13.5px;font-weight:600;color:var(--ink);">{{ m.name }}</span>
+                </div>
+                <span style="font-size:13px;color:var(--ink-soft);">{{ m.role }}</span>
+                <span style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ink-soft);"><span style="color:{{ m.statusColor }};">●</span>{{ m.status }}</span>
+                <span style="font-size:13px;color:var(--ink-soft);">{{ m.joined }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 4. STORAGE ================= -->
+  <div style="max-width:1280px;margin:32px auto 0;">
+    <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;margin-bottom:8px;">4. Storage · 1280 × 820</div>
+    <div style="width:1280px;height:820px;background:var(--paper);border:2px solid var(--ink);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;position:relative;">
+      <div style="display:flex;align-items:center;padding:0 16px;height:44px;border-bottom:1.6px solid var(--ink);background:var(--paper);gap:12px;flex:0 0 auto;">
+        <span style="font-size:14px;font-weight:600;">{{ workspaceName }}</span>
+        <span style="flex:1 1 auto;"></span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.04em;">{{ presenceCount }}명 접속 중</span>
+        <div style="display:flex;align-items:center;">
+          <sc-for list="{{ presenceAll }}" as="u" hint-placeholder-count="4">
+            <span style="margin-left:-6px;width:24px;height:24px;font-size:11px;border:1.4px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:{{ u.bg }};box-shadow:{{ u.ring }};">{{ u.i }}</span>
+          </sc-for>
+        </div>
+        <span style="width:30px;height:30px;border:1.4px solid var(--ink);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;background:var(--paper);">🔔</span>
+      </div>
+      <div style="display:flex;flex:1 1 auto;min-height:0;">
+        <div style="width:200px;flex:0 0 auto;border-right:1.6px solid var(--ink);display:flex;flex-direction:column;background:var(--paper);">
+          <div style="display:flex;align-items:center;gap:6px;padding:8px 10px 6px;border-bottom:1.2px solid var(--ink);">
+            <span style="font-weight:700;font-size:14px;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ workspaceName }}</span>
+            <span style="width:26px;height:26px;border:1.3px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:var(--paper);display:inline-flex;align-items:center;justify-content:center;font-size:14px;">«</span>
+          </div>
+          <div style="padding:10px 8px 6px;display:flex;flex-direction:column;gap:2px;">
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;font-size:14px;color:var(--ink-soft);"><span style="font-size:14px;">⊙</span><span>WorkSpace overview</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;font-size:14px;color:var(--ink-soft);"><span style="font-size:14px;">👥</span><span>Members</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--sky-soft);border-radius:4px;font-size:14px;color:var(--ink);font-weight:700;"><span style="font-size:14px;">🗄</span><span>Storage</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;font-size:14px;color:var(--ink-soft);"><span style="font-size:14px;">⚙</span><span>Settings</span></div>
+          </div>
+          <div style="height:1.2px;background:var(--ink);opacity:.12;margin:8px 10px;"></div>
+          <div style="padding:0 8px;">
+            <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;padding:4px 10px 6px;">★ STARRED</div>
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:4px;font-size:14px;color:var(--ink);"><span style="font-size:12px;">📌</span><span>README</span></div>
+          </div>
+          <span style="flex:1 1 auto;"></span>
+          <div style="padding:10px;font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.04em;line-height:1.5;">전체 문서는 오른쪽 목록에서<br>확인하고 검색하세요.</div>
+        </div>
+        <div style="flex:1 1 auto;min-width:0;overflow:hidden;padding:28px 32px 24px;display:flex;flex-direction:column;background:var(--paper);">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;">
+            <div style="display:flex;align-items:baseline;gap:10px;">
+              <span style="font-size:22px;font-weight:700;">Files</span>
+              <span style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase;">{{ fileCount }}개 항목</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:5px 14px;background:var(--sky-soft);border:1.4px solid var(--sky-deep);border-radius:999px;font-size:13px;font-weight:600;color:var(--sky-deep);">전체<span style="font-family:var(--mono);font-size:10px;background:var(--sky-deep);color:#fff;border-radius:999px;padding:0 5px;line-height:1.6;">6</span></span>
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:5px 14px;background:var(--paper);border:1.4px solid var(--ink);border-radius:999px;font-size:13px;color:var(--ink-soft);">문서 파일<span style="font-family:var(--mono);font-size:10px;background:var(--paper-2);border:1px solid var(--ink);border-radius:999px;padding:0 5px;line-height:1.6;color:var(--ink-soft);">4</span></span>
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:5px 14px;background:var(--paper);border:1.4px solid var(--ink);border-radius:999px;font-size:13px;color:var(--ink-soft);">채팅 파일<span style="font-family:var(--mono);font-size:10px;background:var(--paper-2);border:1px solid var(--ink);border-radius:999px;padding:0 5px;line-height:1.6;color:var(--ink-soft);">2</span></span>
+          </div>
+          <div style="border:1.6px solid var(--ink);border-radius:8px 10px 9px 11px/10px 8px 11px 9px;overflow:hidden;">
+            <div style="display:grid;grid-template-columns:2.3fr 1.7fr 90px 80px 100px 60px;gap:0;padding:9px 14px;background:var(--paper-2);border-bottom:1.4px solid var(--ink);">
+              <span style="font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">파일명</span>
+              <span style="font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">출처</span>
+              <span style="font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">유형</span>
+              <span style="font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">크기</span>
+              <span style="font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">날짜</span>
+              <span style="font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;">액션</span>
+            </div>
+            <sc-for list="{{ files }}" as="f" hint-placeholder-count="6">
+              <div style="display:grid;grid-template-columns:2.3fr 1.7fr 90px 80px 100px 60px;gap:0;padding:11px 14px;border-bottom:1.2px dashed rgba(28,27,26,.12);align-items:center;background:var(--paper);" style-hover="background:var(--sky-soft);">
+                <div style="display:flex;align-items:center;gap:9px;">
+                  <span style="width:28px;height:28px;border:1.2px solid var(--ink);border-radius:5px;background:{{ f.iconBg }};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">{{ f.icon }}</span>
+                  <span style="font-size:13px;font-weight:600;color:var(--ink);">{{ f.name }}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="font-size:11px;padding:2px 8px;background:{{ f.sourceBg }};border:1px solid {{ f.sourceBorder }};border-radius:999px;font-family:var(--mono);color:{{ f.sourceColor }};white-space:nowrap;">{{ f.source }}</span>
+                  <span style="font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ f.sourceDetail }}</span>
+                </div>
+                <span style="display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border:1.2px solid var(--ink);border-radius:999px;background:var(--paper);font-size:11px;width:fit-content;">{{ f.type }}</span>
+                <span style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);">{{ f.size }}</span>
+                <span style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);">{{ f.date }}</span>
+                <div style="display:flex;gap:6px;">
+                  <span style="width:24px;height:24px;border:1.2px solid var(--ink);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;">↓</span>
+                  <span style="width:24px;height:24px;border:1.2px solid var(--sky-deep);border-radius:5px;background:var(--sky-soft);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--sky-deep);">↗</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;margin-top:14px;flex-wrap:wrap;">
+            <span style="font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.06em;">LEGEND</span>
+            <span style="font-size:12px;color:var(--ink-soft);">문서 — 문서 블록에 임베딩된 파일</span>
+            <span style="font-size:12px;color:var(--ink-soft);">채팅 — 채팅으로 공유된 파일</span>
+            <span style="font-size:12px;color:var(--ink-soft);">↓ 다운로드 · <span style="color:var(--sky-deep);">↗</span> 원본 위치로 이동</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 5. SETTINGS ================= -->
+  <div style="max-width:1280px;margin:32px auto 0;">
+    <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;margin-bottom:8px;">5. Settings · 1280 × 820</div>
+    <div style="width:1280px;height:820px;background:var(--paper);border:2px solid var(--ink);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;position:relative;">
+      <div style="display:flex;align-items:center;padding:0 16px;height:44px;border-bottom:1.6px solid var(--ink);background:var(--paper);gap:12px;flex:0 0 auto;">
+        <span style="font-size:14px;font-weight:600;">{{ workspaceName }}</span>
+        <span style="flex:1 1 auto;"></span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.04em;">{{ presenceCount }}명 접속 중</span>
+        <div style="display:flex;align-items:center;">
+          <sc-for list="{{ presenceAll }}" as="u" hint-placeholder-count="4">
+            <span style="margin-left:-6px;width:24px;height:24px;font-size:11px;border:1.4px solid var(--ink);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:{{ u.bg }};box-shadow:{{ u.ring }};">{{ u.i }}</span>
+          </sc-for>
+        </div>
+        <span style="width:30px;height:30px;border:1.4px solid var(--ink);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;background:var(--paper);">🔔</span>
+      </div>
+      <div style="display:flex;flex:1 1 auto;min-height:0;">
+        <div style="width:200px;flex:0 0 auto;border-right:1.6px solid var(--ink);display:flex;flex-direction:column;background:var(--paper);">
+          <div style="display:flex;align-items:center;gap:6px;padding:8px 10px 6px;border-bottom:1.2px solid var(--ink);">
+            <span style="font-weight:700;font-size:14px;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ workspaceName }}</span>
+            <span style="width:26px;height:26px;border:1.3px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:var(--paper);display:inline-flex;align-items:center;justify-content:center;font-size:14px;">«</span>
+          </div>
+          <div style="padding:10px 8px 6px;display:flex;flex-direction:column;gap:2px;">
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;font-size:14px;color:var(--ink-soft);"><span style="font-size:14px;">⊙</span><span>WorkSpace overview</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;font-size:14px;color:var(--ink-soft);"><span style="font-size:14px;">👥</span><span>Members</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;font-size:14px;color:var(--ink-soft);"><span style="font-size:14px;">🗄</span><span>Storage</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--sky-soft);border-radius:4px;font-size:14px;color:var(--ink);font-weight:700;"><span style="font-size:14px;">⚙</span><span>Settings</span></div>
+          </div>
+          <div style="height:1.2px;background:var(--ink);opacity:.12;margin:8px 10px;"></div>
+          <div style="padding:0 8px;">
+            <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-soft);text-transform:uppercase;padding:4px 10px 6px;">★ STARRED</div>
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:4px;font-size:14px;color:var(--ink);"><span style="font-size:12px;">📌</span><span>README</span></div>
+          </div>
+          <span style="flex:1 1 auto;"></span>
+          <div style="padding:10px;font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.04em;line-height:1.5;">전체 문서는 오른쪽 목록에서<br>확인하고 검색하세요.</div>
+        </div>
+        <div style="flex:1 1 auto;min-width:0;overflow:hidden;padding:28px 32px 24px;display:flex;flex-direction:column;background:var(--paper);gap:22px;">
+          <div style="font-size:22px;font-weight:700;">설정</div>
+
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:10px;">일반</div>
+            <div style="display:flex;flex-direction:column;gap:6px;max-width:460px;margin-bottom:14px;">
+              <span style="font-size:13px;color:var(--ink-soft);">워크스페이스 이름</span>
+              <div style="padding:8px 12px;border:1.4px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:var(--paper-2);font-size:14px;">{{ workspaceName }}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;max-width:460px;">
+              <span style="font-size:13px;color:var(--ink-soft);">설명</span>
+              <div style="height:56px;padding:8px 12px;border:1.4px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:var(--paper-2);font-size:13px;color:var(--ink-faint);">LAN 기반 실시간 협업 문서 워크스페이스…</div>
+            </div>
+          </div>
+
+          <div style="height:1.4px;background:var(--ink);opacity:.12;"></div>
+
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:10px;">접속</div>
+            <div style="display:flex;align-items:center;gap:10px;max-width:520px;margin-bottom:12px;">
+              <div style="flex:1;padding:8px 12px;border:1.4px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;background:var(--paper-2);font-family:var(--mono);font-size:12px;color:var(--ink-soft);">workspace://hackathon-26</div>
+              <span style="padding:8px 14px;border:1.4px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;font-size:13px;">복사</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:13px;color:var(--ink-soft);">게스트 비밀번호</span>
+              <span style="padding:6px 12px;border:1.4px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;font-size:13px;">재설정</span>
+            </div>
+          </div>
+
+          <div style="height:1.4px;background:var(--ink);opacity:.12;"></div>
+
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:10px;">위험 구역</div>
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1.4px dashed var(--ink);border-radius:6px 8px 7px 9px/8px 6px 9px 7px;max-width:560px;">
+              <span style="font-size:16px;">⚠</span>
+              <span style="flex:1;font-size:13px;color:var(--ink-soft);">호스트 세션 재발급 시 모든 접속자가 다시 로그인해야 합니다.</span>
+              <span style="padding:6px 12px;border:1.4px solid var(--ink);border-radius:5px 7px 6px 8px/7px 5px 8px 6px;font-size:13px;white-space:nowrap;">재발급</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;workspaceName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;RMF Block&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;showLegacyShell&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Layout&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const docRows = [
+      { icon: '📌', iconBg: 'var(--warm-yellow)', name: 'README', owner: { i: 'M', bg: 'var(--sky-soft)' }, hereNow: [], hereNowEmpty: true, modified: '5분 전', created: '약 1개월 전' },
+      { icon: '📄', iconBg: 'var(--sky-soft)', name: 'Capde Draft', owner: { i: 'M', bg: 'var(--sky-soft)' }, hereNow: [{ i: 'M', bg: 'var(--sky-soft)' }, { i: 'J', bg: 'var(--warm-yellow)' }, { i: 'S', bg: 'var(--pink)' }], hereNowEmpty: false, modified: '2시간 전', created: '약 1개월 전' },
+      { icon: '📄', iconBg: 'var(--paper-2)', name: '브레인스토밍', owner: { i: 'J', bg: 'var(--warm-yellow)' }, hereNow: [], hereNowEmpty: true, modified: '1일 전', created: '약 1개월 전' },
+      { icon: '📄', iconBg: 'var(--paper-2)', name: 'API 명세서', owner: { i: 'D', bg: 'var(--green)' }, hereNow: [{ i: 'J', bg: 'var(--warm-yellow)' }], hereNowEmpty: false, modified: '17시간 전', created: '19일 전' },
+      { icon: '📄', iconBg: 'var(--paper-2)', name: '2026-05-25 킥오프', owner: { i: 'J', bg: 'var(--warm-yellow)' }, hereNow: [{ i: 'D', bg: 'var(--green)' }], hereNowEmpty: false, modified: '1일 전', created: '1일 전' },
+      { icon: '📄', iconBg: 'var(--paper-2)', name: '2026-05-22 사전 미팅', owner: { i: 'S', bg: 'var(--pink)' }, hereNow: [], hereNowEmpty: true, modified: '4일 전', created: '4일 전' }
+    ];
+    const presenceAll = [
+      { i: 'M', bg: 'var(--sky-soft)', ring: '0 0 0 2px var(--paper), 0 0 0 3.4px var(--sky-deep)' },
+      { i: 'J', bg: 'var(--warm-yellow)', ring: 'none' },
+      { i: 'S', bg: 'var(--pink)', ring: 'none' },
+      { i: 'D', bg: 'var(--green)', ring: 'none' }
+    ];
+    const members = [
+      { i: 'M', bg: 'var(--sky-soft)', name: '나 (호스트)', role: 'Host', status: '온라인', statusColor: 'var(--sky-deep)', joined: '약 1개월 전' },
+      { i: 'J', bg: 'var(--warm-yellow)', name: '재훈', role: 'Guest', status: '온라인', statusColor: 'var(--sky-deep)', joined: '19일 전' },
+      { i: 'S', bg: 'var(--pink)', name: '소영', role: 'Guest', status: '온라인', statusColor: 'var(--sky-deep)', joined: '17일 전' },
+      { i: 'D', bg: 'var(--green)', name: '동현', role: 'Guest', status: '오프라인', statusColor: 'var(--ink-faint)', joined: '12일 전' }
+    ];
+    const files = [
+      { icon: '🖼', iconBg: 'var(--sky-soft)', name: 'topology-diagram.png', source: '채팅', sourceBg: 'var(--warm-yellow)', sourceBorder: 'var(--ink)', sourceColor: 'var(--ink)', sourceDetail: '#general', type: '이미지', size: '340 KB', date: '2026-05-28' },
+      { icon: '📄', iconBg: 'var(--pink)', name: 'localguard-api-v0.pdf', source: '문서', sourceBg: 'var(--sky-soft)', sourceBorder: 'var(--sky-deep)', sourceColor: 'var(--sky-deep)', sourceDetail: '초안 / API 명세서', type: 'PDF', size: '1.2 MB', date: '2026-05-27' },
+      { icon: '🖼', iconBg: 'var(--sky-soft)', name: 'ui-sketch.png', source: '문서', sourceBg: 'var(--sky-soft)', sourceBorder: 'var(--sky-deep)', sourceColor: 'var(--sky-deep)', sourceDetail: '초안 / Capde Draft', type: '이미지', size: '2.1 MB', date: '2026-05-27' },
+      { icon: '📄', iconBg: 'var(--warm-yellow)', name: 'kickoff-slides.pdf', source: '문서', sourceBg: 'var(--sky-soft)', sourceBorder: 'var(--sky-deep)', sourceColor: 'var(--sky-deep)', sourceDetail: '회의록 / 2026-05-25 킥오프', type: 'PDF', size: '4.8 MB', date: '2026-05-25' },
+      { icon: '🖼', iconBg: 'var(--sky-soft)', name: 'network-topology.png', source: '문서', sourceBg: 'var(--sky-soft)', sourceBorder: 'var(--sky-deep)', sourceColor: 'var(--sky-deep)', sourceDetail: '초안 / 브레인스토밍', type: '이미지', size: '890 KB', date: '2026-05-24' },
+      { icon: '📄', iconBg: 'var(--paper-2)', name: 'mdns-scan-log.txt', source: '채팅', sourceBg: 'var(--warm-yellow)', sourceBorder: 'var(--ink)', sourceColor: 'var(--ink)', sourceDetail: '#general', type: '텍스트', size: '12 KB', date: '2026-05-23' }
+    ];
+    return {
+      workspaceName: this.props.workspaceName ?? 'RMF Block',
+      showLegacyShell: this.props.showLegacyShell ?? true,
+      docRows,
+      docCount: docRows.length,
+      presenceAll,
+      presenceCount: presenceAll.length,
+      members,
+      files,
+      fileCount: files.length
+    };
+  }
+}
+</script>
+</body>
+</html>
