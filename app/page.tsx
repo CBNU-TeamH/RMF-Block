@@ -4,10 +4,11 @@ import { redirect } from "next/navigation";
 import { sessionRegistry } from "@/lib/auth/session-registry";
 import { SESSION_COOKIE } from "@/lib/auth/types";
 import { isHostSecret } from "@/lib/host-secret";
+import { HOST_PRESENCE } from "@/lib/presence/types";
 import { yorkieClientConfig } from "@/lib/yorkie-address";
 
 import { SessionWatch } from "./session-watch";
-import { YorkieStatus } from "./yorkie-status";
+import { WorkspacePresenceList } from "./workspace-presence";
 
 export default async function Home() {
   const jar = await cookies();
@@ -25,13 +26,23 @@ export default async function Home() {
   // it matches however this visitor reached the app. See `lib/yorkie-address.ts`.
   const yorkie = yorkieClientConfig();
 
+  // The host proved themselves with the bootstrap secret and never filled in a
+  // join form, so they have no `WorkspaceMember` to publish — see `HOST_PRESENCE`.
+  const me = member ?? HOST_PRESENCE;
+
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-4 bg-zinc-50 px-6 font-sans dark:bg-black">
       {member ? <SessionWatch /> : null}
       <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
         {member ? `hello ${member.nickname}!` : "hello host!"}
       </h1>
-      <YorkieStatus override={yorkie.override} port={yorkie.port} />
+      <WorkspacePresenceList
+        colorTag={me.colorTag}
+        memberId={me.id}
+        nickname={me.nickname}
+        override={yorkie.override}
+        port={yorkie.port}
+      />
     </main>
   );
 }

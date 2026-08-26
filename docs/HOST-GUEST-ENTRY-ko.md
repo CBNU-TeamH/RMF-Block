@@ -1,7 +1,7 @@
 # 호스트 / 게스트 입장 — 무엇을 왜 이렇게 만들었나
 
 > `feat/host-setup` 브랜치에서 진행한 작업 설명서입니다.
-> 팀 규칙상 문서는 영어가 기본이지만([`AGENTS.md`](AGENTS.md) §5), 이 파일은 설명용으로 한국어로 씁니다.
+> 팀 규칙상 문서는 영어가 기본이지만([`AGENTS.md`](../AGENTS.md) §5), 이 파일은 설명용으로 한국어로 씁니다.
 
 ## 목차
 
@@ -24,10 +24,10 @@
 | `app/page.tsx`, `app/layout.tsx` | `create-next-app` 기본 템플릿. Vercel 로고가 박혀 있던 그 화면. |
 
 나머지 — HTTP 서버, 인증, 세션, 호스트/게스트 개념, 앱용 Dockerfile — 은 **전부 문서로만 존재**했습니다.
-[`ROADMAP.md`](ROADMAP.md) Phase 0에 남은 마지막 항목이 바로 이것이었고요.
+[`ROADMAP.md`](../ROADMAP.md) Phase 0에 남은 마지막 항목이 바로 이것이었고요.
 
 그리고 중요한 점: **호스트를 어떻게 식별할지는 이미 정해져 있었습니다.**
-[`docs/design/api.md`](docs/design/api.md)의 "Authentication model" 표가 그 결정을 이렇게 적어 두었습니다.
+[`docs/design/api.md`](design/api.md)의 "Authentication model" 표가 그 결정을 이렇게 적어 두었습니다.
 
 > 서버가 시작할 때 bootstrap secret을 만들어 컨테이너 stdout에 참가 주소와 함께 출력한다.
 > 컨테이너를 실행한 사람만 stdout을 읽을 수 있으므로, 그 secret을 가지고 있다는 사실이 곧 호스트임을 증명한다.
@@ -344,9 +344,9 @@ test("an empty HOST_LAN_IP is not an override — compose passes one when unset"
 
 ### 관련 문서
 
-- [`tasks/active/20260809-host-guest-entry-todo.md`](tasks/active/20260809-host-guest-entry-todo.md) — 마일스톤과 인수 조건
-- [`tasks/active/20260809-host-guest-entry-lessons.md`](tasks/active/20260809-host-guest-entry-lessons.md) — 삽질 기록
-- [`docs/design/api.md`](docs/design/api.md) — 인증 모델의 출처
+- [`tasks/archive/2026/08/20260809-host-guest-entry-todo.md`](../tasks/archive/2026/08/20260809-host-guest-entry-todo.md) — 마일스톤과 인수 조건
+- [`tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`](../tasks/archive/2026/08/20260809-host-guest-entry-lessons.md) — 삽질 기록
+- [`docs/design/api.md`](design/api.md) — 인증 모델의 출처
 
 ---
 

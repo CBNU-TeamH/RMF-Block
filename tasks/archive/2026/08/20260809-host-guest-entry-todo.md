@@ -2,7 +2,7 @@
 
 **Created**: 2026-08-09
 **Issue**: —
-**Design**: [`docs/design/api.md`](../../docs/design/api.md) — Authentication model and the
+**Design**: [`docs/design/api.md`](../../../../docs/design/api.md) — Authentication model and the
 `/api/auth/host` entry in the endpoint catalog. No separate module design doc: this task implements a
 decision already recorded there rather than making a new one.
 
@@ -17,15 +17,14 @@ FR-020-01~05) is the next task.
 
 ## Milestones
 
-### 1. The image the host runs 🟡
+### 1. The image the host runs ✅
 
 - **What**: `docker compose up --build` starts the app, reachable from other machines on the LAN.
 - **Files**: `Dockerfile`, `.dockerignore`, `docker-compose.yml`, `next.config.ts`, `package.json`.
 - **Reuse**: the existing `docker-compose.yml` (Yorkie service untouched) and the pinned pnpm
   patches, which have to be applied inside the image too.
-- **Done**: `docker compose up --build` serves `http://localhost:3000`. Reaching the published port
-  from a second device is the one acceptance check still unverified (see below), so this milestone
-  is partial.
+- **Done**: `docker compose up --build` serves `http://localhost:3000`, and the published port is
+  reachable from a second device on the same Wi-Fi.
 
 ### 2. Host identity from container stdout ✅
 
@@ -62,8 +61,9 @@ FR-020-01~05) is the next task.
 - [x] `docker compose restart app` invalidates the previous host cookie — the old tab reloads to
       **hello guest!** and the newly printed link works. (Revoke path per `api.md`.)
 - [x] `HOST_LAN_IP=192.168.0.14 docker compose up` prints that address and drops the hint.
-- [ ] A second device on the same Wi-Fi opens the `Guest:` URL and sees **hello guest!**.
-      *Verified only from the host machine so far — needs a real two-device run.*
+- [x] A second device on the same Wi-Fi opens the `Guest:` URL and sees **hello guest!**.
+      Done — verified in the two-device run that also closed the same check in
+      `20260825-connected-user-list-todo.md`.
 - [x] `/spike/prosemirror` still works; the spike did not regress.
 
 ## Cross-cutting
@@ -86,5 +86,7 @@ FR-020-01~05) is the next task.
 Shipped milestones 1–4. Cut as planned: workspace name/password screen, guest nickname login,
 session/refresh tokens, `/health`, WebSocket, Yorkie wiring, restore-on-restart.
 
-One acceptance box is still open — the two-device LAN check — because it cannot be done from this
-machine alone. Everything else was verified against the running container, not just `next dev`.
+Every acceptance box is ticked. The two-device LAN check was the last one and could not be done
+from one machine; it was closed later, in the same run that closed the identical check on the
+connected-user list. Everything else was verified against the running container, not just
+`next dev`.

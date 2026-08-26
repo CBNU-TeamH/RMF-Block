@@ -96,6 +96,16 @@ pnpm test                     # node:test, no framework
 pnpm build
 ```
 
+Two traps worth knowing before you hit them, both found the hard way:
+
+- **Run `pnpm build` last, not before `pnpm dev`.** A production build leaves a `.next` the dev
+  server cannot use, and it fails with `Could not parse module '[project]/instrumentation.ts', file
+  not found` for a file that plainly exists. `rm -rf .next` fixes it. The block above is in a safe
+  order; reversing the last two lines is not.
+- **Docker Compose must be 2.20 or newer.** `docker-compose.yml` uses `attach: false` on the mongo
+  service to keep the host's terminal readable. Older Compose (2.13 was measured) refuses the whole
+  file with `services.mongo Additional property attach is not allowed`.
+
 Documents live in Yorkie, which persists them to MongoDB — see [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2.
 The app's own state is written as JSON under `.data/` — chat today, with workspace metadata and auth
 records planned but still in-memory only.

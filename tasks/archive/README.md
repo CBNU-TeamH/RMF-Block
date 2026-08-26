@@ -10,6 +10,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 | :--- | :--- |
 | [Docs: move persistence and history from Git to Yorkie + MongoDB](2026/08/20260824-persistence-on-yorkie-mongo-todo.md) | [lessons](2026/08/20260824-persistence-on-yorkie-mongo-lessons.md) |
 | [Chat service — Version A, text slice](2026/08/20260812-chat-service-todo.md) | [lessons](2026/08/20260812-chat-service-lessons.md) |
+| [Host / Guest entry](2026/08/20260809-host-guest-entry-todo.md) | [lessons](2026/08/20260809-host-guest-entry-lessons.md) |
 
 ## 2026-07
 

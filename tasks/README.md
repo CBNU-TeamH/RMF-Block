@@ -24,7 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
-| [Host / Guest entry](active/20260809-host-guest-entry-todo.md) | [lessons](active/20260809-host-guest-entry-lessons.md) |
+| [Connected-user list](active/20260825-connected-user-list-todo.md) | [lessons](active/20260825-connected-user-list-lessons.md) |
 
 ## Archive
 

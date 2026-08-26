@@ -57,8 +57,8 @@ MongoDB is Yorkie's internal store — the App/WS Server never connects to it, a
 
 The wire protocol is Yorkie's own client SDK — not ours to design. What we do own is the **shape of data placed inside it**:
 
-- **Document schema** (CRDT document content — persisted, shared): every block has a common envelope `{ id, type, order }`; `type` is one of the twelve block types in SRS §4.1 (텍스트, 제목, 목록, 체크리스트, 인용문, 코드, 구분선, 파일, 이미지, PDF, 문서 링크, 블록 링크). Each type owns its own `content` payload shape. Field-level detail is defined when the Document Editing module's design doc is written.
-- **Presence schema** (ephemeral, per-connected-client — not persisted): `{ userId, displayName, colorTag, documentId, activeBlockId, viewport, role }`. `activeBlockId` is the block-occupancy signal (SIR003 — display-only, never a lock, per FR-022-06). `role` distinguishes presenter/follower for focus-following (SIR004).
+- **Document schema** (CRDT document content — persisted, shared): every block has a common envelope `{ id, type }`; `type` is one of the twelve block types in SRS §4.1 (텍스트, 제목, 목록, 체크리스트, 인용문, 코드, 구분선, 파일, 이미지, PDF, 문서 링크, 블록 링크). Each type owns its own `content` payload shape. Block order is the Yorkie Array position itself, not a stored field — the `order` originally sketched here was dropped for that reason. Field-level detail is settled in [`document-editing.md`](document-editing.md), which covers all twelve types.
+- **Presence schema** (ephemeral, per-connected-client — not persisted): `{ userId, displayName, colorTag, documentId, activeBlockId, viewport, role }`. Shipped so far is the identity subset, under different names: `{ id, nickname, colorTag }` (`lib/presence/types.ts`, reusing `WorkspaceMember` rather than minting a second identity). `documentId`, `activeBlockId`, `viewport` and `role` are design-only, pending the Document Editing and Presence/Follow modules. `activeBlockId` is the block-occupancy signal (SIR003 — display-only, never a lock, per FR-022-06). `role` distinguishes presenter/follower for focus-following (SIR004).
 
 ### (b) Client ↔ App/WS Server (API groups)
 
@@ -66,11 +66,13 @@ Transport is REST + WebSocket (SOIR001). Grouped by concern; full request/respon
 
 | Group | Carries | Traceability |
 | --- | --- | --- |
-| Workspace API | create/join/reopen, guest kick, password change, connected-user list | SIR001, SIR002, SIR011 |
+| Workspace API | create/join/reopen, guest kick, password change | SIR001, SIR002, SIR011 |
 | Document Tree API | doc create/rename/move/delete, tree listing | SIR003 (tree part) |
 | File API | upload, download, workspace-wide embedded-file listing, preview metadata | SIR005, SIR008 |
 | Chat API | send message (text/URL/file/block-link), history, chat-file listing | SIR006, SIR010 |
 | Presence/Follow API | start/stop presenting, join/pause/resume follow, jump-to-user, presenter-tool highlights | SIR004, SIR009 |
+
+The connected-user list is **not** in the table above: it crosses boundary (a), Client ↔ Yorkie, with the browser attaching to a reserved `workspace` document directly. The App/WS Server's only part is handing each browser its own `{ id, nickname, colorTag }` as server-rendered props (`app/page.tsx`).
 
 Presence/Follow is server-mediated business logic, not raw Yorkie Presence: SRS UC-030/UC-040 describe multi-step session state (start presenting → notify others → join → lock follower input → pause/resume) that needs the App/WS Server to track, beyond what a per-client Presence field expresses.
 
@@ -84,19 +86,19 @@ What crosses this boundary is version history only, through Yorkie's revision AP
 
 **Decided:** the App/WS Server does not keep a `Watch` subscription on documents — the only thing that required one was the deleted delayed-write trigger, and Mongo now provides durability directly.
 
-**Open — decide before building this:** `createRevision` is always an explicit call (Yorkie never snapshots on its own), so what remains open is which app-side event or cadence should trigger it (issue #28).
+**Open — decide before building this:** `createRevision` is always an explicit call (Yorkie never snapshots on its own), so what remains open is which app-side event or cadence should trigger it (issue #23).
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 
 Chat history is read and written as whole JSON files on the host filesystem — `lib/chat/chat-repository.ts` is the reference implementation of the pattern, including serializing concurrent writes through one promise chain. Workspace metadata and auth records are planned to follow the same pattern but are still in-memory only today (`lib/auth/session-registry.ts`).
 
-This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`.
+This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`. **The two are not equally durable today**: `docker-compose.yml` gives Mongo a named volume and the app none, so `.data/` lives only inside the container and a `docker compose down` takes it with it (issue #22).
 
 ## 4. Decided vs. deferred
 
 | Decided here / already fixed | Deferred to module design |
 | --- | --- |
-| Block occupancy ≠ edit lock (SIR003, FR-022-06) | What triggers a `createRevision` call (ADR-002, issue #28) |
+| Block occupancy ≠ edit lock (SIR003, FR-022-06) | What triggers a `createRevision` call (ADR-002, issue #23) |
 | Yorkie owns realtime sync **and** document persistence/history (ADR-002) | Presenter/follower session state model |
 | The server keeps **no** Yorkie `Watch` subscription (ADR-002) | Load-test baseline (SRS §2.4 — `AGENTS.md` §7) |
 | MongoDB is Yorkie's store alone; the app never connects to it (ADR-002) | |
