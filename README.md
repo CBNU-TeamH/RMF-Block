@@ -107,8 +107,9 @@ Two traps worth knowing before you hit them, both found the hard way:
   file with `services.mongo Additional property attach is not allowed`.
 
 Documents live in Yorkie, which persists them to MongoDB — see [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2.
-The app's own state is written as JSON under `.data/` — chat today, with workspace metadata and auth
-records planned but still in-memory only.
+The app's own state is written as JSON under `.data/` — chat history and the workspace's members,
+so a nickname keeps its colour across a restart. Workspace metadata is still to come. Sessions are
+deliberately not written: restarting the container signs everyone out, which is the revoke path.
 
 It survives `down` and `up --build` on the `app-data` volume, the same way documents survive on
 `mongo-data`. Both are named volumes, so `docker compose down -v` still wipes them — that is the

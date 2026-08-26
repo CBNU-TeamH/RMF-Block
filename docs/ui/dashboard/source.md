@@ -56,7 +56,7 @@ implementer is not designing against fiction:
 | 이름 | `{{ m.name }}` | unchanged | `.data/members.json` |
 | 역할 | `{{ m.role }}` | unchanged, values are **host / guest** | **derived, not stored** — everything in `members.json` joined through the guest form, and the host is the synthetic `HOST_PRESENCE` |
 | 상태 | `{{ m.status }}` | unchanged | the live Yorkie roster (`lib/presence/`), cross-referenced by member id |
-| 참여일 | `{{ m.joined }}` | **최근 접속** `{{ m.lastSeen }}` | `lastJoinedAt`, stamped on every join |
+| 참여일 | `{{ m.joined }}` | **최근 접속** `{{ m.lastSeen }}` | `lastJoinedAt`, stamped on every join. **The names differ on purpose and the screen has to map them**: `SessionRegistry.members()` returns `lastJoinedAt`, and the artboard's binding is `m.lastSeen`. Handing registry records straight to that template renders an empty cell. |
 | — | `+ 초대` button | **removed** | there is nothing to build: the workspace password *is* the invite, and the host reads it out |
 
 `최근 접속` replaces `참여일` because the question the host actually has is "is this record still

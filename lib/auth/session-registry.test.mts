@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdtempSync, readFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -249,11 +249,27 @@ describe("SessionRegistry persistence", () => {
 });
 
 describe("SessionRegistry when the store cannot be written", () => {
-  /** A path whose parent refuses `mkdir`, so `writeMembers` throws. */
+  /**
+   * A path whose parent refuses `mkdir`, so `writeMembers` throws.
+   *
+   * `sealed` reports whether the mode actually took: root ignores 0o500 and
+   * Windows does not enforce POSIX bits, and a test that cannot fail is worse
+   * than no test — which this file has already learned once, from a case that
+   * sealed the wrong directory and asserted nothing.
+   */
   const unwritable = () => {
     const dir = mkdtempSync(path.join(tmpdir(), "rmf-ro-"));
     const storePath = path.join(dir, "sub", "members.json");
-    return { storePath, seal: () => chmodSync(dir, 0o500), open: () => chmodSync(dir, 0o700) };
+    const seal = () => {
+      chmodSync(dir, 0o500);
+      try {
+        writeFileSync(path.join(dir, ".probe"), "");
+        return false;
+      } catch {
+        return true;
+      }
+    };
+    return { storePath, seal, open: () => chmodSync(dir, 0o700) };
   };
 
   it("rolls a first-time join back rather than stranding a session", () => {
@@ -262,7 +278,7 @@ describe("SessionRegistry when the store cannot be written", () => {
     // displace a device that did not exist, and the name stayed locked.
     const { storePath, seal, open } = unwritable();
     const registry = new SessionRegistry(storePath);
-    seal();
+    if (!seal()) return; // the filesystem will not hold the door shut here
 
     try {
       assert.throws(() => registry.join("alice"), MemberStoreError);
@@ -276,7 +292,7 @@ describe("SessionRegistry when the store cannot be written", () => {
   it("lets the nickname straight back in once the store recovers", () => {
     const { storePath, seal, open } = unwritable();
     const registry = new SessionRegistry(storePath);
-    seal();
+    if (!seal()) return;
     assert.throws(() => registry.join("alice"), MemberStoreError);
     open();
 
@@ -298,6 +314,13 @@ describe("SessionRegistry when the store cannot be written", () => {
     const first = registry.join("alice");
     const before = readFileSync(storePath, "utf8");
     chmodSync(dir, 0o500);
+    try {
+      writeFileSync(path.join(dir, ".probe"), "");
+      chmodSync(dir, 0o700);
+      return; // not enforced here — see `unwritable`
+    } catch {
+      // sealed, carry on
+    }
 
     try {
       const second = registry.join("alice");

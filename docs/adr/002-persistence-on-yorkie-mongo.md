@@ -22,7 +22,7 @@ Two further facts settled this:
 
 1. **Yorkie owns document persistence and version history.** The Yorkie server runs with MongoDB as its backend store (`--mongo-connection-uri`), not MemDB. Document state survives restart because Yorkie persists it; version history is recorded through the revision API. There is no delayed write, no materialization to files, and no commit step.
 
-2. **The App/WS Server owns its own state as JSON files under `.data/`.** Chat history, workspace metadata, and auth records are written as plain JSON on the host filesystem — the pattern `lib/chat/chat-repository.ts` already establishes, chat and member records persist there today; workspace metadata remains in-memory until that lands, and sessions stay in memory by design. This state is not CRDT document content and does not belong to Yorkie.
+2. **The App/WS Server owns its own state as JSON files under `.data/`.** Chat history and member records are written as plain JSON on the host filesystem, following the pattern `lib/chat/chat-repository.ts` establishes. Workspace metadata is meant to join them and has not yet. Sessions never will: a session id on disk would be a permanent bearer token, and restarting the container is the documented revoke path. This state is not CRDT document content and does not belong to Yorkie.
 
 3. **MongoDB is Yorkie's internal store and nothing else.** The App/WS Server never connects to it. Document state and revisions are reachable only through Yorkie. This boundary is stated explicitly because the alternative — the app writing its own collections into Yorkie's database — is the obvious wrong turn.
 

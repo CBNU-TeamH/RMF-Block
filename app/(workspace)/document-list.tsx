@@ -14,7 +14,17 @@ export type DocumentRow = WorkspaceDocument & {
 
 const COLUMNS = "grid-cols-[2.3fr_90px_110px_130px]";
 
-const day = new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric" });
+// Pinned, not left to the runtime default: this list is rendered once on the
+// server and again during hydration, and the container runs UTC while the people
+// reading it do not. A timestamp near midnight would otherwise render as two
+// different days and React would report a hydration mismatch. The workspace is a
+// room full of people who are physically together, so one zone is the right
+// model — it is theirs, not the server's.
+const day = new Intl.DateTimeFormat("ko-KR", {
+  month: "numeric",
+  day: "numeric",
+  timeZone: "Asia/Seoul",
+});
 const stamp = (iso: string) => (iso ? day.format(new Date(iso)) : "—");
 
 /**

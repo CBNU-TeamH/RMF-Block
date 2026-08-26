@@ -106,9 +106,10 @@ server component and reads the store directly.
 
 - **What**: a nickname keeps its member id and colour tag across a restart.
 - **Files**: `lib/auth/member-repository.ts` (+ test), `lib/auth/session-registry.ts`.
-- **Reuse**: three mechanisms from `lib/chat/chat-repository.ts`, and **nothing else from
-  `lib/chat/`** — the promise chain that serializes writes, the write-then-rename, and the
-  ENOENT-only-empty read. All three are load-bearing and each carries a comment saying what breaks
+- **Reuse**: two of the three mechanisms from `lib/chat/chat-repository.ts`, and **nothing else from
+  `lib/chat/`** — the write-then-rename and the ENOENT-only-empty read. Planned as three: the
+  promise chain went with the decision to make this store synchronous, since it exists to serialize
+  async appends that can interleave and sync writes on one thread cannot. All three are load-bearing and each carries a comment saying what breaks
   without it: concurrent writes clobbering each other, a reader seeing a half-written file, and a
   permission error being swallowed as "no records" and then overwriting real ones. **Not reused**:
   `lib/chat/types.ts`'s `ChatRepository` / `ChatBroadcaster` interfaces and the `ChatService` layer,
@@ -137,7 +138,7 @@ server component and reads the store directly.
 - **The document store is read-only here.** `lib/documents/documents.ts` is one function: read
   `.data/documents/documents.json`, return `[]` on ENOENT. About fifteen lines, no write path, no
   queue, no rename — there is nothing to serialize against. A record is
-  `{ id, name, ownerId, createdAt, updatedAt }`; `id` is also the Yorkie document key for later
+  `{ id, name, createdBy, createdAt, updatedAt }`; `id` is also the Yorkie document key for later
   (`api.md` §2 — no prefix, a Yorkie key cannot contain `:`). Fixtures are written by hand.
 - **Why a file and not a constant in the component**: the thing being proved is that the *server*
   loads documents and every browser gets the same list. A hardcoded array proves neither, and when

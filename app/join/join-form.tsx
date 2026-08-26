@@ -29,6 +29,8 @@ export function JoinForm() {
   const nicknameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  /** Where focus should land once the modal closes; the nickname if unset. */
+  const focusOnClose = useRef<HTMLInputElement | null>(null);
 
   const [error, setError] = useState<FieldError | null>(null);
   const [pending, setPending] = useState(false);
@@ -37,11 +39,20 @@ export function JoinForm() {
 
   // `<dialog>` is only modal — backdrop, focus trap, Esc to dismiss — when it is
   // opened through showModal(), which has no declarative equivalent.
+  //
+  // Focus is restored here rather than by whoever cleared `conflict`, because
+  // until `close()` runs the form is inert: a `.focus()` call from the click
+  // handler is ignored, and `close()` then hands focus back to whatever was
+  // active before `showModal()` — the submit button they pressed to get here.
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     if (conflict !== null && !dialog.open) dialog.showModal();
-    if (conflict === null && dialog.open) dialog.close();
+    if (conflict === null && dialog.open) {
+      dialog.close();
+      (focusOnClose.current ?? nicknameRef.current)?.focus();
+      focusOnClose.current = null;
+    }
   }, [conflict]);
 
   /**
@@ -52,7 +63,6 @@ export function JoinForm() {
    */
   function dismiss() {
     setConflict(null);
-    nicknameRef.current?.focus();
   }
 
   async function join(force: boolean) {
@@ -85,11 +95,17 @@ export function JoinForm() {
         // dialog has to close first — it is modal, so everything behind it is
         // inert: the error would render under the backdrop, and the focus call
         // below would land on an element the browser is ignoring.
-        setConflict(null);
         setError({ field, message: body.error ?? "입장하지 못했습니다." });
         // A null field is a network or capacity failure. Neither is the
         // password's fault, so focus stays where the guest left it.
-        if (field) (field === "nickname" ? nicknameRef : passwordRef).current?.focus();
+        const target = field === "nickname" ? nicknameRef : field ? passwordRef : null;
+        if (dialogRef.current?.open) {
+          // The effect below moves focus once the modal is actually closed.
+          focusOnClose.current = target?.current ?? null;
+          setConflict(null);
+        } else {
+          target?.current?.focus();
+        }
         return;
       }
 
