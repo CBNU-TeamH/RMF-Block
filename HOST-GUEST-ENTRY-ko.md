@@ -344,8 +344,8 @@ test("an empty HOST_LAN_IP is not an override — compose passes one when unset"
 
 ### 관련 문서
 
-- [`tasks/active/20260809-host-guest-entry-todo.md`](tasks/active/20260809-host-guest-entry-todo.md) — 마일스톤과 인수 조건
-- [`tasks/active/20260809-host-guest-entry-lessons.md`](tasks/active/20260809-host-guest-entry-lessons.md) — 삽질 기록
+- [`tasks/archive/2026/08/20260809-host-guest-entry-todo.md`](tasks/archive/2026/08/20260809-host-guest-entry-todo.md) — 마일스톤과 인수 조건
+- [`tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`](tasks/archive/2026/08/20260809-host-guest-entry-lessons.md) — 삽질 기록
 - [`docs/design/api.md`](docs/design/api.md) — 인증 모델의 출처
 
 ---

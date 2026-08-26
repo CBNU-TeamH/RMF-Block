@@ -81,8 +81,8 @@ The WS hub keeps its existing job (FR-020-08 session revocation) and gains nothi
 - [x] Two tabs on one device show one entry — both tabs displayed `(1)` — and closing one keeps the
       member listed.
 - [x] The host appears in the list alongside guests.
-- [ ] A second *device* on the same Wi-Fi sees the same list. Cannot be checked from this machine
-      alone, and is the same open box as `20260809-host-guest-entry-todo.md`'s last item.
+- [x] A second *device* on the same Wi-Fi sees the same list. Verified on this branch from a second
+      device over the LAN: it joined and appeared in the first device's roster.
 
 ## Cross-cutting
 
@@ -102,9 +102,9 @@ The WS hub keeps its existing job (FR-020-08 session revocation) and gains nothi
 
 ## Review
 
-**Status: working and verified, handed over mid-task.** The feature is finished and every
-acceptance box above is ticked except the two-device LAN check. What has *not* happened is the
-cleanup pass — see "Open for whoever picks this up".
+**Status: working and verified.** The feature is finished and every acceptance box above is
+ticked, the two-device LAN check included. What has *not* happened is the cleanup pass — see
+"Open for whoever picks this up".
 
 Shipped: `lib/presence/types.ts`, `lib/presence/roster.ts` (+ tests), `app/workspace-presence.tsx`,
 and the three lines in `app/page.tsx` that hand it an identity. `app/yorkie-status.tsx` is deleted —
@@ -138,9 +138,10 @@ Not from `pnpm dev` alone. Against a real `yorkieteam/yorkie:0.7.13` backed by `
    reasoning is sound and documented in both files, but the rule lives in halves.
 3. **`(you)` is matched on `memberId`.** Fine today. Once the host can kick guests (UC-011) the
    component will need to know *what* you are, not just which entry is yours.
-4. **The two-device LAN check is still open**, the same box `20260809-host-guest-entry-todo.md`
-   has never been able to tick. It needs two machines, not two tabs — one browser profile shares
-   its cookies, so two tabs are always the same user.
+4. ~~**The two-device LAN check is still open**~~ — done. A second device on the LAN joined and
+   showed up in the first device's roster. It needed two machines, not two tabs: one browser
+   profile shares its cookies, so two tabs are always the same user. The identical box in
+   `20260809-host-guest-entry-todo.md` is satisfied by the same run and can be ticked there too.
 
 ### Two environment traps that cost time here
 
