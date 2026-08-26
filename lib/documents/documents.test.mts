@@ -17,7 +17,7 @@ const store = (documents: unknown) => {
 const doc = (id: string, updatedAt: string) => ({
   id,
   name: id,
-  ownerId: "m-1",
+  createdBy: "m-1",
   createdAt: "2026-08-01T00:00:00.000Z",
   updatedAt,
 });

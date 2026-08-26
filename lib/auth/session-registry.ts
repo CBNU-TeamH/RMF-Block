@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { DEFAULT_MEMBERS_PATH, readMembers, writeMembers } from "./member-repository.ts";
 import {
   JoinValidationError,
+  MemberStoreError,
   WorkspaceFullError,
   type JoinResult,
   type StoredMember,
@@ -123,7 +124,36 @@ export class SessionRegistry {
     // still anyone?", which is the question the host has when clearing out
     // members they do not recognise.
     this.lastJoinedAt.set(member.id, new Date().toISOString());
-    this.persist();
+
+    try {
+      this.persist();
+    } catch (error) {
+      // The two cases are not the same failure.
+      //
+      // A returning member is already on disk, so all a failed write loses is a
+      // fresher `lastJoinedAt`. Letting the join through degrades to exactly how
+      // this worked before members persisted at all, which is a state the app
+      // has already run in. Swallowing it is the lesser harm.
+      //
+      // A brand-new member was never durable, and every mutation above belongs
+      // to this call — a member with no previous session cannot have displaced
+      // anyone, so `revokedSessionId` is always null here and there is no other
+      // device's session to put back. That makes the rollback total, and leaving
+      // the mutations in place instead would strand a session nobody holds:
+      // `hasLiveSession()` would say the nickname is taken, the guest would meet
+      // a 409 telling them to displace a device that does not exist, and the
+      // name would stay locked until the process restarted.
+      console.error("could not write members.json", error);
+      if (!existing) {
+        this.membersByNickname.delete(nickname);
+        this.memberBySession.delete(sessionId);
+        this.sessionByMemberId.delete(member.id);
+        this.lastJoinedAt.delete(member.id);
+        throw new MemberStoreError(
+          "참가자 정보를 저장하지 못했습니다. 호스트에게 서버 저장 공간을 확인해 달라고 알려주세요.",
+        );
+      }
+    }
 
     return { member, sessionId, revokedSessionId };
   }

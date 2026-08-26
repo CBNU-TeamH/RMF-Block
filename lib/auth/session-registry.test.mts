@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
 import { SessionRegistry } from "./session-registry.ts";
-import { JoinValidationError, WorkspaceFullError } from "./types.ts";
+import { JoinValidationError, MemberStoreError, WorkspaceFullError } from "./types.ts";
 
 describe("SessionRegistry.join", () => {
   it("creates a member for a new nickname", () => {
@@ -245,5 +245,69 @@ describe("SessionRegistry persistence", () => {
 
   it("treats a missing store as an empty workspace, not an error", () => {
     assert.doesNotThrow(() => new SessionRegistry(scratch()));
+  });
+});
+
+describe("SessionRegistry when the store cannot be written", () => {
+  /** A path whose parent refuses `mkdir`, so `writeMembers` throws. */
+  const unwritable = () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "rmf-ro-"));
+    const storePath = path.join(dir, "sub", "members.json");
+    return { storePath, seal: () => chmodSync(dir, 0o500), open: () => chmodSync(dir, 0o700) };
+  };
+
+  it("rolls a first-time join back rather than stranding a session", () => {
+    // The bug this pins: leaving the mutations in place made hasLiveSession()
+    // report the nickname as taken, so the guest met a 409 telling them to
+    // displace a device that did not exist, and the name stayed locked.
+    const { storePath, seal, open } = unwritable();
+    const registry = new SessionRegistry(storePath);
+    seal();
+
+    try {
+      assert.throws(() => registry.join("alice"), MemberStoreError);
+      assert.equal(registry.hasLiveSession("alice"), false);
+      assert.equal(registry.members().length, 0);
+    } finally {
+      open();
+    }
+  });
+
+  it("lets the nickname straight back in once the store recovers", () => {
+    const { storePath, seal, open } = unwritable();
+    const registry = new SessionRegistry(storePath);
+    seal();
+    assert.throws(() => registry.join("alice"), MemberStoreError);
+    open();
+
+    const again = registry.join("alice");
+    assert.equal(again.member.nickname, "alice");
+    assert.ok(registry.resolve(again.sessionId));
+  });
+
+  it("lets a returning member through, because their record is already on disk", () => {
+    // All a failed write costs them is a fresher lastJoinedAt, which is not
+    // worth turning away a guest whose identity is already durable.
+    //
+    // The first join has to land before the store is sealed, so the directory
+    // it created has to be the one sealed — sealing only the parent leaves the
+    // second write perfectly able to succeed, and the test proves nothing.
+    const dir = mkdtempSync(path.join(tmpdir(), "rmf-ro-"));
+    const storePath = path.join(dir, "members.json");
+    const registry = new SessionRegistry(storePath);
+    const first = registry.join("alice");
+    const before = readFileSync(storePath, "utf8");
+    chmodSync(dir, 0o500);
+
+    try {
+      const second = registry.join("alice");
+      assert.equal(second.member.id, first.member.id);
+      assert.equal(second.revokedSessionId, first.sessionId);
+      assert.ok(registry.resolve(second.sessionId));
+      // And the write really did fail — otherwise this asserts nothing.
+      assert.equal(readFileSync(storePath, "utf8"), before);
+    } finally {
+      chmodSync(dir, 0o700);
+    }
   });
 });

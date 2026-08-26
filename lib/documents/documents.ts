@@ -16,7 +16,15 @@ export const DEFAULT_DOCUMENTS_PATH = path.resolve(".data/documents/documents.js
 export type WorkspaceDocument = {
   id: string;
   name: string;
-  ownerId: string;
+  /**
+   * Who made it — a record, not a permission. The SRS gives documents no
+   * ownership and no per-document rights: FR-022-06 and SIR003 both say
+   * occupancy "does not block another user from editing", so everyone may edit
+   * everything. What UC-021 does distinguish is the 생성자, whose screen the
+   * editor opens on, and this is that. Calling it `ownerId` implied a right
+   * nobody has.
+   */
+  createdBy: string;
   createdAt: string;
   updatedAt: string;
 };

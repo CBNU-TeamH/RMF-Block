@@ -43,6 +43,14 @@ export type JoinResult = {
 export class JoinValidationError extends Error {}
 
 /**
+ * Thrown when a first-time join could not be written to disk. The registry has
+ * already rolled itself back by then, so the nickname is free to try again —
+ * which is the whole point of telling the caller rather than swallowing it.
+ * A *returning* member never raises this: their record is already on disk.
+ */
+export class MemberStoreError extends Error {}
+
+/**
  * Thrown when the workspace has taken as many distinct members as it will hold.
  * Separate from `JoinValidationError` because the request was fine — the room is
  * not — so it deserves a 503 rather than a 400.

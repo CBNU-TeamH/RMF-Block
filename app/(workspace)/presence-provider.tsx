@@ -107,6 +107,10 @@ export function PresenceProvider({
       // for a stack trace, and this is the one place a guest can be told
       // anything at all about it.
       console.error(`Yorkie is not reachable at ${address}`, error);
+      // ponytail: failed is terminal — the only way back is a reload. A quiet
+      // retry with a backoff would fit here and is tracked as issue #37; it is
+      // left out for now because nothing else in the app reconnects either, and
+      // one component doing it alone would be the odd one out.
     });
 
     return () => {

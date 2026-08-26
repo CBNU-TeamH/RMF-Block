@@ -4,6 +4,7 @@ import { sessionRegistry } from "@/lib/auth/session-registry";
 import {
   SESSION_COOKIE,
   JoinValidationError,
+  MemberStoreError,
   WorkspaceFullError,
 } from "@/lib/auth/types";
 import { isWorkspacePassword } from "@/lib/workspace-config";
@@ -59,7 +60,18 @@ export async function POST(request: NextRequest) {
     if (error instanceof WorkspaceFullError) {
       return NextResponse.json({ error: error.message }, { status: 503 });
     }
-    throw error;
+    if (error instanceof MemberStoreError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
+    // Anything else still fails the request, but with a body the form can show.
+    // Re-throwing handed Next its own 500 page, and the form fell back to
+    // "서버에 연결할 수 없습니다" — which points at the network for a fault that
+    // is on the server.
+    console.error("join failed", error);
+    return NextResponse.json(
+      { error: "입장하지 못했습니다. 잠시 후 다시 시도해 주세요." },
+      { status: 500 },
+    );
   }
 
   // FR-020-08: the previous device stops being the live one, so tell it before

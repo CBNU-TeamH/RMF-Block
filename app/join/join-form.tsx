@@ -44,6 +44,17 @@ export function JoinForm() {
     if (conflict === null && dialog.open) dialog.close();
   }, [conflict]);
 
+  /**
+   * Back out of a takeover. Only reachable while nothing is in flight: once
+   * `join(true)` has been sent the displacement has already happened on the
+   * server, and dismissing would have closed the dialog while the request went
+   * on to sign the guest in under the very name they had backed out of.
+   */
+  function dismiss() {
+    setConflict(null);
+    nicknameRef.current?.focus();
+  }
+
   async function join(force: boolean) {
     const form = formRef.current;
     if (!form) return;
@@ -70,9 +81,15 @@ export function JoinForm() {
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         const field = FIELD_BY_STATUS[response.status] ?? null;
-        // FR-020-05: stay on the form so the guest can fix it in place.
+        // FR-020-05: stay on the form so the guest can fix it in place. The
+        // dialog has to close first — it is modal, so everything behind it is
+        // inert: the error would render under the backdrop, and the focus call
+        // below would land on an element the browser is ignoring.
+        setConflict(null);
         setError({ field, message: body.error ?? "입장하지 못했습니다." });
-        (field === "nickname" ? nicknameRef : passwordRef).current?.focus();
+        // A null field is a network or capacity failure. Neither is the
+        // password's fault, so focus stays where the guest left it.
+        if (field) (field === "nickname" ? nicknameRef : passwordRef).current?.focus();
         return;
       }
 
@@ -146,8 +163,8 @@ export function JoinForm() {
         onCancel={(event) => {
           // Esc means "I did not mean to displace anyone", not "go ahead".
           event.preventDefault();
-          setConflict(null);
-          nicknameRef.current?.focus();
+          if (pending) return;
+          dismiss();
         }}
         className="m-auto max-w-sm rounded-lg border border-ink bg-paper p-5 text-ink backdrop:bg-ink/40"
       >
@@ -160,11 +177,9 @@ export function JoinForm() {
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
-            onClick={() => {
-              setConflict(null);
-              nicknameRef.current?.focus();
-            }}
-            className="rounded-md border border-ink px-3 py-1.5 text-sm text-ink"
+            disabled={pending}
+            onClick={dismiss}
+            className="rounded-md border border-ink px-3 py-1.5 text-sm text-ink disabled:opacity-40"
           >
             다른 이름 쓰기
           </button>

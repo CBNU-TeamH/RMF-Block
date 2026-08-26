@@ -82,7 +82,6 @@ export default async function WorkspaceLayout({
                 <li key={item.label}>
                   <span
                     aria-current={item.current ? "page" : undefined}
-                    aria-disabled={!item.current}
                     className={`flex items-center gap-2 rounded px-2.5 py-1.5 text-sm ${
                       item.current
                         ? "bg-sky-soft font-bold text-ink"
@@ -91,16 +90,15 @@ export default async function WorkspaceLayout({
                   >
                     <span aria-hidden>{item.icon}</span>
                     {item.label}
+                    {/* `aria-disabled` on a bare span is a no-op — the attribute
+                        only means anything on a role that has a disabled state.
+                        The strikethrough says "not yet" to sighted readers; this
+                        says it to everyone else. */}
+                    {item.current ? null : <span className="sr-only">(준비 중)</span>}
                   </span>
                 </li>
               ))}
             </ul>
-            <span className="flex-1" />
-            <p className="p-3 font-mono text-[10px] leading-relaxed tracking-wide text-ink-faint">
-              전체 문서는 오른쪽 목록에서
-              <br />
-              확인하고 검색하세요.
-            </p>
           </nav>
 
           <main className="min-w-0 flex-1 overflow-hidden bg-paper px-8 py-7">{children}</main>

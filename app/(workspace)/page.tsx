@@ -21,7 +21,7 @@ export default async function WorkspaceHome() {
 
   const rows: Array<DocumentRow> = documents.map((doc) => ({
     ...doc,
-    owner: membersById.get(doc.ownerId) ?? null,
+    creator: membersById.get(doc.createdBy) ?? null,
   }));
 
   return <DocumentList documents={rows} />;

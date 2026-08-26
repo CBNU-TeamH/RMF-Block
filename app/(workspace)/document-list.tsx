@@ -6,10 +6,10 @@ import type { WorkspaceMember } from "@/lib/auth/types";
 import type { WorkspaceDocument } from "@/lib/documents/documents";
 
 export type DocumentRow = WorkspaceDocument & {
-  /** null when the owner's record is gone — a member the host removed, or one
+  /** null when the creator's record is gone — a member the host removed, or one
    * from before members were persisted. Rendering a stale avatar would be a
    * guess; a blank cell is the truth. */
-  owner: WorkspaceMember | null;
+  creator: WorkspaceMember | null;
 };
 
 const COLUMNS = "grid-cols-[2.3fr_90px_110px_130px]";
@@ -56,14 +56,17 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
           className="w-full max-w-95 rounded-md border border-ink bg-paper-2 px-3 py-1.5 text-[13px] text-ink placeholder:text-ink-faint"
         />
         <span className="flex-1" />
-        <button
-          type="button"
-          disabled
-          title="문서 생성은 블록 편집기와 함께 들어옵니다"
-          className="rounded-md border border-sky-deep bg-sky px-4 py-1.5 text-[13px] font-bold text-ink disabled:opacity-40"
-        >
-          + 새 문서
-        </button>
+        {/* A disabled button swallows pointer events in most browsers, so a
+            title on it never shows. The wrapper is what the pointer hits. */}
+        <span title="문서 생성은 블록 편집기와 함께 들어옵니다">
+          <button
+            type="button"
+            disabled
+            className="rounded-md border border-sky-deep bg-sky px-4 py-1.5 text-[13px] font-bold text-ink disabled:opacity-40"
+          >
+            + 새 문서
+          </button>
+        </span>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-ink">
@@ -71,7 +74,7 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
           className={`grid ${COLUMNS} items-center border-b border-ink bg-paper-2 px-3.5 py-2 font-mono text-[9.5px] tracking-wide text-ink-soft uppercase`}
         >
           <span>Title</span>
-          <span>Owner</span>
+          <span>만든 사람</span>
           <span>Modified ↓</span>
           <span>Created</span>
         </div>
@@ -91,13 +94,13 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
               >
                 <span className="truncate text-[13.5px] font-semibold text-ink">{doc.name}</span>
                 <span>
-                  {doc.owner ? (
+                  {doc.creator ? (
                     <span
-                      title={doc.owner.nickname}
-                      style={{ backgroundColor: doc.owner.colorTag }}
+                      title={doc.creator.nickname}
+                      style={{ backgroundColor: doc.creator.colorTag }}
                       className="inline-flex size-5.5 items-center justify-center rounded-full border border-ink text-[11px] font-bold text-ink"
                     >
-                      {doc.owner.nickname.slice(0, 1)}
+                      {doc.creator.nickname.slice(0, 1)}
                     </span>
                   ) : null}
                 </span>
