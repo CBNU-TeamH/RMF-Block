@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Dashboard Wireframe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:       #1c1b1a;
+    --ink-soft:  #4a4744;
+    --ink-faint: #8a847e;
+    --paper:     #fbfaf6;
+    --paper-2:   #f3f0e8;
+    --line:      #1c1b1a;
+    --sky:       #38bdf8;
+    --sky-deep:  #0ea5e9;
+    --sky-soft:  #e0f2fe;
+    --warm-yellow: #fde68a;
+    --pink:      #fbcfe8;
+    --green:     #86efac;
+    --hand: system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #efebe2;
+    font-family: var(--hand);
+    color: var(--ink);
+  }
+
+  /* ── sketchy borders ── */
+  .sk {
+    border: 1.6px solid var(--line);
+    border-radius: 6px 8px 7px 9px / 8px 6px 9px 7px;
+    background: var(--paper);
+    position: relative;
+  }
+  .sk-thin { border-width: 1.2px; }
+  .sk-fill { background: var(--paper-2); }
+  .sk-sky  { background: var(--sky-soft); border-color: var(--sky-deep); }
+  .wobble-1 { border-radius: 5px 7px 6px 8px / 7px 5px 8px 6px; }
+  .wobble-2 { border-radius: 8px 5px 9px 6px / 6px 8px 7px 9px; }
+
+  /* ── label caps ── */
+  .label-cap {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: .08em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+
+  /* ── avatar ── */
+  .avatar {
+    width: 24px; height: 24px;
+    border: 1.4px solid var(--line);
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--hand); font-size: 11px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .avatar.sky { background: var(--sky-soft); }
+  .avatar.yel { background: var(--warm-yellow); }
+  .avatar.pnk { background: var(--pink); }
+  .avatar.grn { background: var(--green); }
+
+  /* ── tag pill ── */
+  .tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 7px;
+    border: 1.2px solid var(--line);
+    border-radius: 999px;
+    background: var(--paper);
+    font-family: var(--hand); font-size: 12px; line-height: 1.4;
+  }
+  .tag.sky  { background: var(--sky-soft); border-color: var(--sky-deep); }
+
+  /* ── page intro ── */
+  .intro {
+    max-width: 1440px;
+    margin: 28px auto 0;
+    padding: 0 28px;
+  }
+  .intro h1 {
+    font-family: var(--hand); font-weight: 700; font-size: 30px; margin: 0 0 4px;
+  }
+  .intro p {
+    font-family: var(--hand); font-size: 16px; color: var(--ink-soft);
+    margin: 0; max-width: 800px;
+  }
+  .intro .meta {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-faint);
+    letter-spacing: .08em; text-transform: uppercase; margin-bottom: 10px;
+  }
+  .rough-line {
+    width: 220px; height: 8px;
+    background: linear-gradient(90deg, var(--sky) 0 100%);
+    border-radius: 2px;
+    transform: translateY(-2px) rotate(-0.4deg);
+    margin: 6px 0 18px;
+  }
+  .legend {
+    display: flex; gap: 14px; align-items: center;
+    font-family: var(--hand); font-size: 14px; color: var(--ink-soft);
+    flex-wrap: wrap; padding: 10px 4px 0;
+  }
+  .legend .chip { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border: 1.2px solid var(--line); border-radius: 3px; }
+
+  /* ── artboard wrapper ── */
+  .stage {
+    width: 100vw; height: 100vh;
+    position: fixed; top: 0; left: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: #efebe2;
+    pointer-events: none;
+  }
+  .stage.page-mode {
+    position: static;
+    width: auto; height: auto;
+    display: block;
+    padding: 28px 28px 60px;
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+
+  /* The 1440×900 artboard */
+  .artboard-outer {
+    width: 1440px; height: 900px;
+    transform-origin: top left;
+  }
+  .artboard {
+    width: 1440px; height: 900px;
+    background: var(--paper);
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    pointer-events: all;
+  }
+
+  /* ── top nav ── */
+  .topnav {
+    height: 44px;
+    display: flex; align-items: center;
+    padding: 0 20px;
+    border-bottom: 1.6px solid var(--line);
+    gap: 0;
+    flex-shrink: 0;
+    background: var(--paper);
+  }
+  .topnav-left  { display: flex; align-items: center; gap: 10px; flex: 1; }
+  .topnav-right { display: flex; align-items: center; gap: 18px; }
+  .topnav-divider {
+    width: 1.4px; height: 20px; background: var(--line); margin: 0 6px; opacity: .4;
+  }
+  .workspace-label {
+    font-size: 14px; font-weight: 600; color: var(--ink);
+  }
+  .nav-link {
+    font-size: 13px; color: var(--ink-soft); cursor: default;
+  }
+  .nav-link.active { color: var(--ink); font-weight: 600; }
+
+  /* ── main scroll area ── */
+  .main {
+    flex: 1;
+    overflow: hidden;
+    padding: 36px 80px 32px;
+    display: flex; flex-direction: column; gap: 0;
+  }
+
+  /* workspace header row */
+  .ws-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .ws-title-group { display: flex; align-items: center; gap: 10px; }
+  .ws-icon {
+    width: 36px; height: 36px;
+    border: 1.6px solid var(--line);
+    border-radius: 8px 10px 9px 11px / 10px 8px 11px 9px;
+    background: var(--sky-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .ws-name {
+    font-size: 22px; font-weight: 700; letter-spacing: -.02em;
+  }
+  .caret-icon {
+    font-size: 11px; color: var(--ink-faint); margin-left: 2px;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px;
+    border: 1.6px solid var(--line);
+    border-radius: 6px 8px 7px 9px / 8px 6px 9px 7px;
+    background: var(--paper);
+    font-family: var(--hand); font-size: 13px; font-weight: 600;
+    cursor: default;
+  }
+  .btn.sky {
+    background: var(--sky); border-color: var(--sky-deep); color: var(--ink);
+  }
+  .btn.sky-outline {
+    background: var(--sky-soft); border-color: var(--sky-deep); color: var(--sky-deep);
+  }
+
+  /* tabs row */
+  .tabs-row {
+    display: flex; align-items: flex-end; gap: 0;
+    border-bottom: 1.6px solid var(--line);
+    margin-bottom: 28px;
+  }
+  .tab-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 16px;
+    font-size: 13.5px; font-weight: 500; color: var(--ink-soft);
+    cursor: default; position: relative;
+    white-space: nowrap;
+  }
+  .tab-item.active {
+    color: var(--ink); font-weight: 700;
+  }
+  .tab-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1.6px; left: 10px; right: 10px;
+    height: 2.5px;
+    background: var(--sky-deep);
+    border-radius: 2px;
+  }
+  .tab-icon { font-size: 13px; opacity: .7; }
+
+  /* storage section */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 8px;
+  }
+  .storage-row {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 28px;
+  }
+  .storage-val {
+    font-size: 24px; font-weight: 700; color: var(--sky-deep);
+    font-family: var(--mono); white-space: nowrap;
+  }
+  .storage-max {
+    font-size: 14px; color: var(--ink-faint); font-family: var(--mono);
+    white-space: nowrap;
+  }
+  .storage-bar-track {
+    flex: 1;
+    height: 7px;
+    background: var(--paper-2);
+    border: 1.2px solid var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .storage-bar-fill {
+    height: 100%; width: 32%;
+    background: var(--sky);
+    border-radius: 999px;
+  }
+
+  .section-divider {
+    height: 1.4px; background: var(--line); opacity: .15;
+    margin-bottom: 24px; border-radius: 2px;
+  }
+
+  /* docs section */
+  .docs-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .docs-title { font-size: 20px; font-weight: 700; }
+  .docs-controls { display: flex; align-items: center; gap: 8px; }
+  .icon-btn {
+    width: 30px; height: 30px;
+    border: 1.4px solid var(--line);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; cursor: default;
+    background: var(--paper);
+  }
+  .icon-btn.active { background: var(--sky-soft); border-color: var(--sky-deep); }
+
+  /* search row */
+  .search-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .search-box {
+    display: flex; align-items: center; gap: 8px;
+    flex: 1; max-width: 380px;
+    padding: 7px 12px;
+    border: 1.4px solid var(--line);
+    border-radius: 6px 8px 7px 9px / 8px 6px 9px 7px;
+    background: var(--paper-2);
+    font-family: var(--hand); font-size: 13px; color: var(--ink-faint);
+  }
+  .sort-group {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--hand); font-size: 13px; color: var(--ink-soft);
+  }
+  .sort-select {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 10px;
+    border: 1.4px solid var(--line);
+    border-radius: 5px 7px 6px 8px / 7px 5px 8px 6px;
+    background: var(--paper); font-family: var(--hand); font-size: 13px;
+    cursor: default;
+  }
+
+  /* doc cards grid */
+  .doc-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+  }
+
+  /* doc card */
+  .doc-card {
+    border: 1.6px solid var(--line);
+    border-radius: 8px 10px 9px 11px / 10px 8px 11px 9px;
+    background: var(--paper);
+    padding: 14px 14px 12px;
+    display: flex; flex-direction: column; gap: 8px;
+    cursor: default;
+    min-height: 0;
+  }
+  .doc-card:hover { background: var(--sky-soft); border-color: var(--sky-deep); }
+  .doc-card-top { display: flex; align-items: flex-start; justify-content: space-between; }
+  .doc-card-icon {
+    width: 32px; height: 32px;
+    border: 1.3px solid var(--line);
+    border-radius: 6px 8px 7px 9px / 8px 6px 9px 7px;
+    background: var(--paper-2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .doc-card-icon.sky { background: var(--sky-soft); border-color: var(--sky-deep); }
+  .doc-card-icon.yel { background: var(--warm-yellow); }
+  .doc-star { font-size: 14px; opacity: .35; }
+  .doc-star.on { opacity: 1; }
+  .doc-card-name {
+    font-size: 14px; font-weight: 700; color: var(--ink);
+    line-height: 1.3;
+  }
+  .doc-card-sub {
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .doc-sub-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11.5px; color: var(--ink-soft);
+    padding: 2px 0;
+  }
+  .doc-sub-item span:first-child { font-size: 11px; opacity: .7; }
+  .doc-card-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: auto;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(28,27,26,.15);
+  }
+  .doc-time { font-family: var(--mono); font-size: 9.5px; color: var(--ink-faint); letter-spacing: .03em; }
+  .doc-avatars { display: flex; gap: -4px; }
+  .doc-avatars .avatar {
+    width: 18px; height: 18px; font-size: 9px; border-width: 1.1px;
+    margin-left: -4px;
+  }
+  .doc-avatars .avatar:first-child { margin-left: 0; }
+</style>
+</head>
+<body>
+
+<!-- page intro header -->
+<div class="intro">
+  <div class="meta">Dashboard · v0.1</div>
+  <h1>Dashboard — WorkSpace Overview</h1>
+  <div class="rough-line"></div>
+  <p>WorkSpace overview 페이지 와이어프레임. Storage 지표 + Docs 카드 그리드 (사이드바 index 반영).</p>
+  <div class="legend">
+    <span class="chip"><span class="swatch" style="background:#38bdf8"></span> primary (sky)</span>
+    <span class="chip"><span class="swatch" style="background:#e0f2fe"></span> sky-soft</span>
+    <span class="chip"><span class="swatch" style="background:#fde68a"></span> presence</span>
+    <span class="chip"><span class="swatch" style="background:#fbfaf6; border-color:#1c1b1a"></span> paper</span>
+    <span class="chip"><span class="swatch" style="background:#1c1b1a"></span> ink</span>
+  </div>
+</div>
+
+<!-- artboard scale wrapper -->
+<div style="padding: 28px 28px 60px; max-width: 1500px; margin: 0 auto;">
+  <div style="position: relative;">
+    <!-- label -->
+    <div class="label-cap" style="margin-bottom: 8px;">Dashboard — WorkSpace Overview · 1440 × 900</div>
+
+    <!-- scale container -->
+    <div id="artboard-scaler" style="width: 100%;">
+      <div id="artboard-outer" style="width: 1440px; transform-origin: top left;">
+
+        <div class="artboard sk" style="border-radius:10px; width:1440px; height:900px;">
+
+          <!-- ── TOP NAV ───────────────────────────────────────── -->
+          <nav class="topnav">
+            <div class="topnav-left">
+              <span class="workspace-label">Dashboard</span>
+            </div>
+            <div class="topnav-right"></div>
+          </nav>
+
+          <!-- ── MAIN ─────────────────────────────────────────── -->
+          <div class="main">
+
+            <!-- workspace title row -->
+            <div class="ws-header">
+              <div class="ws-title-group">
+                <div class="ws-icon">🗂</div>
+                <span class="ws-name">Workspace name</span>
+                <span class="caret-icon">▾</span>
+              </div>
+
+            </div>
+
+            <!-- tabs -->
+            <div class="tabs-row">
+              <div class="tab-item active">
+                <span class="tab-icon">⊙</span> WorkSpace overview
+              </div>
+              <div class="tab-item">
+                <span class="tab-icon">👥</span> Members
+              </div>
+              <div class="tab-item">
+                <span class="tab-icon">🗄</span> Storage
+              </div>
+              <div class="tab-item">
+                <span class="tab-icon">⚙</span> Settings
+              </div>
+            </div>
+
+
+            <!-- docs header -->
+            <div class="docs-header">
+              <div style="display:flex; align-items:baseline; gap:10px;">
+                <span class="docs-title">Docs</span>
+                <span class="label-cap" style="font-size:10px; color:var(--ink-faint);">5 items</span>
+              </div>
+              <div class="docs-controls">
+                <div class="icon-btn" title="Grid view">⊞</div>
+                <div class="icon-btn active" title="List view">☰</div>
+                <button class="btn sky wobble-2" style="font-size:13px;">
+                  <span style="font-weight:400; font-size:15px;">+</span> New Doc
+                </button>
+              </div>
+            </div>
+
+            <!-- search + sort row -->
+            <div class="search-row">
+              <div class="search-box">
+                <span style="font-size:13px; opacity:.6;">🔍</span>
+                <span>Search docs…</span>
+              </div>
+              <div class="sort-group">
+                <span style="color:var(--ink-faint);">Sort:</span>
+                <div class="sort-select">Date modified <span style="font-size:11px; opacity:.7;">▾</span></div>
+              </div>
+            </div>
+
+            <!-- doc cards grid -->
+            <div class="doc-grid">
+
+              <!-- README -->
+              <div class="doc-card wobble-1">
+                <div class="doc-card-top">
+                  <div class="doc-card-icon yel">📌</div>
+                  <span class="doc-star on">★</span>
+                </div>
+                <div class="doc-card-name">README</div>
+                <div class="doc-card-sub">
+                  <div class="doc-sub-item">
+                    <span>📄</span><span>단일 문서</span>
+                  </div>
+                </div>
+                <div class="doc-card-meta">
+                  <span class="doc-time">5 min ago</span>
+                  <div class="doc-avatars">
+                    <div class="avatar sky">M</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 초안 폴더 -->
+              <div class="doc-card wobble-2">
+                <div class="doc-card-top">
+                  <div class="doc-card-icon sky">📁</div>
+                  <span class="doc-star">★</span>
+                </div>
+                <div class="doc-card-name">초안</div>
+                <div class="doc-card-sub">
+                  <div class="doc-sub-item"><span>📄</span><span>Capde Draft</span></div>
+                  <div class="doc-sub-item"><span>📄</span><span>브레인스토밍</span></div>
+                  <div class="doc-sub-item"><span>📄</span><span>API 명세서</span></div>
+                </div>
+                <div class="doc-card-meta">
+                  <span class="doc-time">2 hr ago</span>
+                  <div class="doc-avatars">
+                    <div class="avatar sky">M</div>
+                    <div class="avatar yel">J</div>
+                    <div class="avatar pnk">S</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 회의록 폴더 -->
+              <div class="doc-card wobble-1">
+                <div class="doc-card-top">
+                  <div class="doc-card-icon sky">📁</div>
+                  <span class="doc-star">★</span>
+                </div>
+                <div class="doc-card-name">회의록</div>
+                <div class="doc-card-sub">
+                  <div class="doc-sub-item"><span>📄</span><span>2026-05-25 킥오프</span></div>
+                  <div class="doc-sub-item"><span>📄</span><span>2026-05-22 사전 미팅</span></div>
+                </div>
+                <div class="doc-card-meta">
+                  <span class="doc-time">1 day ago</span>
+                  <div class="doc-avatars">
+                    <div class="avatar grn">D</div>
+                    <div class="avatar yel">J</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 리서치 폴더 -->
+              <div class="doc-card wobble-2">
+                <div class="doc-card-top">
+                  <div class="doc-card-icon">📁</div>
+                  <span class="doc-star">★</span>
+                </div>
+                <div class="doc-card-name">리서치</div>
+                <div class="doc-card-sub">
+                  <div class="doc-sub-item" style="color:var(--ink-faint); font-style:italic;">
+                    <span>—</span><span>비어 있음</span>
+                  </div>
+                </div>
+                <div class="doc-card-meta">
+                  <span class="doc-time">3 days ago</span>
+                  <div class="doc-avatars">
+                    <div class="avatar pnk">S</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 레퍼런스 자료 폴더 -->
+              <div class="doc-card wobble-1">
+                <div class="doc-card-top">
+                  <div class="doc-card-icon">📁</div>
+                  <span class="doc-star">★</span>
+                </div>
+                <div class="doc-card-name">레퍼런스 자료</div>
+                <div class="doc-card-sub">
+                  <div class="doc-sub-item" style="color:var(--ink-faint); font-style:italic;">
+                    <span>—</span><span>비어 있음</span>
+                  </div>
+                </div>
+                <div class="doc-card-meta">
+                  <span class="doc-time">5 days ago</span>
+                  <div class="doc-avatars">
+                    <div class="avatar sky">M</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            <!-- /doc-grid -->
+
+          </div>
+          <!-- /main -->
+
+        </div>
+        <!-- /artboard -->
+      </div>
+      <!-- /artboard-outer -->
+    </div>
+    <!-- /artboard-scaler -->
+  </div>
+</div>
+
+<script>
+  function scaleArtboard() {
+    [['artboard-outer','artboard-scaler'],['artboard-outer-2','artboard-scaler-2']].forEach(([outerId, scalerId]) => {
+      const outer = document.getElementById(outerId);
+      const scaler = document.getElementById(scalerId);
+      if (!outer || !scaler) return;
+      const scale = Math.min(1, scaler.offsetWidth / 1440);
+      outer.style.transform = `scale(${scale})`;
+      scaler.style.height = (900 * scale) + 'px';
+    });
+  }
+  scaleArtboard();
+  window.addEventListener('resize', scaleArtboard);
+</script>
+
+
+<!-- ── FLOW CONNECTOR ─────────────────────────────────────── -->
+<div style="max-width:1500px; margin:0 auto; padding:0 28px;">
+  <div style="display:flex; align-items:center; gap:12px; margin:32px 0 24px;">
+    <div style="height:1.6px; flex:1; background:var(--line); opacity:.2; border-radius:2px;"></div>
+    <div style="display:flex; align-items:center; gap:8px;
+      background:var(--sky-soft); border:1.4px solid var(--sky-deep);
+      border-radius:6px 8px 7px 9px / 8px 6px 9px 7px;
+      padding:6px 14px; font-family:var(--hand); font-size:13px; font-weight:600; color:var(--sky-deep);">
+      <span style="font-size:16px;">🗄</span>
+      Storage 탭 클릭
+      <span style="font-size:13px; opacity:.7;">→</span>
+    </div>
+    <div style="height:1.6px; flex:1; background:var(--line); opacity:.2; border-radius:2px;"></div>
+  </div>
+</div>
+
+<!-- ── ARTBOARD 2: STORAGE TAB ──────────────────────────────── -->
+<div style="padding: 0 28px 80px; max-width: 1500px; margin: 0 auto;">
+  <div style="position: relative;">
+    <div class="label-cap" style="margin-bottom: 8px;">Storage Tab — Files View · 1440 × 900</div>
+    <div id="artboard-scaler-2" style="width: 100%;">
+      <div id="artboard-outer-2" style="width: 1440px; transform-origin: top left;">
+        <div class="artboard sk" style="border-radius:10px; width:1440px; height:900px;">
+
+          <!-- TOP NAV -->
+          <nav class="topnav">
+            <div class="topnav-left">
+              <span class="workspace-label">Dashboard</span>
+            </div>
+            <div class="topnav-right"></div>
+          </nav>
+
+          <!-- MAIN -->
+          <div class="main" style="padding:36px 80px 32px;">
+
+            <!-- workspace title row -->
+            <div class="ws-header">
+              <div class="ws-title-group">
+                <div class="ws-icon">🗂</div>
+                <span class="ws-name">Workspace name</span>
+                <span class="caret-icon">▾</span>
+              </div>
+            </div>
+
+            <!-- tabs — Storage active -->
+            <div class="tabs-row">
+              <div class="tab-item">
+                <span class="tab-icon">⊙</span> WorkSpace overview
+              </div>
+              <div class="tab-item">
+                <span class="tab-icon">👥</span> Members
+              </div>
+              <div class="tab-item active">
+                <span class="tab-icon">🗄</span> Storage
+              </div>
+              <div class="tab-item">
+                <span class="tab-icon">⚙</span> Settings
+              </div>
+            </div>
+
+            <!-- files header row -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+              <div style="display:flex; align-items:baseline; gap:10px;">
+                <span style="font-size:20px; font-weight:700;">Files</span>
+                <span class="label-cap" style="font-size:10px; color:var(--ink-faint);">6 items</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-family:var(--hand); font-size:13px; color:var(--ink-faint);">Sort:</span>
+                <div class="sort-select">Date modified <span style="font-size:11px; opacity:.7;">▾</span></div>
+              </div>
+            </div>
+
+            <!-- filter pills -->
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:20px;">
+              <div style="display:inline-flex; align-items:center; gap:5px;
+                padding:5px 14px;
+                background:var(--sky-soft); border:1.4px solid var(--sky-deep);
+                border-radius:999px; font-family:var(--hand); font-size:13px; font-weight:600; color:var(--sky-deep); cursor:default;">
+                전체
+                <span style="font-family:var(--mono); font-size:10px; background:var(--sky-deep); color:#fff; border-radius:999px; padding:0 5px; line-height:1.6;">6</span>
+              </div>
+              <div style="display:inline-flex; align-items:center; gap:5px;
+                padding:5px 14px;
+                background:var(--paper); border:1.4px solid var(--line);
+                border-radius:999px; font-family:var(--hand); font-size:13px; color:var(--ink-soft); cursor:default;">
+                문서 파일
+                <span style="font-family:var(--mono); font-size:10px; background:var(--paper-2); border:1px solid var(--line); border-radius:999px; padding:0 5px; line-height:1.6; color:var(--ink-soft);">4</span>
+              </div>
+              <div style="display:inline-flex; align-items:center; gap:5px;
+                padding:5px 14px;
+                background:var(--paper); border:1.4px solid var(--line);
+                border-radius:999px; font-family:var(--hand); font-size:13px; color:var(--ink-soft); cursor:default;">
+                채팅 파일
+                <span style="font-family:var(--mono); font-size:10px; background:var(--paper-2); border:1px solid var(--line); border-radius:999px; padding:0 5px; line-height:1.6; color:var(--ink-soft);">2</span>
+              </div>
+            </div>
+
+            <!-- file list table -->
+            <div style="border:1.6px solid var(--line); border-radius:8px 10px 9px 11px / 10px 8px 11px 9px; overflow:hidden;">
+
+              <!-- table header -->
+              <div style="display:grid; grid-template-columns: 2.4fr 2fr 100px 80px 110px 80px;
+                gap:0; padding:8px 16px;
+                background:var(--paper-2); border-bottom:1.4px solid var(--line);">
+                <span class="label-cap" style="font-size:9px;">파일명</span>
+                <span class="label-cap" style="font-size:9px;">출처</span>
+                <span class="label-cap" style="font-size:9px;">유형</span>
+                <span class="label-cap" style="font-size:9px;">크기</span>
+                <span class="label-cap" style="font-size:9px;">날짜</span>
+                <span class="label-cap" style="font-size:9px;">액션</span>
+              </div>
+
+              <!-- rows -->
+
+              <!-- row 1 -->
+              <div style="display:grid; grid-template-columns: 2.4fr 2fr 100px 80px 110px 80px;
+                gap:0; padding:11px 16px; border-bottom:1.2px dashed rgba(28,27,26,.12); align-items:center; background:var(--paper);">
+                <div style="display:flex; align-items:center; gap:9px;">
+                  <div style="width:28px; height:28px; border:1.2px solid var(--line); border-radius:5px; background:var(--sky-soft); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">🖼</div>
+                  <span style="font-size:13px; font-weight:600; color:var(--ink);">topology-diagram.png</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:11px; padding:2px 8px; background:var(--warm-yellow); border:1px solid var(--line); border-radius:999px; font-family:var(--mono); color:var(--ink); white-space:nowrap;">채팅</span>
+                  <span style="font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">#general</span>
+                </div>
+                <span class="tag" style="width:fit-content; font-size:11px;">이미지</span>
+                <span style="font-family:var(--mono); font-size:12px; color:var(--ink-soft);">340 KB</span>
+                <span style="font-family:var(--mono); font-size:11px; color:var(--ink-faint);">2026-05-28</span>
+                <div style="display:flex; gap:6px;">
+                  <div style="width:26px; height:26px; border:1.2px solid var(--line); border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:13px; cursor:default;" title="다운로드">↓</div>
+                  <div style="width:26px; height:26px; border:1.2px solid var(--sky-deep); border-radius:5px; background:var(--sky-soft); display:flex; align-items:center; justify-content:center; font-size:12px; cursor:default; color:var(--sky-deep);" title="원본 위치로">↗</div>
+                </div>
+              </div>
+
+              <!-- row 2 -->
+              <div style="display:grid; grid-template-columns: 2.4fr 2fr 100px 80px 110px 80px;
+                gap:0; padding:11px 16px; border-bottom:1.2px dashed rgba(28,27,26,.12); align-items:center; background:var(--paper);">
+                <div style="display:flex; align-items:center; gap:9px;">
+                  <div style="width:28px; height:28px; border:1.2px solid var(--line); border-radius:5px; background:var(--pink); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">📄</div>
+                  <span style="font-size:13px; font-weight:600; color:var(--ink);">localguard-api-v0.pdf</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:11px; padding:2px 8px; background:var(--sky-soft); border:1px solid var(--sky-deep); border-radius:999px; font-family:var(--mono); color:var(--sky-deep); white-space:nowrap;">문서</span>
+                  <span style="font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">초안 / API 명세서</span>
+                </div>
+                <span class="tag" style="width:fit-content; font-size:11px;">PDF</span>
+                <span style="font-family:var(--mono); font-size:12px; color:var(--ink-soft);">1.2 MB</span>
+                <span style="font-family:var(--mono); font-size:11px; color:var(--ink-faint);">2026-05-27</span>
+                <div style="display:flex; gap:6px;">
+                  <div style="width:26px; height:26px; border:1.2px solid var(--line); border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:13px; cursor:default;">↓</div>
+                  <div style="width:26px; height:26px; border:1.2px solid var(--sky-deep); border-radius:5px; background:var(--sky-soft); display:flex; align-items:center; justify-content:center; font-size:12px; cursor:default; color:var(--sky-deep);">↗</div>
+                </div>
+              </div>
+
+              <!-- row 3 -->
+              <div style="display:grid; grid-template-columns: 2.4fr 2fr 100px 80px 110px 80px;
+                gap:0; padding:11px 16px; border-bottom:1.2px dashed rgba(28,27,26,.12); align-items:center; background:var(--paper);">
+                <div style="display:flex; align-items:center; gap:9px;">
+                  <div style="width:28px; height:28px; border:1.2px solid var(--line); border-radius:5px; background:var(--sky-soft); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">🖼</div>
+                  <span style="font-size:13px; font-weight:600; color:var(--ink);">ui-sketch.png</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:11px; padding:2px 8px; background:var(--sky-soft); border:1px solid var(--sky-deep); border-radius:999px; font-family:var(--mono); color:var(--sky-deep); white-space:nowrap;">문서</span>
+                  <span style="font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">초안 / Capde Draft</span>
+                </div>
+                <span class="tag" style="width:fit-content; font-size:11px;">이미지</span>
+                <span style="font-family:var(--mono); font-size:12px; color:var(--ink-soft);">2.1 MB</span>
+                <span style="font-family:var(--mono); font-size:11px; color:var(--ink-faint);">2026-05-27</span>
+                <div style="display:flex; gap:6px;">
+                  <div style="width:26px; height:26px; border:1.2px solid var(--line); border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:13px; cursor:default;">↓</div>
+                  <div style="width:26px; height:26px; border:1.2px solid var(--sky-deep); border-radius:5px; background:var(--sky-soft); display:flex; align-items:center; justify-content:center; font-size:12px; cursor:default; color:var(--sky-deep);">↗</div>
+                </div>
+              </div>
+
+              <!-- row 4 -->
+              <div style="display:grid; grid-template-columns: 2.4fr 2fr 100px 80px 110px 80px;
+                gap:0; padding:11px 16px; border-bottom:1.2px dashed rgba(28,27,26,.12); align-items:center; background:var(--paper);">
+                <div style="display:flex; align-items:center; gap:9px;">
+                  <div style="width:28px; height:28px; border:1.2px solid var(--line); border-radius:5px; background:var(--warm-yellow); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">📄</div>
+                  <span style="font-size:13px; font-weight:600; color:var(--ink);">kickoff-slides.pdf</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:11px; padding:2px 8px; background:var(--sky-soft); border:1px solid var(--sky-deep); border-radius:999px; font-family:var(--mono); color:var(--sky-deep); white-space:nowrap;">문서</span>
+                  <span style="font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">회의록 / 2026-05-25 킥오프</span>
+                </div>
+                <span class="tag" style="width:fit-content; font-size:11px;">PDF</span>
+                <span style="font-family:var(--mono); font-size:12px; color:var(--ink-soft);">4.8 MB</span>
+                <span style="font-family:var(--mono); font-size:11px; color:var(--ink-faint);">2026-05-25</span>
+                <div style="display:flex; gap:6px;">
+                  <div style="width:26px; height:26px; border:1.2px solid var(--line); border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:13px; cursor:default;">↓</div>
+                  <div style="width:26px; height:26px; border:1.2px solid var(--sky-deep); border-radius:5px; background:var(--sky-soft); display:flex; align-items:center; justify-content:center; font-size:12px; cursor:default; color:var(--sky-deep);">↗</div>
+                </div>
+              </div>
+
+              <!-- row 5 -->
+              <div style="display:grid; grid-template-columns: 2.4fr 2fr 100px 80px 110px 80px;
+                gap:0; padding:11px 16px; border-bottom:1.2px dashed rgba(28,27,26,.12); align-items:center; background:var(--paper);">
+                <div style="display:flex; align-items:center; gap:9px;">
+                  <div style="width:28px; height:28px; border:1.2px solid var(--line); border-radius:5px; background:var(--sky-soft); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">🖼</div>
+                  <span style="font-size:13px; font-weight:600; color:var(--ink);">network-topology.png</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:11px; padding:2px 8px; background:var(--sky-soft); border:1px solid var(--sky-deep); border-radius:999px; font-family:var(--mono); color:var(--sky-deep); white-space:nowrap;">문서</span>
+                  <span style="font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">초안 / 브레인스토밍</span>
+                </div>
+                <span class="tag" style="width:fit-content; font-size:11px;">이미지</span>
+                <span style="font-family:var(--mono); font-size:12px; color:var(--ink-soft);">890 KB</span>
+                <span style="font-family:var(--mono); font-size:11px; color:var(--ink-faint);">2026-05-24</span>
+                <div style="display:flex; gap:6px;">
+                  <div style="width:26px; height:26px; border:1.2px solid var(--line); border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:13px; cursor:default;">↓</div>
+                  <div style="width:26px; height:26px; border:1.2px solid var(--sky-deep); border-radius:5px; background:var(--sky-soft); display:flex; align-items:center; justify-content:center; font-size:12px; cursor:default; color:var(--sky-deep);">↗</div>
+                </div>
+              </div>
+
+              <!-- row 6 -->
+              <div style="display:grid; grid-template-columns: 2.4fr 2fr 100px 80px 110px 80px;
+                gap:0; padding:11px 16px; align-items:center; background:var(--paper);">
+                <div style="display:flex; align-items:center; gap:9px;">
+                  <div style="width:28px; height:28px; border:1.2px solid var(--line); border-radius:5px; background:var(--paper-2); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">📄</div>
+                  <span style="font-size:13px; font-weight:600; color:var(--ink);">mdns-scan-log.txt</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:11px; padding:2px 8px; background:var(--warm-yellow); border:1px solid var(--line); border-radius:999px; font-family:var(--mono); color:var(--ink); white-space:nowrap;">채팅</span>
+                  <span style="font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">#general</span>
+                </div>
+                <span class="tag" style="width:fit-content; font-size:11px;">텍스트</span>
+                <span style="font-family:var(--mono); font-size:12px; color:var(--ink-soft);">12 KB</span>
+                <span style="font-family:var(--mono); font-size:11px; color:var(--ink-faint);">2026-05-23</span>
+                <div style="display:flex; gap:6px;">
+                  <div style="width:26px; height:26px; border:1.2px solid var(--line); border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:13px; cursor:default;">↓</div>
+                  <div style="width:26px; height:26px; border:1.2px solid var(--sky-deep); border-radius:5px; background:var(--sky-soft); display:flex; align-items:center; justify-content:center; font-size:12px; cursor:default; color:var(--sky-deep);">↗</div>
+                </div>
+              </div>
+
+            </div>
+            <!-- /file list -->
+
+            <!-- legend -->
+            <div style="display:flex; align-items:center; gap:16px; margin-top:16px; flex-wrap:wrap;">
+              <span style="font-family:var(--mono); font-size:10px; color:var(--ink-faint); letter-spacing:.06em;">LEGEND</span>
+              <div style="display:flex; align-items:center; gap:5px; font-family:var(--hand); font-size:12px; color:var(--ink-soft);">문서
+문서 블록에 임베딩된 파일</div>
+              <div style="display:flex; align-items:center; gap:5px; font-family:var(--hand); font-size:12px; color:var(--ink-soft);">채팅
+채팅으로 공유된 파일</div>
+              <div style="display:flex; align-items:center; gap:5px; font-family:var(--hand); font-size:12px; color:var(--ink-soft);">
+                <span style="font-size:13px;">↓</span> 다운로드
+              </div>
+              <div style="display:flex; align-items:center; gap:5px; font-family:var(--hand); font-size:12px; color:var(--ink-soft);">
+                <span style="font-size:13px; color:var(--sky-deep);">↗</span> 원본 위치로 이동
+              </div>
+            </div>
+
+          </div>
+          <!-- /main -->
+
+        </div>
+        <!-- /artboard -->
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

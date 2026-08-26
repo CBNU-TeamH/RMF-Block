@@ -14,6 +14,19 @@ This folder holds wireframes and screen designs. Module-design docs are a separa
 | ❌ | **Whole Project archive** / `export/` / duplicate copies | Megabytes of bundles + triplicated files. Permanent repo bloat. |
 | ❌ | **Editor state** (`.design-canvas.state.json`, `.thumbnail`) | Not source. Noise. |
 
+### The one exception: a runtime that makes a screen viewable
+
+A `.dc.html` artboard renders nothing on its own — it needs its `support.js`, and a React-loader
+`.html` needs its `design-canvas.jsx`. Committing source but not those leaves a teammate able to
+*read* a design and not to *see* it, which defeats the point of putting it here.
+
+So a runtime file is worth committing when all three hold: it is the **only** thing standing between
+the committed source and a rendered screen, there is **one copy** shared by every screen in the
+folder, and it is **small** — tens of KB, not the megabyte-scale standalone export. `support.js`
+(70 KB, pulls React/Babel from a CDN) qualifies. `*(Standalone).html` (1.4 MB, the whole app inlined
+per screen) never does. Say which files are runtime, and that they are not design source, in that
+screen's `source.md`.
+
 ## Why source, not bundles
 
 A bundled export hurts in **two** places:
