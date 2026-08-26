@@ -55,14 +55,14 @@ App/WS Server ──revision API──▶ Yorkie Server
 **Positive**
 
 - The Yorkie → Markdown → Yorkie translation layer is cancelled outright, and with it the constraint that every block type must round-trip to Markdown. Block types are now free to carry any structure Yorkie can represent.
-- Recovery needs no code: Yorkie reloads its own state from MongoDB on start. `restoreLatest` has no caller.
+- Recovery needs no code: Yorkie reloads its own state from MongoDB on start. The `restoreLatest` step the Git design would have needed was never built.
 - History granularity becomes a deliberate choice — an explicit `createRevision` call — instead of a side effect of a write-debounce window.
 
 **Trade-offs / new open questions**
 
 - MongoDB is now a required service, and `docker-compose.yml` runs Yorkie with `--mongo-connection-uri` against it, so NFR-SAF-003 / NFR-REL-002 / SOIR002 are satisfied.
 - `.data/` needed the same durability attention and now has it: `docker-compose.yml` mounts the `app-data` named volume at `/app/.data`, so app-owned state survives container recreation the way documents survive on `mongo-data`. Only `docker compose down -v` clears either (#22).
-- **Open: what triggers a revision.** `createRevision` is always an explicit call — Yorkie never snapshots on its own — so the question is narrower than originally framed: what app-side event or cadence should make that call. No FR or UC currently covers version history at all, so nothing forces the answer yet (issue #28).
+- **Open: what triggers a revision.** `createRevision` is always an explicit call — Yorkie never snapshots on its own — so the question is narrower than originally framed: what app-side event or cadence should make that call. No FR or UC currently covers version history at all, so nothing forces the answer yet (issue #23).
 - **Decided: the App/WS Server does not keep a Yorkie `Watch` subscription.** Its only purpose was driving the deleted `scheduleWrite`; Mongo now provides durability directly, so nothing left in this design needs it.
 - Markdown export, if ever wanted, must be re-derived as a one-way feature. It is no longer a correctness constraint, so nothing in the system depends on it being lossless.
 

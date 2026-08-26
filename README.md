@@ -21,7 +21,7 @@ Read [`AGENTS.md`](AGENTS.md) first. It is the single entry point: workflow, cod
 | [`ROADMAP.md`](ROADMAP.md) | Overall plan and milestones. |
 | [`docs/`](docs/) | Deliverable docs: requirements ([`SRS-ko.md`](docs/SRS-ko.md)), module design, UI wireframes, architecture decisions (ADRs). |
 | [`tasks/`](tasks/) | Work in progress (`active/`) and finished work (`archive/YYYY/MM/`). See [`tasks/README.md`](tasks/README.md). |
-| [`scripts/`](scripts/) | Repo bookkeeping. Currently just the task index and archive helpers (`pnpm tasks:index`, `pnpm tasks:archive`). |
+| [`scripts/`](scripts/) | The task index and archive helpers (`pnpm tasks:index`, `pnpm tasks:archive`), plus `detect-host-ip.sh`, which `pnpm docker:up` runs first to fill in `HOST_LAN_IP`. |
 | [`app/`](app/) | Next.js App Router — pages, layouts, route handlers. |
 | [`lib/`](lib/) | Shared code that both the app and server-side processes import. |
 | [`server/`](server/) | The custom server entry point and the WebSocket hub. |
