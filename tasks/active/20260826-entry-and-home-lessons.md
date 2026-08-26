@@ -61,6 +61,22 @@ that the next person does not rediscover this.
   fixtures in it are written by hand today, by design, and a wrapped array or a missing `updatedAt`
   across two or more records throws inside a server component and takes the home page with it.
 
+## What the earlier write-ups no longer describe
+
+[`docs/HOST-GUEST-ENTRY-ko.md`](../../docs/HOST-GUEST-ENTRY-ko.md) walks through the host/guest
+entry flow as it was built, and two of its landmarks have moved since. It is **left as written** —
+it is an account of that task, the way an archived task doc is, and rewriting it would turn a record
+of how something was built into a claim about how it works now. What changed:
+
+- **§3.5 `app/page.tsx` — 전부 여기로 수렴**, and the `app/page.tsx` node in the §2 diagram. That
+  file is gone. Its auth gate and shell live in `app/(workspace)/layout.tsx`, and the screen itself
+  in `app/(workspace)/page.tsx`; the URL is unchanged, because `(workspace)` is a route group.
+- The screens it describes were English and rendered `hello host!` / `hello guest!`. The join form
+  is Korean now, and `/` is the workspace home.
+
+The flow it documents — a bootstrap secret printed to stdout, traded for a `role` cookie, with
+everyone else sent to `/join` — is still exactly how entry works. Only the file layout moved.
+
 ## Worth extracting
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.

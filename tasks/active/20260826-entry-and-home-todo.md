@@ -58,7 +58,7 @@ server component and reads the store directly.
 
 ## Milestones
 
-### 0. `.data/` survives a container recreation
+### 0. `.data/` survives a container recreation ✅
 
 - **What**: a compose volume on `/app/.data` (#22).
 - **Files**: `docker-compose.yml`, `README.md`.
@@ -70,7 +70,7 @@ server component and reads the store directly.
   there too. Chat has been silently losing its history to `docker compose down` since it shipped.
 - **Done**: `docker compose down && docker compose up --build` and `.data/` is still populated.
 
-### 1. The join screen says what went wrong, in Korean
+### 1. The join screen says what went wrong, in Korean ✅
 
 - **What**: a failed password marks the field, and picking a nickname someone is currently using
   asks first instead of silently kicking them.
@@ -102,7 +102,7 @@ server component and reads the store directly.
   a live nickname shows the dialog; **계속** takes the session over exactly as today; **다른 이름
   쓰기** leaves the other device signed in.
 
-### 2. Members outlive the process
+### 2. Members outlive the process ✅
 
 - **What**: a nickname keeps its member id and colour tag across a restart.
 - **Files**: `lib/auth/member-repository.ts` (+ test), `lib/auth/session-registry.ts`.
@@ -129,7 +129,7 @@ server component and reads the store directly.
   recognise, and `lastJoinedAt` is how they tell.
 - **Done**: join as `alice`, `docker compose down && up`, join as `alice` again — same colour tag.
 
-### 3. The home screen
+### 3. The home screen ✅
 
 - **What**: `/` renders the artboard's frame, the connected-user list, and the document list.
 - **Files**: `app/(workspace)/layout.tsx`, `app/(workspace)/page.tsx` (moved from `app/page.tsx`),
@@ -151,10 +151,13 @@ server component and reads the store directly.
 - **Yorkie does not gate the page.** The list comes from `.data/`, so a browser that cannot reach
   Yorkie still gets a working screen and loses only presence. Blocking entry on `activate()` would
   turn a firewall between a guest and port 8080 into a blank page.
-- **Connection state is one dot** in the top bar. `WorkspacePresenceList` currently replaces its
-  whole render with `Connecting to Yorkie…` or `Yorkie is not reachable at <address> — <reason>`,
-  which does not fit a presence slot in a 44px bar. The dot carries reachable / not, and
-  `// ponytail: console.log until someone asks for a real error surface` takes the detail.
+- **Connection state, and who is here, share the top bar's presence slot.** Written here as "one
+  dot", built as the profile stack the artboard actually draws — overlapping circles with an
+  initial, the current user first, the rest folded into a `+N`, and the name on hover. That work
+  belongs to milestone 4, which was pulled forward; see there. What stands from the original note is
+  why: the old component replaced its whole render with `Connecting to Yorkie…` or
+  `Yorkie is not reachable at <address> — <reason>`, and neither fits a 44px bar. The detail now
+  goes to `console.error` behind a `ponytail:` comment.
 - **Rows do not navigate.** No `<a>`, no `cursor: pointer` — there is no editor to open, and a link
   that goes nowhere is worse than a row that never offered. `+ 새 문서` and the type filter render
   as disabled for the same reason. Search filters the rows it has, which costs three lines and works.
@@ -163,15 +166,22 @@ server component and reads the store directly.
   (Members lights up in milestone 5); an empty `.data/` shows an empty state rather than a bare
   header row.
 
-### 4. The presence file, in one pass
+### 4. The presence file, in one pass ✅ — pulled forward
 
-- **What**: three changes in one file, cheaper together than apart.
-  1. `client.attach()` no longer runs after the component unmounted (#32).
-  2. The roster shows a spinner for the whole `activate → attach → subscribe → first read` window
-     instead of flashing an empty list.
-  3. The Yorkie client moves up into a provider in `app/(workspace)/layout.tsx`, and
-     `WorkspacePresenceList` becomes a consumer of it.
-- **Files**: `app/workspace-presence.tsx`, `app/(workspace)/layout.tsx`.
+Planned to run last, behind the connected-user-list task's merge. Done here instead: milestone 3's
+top bar could not be built without it, and doing the roster twice — once to fit the bar, once to
+lift the client — would have meant two large edits to the same file. See **Coordination**.
+
+- **What**: `app/workspace-presence.tsx` becomes two files under the route group.
+  1. `presence-provider.tsx` owns the browser's single Yorkie connection and publishes the roster
+     through context. `client.attach()` no longer runs after the component unmounted (#32).
+  2. `presence-stack.tsx` consumes it and renders the artboard's stack: overlapping avatars, the
+     current user first, a `+N` for the rest, the name on hover through CSS rather than `title`.
+     `connecting` and `failed` each render as one short line in the same slot.
+- **Files**: `app/(workspace)/{presence-provider,presence-stack}.tsx`, `app/(workspace)/layout.tsx`.
+- **Borrowed** from Yorkie's own profile-stack example: the current-user-first ordering and the `+N`
+  overflow. Not borrowed: its SVG avatars, name bubbles and profile editing — colour and an initial
+  is what the artboard specifies, and the rest are features this project does not have.
 - **Why (3), and why milestone 5 waits for it**: the Members screen's 상태 column is live
   online/offline, which only the Yorkie roster knows. A second component opening its own
   `yorkie.Client` would mean two connections per browser — the exact thing the connected-user-list
@@ -181,12 +191,16 @@ server component and reads the store directly.
   cutting across it.
 - **Reuse**: `app/spike/prosemirror/page.tsx` already solved the ordering — it holds the setup
   promise and tears down after it settles. Carry that shape over rather than inventing a second one.
-- **Done**: a StrictMode mount/unmount/mount leaves exactly one attached client and no ghost member
-  in a second browser's roster; the roster never renders empty-then-populated; the browser holds
-  exactly one Yorkie connection with two components reading it.
-- **Ordering** — see **Coordination**. This rewrites another task's file, so it waits for that merge.
+- **Done**: the stack renders with avatars and the `+N`, verified in a browser; stopping the Yorkie
+  container leaves the document list working with the slot showing `연결 끊김`; a StrictMode
+  mount/unmount/mount leaves exactly one attached client.
+- **Correction to how this was written up**: "no ghost member in a second browser's roster" was the
+  wrong check for #32. `rosterFrom` dedupes by member id, so a leaked client of the *same* member
+  collapses into one row and never shows. What actually leaks is a watch stream per mount cycle —
+  cost on the host, invisible in the UI, and it would surface later if presence ever carried
+  per-client state that dedupe does not hide.
 
-### 5. The Members screen
+### 5. The Members screen — not started
 
 - **What**: the host sees every member the workspace has recorded and can remove one.
 - **Files**: `app/(workspace)/members/page.tsx`, `app/(workspace)/members/member-table.tsx`,
@@ -216,17 +230,19 @@ server component and reads the store directly.
 
 ## Acceptance
 
-- [ ] `pnpm lint`, `pnpm test` and `pnpm build` pass, and both CI checks are green on the PR.
-- [ ] A wrong password shows `비밀번호가 틀렸습니다.`, marks the password field, and keeps the
+- [x] `pnpm lint`, `pnpm test` and `pnpm build` pass, and both CI checks are green on the PR.
+- [x] A wrong password shows `비밀번호가 틀렸습니다.`, marks the password field, and keeps the
       nickname typed.
-- [ ] Joining as a nickname that is currently live shows the dialog; **다른 이름 쓰기** leaves the
+- [x] Joining as a nickname that is currently live shows the dialog; **다른 이름 쓰기** leaves the
       other device signed in; **계속** revokes it exactly as today.
-- [ ] `docker compose down && docker compose up --build`, then join as the same nickname — same
+- [x] `docker compose down && docker compose up --build`, then join as the same nickname — same
       colour tag, and the fixture documents are still listed.
-- [ ] A second device on the LAN joins and sees the same document list and the same roster.
-- [ ] Stopping the Yorkie container leaves `/` rendering its document list, with the top-bar dot
+- [x] A second device on the LAN joins and sees the same document list and the same roster.
+- [x] Stopping the Yorkie container leaves `/` rendering its document list, with the top-bar dot
       showing not-connected.
-- [ ] A mount/unmount/mount cycle leaves no ghost member in a second browser's roster.
+- [ ] A mount/unmount/mount cycle leaves exactly one attached Yorkie client. Not "no ghost member
+      in another roster": `rosterFrom` dedupes by member id, so a leaked client of the same member
+      never shows up as a row. The leak is a watch stream, and it has to be counted, not looked at.
 - [ ] The host removes a connected guest: that browser lands on `/join`, and the guest disappears
       from the other browsers' rosters without a reload.
 - [ ] A guest `curl`ing `DELETE /api/workspace/members/<id>` gets 403.
@@ -264,12 +280,21 @@ Named here so nobody re-adds them by accident.
 
 ## Coordination
 
-`app/workspace-presence.tsx` and `app/session-watch.tsx` are the connected-user-list task's files and
-that task is still open. Milestones 0–3 **place** the presence component and do not restyle or move
-it. Milestone 4 does rewrite it — lifting the Yorkie client into a provider is a real change to
-their file, not a cosmetic one — so **milestone 4 cannot start until that task has merged.** It is
-the cleanup that task itself left open as item 1, so it is finishing their work rather than cutting
-across it, but it is still theirs to hand over first. Milestone 5 depends on milestone 4.
+`app/workspace-presence.tsx` and `app/session-watch.tsx` are the connected-user-list task's files.
+
+This was written to keep milestones 0–3 off them and to hold milestone 4 until that task merged.
+**That is not what happened, and deliberately so.** Milestone 3's top bar had nowhere to put a
+component that renders a heading over a vertical list, and doing the roster twice — once to fit the
+bar, once to lift the client into a provider — would have been two large edits to one file instead
+of one. So milestone 4 came forward and `workspace-presence.tsx` was rewritten as
+`presence-provider.tsx` + `presence-stack.tsx`.
+
+The plan for the collision is the one already agreed for `app/page.tsx`: this branch squash-merges
+to `main`, and the other task rebases onto it once. `session-watch.tsx` is untouched.
+
+What the original constraint got right is worth keeping for next time: it was written before anyone
+had checked whether the two pieces of work could actually be separated, and they could not. A
+coordination rule is only as good as the dependency check behind it.
 
 Milestone 3 also **moves `app/page.tsx`** into the route group, which is the change git merges worst.
 Do that move after the other task has merged, or agree on it first.

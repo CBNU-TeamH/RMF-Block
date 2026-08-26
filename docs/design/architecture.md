@@ -72,7 +72,7 @@ Transport is REST + WebSocket (SOIR001). Grouped by concern; full request/respon
 | Chat API | send message (text/URL/file/block-link), history, chat-file listing | SIR006, SIR010 |
 | Presence/Follow API | start/stop presenting, join/pause/resume follow, jump-to-user, presenter-tool highlights | SIR004, SIR009 |
 
-The connected-user list is **not** in the table above: it crosses boundary (a), Client ↔ Yorkie, with the browser attaching to a reserved `workspace` document directly. The App/WS Server's only part is handing each browser its own `{ id, nickname, colorTag }` as server-rendered props (`app/page.tsx`).
+The connected-user list is **not** in the table above: it crosses boundary (a), Client ↔ Yorkie, with the browser attaching to a reserved `workspace` document directly. The App/WS Server's only part is handing each browser its own `{ id, nickname, colorTag }` as server-rendered props (`app/(workspace)/layout.tsx`), which passes them to the one provider that owns the browser's Yorkie connection.
 
 Presence/Follow is server-mediated business logic, not raw Yorkie Presence: SRS UC-030/UC-040 describe multi-step session state (start presenting → notify others → join → lock follower input → pause/resume) that needs the App/WS Server to track, beyond what a per-client Presence field expresses.
 
