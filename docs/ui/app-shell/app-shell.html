@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>App Shell Wireframes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<style>
+  :root {
+    --ink: #1c1b1a;
+    --ink-soft: #4a4744;
+    --ink-faint: #8a847e;
+    --paper: #fbfaf6;
+    --paper-2: #f3f0e8;
+    --line: #1c1b1a;
+    --sky: #38bdf8;
+    --sky-deep: #0ea5e9;
+    --sky-soft: #e0f2fe;
+    --warm-yellow: #fde68a;
+    --pink: #fbcfe8;
+    --green: #86efac;
+    --hand: system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    --hand-tight: system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  html, body { margin: 0; padding: 0; background: #efebe2; font-family: var(--hand); color: var(--ink); }
+  body { min-height: 100vh; }
+  /* Sketchy box helper — use class .sk for hand-drawn looking boxes */
+  .sk {
+    border: 1.6px solid var(--line);
+    border-radius: 6px 8px 7px 9px / 8px 6px 9px 7px;
+    background: var(--paper);
+    position: relative;
+  }
+  .sk-thin { border-width: 1.2px; }
+  .sk-thick { border-width: 2.2px; }
+  .sk-fill { background: var(--paper-2); }
+  .sk-sky { background: var(--sky-soft); }
+  .sk-yellow { background: var(--warm-yellow); }
+  .sk-pink { background: var(--pink); }
+  .sk-dash { border-style: dashed; }
+  /* Slight wobble for repeating rows */
+  .wobble-1 { border-radius: 5px 7px 6px 8px / 7px 5px 8px 6px; }
+  .wobble-2 { border-radius: 8px 5px 9px 6px / 6px 8px 7px 9px; }
+  .wobble-3 { border-radius: 7px 9px 5px 8px / 9px 7px 6px 8px; }
+
+  .h-line {
+    height: 1.6px; background: var(--line);
+    border-radius: 2px;
+  }
+  .h-line-soft { background: var(--ink-faint); height: 1.2px; }
+
+  .label-cap {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: .08em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .scribble-bg {
+    background-image:
+      linear-gradient(135deg, rgba(28,27,26,0.06) 0 1px, transparent 1px 6px);
+  }
+  .skyline {
+    background: var(--sky);
+    height: 3px; border-radius: 3px;
+  }
+  /* Pen-stroke underline */
+  .pen-under {
+    text-decoration: underline wavy var(--sky-deep);
+    text-underline-offset: 4px;
+    text-decoration-thickness: 1.5px;
+  }
+  /* avatar circles */
+  .avatar {
+    width: 22px; height: 22px;
+    border: 1.4px solid var(--line);
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--hand);
+    font-size: 12px; font-weight: 700;
+    background: var(--paper);
+  }
+  .avatar.sm { width: 16px; height: 16px; font-size: 9px; border-width: 1.1px; }
+  .avatar.sky { background: var(--sky-soft); }
+  .avatar.yel { background: var(--warm-yellow); }
+  .avatar.pnk { background: var(--pink); }
+  .avatar.grn { background: var(--green); }
+  /* tiny tag */
+  .tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 6px;
+    border: 1.2px solid var(--line);
+    border-radius: 999px;
+    background: var(--paper);
+    font-family: var(--hand);
+    font-size: 12px;
+    line-height: 1.3;
+  }
+  .tag.sky { background: var(--sky-soft); }
+  .tag.yel { background: var(--warm-yellow); }
+  /* Hand-drawn arrow & callouts */
+  .callout {
+    position: absolute;
+    font-family: var(--hand-tight);
+    font-size: 16px;
+    color: var(--sky-deep);
+    line-height: 1.15;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .callout.ink { color: var(--ink); }
+  /* The shell window */
+  .shell {
+    width: 100%; height: 100%;
+    background: var(--paper);
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  .row { display: flex; }
+  .col { display: flex; flex-direction: column; }
+  .grow { flex: 1 1 auto; min-width: 0; min-height: 0; }
+  /* hand-drawn checkbox style square */
+  .sq {
+    width: 14px; height: 14px;
+    border: 1.4px solid var(--line);
+    border-radius: 3px 4px 3px 4px;
+    display: inline-block;
+  }
+  .sq.fill { background: var(--ink); }
+  .sq.sky { background: var(--sky); border-color: var(--sky-deep); }
+
+  /* Editor placeholder block */
+  .blk {
+    height: 10px;
+    background: repeating-linear-gradient(
+      90deg,
+      var(--ink-soft) 0 60px,
+      transparent 60px 64px,
+      var(--ink-soft) 64px 140px,
+      transparent 140px 148px,
+      var(--ink-soft) 148px 220px,
+      transparent 220px 232px
+    );
+    opacity: .55;
+    border-radius: 2px;
+  }
+  .blk.short { width: 60%; }
+  .blk.mid { width: 80%; }
+  .blk.long { width: 95%; }
+  .blk.tiny { width: 35%; }
+
+  /* h1 / h2 placeholder strokes */
+  .H1 { height: 16px; width: 70%; background: var(--ink); opacity: .82; border-radius: 3px; }
+  .H2 { height: 11px; width: 50%; background: var(--ink); opacity: .7; border-radius: 3px; }
+  .H3 { height: 9px; width: 40%; background: var(--ink); opacity: .55; border-radius: 3px; }
+
+  /* code block placeholder */
+  .codeblk {
+    background: var(--paper-2);
+    border: 1.2px dashed var(--line);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+
+  /* image placeholder */
+  .imgph {
+    border: 1.4px solid var(--line);
+    border-radius: 4px;
+    background:
+      repeating-linear-gradient(135deg, rgba(28,27,26,.08) 0 1px, transparent 1px 8px),
+      var(--paper-2);
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--mono); font-size: 10px; color: var(--ink-soft);
+    letter-spacing: .04em;
+  }
+
+  /* page banner intro */
+  .intro {
+    max-width: 1400px;
+    margin: 28px auto 0;
+    padding: 0 28px;
+  }
+  .intro h1 {
+    font-family: var(--hand);
+    font-weight: 700;
+    font-size: 30px;
+    margin: 0 0 4px 0;
+  }
+  .intro p {
+    font-family: var(--hand);
+    font-size: 16px;
+    color: var(--ink-soft);
+    margin: 0;
+    max-width: 920px;
+  }
+  .intro .meta {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-faint);
+    letter-spacing: .08em; text-transform: uppercase; margin-bottom: 10px;
+  }
+
+  /* Hand-drawn rough line under heading */
+  .rough-line {
+    width: 220px; height: 8px;
+    background:
+      linear-gradient(90deg, var(--sky) 0 100%);
+    border-radius: 2px;
+    transform: translateY(-2px) rotate(-0.4deg);
+    margin: 6px 0 18px;
+  }
+
+  /* Section break separators */
+  .legend {
+    display:flex; gap: 14px; align-items: center;
+    font-family: var(--hand); font-size: 14px; color: var(--ink-soft);
+    flex-wrap: wrap;
+    padding: 10px 4px 0;
+  }
+  .legend .chip {
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .swatch { width:14px; height:14px; border:1.2px solid var(--line); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <div class="meta">App Shell · Wireframes · v0.1</div>
+  <h1>App Shell — Main Screen</h1>
+  <div class="rough-line"></div>
+  <p>
+    라이트 테마 + 하늘색 primary. App Shell의 주요 상태와 채팅 패널의 세 탭 상태를 살펴보세요 —
+    (1) 기본 진입, (2) 사이드바 접힘 + floating 채팅, (3) 협업 활성 (포커스 팔로잉 배너 + 블록 플로팅),
+    (4) docked 채팅 — 채팅·포커스 팔로잉·파일 탭 각각. 하단 섹션에는 docked 채팅의 위치 결정 기록.
+  </p>
+  <div class="legend">
+    <span class="chip"><span class="swatch" style="background:#38bdf8"></span> primary (sky)</span>
+    <span class="chip"><span class="swatch" style="background:#e0f2fe"></span> sky-soft (selected / hover)</span>
+    <span class="chip"><span class="swatch" style="background:#fde68a"></span> presence highlight</span>
+    <span class="chip"><span class="swatch" style="background:#fbfaf6;"></span> paper</span>
+    <span class="chip"><span class="swatch" style="background:#1c1b1a"></span> ink (1차 텍스트·선)</span>
+  </div>
+</div>
+
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="app.jsx"></script>
+
+</body>
+</html>
