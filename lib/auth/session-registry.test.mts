@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
 
 import { SessionRegistry } from "./session-registry.ts";
@@ -171,5 +174,76 @@ describe("SessionRegistry.hasLiveSession", () => {
     registry.join("alice");
 
     assert.equal(registry.hasLiveSession("bob"), false);
+  });
+});
+
+describe("SessionRegistry persistence", () => {
+  const scratch = () =>
+    path.join(mkdtempSync(path.join(tmpdir(), "rmf-members-")), "members.json");
+
+  it("keeps nothing on disk when no store path is given", () => {
+    // The default constructor is the unit-test shape: a registry that forgets.
+    const registry = new SessionRegistry();
+    registry.join("alice");
+
+    assert.deepEqual(registry.members().length, 1);
+  });
+
+  it("gives a returning nickname back its id and colour tag", () => {
+    const storePath = scratch();
+
+    const first = new SessionRegistry(storePath).join("alice").member;
+    // A second registry over the same file is what a restart looks like.
+    const second = new SessionRegistry(storePath).join("alice").member;
+
+    assert.equal(second.id, first.id);
+    assert.equal(second.colorTag, first.colorTag);
+  });
+
+  it("does not restore sessions, only members", () => {
+    const storePath = scratch();
+
+    const before = new SessionRegistry(storePath).join("alice");
+    const after = new SessionRegistry(storePath);
+
+    assert.equal(after.resolve(before.sessionId), null);
+    assert.equal(after.hasLiveSession("alice"), false);
+  });
+
+  it("keeps handing out fresh colour tags after a restart", () => {
+    // The rotation counts members, so a restart that lost them would restart the
+    // colours too and hand the second member the first one's tag.
+    const storePath = scratch();
+
+    const alice = new SessionRegistry(storePath).join("alice").member;
+    const bob = new SessionRegistry(storePath).join("bob").member;
+
+    assert.notEqual(bob.colorTag, alice.colorTag);
+  });
+
+  it("stamps lastJoinedAt on every join, not just the first", async () => {
+    const storePath = scratch();
+
+    const registry = new SessionRegistry(storePath);
+    registry.join("alice");
+    const first = registry.members()[0]!.lastJoinedAt;
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    registry.join("alice");
+
+    assert.ok(registry.members()[0]!.lastJoinedAt > first);
+  });
+
+  it("counts persisted members against the capacity ceiling", () => {
+    const storePath = scratch();
+
+    const first = new SessionRegistry(storePath);
+    for (let i = 0; i < 64; i += 1) first.join(`member-${i}`);
+
+    assert.throws(() => new SessionRegistry(storePath).join("one-too-many"), WorkspaceFullError);
+  });
+
+  it("treats a missing store as an empty workspace, not an error", () => {
+    assert.doesNotThrow(() => new SessionRegistry(scratch()));
   });
 });

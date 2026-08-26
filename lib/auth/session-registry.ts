@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 
+import { DEFAULT_MEMBERS_PATH, readMembers, writeMembers } from "./member-repository.ts";
 import {
   JoinValidationError,
   WorkspaceFullError,
   type JoinResult,
+  type StoredMember,
   type WorkspaceMember,
 } from "./types.ts";
 
@@ -42,6 +44,40 @@ export class SessionRegistry {
   private readonly membersByNickname = new Map<string, WorkspaceMember>();
   private readonly memberBySession = new Map<string, WorkspaceMember>();
   private readonly sessionByMemberId = new Map<string, string>();
+  private readonly lastJoinedAt = new Map<string, string>();
+
+  /**
+   * Where members are kept between runs, or undefined for a registry that
+   * forgets — which is what the unit tests want, and what makes persistence a
+   * thing this class *can* do rather than a thing it always does.
+   */
+  private readonly storePath: string | undefined;
+
+  constructor(storePath?: string) {
+    this.storePath = storePath;
+    if (!storePath) return;
+
+    for (const stored of readMembers(storePath)) {
+      const { lastJoinedAt, ...member } = stored;
+      this.membersByNickname.set(member.nickname, member);
+      this.lastJoinedAt.set(member.id, lastJoinedAt);
+    }
+    // Sessions are pointedly not restored: every member comes back signed out.
+  }
+
+  /** Every member this workspace has recorded, newest sign-in first. */
+  members(): Array<StoredMember> {
+    return [...this.membersByNickname.values()]
+      .map((member) => ({
+        ...member,
+        lastJoinedAt: this.lastJoinedAt.get(member.id) ?? "",
+      }))
+      .sort((a, b) => b.lastJoinedAt.localeCompare(a.lastJoinedAt));
+  }
+
+  private persist(): void {
+    if (this.storePath) writeMembers(this.storePath, this.members());
+  }
 
   /**
    * FR-020-08: a nickname already in the workspace re-enters as that same
@@ -82,6 +118,12 @@ export class SessionRegistry {
     const sessionId = randomUUID();
     this.memberBySession.set(sessionId, member);
     this.sessionByMemberId.set(member.id, sessionId);
+
+    // Stamped on every join, not just the first: it answers "is this record
+    // still anyone?", which is the question the host has when clearing out
+    // members they do not recognise.
+    this.lastJoinedAt.set(member.id, new Date().toISOString());
+    this.persist();
 
     return { member, sessionId, revokedSessionId };
   }
@@ -127,7 +169,8 @@ export class SessionRegistry {
 // Cached on `globalThis` for the same reason as `server/ws-hub.mts`: this module
 // is loaded twice in one process — once through Next's bundled module graph and
 // once by Node's native loader — and two private registries would mean a session
-// issued on one side never resolving on the other.
+// issued on one side never resolving on the other. Both loads read the same
+// file, so whichever constructs first wins and the other reuses it.
 const cache = globalThis as { __sessionRegistry?: SessionRegistry };
 
-export const sessionRegistry = (cache.__sessionRegistry ??= new SessionRegistry());
+export const sessionRegistry = (cache.__sessionRegistry ??= new SessionRegistry(DEFAULT_MEMBERS_PATH));

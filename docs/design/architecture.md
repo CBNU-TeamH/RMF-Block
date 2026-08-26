@@ -90,7 +90,7 @@ What crosses this boundary is version history only, through Yorkie's revision AP
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 
-Chat history is read and written as whole JSON files on the host filesystem — `lib/chat/chat-repository.ts` is the reference implementation of the pattern, including serializing concurrent writes through one promise chain. Workspace metadata and auth records are planned to follow the same pattern but are still in-memory only today (`lib/auth/session-registry.ts`).
+Chat history is read and written as whole JSON files on the host filesystem — `lib/chat/chat-repository.ts` is the reference implementation of the pattern, including serializing concurrent writes through one promise chain. Member records follow the same pattern in `lib/auth/member-repository.ts`, synchronously rather than through a promise chain — sync writes on one thread cannot interleave, so there is nothing for the queue to serialize. Sessions stay in memory on purpose: a session id on disk would be a permanent bearer token. Workspace metadata is still to come.
 
 This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`. **The two are not equally durable today**: `docker-compose.yml` gives Mongo a named volume and the app none, so `.data/` lives only inside the container and a `docker compose down` takes it with it (issue #22).
 

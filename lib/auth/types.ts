@@ -3,9 +3,10 @@
  * session registry (`session-registry.ts`), which owns who is in the workspace
  * and which session belongs to whom (FR-020-02/04/08).
  *
- * Everything here is in-memory by design. Sessions must not survive a restart —
- * `docs/design/api.md` makes restarting the container the revoke path — and
- * persisting members belongs to workspace restore (UC-010 E1-1), not here.
+ * Members persist (`member-repository.ts`); sessions do not, and must not —
+ * `docs/design/api.md` makes restarting the container the revoke path, and a
+ * session id written to disk would be a permanent bearer token sitting on the
+ * host's filesystem.
  */
 
 /** Name of the httpOnly cookie carrying the guest's session id. */
@@ -17,6 +18,15 @@ export type WorkspaceMember = {
   /** Assigned once per member, for the connected-user list (FR-020-07). */
   colorTag: string;
 };
+
+/**
+ * What the store keeps, which is the identity plus one field the identity does
+ * not need. `lastJoinedAt` stays off `WorkspaceMember` on purpose: that type is
+ * also `WorkspacePresence` (`lib/presence/types.ts`), so every field on it is
+ * published to every other browser, and when someone last signed in is nobody
+ * else's business. The host reads it on the Members screen as 최근 접속.
+ */
+export type StoredMember = WorkspaceMember & { lastJoinedAt: string };
 
 export type JoinResult = {
   member: WorkspaceMember;

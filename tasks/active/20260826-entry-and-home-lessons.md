@@ -13,6 +13,14 @@ that the next person does not rediscover this.
   dialog. The map that actually answers the question is `memberBySession`, because that is the one a
   takeover deletes from. Four tests pin it.
 
+- **Two of the three mechanisms copied from `lib/chat/`, not three.** The task doc said to carry over
+  the promise chain, the write-then-rename and the ENOENT-only-empty read. Making the member store
+  synchronous deleted the first one's reason to exist: the queue serializes async appends that can
+  interleave, and sync writes on one thread cannot. Sync also removed the async-singleton problem —
+  the registry is constructed lazily behind a `globalThis` cache, and an async load would have made
+  every caller await something that is read once. Marked with a `ponytail:` comment naming the
+  ceiling and the way back.
+
 ## What we would do differently
 
 - **`docker compose up -d --build` rebuilt the image and left the old container running.** Compose
