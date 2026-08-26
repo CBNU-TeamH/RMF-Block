@@ -46,6 +46,22 @@ anyway because it is hand-written inline-styled markup — readable, greppable, 
 the property that guidance is protecting. The thing the README rejects is a bundle, and this is not
 one.
 
+## The Members screen, redrawn to a schema we can serve
+
+Screen 3 was drafted with columns the project has no model for. Edited on import so a future
+implementer is not designing against fiction:
+
+| Column | Was | Now | Where it comes from |
+| --- | --- | --- | --- |
+| 이름 | `{{ m.name }}` | unchanged | `.data/members.json` |
+| 역할 | `{{ m.role }}` | unchanged, values are **host / guest** | **derived, not stored** — everything in `members.json` joined through the guest form, and the host is the synthetic `HOST_PRESENCE` |
+| 상태 | `{{ m.status }}` | unchanged | the live Yorkie roster (`lib/presence/`), cross-referenced by member id |
+| 참여일 | `{{ m.joined }}` | **최근 접속** `{{ m.lastSeen }}` | `lastJoinedAt`, stamped on every join |
+| — | `+ 초대` button | **removed** | there is nothing to build: the workspace password *is* the invite, and the host reads it out |
+
+`최근 접속` replaces `참여일` because the question the host actually has is "is this record still
+anyone?", not "when did they first arrive" — that is what makes a stale record identifiable.
+
 ## Names and the logo
 
 The wireframes were drawn under the old product name. On import:
