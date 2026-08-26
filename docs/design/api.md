@@ -23,11 +23,16 @@ These shape every path below:
 | Host | The server generates a bootstrap secret at startup and prints it to container stdout alongside the join URL (FR-010-03 already puts the join address on the host's screen). Only whoever ran the container can read stdout, so possession of that secret proves host identity. It is exchanged once for a host session token. |
 | Guest | Nickname + workspace password (FR-020-02/03). A known nickname re-attaches to the existing user rather than creating a new one (FR-020-08). |
 
+**Shipped today is none of the below.** A join issues one opaque `randomUUID()` session id held
+in an in-memory `Map` (`lib/auth/session-registry.ts`) and set as a cookie with no `maxAge` — no
+expiry, no rotation, no refresh endpoint, no reuse detection. The model in this section is target
+design; the header note above covers the REST rows, not this prose.
+
 Access tokens live 30 minutes; refresh tokens live 7 days. Refresh-token reuse is treated as a theft signal: it invalidates the token family and forces the host to re-read the bootstrap secret from stdout.
 
 Rotation bounds how long a leaked token stays replayable. It does **not** protect against a token leaking live — most plausibly by appearing in the address bar during screen sharing (UC-030) — so the client strips the token from the URL immediately after handoff and keeps it out of persistent storage. LAN traffic is unencrypted, so rotation narrows the replay window rather than preventing interception.
 
-There is no separate "revoke all sessions" endpoint. The host runs the container directly, so restarting it is the revoke path: a fresh bootstrap secret is printed to stdout and every existing session token is invalidated. Adding a dedicated revoke action would duplicate that and overlap with the existing per-guest kick (`DELETE /api/workspace/members/:userId`).
+There is no separate "revoke all sessions" endpoint. The host runs the container directly, so restarting it is the revoke path: a fresh bootstrap secret is printed to stdout and every existing session token is invalidated. Adding a dedicated revoke action would duplicate that and overlap with the per-guest kick (`DELETE /api/workspace/members/:userId`, not yet built).
 
 ## 1. REST — client ↔ rmf-block-server
 
@@ -98,6 +103,12 @@ Chat has two candidate implementations (§5). These REST endpoints belong to **v
 | Server → Yorkie | ~~`Watch`~~ — **decided: not kept** | This subscription existed only to drive the delayed-write trigger, which ADR-002 deletes; Mongo now provides durability directly, so nothing needs it | ADR-002 |
 | Server → Yorkie | Admin API, read-only — document summaries and active editors | Supplementary source for who is editing what | FR-040 (support), FR-022-06 (support) |
 
+**Not implemented.** `docker-compose.yml` passes no `--auth-webhook-url` and publishes Yorkie's
+port directly, so today any client that can reach that port attaches to any document with no
+session check — the session cookie gates the Next.js routes only, not Yorkie. Harmless while
+presence is all that rides on it, and NFR-SEC-002/005's problem the moment document content does.
+`lib/presence/roster.ts` already accounts for it.
+
 The auth webhook is where short-lived tokens meet Yorkie: a token that expires mid-session must be refreshed on the client before Yorkie's next authorized call, or the webhook starts rejecting operations. How the SDK re-supplies a rotated token needs verifying against the pinned `@yorkie-js/sdk` version before the Sync module is built — the same caution `document-editing.md` applies to concurrent-move convergence.
 
 Document keys carry no type prefix — a Yorkie key can only contain `a-z A-Z 0-9 - . _ ~` (120 chars max), which rules out a `:`-delimited scheme and makes any other delimiter ambiguous against UUIDs. Instead the key **is** the document's id as issued by `POST /api/documents`, and the webhook resolves its type by looking the id up in the App/WS Server's own document table — which it already needs for the Document Tree API. `chat` is a reserved literal key (version B, §5) rather than an id, since it's a workspace-wide singleton.
@@ -122,6 +133,17 @@ Exact method names and availability must be confirmed against the pinned SDK ver
 For state that is neither request/response nor scoped to a single Yorkie document. SRS §2.1's component diagram already routes client traffic through this server as "API / 웹소켓 요청".
 
 ### 4.1 Workspace presence index (FR-040)
+
+**Superseded in part.** The "who is connected" half shipped over Yorkie instead: every client
+attaches to a reserved `workspace` document and reads `doc.getPresences()` (`lib/presence/`,
+`app/workspace-presence.tsx`). There is no server-held roster and no WS hub involvement — none of
+the six events below exist in the code, and the `/api/workspace/ws` socket that does exist carries
+only `session:revoked`. See `tasks/archive/` for the connected-user-list task and why Yorkie won:
+it already handles disconnect detection, which was the hard half.
+
+What is **not** superseded is the `documentId` half — which document each connected user has open.
+Yorkie presence is per-document, so nothing shipped answers that workspace-wide, and the index
+below is still the design for it. Rewriting this section is FR-040's job, not a docs pass.
 
 Yorkie presence is per-document, so it cannot answer "who is in this workspace and where". The server keeps a workspace-level index of `userId → documentId | null`.
 
