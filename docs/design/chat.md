@@ -62,15 +62,16 @@ but it is Yorkie's internal store, and ADR-002 fixes the boundary that the app n
 So app-owned state stays as JSON files under `.data/`, and this module is the reference
 implementation of that pattern.
 
-**Message shape** (no real user-identity system exists yet — that's UC-020's guest login,
-FR-020-01~05, not built):
+**Message shape** (`sender` is whatever the client sends, not an identity the server
+established — guest login has since shipped, FR-020-01~05, and this module has not been
+wired to it):
 
 ```ts
 type ChatMessage = { id: string; sender: string; text: string; sentAt: string };
 ```
 
-`sender` is client-supplied for this slice. It becomes server-derived (from session) once login
-lands — a `ChatService` caller-side change, not a schema change.
+`sender` is client-supplied for this slice. It becomes server-derived (from session) once this
+module is wired to it — a `ChatService` caller-side change, not a schema change.
 
 **`ws-hub.mts` caches its singleton on `globalThis`**, mirroring `lib/host-secret.ts`'s existing
 pattern, so `next dev`'s module-reload (HMR) can't split connection state into two registries.

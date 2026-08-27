@@ -9,19 +9,6 @@ import { useWorkspacePresence } from "./presence-provider";
 const MAX_AVATARS = 4;
 
 /**
- * Who else is here, as the artboard draws it: overlapping circles carrying an
- * initial, newest arrivals folded into a `+N`.
- *
- * The current user comes first — the same ordering Yorkie's own profile-stack
- * example uses — so the one avatar you can identify without hovering is yours.
- *
- * The name appears on hover, like that example's bubble, but through CSS rather
- * than click state: the label is always in the DOM, which is what a screen
- * reader reads, and `group-hover` is what makes it visible. `title` would have
- * been one attribute less, but its a-second-or-so delay is too slow for
- * something you glance at.
- */
-/**
  * The name under an avatar. Always rendered so assistive technology has it;
  * `opacity` is the only thing hover changes, and `pointer-events-none` keeps it
  * from stealing the hover that reveals it.
@@ -34,6 +21,19 @@ function NameLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Who else is here, as the artboard draws it: overlapping circles carrying an
+ * initial, newest arrivals folded into a `+N`.
+ *
+ * The current user comes first — the same ordering Yorkie's own profile-stack
+ * example uses — so the one avatar you can identify without hovering is yours.
+ *
+ * The name appears on hover, like that example's bubble, but through CSS rather
+ * than click state: the label is always in the DOM, which is what a screen
+ * reader reads, and `group-hover` is what makes it visible. `title` would have
+ * been one attribute less, but its a-second-or-so delay is too slow for
+ * something you glance at.
+ */
 export function PresenceStack({ memberId }: { memberId: string }) {
   const { status, members } = useWorkspacePresence();
 

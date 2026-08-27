@@ -62,7 +62,9 @@ The wire protocol is Yorkie's own client SDK — not ours to design. What we do 
 
 ### (b) Client ↔ App/WS Server (API groups)
 
-Transport is REST + WebSocket (SOIR001). Grouped by concern; full request/response schemas are written when each group's module is built.
+Transport is REST + WebSocket. Grouped by concern; full request/response schemas are written when each group's module is built.
+
+This used to cite SOIR001, which is misleading enough to be worth naming: SOIR001 requires realtime sync over "WebSocket 기반 실시간 통신", but document changes and presence never cross this boundary — they go straight from the browser to Yorkie over Connect / gRPC-Web on ordinary HTTP, with `WatchDocument` as a server-streaming response rather than a socket. REST and WebSocket are what *this* boundary carries; the socket's whole traffic today is `session:revoked` plus chat. `docs/SRS-ko.md` is a team-agreed document and changes only with the team's agreement (`AGENTS.md` §5); SOIR001's wording was corrected under that agreement — [issue #36](https://github.com/CBNU-TeamH/RMF-Block/issues/36).
 
 | Group | Carries | Traceability |
 | --- | --- | --- |
@@ -84,6 +86,8 @@ There is no internal persistence module. Document durability is Yorkie's, and cr
 
 What crosses this boundary is version history only, through Yorkie's revision API: `createRevision`, `listRevisions`, `getRevision`, `restoreRevision`. Snapshots come back as YSON.
 
+**Measured, not assumed** (against `@yorkie-js/sdk@0.7.13` and re-checked on `0.7.17`, on the Mongo-backed Yorkie in `docker-compose.yml`): a revision outlives the document it belongs to, but only by id. After `client.remove(doc)`, `getRevision(doc, revisionId)` still returns the full snapshot while `listRevisions` on a fresh `Document` under the same key returns empty. **Anything that deletes a document therefore has to keep the revision ids somewhere, or the history becomes unreachable rather than merely hidden** — a constraint for whoever builds FR-023's delete. UC-023's 비고 records the same, added under the team agreement `docs/SRS-ko.md` requires (`AGENTS.md` §5) — [issue #28](https://github.com/CBNU-TeamH/RMF-Block/issues/28).
+
 **Decided:** the App/WS Server does not keep a `Watch` subscription on documents — the only thing that required one was the deleted delayed-write trigger, and Mongo now provides durability directly.
 
 **Open — decide before building this:** `createRevision` is always an explicit call (Yorkie never snapshots on its own), so what remains open is which app-side event or cadence should trigger it (issue #23).
@@ -92,7 +96,7 @@ What crosses this boundary is version history only, through Yorkie's revision AP
 
 Chat history is read and written as whole JSON files on the host filesystem — `lib/chat/chat-repository.ts` is the reference implementation of the pattern, including serializing concurrent writes through one promise chain. Member records follow the same pattern in `lib/auth/member-repository.ts`, synchronously rather than through a promise chain — sync writes on one thread cannot interleave, so there is nothing for the queue to serialize. Sessions stay in memory on purpose: a session id on disk would be a permanent bearer token. Workspace metadata is still to come.
 
-This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`. **The two are not equally durable today**: `docker-compose.yml` gives Mongo a named volume and the app none, so `.data/` lives only inside the container and a `docker compose down` takes it with it (issue #22).
+This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`. Both are now named volumes — `mongo-data` for Yorkie's store, `app-data` for `.data/` — so a container recreation leaves either intact and only `docker compose down -v` clears them (#22).
 
 ## 4. Decided vs. deferred
 
