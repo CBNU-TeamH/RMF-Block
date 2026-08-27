@@ -20,6 +20,44 @@ Block = { id: string (uuid), type: string, content: <type-specific, see below> }
 - ~~**Open risk**: `yorkie-team/yorkie#676` reported non-convergence when the moved element is also the reference element in a concurrent `moveAfter`.~~ **Verified on the pinned 0.7.13, 2026-08-27** — see [Verification](#verification-2026-08-27).
 - Block/text color and styling is an open decision (`AGENTS.md` §7) and intentionally not part of any block's `content` below — see that TODO item for why deferring it doesn't require reworking this schema.
 
+## Every text-bearing block wraps its text
+
+All six text-bearing types put the `yorkie.Text` at the same path —
+`blocks[i].content.text` — with their own fields as primitives beside it. For
+text, quote and code that wrapper holds nothing else, and it is still there.
+
+**The reason is block type conversion**, which this schema originally made
+impossible to do without losing the text. Typing `- ` at the start of a
+paragraph turns it into a list item; so does picking a type from a menu, or
+typing `# `. It is one of the most ordinary things a person does in an editor,
+and it must keep the block: the same `id`, so occupancy (FR-022-06) and any
+block-link block still resolve, and the same `yorkie.Text`, so a peer typing in
+that block at that moment does not lose what they typed.
+
+The first draft gave text, quote and code `content = yorkie.Text` directly while
+heading, list and checklist nested it. Converting between the two groups then
+meant moving an existing `Text` under a new parent, and **Yorkie does not move
+CRDTs — it silently replaces them**. Measured on 0.7.13: assigning an existing
+`Text` into a new object throws nothing, reports a `Text` afterwards, and that
+`Text` is empty. The paragraph's contents are simply gone, with no error
+anywhere. Rebuilding the `Text` by hand and copying the string across is no
+better: it also drops whatever a peer typed during the conversion, measured as
+`peer edit survived: false`.
+
+With the uniform wrapper the `Text` never moves, because a conversion only adds
+or deletes primitives beside it. Measured: text → list → heading keeps the text
+across both hops; a conversion racing a peer's keystrokes converges with both
+the new type and the peer's characters; and two people converting the same block
+to different types converge on one type with the text intact.
+
+**Known wart.** In that last case the losing conversion's fields are not cleaned
+up — a block that ends as a heading can still carry a `style` and `depth` from
+the list conversion that lost. `type` is a single LWW primitive, so it converges;
+the fields around it were separate writes and simply remain. Rendering is
+unaffected, since every reader gates on `type` and never looks at a field the
+current type does not own. It is dead data, not wrong data, and the alternative
+that avoids it is the one that deletes the paragraph.
+
 ## Why an Array of blocks, and not one `yorkie.Tree`
 
 Recorded after the fact: the structure above was chosen without this comparison
@@ -91,16 +129,30 @@ Run against `yorkieteam/yorkie:0.7.13` on `mongo:8` with the pinned
    survived. This is the property `Tree` cannot offer while `move` is
    unimplemented, and it is why reordering is safe to build on the array.
 
-Not yet verified: convergence under more than two concurrent movers, and
-`moveAfter` interleaved with a concurrent delete of the reference block.
+4. **A CRDT cannot be re-parented, and failing to do so is silent.** Assigning
+   an existing `yorkie.Text` into a newly-created object under the same document
+   raised no error, produced a `Text` at the destination, and that `Text` was
+   empty — the original characters were not carried over and no exception marked
+   their loss. Rebuilding the text by hand instead loses a peer's concurrent
+   keystrokes. This is what forced the uniform `content.text` wrapper above; the
+   full measurements are in that section.
+
+Not yet verified: convergence under more than two concurrent movers,
+`moveAfter` interleaved with a concurrent delete of the reference block, and
+whether a conversion's leftover fields are worth cleaning up rather than
+ignoring.
 
 ## Block types
 
 ### 1. Text block (`type: "text"`)
 
 ```
-content = yorkie.Text
+content = {
+  text: yorkie.Text
+}
 ```
+
+The wrapper looks redundant with one field in it and is not — see [Every text-bearing block wraps its text](#every-text-bearing-block-wraps-its-text).
 
 Plain text, no inline marks. SRS has no inline-formatting requirement for block content; the presenter highlight/underline tools (FR-030-12~14) are a separate, ephemeral overlay unrelated to stored block content.
 
@@ -141,15 +193,19 @@ One task item per block, same reasoning as the list block. No nesting field — 
 ### 5. Quote block (`type: "quote"`)
 
 ```
-content = yorkie.Text
+content = {
+  text: yorkie.Text
+}
 ```
 
-Same shape as the text block — SRS only calls for emphasizing a passage, no source/attribution fields. `type` alone drives the quote styling on render.
+Same shape as the text block — SRS only calls for emphasizing a passage, no source/attribution fields. `type` alone drives the quote styling on render, which is also what makes text ↔ quote the cheapest conversion there is: nothing but `type` changes.
 
 ### 6. Code block (`type: "code"`)
 
 ```
-content = yorkie.Text
+content = {
+  text: yorkie.Text
+}
 ```
 
 Same shape again. SRS asks for "source code or fixed-width text," not language-aware syntax highlighting, so no `language` field. Fixed-width rendering is a client style concern, not schema. Add `language: string` later if syntax highlighting becomes a requirement.
