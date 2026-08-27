@@ -34,6 +34,12 @@ for slug in "$@"; do
     echo "no such task: tasks/active/$slug-todo.md" >&2
     exit 1
   fi
+  for existing in "${slugs[@]:-}"; do
+    if [ "$existing" = "$slug" ]; then
+      echo "duplicate task: $slug" >&2
+      exit 1
+    fi
+  done
   slugs+=("$slug")
 done
 
@@ -77,14 +83,17 @@ for slug in "${slugs[@]}"; do
     fi
   done
 
-  # And repoint anything that linked *at* the task while it was active. The slug
-  # is date-prefixed and unique, so this cannot match something else by accident.
+  # And repoint anything that linked *at* the task while it was active.
   # `grep` exits 1 when it matches nothing, which is the normal case here and
   # must not fail the run — hence the `|| true` before `pipefail` sees it.
-  referrers=$(grep -rl --include='*.md' "tasks/active/$slug-" . 2>/dev/null || true)
+  # $slug is a regex here, not a literal — escape BRE metacharacters so a slug
+  # like "20260827-ui.v2" can't have its `.` match any character and rewrite a
+  # link that only looks similar.
+  slug_re=$(printf '%s' "$slug" | sed 's/[][\.*^$]/\\&/g')
+  referrers=$(grep -rl --include='*.md' "tasks/active/$slug_re-" . 2>/dev/null || true)
   if [ -n "$referrers" ]; then
     echo "$referrers" | while IFS= read -r ref; do
-      sed -i "s#tasks/active/$slug-#$dest/$slug-#g" "$ref"
+      sed -i "s#tasks/active/$slug_re-#$dest/$slug-#g" "$ref"
     done
   fi
 
