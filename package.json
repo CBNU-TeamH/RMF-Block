@@ -18,19 +18,8 @@
     "tasks:archive": "bash scripts/tasks-archive.sh"
   },
   "dependencies": {
-    "@yorkie-js/prosemirror": "0.7.13",
     "@yorkie-js/sdk": "0.7.13",
     "next": "16.2.12",
-    "prosemirror-commands": "^1.7.1",
-    "prosemirror-example-setup": "^1.2.3",
-    "prosemirror-history": "^1.5.0",
-    "prosemirror-keymap": "^1.2.3",
-    "prosemirror-menu": "^1.3.2",
-    "prosemirror-model": "^1.25.11",
-    "prosemirror-schema-basic": "^1.2.4",
-    "prosemirror-schema-list": "^1.5.1",
-    "prosemirror-state": "^1.4.4",
-    "prosemirror-view": "^1.42.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "ws": "^8.21.3"
@@ -43,14 +32,12 @@
     "@types/ws": "^8.18.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
-    "prosemirror-markdown": "^1.13.5",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
   "pnpm": {
     "patchedDependencies": {
-      "@yorkie-js/sdk@0.7.13": "patches/@yorkie-js__sdk@0.7.13.patch",
-      "@yorkie-js/prosemirror@0.7.13": "patches/@yorkie-js__prosemirror@0.7.13.patch"
+      "@yorkie-js/sdk@0.7.13": "patches/@yorkie-js__sdk@0.7.13.patch"
     }
   }
 }
