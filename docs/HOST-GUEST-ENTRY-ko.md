@@ -2,6 +2,14 @@
 
 > `feat/host-setup` 브랜치에서 진행한 작업 설명서입니다.
 > 팀 규칙상 문서는 영어가 기본이지만([`AGENTS.md`](../AGENTS.md) §5), 이 파일은 설명용으로 한국어로 씁니다.
+>
+> **이 문서는 그 시점의 기록이고, 그대로 둡니다.** 입장 흐름 자체 — stdout으로 출력한 bootstrap
+> secret을 `role` 쿠키로 바꾸고, 나머지는 전부 `/join`으로 보내는 것 — 는 지금도 같지만 **파일
+> 배치는 옮겨졌습니다**: `app/page.tsx`는 사라졌고, 인증 게이트와 셸은
+> `app/(workspace)/layout.tsx`, 화면은 `app/(workspace)/page.tsx`에 있습니다. `(workspace)`는
+> 라우트 그룹이라 URL은 그대로입니다. 옮겨진 것의 전체 목록은
+> [`tasks/active/20260826-entry-and-home-lessons.md`](../tasks/active/20260826-entry-and-home-lessons.md)에
+> 있습니다.
 
 ## 목차
 
