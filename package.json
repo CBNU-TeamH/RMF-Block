@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.5.2",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "NODE_ENV=development node server/index.mts",
     "build": "next build",
