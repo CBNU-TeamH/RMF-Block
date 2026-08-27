@@ -50,13 +50,47 @@ across both hops; a conversion racing a peer's keystrokes converges with both
 the new type and the peer's characters; and two people converting the same block
 to different types converge on one type with the text intact.
 
-**Known wart.** In that last case the losing conversion's fields are not cleaned
-up — a block that ends as a heading can still carry a `style` and `depth` from
-the list conversion that lost. `type` is a single LWW primitive, so it converges;
-the fields around it were separate writes and simply remain. Rendering is
-unaffected, since every reader gates on `type` and never looks at a field the
-current type does not own. It is dead data, not wrong data, and the alternative
-that avoids it is the one that deletes the paragraph.
+**Leftover fields are left alone, and cleaned up by the next conversion.** In
+that last case the losing conversion's fields stay behind — a block that ends as
+a heading can still carry a `style` and `depth` from the list conversion that
+lost. `type` is a single LWW primitive, so it converges; the fields around it
+were separate writes and simply remain. Rendering is unaffected: every reader
+gates on `type` and never looks at a field the current type does not own.
+
+A conversion therefore **deletes the fields the outgoing type owned** in the
+same `doc.update` that sets the new ones:
+
+```js
+doc.update((root) => {
+  const block = root.blocks[i];
+  delete block.content.level;        // the heading fields being left behind
+  block.content.style = "unordered"; // the list fields being taken on
+  block.content.depth = 0;
+  block.type = "list";
+});
+```
+
+That is the whole cleanup, and it is deliberately *not* a periodic sweep.
+
+- **The garbage is bounded.** A block has only four fields it can carry beyond
+  its text — `level`, `style`, `depth`, `checked` — so the worst a block can
+  reach is all four, no matter how many races it survives. Bounded litter is a
+  weak case for a collector.
+- **A sweep is itself a concurrent write, with no privileges.** A janitor
+  deleting `style` from a heading races anyone converting that block back to a
+  list, and if the delete wins the result is a list block with no `style` — a
+  block missing a field its own type requires. That is strictly worse than dead
+  data: readers can ignore a field that should not be there, but not one that
+  should.
+- **Removing costs more than keeping.** The value is already replicated and
+  costs nothing further to sit there; deleting it means an operation that
+  syncs to everyone plus a tombstone until GC. A sweep can grow the document.
+- There is no compare-and-swap here, so a janitor cannot even read the type and
+  delete atomically — the type can change in between.
+
+Folding it into the conversion avoids all of that: it rides a write the person
+asked for, which was going to race anyway, and it is self-healing — whatever a
+race leaves behind, the next conversion of that block clears.
 
 ## Why an Array of blocks, and not one `yorkie.Tree`
 
@@ -137,10 +171,8 @@ Run against `yorkieteam/yorkie:0.7.13` on `mongo:8` with the pinned
    keystrokes. This is what forced the uniform `content.text` wrapper above; the
    full measurements are in that section.
 
-Not yet verified: convergence under more than two concurrent movers,
-`moveAfter` interleaved with a concurrent delete of the reference block, and
-whether a conversion's leftover fields are worth cleaning up rather than
-ignoring.
+Not yet verified: convergence under more than two concurrent movers, and
+`moveAfter` interleaved with a concurrent delete of the reference block.
 
 ## Block types
 
