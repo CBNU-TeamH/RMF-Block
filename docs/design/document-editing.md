@@ -174,6 +174,19 @@ Run against `yorkieteam/yorkie:0.7.13` on `mongo:8` with the pinned
 Not yet verified: convergence under more than two concurrent movers, and
 `moveAfter` interleaved with a concurrent delete of the reference block.
 
+**None of the above is reproducible from this repository.** Every measurement
+here was taken with throwaway scripts against containers started by hand, and
+they are gone. A reader who doubts a number, or a future SDK bump that needs
+these rerun, has nothing to run — the claims are only as good as this document's
+word. Committing the harness is tracked as its own task; the two unverified
+cases belong in it rather than in another set of throwaway scripts.
+
+The unit tests under `lib/blocks/` deliberately do not cover this ground. A
+`yorkie.Document` needs no client and no server, which is what makes those tests
+fast and hermetic, but convergence is a claim about *two* replicas reconciling
+through one — so it cannot be asserted without the thing those tests exist to
+avoid needing.
+
 ## Block types
 
 ### 1. Text block (`type: "text"`)
