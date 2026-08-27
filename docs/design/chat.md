@@ -70,8 +70,8 @@ wired to it):
 type ChatMessage = { id: string; sender: string; text: string; sentAt: string };
 ```
 
-`sender` is client-supplied for this slice. It becomes server-derived (from session) once login
-lands — a `ChatService` caller-side change, not a schema change.
+`sender` is client-supplied for this slice. It becomes server-derived (from session) once this
+module is wired to it — a `ChatService` caller-side change, not a schema change.
 
 **`ws-hub.mts` caches its singleton on `globalThis`**, mirroring `lib/host-secret.ts`'s existing
 pattern, so `next dev`'s module-reload (HMR) can't split connection state into two registries.
