@@ -178,8 +178,14 @@ Not yet verified: convergence under more than two concurrent movers, and
 here was taken with throwaway scripts against containers started by hand, and
 they are gone. A reader who doubts a number, or a future SDK bump that needs
 these rerun, has nothing to run — the claims are only as good as this document's
-word. Committing the harness is tracked as its own task; the two unverified
+word. Committing the harness is tracked as
+[#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42); the two unverified
 cases belong in it rather than in another set of throwaway scripts.
+
+That matters more than usual here, because these measurements are load-bearing.
+They are why every block's text is wrapped (`content = { text }`) and why blocks
+are a Yorkie Array rather than a `yorkie.Tree`. If a future SDK version changes
+one of them the schema is wrong, and nothing in CI would say so.
 
 The unit tests under `lib/blocks/` deliberately do not cover this ground. A
 `yorkie.Document` needs no client and no server, which is what makes those tests
