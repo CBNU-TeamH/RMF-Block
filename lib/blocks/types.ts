@@ -38,18 +38,19 @@ type BlockBase = {
 
 /**
  * Text-bearing blocks expose `text` directly rather than the `content` wrapper
- * the stored schema uses.
+ * the stored schema uses. Storage keeps that wrapper on all six — the
+ * `yorkie.Text` always lives at `blocks[i].content.text`, with the type's own
+ * fields as primitives beside it — so that changing a block's type never has to
+ * move the text. Yorkie replaces a CRDT rather than re-parenting it, silently,
+ * so a conversion that moved the text would delete it; see
+ * `docs/design/document-editing.md`, "Every text-bearing block wraps its text".
  *
- * In storage that wrapper is not one shape: for text, quote and code the
- * `content` *is* the `yorkie.Text`, while heading, list and checklist nest it
- * beside their own fields. Mirroring that here would make `block.content` a
- * string in three cases and an object in three others, and every renderer would
- * branch on the type just to reach the words. Flattening gives all six the same
- * `text`, and the six storage shapes are noted per type below so the conversion
- * stays checkable.
+ * Reading is where the wrapper stops being useful. `block.content.text` says
+ * nothing `block.text` does not, and flattening it means a renderer reaching for
+ * the words does not first have to know which kind of block it is holding.
  */
 
-/** Storage: `content` is the `yorkie.Text` itself. */
+/** Storage: `content = { text }`. */
 export type TextBlock = BlockBase & {
   type: "text";
   text: string;
@@ -91,7 +92,12 @@ export type ChecklistBlock = BlockBase & {
   text: string;
 };
 
-/** Storage: `content` is the `yorkie.Text` itself. Styling comes from `type`. */
+/**
+ * Styling comes from `type` alone, which also makes text ↔ quote the cheapest
+ * conversion there is — nothing but `type` changes.
+ *
+ * Storage: `content = { text }`.
+ */
 export type QuoteBlock = BlockBase & {
   type: "quote";
   text: string;
@@ -101,7 +107,7 @@ export type QuoteBlock = BlockBase & {
  * No `language` field: SRS asks for "소스코드 또는 고정 폭 텍스트", not
  * syntax highlighting. Fixed-width is a render concern.
  *
- * Storage: `content` is the `yorkie.Text` itself.
+ * Storage: `content = { text }`.
  */
 export type CodeBlock = BlockBase & {
   type: "code";
