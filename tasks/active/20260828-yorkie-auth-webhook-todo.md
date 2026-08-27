@@ -135,7 +135,18 @@ Run against `yorkieteam/yorkie:0.7.13` on `mongo:8` with a throwaway webhook:
   closes their socket, but Yorkie will keep honouring their last decision for up to
   `authWebhookCacheTTL`. A kicked guest can therefore still write to a document for a few
   seconds. Not this task's to fix — it is the Members screen's — but it is not visible
-  from that screen's code, so it is written here.
+  from that screen's code, so it is written here, along with the handle:
+
+  ```yaml
+  command: ["server", "--auth-webhook-cache-auth-ttl", "1s", …]
+  ```
+
+  Unlike the webhook URL this *is* a server flag, so it belongs in
+  `docker-compose.yml` rather than an Admin API call. Left at its default here on
+  purpose: shortening it is cheap — the webhook is a local call and SRS §2.4 sizes a
+  workspace at eight people, so even `0` would cost little — but *how fast a kick must
+  take effect* is UC-011's requirement to state, not this task's to assume. Whoever
+  builds that screen decides the number; this note is so they know the dial exists.
 - **Docs that go stale**: `api.md` §2's "**Not implemented.**" paragraph, and its note
   that the SDK's refresh path "needs verifying" — it has been. Both are edited here,
   which is a design doc rather than an agreed one (`AGENTS.md` §5).
