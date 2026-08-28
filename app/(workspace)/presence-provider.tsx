@@ -19,6 +19,33 @@ export function useWorkspacePresence(): PresenceState {
 }
 
 /**
+ * What the browser shows Yorkie's auth webhook.
+ *
+ * The SDK calls this once before connecting and again every time the webhook
+ * refuses, handing over the refusal's own `reason` — so expiry needs no timer
+ * here, and a token that outlived its session is replaced by asking for another.
+ *
+ * The session cookie rides along on its own; this fetch is same-origin, and the
+ * cookie is `httpOnly` precisely so that this code never sees it.
+ *
+ * A failure returns an empty token rather than throwing. Yorkie refuses an empty
+ * one, which surfaces as this component's `failed` state — a workspace that says
+ * it is disconnected. Throwing instead would reject inside the SDK's own retry
+ * path, where nothing here can render it.
+ */
+async function fetchToken(): Promise<string> {
+  try {
+    const response = await fetch("/api/auth/yorkie-token");
+    if (!response.ok) return "";
+
+    const { token } = (await response.json()) as { token?: string };
+    return token ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Owns the browser's single Yorkie connection and hands the roster down
  * (FR-020-06/07).
  *
@@ -69,7 +96,7 @@ export function PresenceProvider({
     const address =
       override ?? `${window.location.protocol}//${window.location.hostname}:${port}`;
 
-    const client = new yorkie.Client({ rpcAddr: address });
+    const client = new yorkie.Client({ rpcAddr: address, authTokenInjector: fetchToken });
     const doc = new yorkie.Document<Record<string, never>, WorkspacePresence>(
       WORKSPACE_DOC_KEY,
     );
