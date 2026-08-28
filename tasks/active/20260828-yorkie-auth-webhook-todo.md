@@ -103,15 +103,35 @@ Run against `yorkieteam/yorkie:0.7.13` on `mongo:8` with a throwaway webhook:
 
 ## Acceptance
 
-- [ ] `pnpm lint`, `pnpm test` and `pnpm build` pass.
-- [ ] A guest who joined sees the roster exactly as before.
-- [ ] `new yorkie.Client({ rpcAddr }).activate()` from outside the app — no token — is
-      refused, where today it succeeds.
-- [ ] A token from one workspace session stops working after the container restarts,
-      because the session did.
-- [ ] Killing the app server mid-session does not lock the browser out permanently: it
-      recovers once the server is back, rather than needing a reload.
-- [ ] Startup fails loudly when Yorkie is unreachable, instead of leaving it unguarded.
+- [x] `pnpm lint`, `pnpm test` and `pnpm build` pass.
+- [x] A guest who joined sees the roster exactly as before. Checked in a browser with
+      the gate on: the header read `1명 접속 중 · Host (나)`, and a second member
+      attaching through the app made it `2명 접속 중 · Host (나) · bob` with no reload
+      and no console error.
+- [x] `new yorkie.Client({ rpcAddr }).activate()` from outside the app — no token — is
+      refused, where before it succeeded. An invented token is refused too, both as
+      `[unauthenticated]` at `ActivateClient`, before any document is touched.
+- [x] Startup refuses to serve when Yorkie is unreachable. **This failed the first
+      way it was written** — see the Review.
+- [ ] A token from one workspace session stops working after the app container restarts,
+      because the session did. Follows from both registries being process memory, and
+      from `session-registry.ts`'s "sessions are pointedly not restored", but not
+      exercised against a real restart.
+
+**One criterion was withdrawn rather than ticked.** It read:
+
+> Killing the app server mid-session does not lock the browser out permanently: it
+> recovers once the server is back, rather than needing a reload.
+
+That contradicts the design it was written against. Sessions live in memory and
+`session-registry.ts:66` is explicit that "sessions are pointedly not restored: every
+member comes back signed out" — restarting the container *is* the documented revoke
+path (`api.md`). A browser that recovered by itself would mean the restart had revoked
+nothing.
+
+What actually happens after a restart is what happened before this branch: the session
+is gone, so the page redirects to `/join` on its next navigation. Yorkie now failing
+alongside it is the same fact reaching one more place, not a new failure mode.
 
 ## Cut
 

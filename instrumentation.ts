@@ -44,12 +44,21 @@ export async function register() {
     // In production this is fatal. An unguarded Yorkie is reachable by anything
     // on the LAN, and a workspace that runs anyway would be one nobody knows is
     // open — the failure has to be the loud kind.
+    //
+    // `process.exit` rather than `throw`, which was the first attempt and does
+    // not work: Next installs its own `unhandledRejection` listener, so a throw
+    // from here is logged and swallowed, `app.prepare()` never rejects, and the
+    // process lives on without ever listening. Measured — it sat there for
+    // forty-five seconds. In a container that is the worst outcome available:
+    // Docker sees a running service, `restart` never fires, and compose reports
+    // no failure, so the workspace looks up while serving nothing.
     if (process.env.NODE_ENV === "production") {
-      throw new Error(
-        `Could not register the Yorkie auth webhook at ${rpcAddr}. ` +
-          `Refusing to start: Yorkie would accept any client on the network. ` +
-          `Cause: ${error instanceof Error ? error.message : String(error)}`,
+      console.error(
+        `\n  ✗ Could not register the Yorkie auth webhook at ${rpcAddr}.\n` +
+          `    Refusing to start: Yorkie would accept any client on the network.\n` +
+          `    ${error instanceof Error ? error.message : String(error)}\n`,
       );
+      process.exit(1);
     }
 
     // In development it is not, because Yorkie is often simply not running and
