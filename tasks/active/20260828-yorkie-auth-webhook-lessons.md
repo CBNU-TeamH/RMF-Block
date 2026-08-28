@@ -43,12 +43,42 @@ that the next person does not rediscover this.
   silently ignored: `WatchDocuments` (plural) fails the `UpdateProject` call. The valid
   names are in `api/types/auth_webhook.go`, and `WatchDocument` is the singular one.
 
+- **`throw` from `instrumentation.ts` does not stop the server.** Next installs its own
+  `unhandledRejection` listener, so the error is logged, `app.prepare()` never rejects,
+  and the process keeps running with port 3000 closed — measured, forty-five seconds of
+  it. A `try`/`catch` around `prepare()` catches nothing for the same reason. Only
+  `process.exit(1)` works. Worth knowing beyond this task: **anything in that hook that
+  is meant to be fatal has to exit, not throw.**
+
+- **`localhost` is the one webhook address that is always wrong**, and it fails in a way
+  that reads like something else. Everything was refused, valid sessions included, with
+  `verify access: send webhook` — which looks like Yorkie misbehaving rather than an
+  address pointing at Yorkie's own container. Yorkie stores the URL without testing it,
+  so a wrong one registers exactly like a right one, and the mistake only appears later
+  in a client's error. Startup now prints the address it registered, which is the cheap
+  way to make it visible where someone is already looking.
+
+- **`/bin/sh` in the Yorkie image is dash.** A healthcheck written the short way
+  (`CMD-SHELL`, or `docker run --health-cmd 'exec 3<>/dev/tcp/...'`) fails with
+  `cannot create /dev/tcp/...: Directory nonexistent` and the container simply never
+  turns healthy — no error anywhere except `docker inspect`'s health log. `/dev/tcp` is
+  a bash feature, so the check has to spell out `["CMD", "bash", "-c", …]`.
+
 ## What we would do differently
 
-- ...
+- **Write the acceptance criteria against the design, not against a wish.** One of them
+  said a browser should recover by itself after the app server restarts. Sessions are in
+  memory and a restart is the documented revoke path, so a browser that recovered would
+  mean the restart had revoked nothing. It was withdrawn rather than ticked, but it
+  should not have been written.
 
 ## Worth extracting
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- ...
+- **Verifying against a container makes it easy to run commands in the wrong repository.**
+  Reading Yorkie's source meant `cd`-ing into the vendored `yorkie` checkout, and a later
+  `gh issue create` picked up *that* repo's remote — an issue meant for this project was
+  filed against the upstream open-source one, publicly, and could not be deleted, only
+  closed with an apology. `gh` infers the repository from the working directory. **Pass
+  `--repo` every time**, or never leave the project directory.

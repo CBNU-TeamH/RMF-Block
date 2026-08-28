@@ -174,4 +174,55 @@ alongside it is the same fact reaching one more place, not a new failure mode.
 
 ## Review
 
-Filled in at the end.
+Shipped all three milestones, in the order 1 → 3 → 2 rather than the order they are
+written. Registering the webhook before the browser carried a token would have left a
+window — one commit long — where Yorkie asked for something no client had, and nobody
+could attach at all. Building the harmless halves first removed it.
+
+What landed: a token registry keyed by session, the two routes (one for the browser, one
+for Yorkie), `authTokenInjector` on the provider that owns the browser's only Yorkie
+client, and startup registration over the Admin API. Plus a healthcheck on the `yorkie`
+service, which was not planned — see below.
+
+### Three things went wrong, and all three looked like they were working
+
+1. **`localhost` as the webhook address.** Registered fine, then refused everything —
+   valid sessions included — with `verify access: send webhook`. Yorkie runs in a
+   container, where `localhost` is Yorkie. It reads like a Yorkie fault rather than a
+   wrong address, and Yorkie never tests the URL it is given, so nothing complains at
+   registration time. Fixed by defaulting to the address that reaches back out of a
+   container, and by printing what was registered at startup.
+
+2. **"Refusing to start" did not stop the server.** `throw` from `instrumentation.ts` is
+   swallowed by Next's own `unhandledRejection` listener: the process kept running with
+   port 3000 closed, for forty-five seconds before the test gave up. In a container that
+   is worse than crashing — Docker sees a running service, `restart` never fires, and
+   compose reports success. Now `process.exit(1)`.
+
+3. **The healthcheck could not be written the short way.** `/bin/sh` in the Yorkie image
+   is dash, and `/dev/tcp` is a bash feature, so the container just never turned healthy
+   with no error anywhere except `docker inspect`. It has to say `bash` explicitly.
+
+Each of these is the same shape: a thing that appears to work, and only a check that
+looks past the appearance finds it. The webhook was registered; the server printed a
+refusal; the healthcheck was configured.
+
+### The healthcheck was not in the plan
+
+Milestone 2 introduced a thirty-second retry because `depends_on` orders containers
+without waiting for readiness, and this file said Yorkie could not be probed from inside
+its own container. That turned out to be half wrong — no `curl`/`wget`/`nc`, but
+`/bin/bash` with a working `/dev/tcp` — so the retry was a workaround for a problem that
+did not have to exist. Fixed as part of this branch rather than left as
+[#49](https://github.com/CBNU-TeamH/RMF-Block/issues/49), since the retry was ours and
+introduced two commits earlier. It stays, demoted to covering `pnpm dev` against a
+hand-started Yorkie, where nothing sequences the two.
+
+### Left open
+
+- [#47](https://github.com/CBNU-TeamH/RMF-Block/issues/47) — in-memory token versus a
+  signed one the webhook could verify with no table.
+- [#48](https://github.com/CBNU-TeamH/RMF-Block/issues/48) — the auth cache TTL, which is
+  the revocation latency a kick will have to live with.
+- The container-restart criterion above, which follows from both registries being process
+  memory but was not exercised against a real restart.
