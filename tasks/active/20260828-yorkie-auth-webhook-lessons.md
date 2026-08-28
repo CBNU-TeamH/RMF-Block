@@ -14,6 +14,21 @@ that the next person does not rediscover this.
   (`DefaultAuthWebhookCacheTTL`, `server/config.go`). Waiting past it produced the real
   sequence: `allow v1` → `deny v1` → `allow v2`. **Any test of an auth decision has to
   outlast that window or it measures the cache.**
+
+  Then it happened *again*, one test later, after that lesson was already written here:
+  four status-code combinations all "passed" because the first allow was cached and the
+  rest never reached the webhook. The cheap way out is in the cache key —
+  `generateCacheKey(publicKey, body)` hashes the request body, and the body carries the
+  token, so **a different token per attempt is a different cache entry.** No waiting.
+
+- **`200 + allowed:false` is not a refusal.** `handleWebhookResponse`
+  (`server/rpc/auth/webhook.go`) accepts exactly three pairs — `200`+allowed,
+  `401`+refused, `403`+refused — and everything else falls to `default` as
+  `ErrInvalidJSONResponse`. Measured: the client is still stopped, but as
+  `[internal] status=200, allowed=false … invalid JSON response` rather than
+  `[unauthenticated]`. It looks like it works while being the wrong thing: it takes the
+  retry path, muddies the logs, and hands the client an error of the wrong kind.
+  `401` is also the one branch Yorkie does **not** cache.
 - **The SDK hands our webhook's `reason` string to `authTokenInjector`.** The signature
   is `(reason?: string) => Promise<string>`, and the value that arrives is whatever the
   webhook put in `{ allowed: false, reason }`. That makes the refusal reason a real

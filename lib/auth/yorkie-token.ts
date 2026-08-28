@@ -39,6 +39,15 @@ import { randomUUID } from "node:crypto";
  */
 const TOKEN_TTL_MS = 60 * 60 * 1000;
 
+/**
+ * The host holds no guest session — identity comes from having started the
+ * container, not from the join form — so their token stands for the bootstrap
+ * secret instead, under this prefix. The webhook re-checks the secret rather
+ * than trusting the token alone, which is what makes a container restart
+ * invalidate the host's tokens the same way it invalidates everyone's sessions.
+ */
+export const HOST_SESSION_PREFIX = "host:";
+
 export class YorkieTokenRegistry {
   private readonly sessionByToken = new Map<
     string,
