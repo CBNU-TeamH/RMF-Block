@@ -25,6 +25,18 @@ services:
       # server refuses to start without a password of at least 4 characters.
       WORKSPACE_NAME: ${WORKSPACE_NAME:-}
       WORKSPACE_PASSWORD: ${WORKSPACE_PASSWORD:-}
+      # Both are addresses on the compose network, and they point opposite ways.
+      # The first is Yorkie as this container reaches it; the second is *this
+      # container as Yorkie reaches it*, which is why neither can be localhost —
+      # inside a container that means the container itself.
+      #
+      # Startup writes the webhook URL onto Yorkie's project and refuses to serve
+      # if it cannot, because a Yorkie nobody told to check tokens accepts every
+      # client on the LAN.
+      YORKIE_ADMIN_ADDR: http://yorkie:8080
+      YORKIE_AUTH_WEBHOOK_URL: http://app:3000/api/internal/yorkie/auth
+    depends_on:
+      - yorkie
 
   yorkie:
     image: yorkieteam/yorkie:0.7.13
