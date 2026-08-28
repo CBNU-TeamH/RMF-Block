@@ -35,8 +35,13 @@ services:
       # client on the LAN.
       YORKIE_ADMIN_ADDR: http://yorkie:8080
       YORKIE_AUTH_WEBHOOK_URL: http://app:3000/api/internal/yorkie/auth
+    # `service_healthy`, not a bare `depends_on`: startup writes the webhook onto
+    # Yorkie's project, so Yorkie has to be answering before this container runs
+    # — a bare one would only order the starts and leave the first attempt racing
+    # Yorkie's boot.
     depends_on:
-      - yorkie
+      yorkie:
+        condition: service_healthy
 
   yorkie:
     image: yorkieteam/yorkie:0.7.13
@@ -52,12 +57,30 @@ services:
     # lose the race to Mongo's first accepting connection and crash-loop; waiting
     # for Mongo to report healthy removes that race at the source.
     #
-    # Yorkie itself gets no healthcheck: its image carries no curl, wget, nc, and
-    # its shell has no /dev/tcp, so nothing in the container can probe port 8080.
-    # Without one, `docker compose up --wait yorkie` reports it healthy the moment
-    # it is running — measured: with a bad Mongo URI, `--wait` still exits 0 while
-    # the container is crash-looping. So `running` is not proof of anything here,
-    # and CI probes the health endpoint from outside instead.
+    #
+    # Yorkie gets one too, which this file used to say was impossible: "its image
+    # carries no curl, wget, nc, and its shell has no /dev/tcp". The first half
+    # holds and the second does not — the image ships `/bin/bash`, and bash's
+    # `/dev/tcp` works. It is why `test` spells out `bash` rather than using
+    # `CMD-SHELL`: `/bin/sh` here is dash, which has no `/dev/tcp` and fails with
+    # "Directory nonexistent".
+    #
+    # Running is not proof on its own — with a bad Mongo URI Yorkie crash-loops
+    # while `--wait` still exits 0 — so the probe asks the health endpoint
+    # (`GET /yorkie.v1.YorkieService/health`, GET/HEAD only) rather than just
+    # opening the port. Measured: healthy about two seconds after start.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          'exec 3<>/dev/tcp/127.0.0.1/8080; printf "GET /yorkie.v1.YorkieService/health HTTP/1.0\r\n\r\n" >&3; head -1 <&3 | grep -q "200 OK"',
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 3s
     restart: unless-stopped
     depends_on:
       mongo:

@@ -74,12 +74,11 @@ export async function registerAuthWebhook(
   webhookUrl: string,
   { attempts = 30, delayMs = 1000 } = {},
 ): Promise<void> {
-  // Yorkie carries no healthcheck — its image has no curl, wget or nc, and its
-  // shell has no /dev/tcp, so nothing inside the container can probe port 8080
-  // (`docker-compose.yml` says so at length). `depends_on` therefore orders the
-  // containers and promises nothing about readiness, and the first attempt here
-  // often lands while Yorkie is still coming up. Retrying is the whole fix, and
-  // it works outside compose too, where there is no `depends_on` at all.
+  // Under compose this should never loop: the `yorkie` service has a healthcheck
+  // and this one waits on `service_healthy`, so Yorkie is answering before the
+  // app runs at all. The retry is for everywhere else — `pnpm dev` against a
+  // Yorkie started by hand has nothing sequencing the two, and a developer
+  // starting both at once should not have to restart the app.
   for (let attempt = 1; ; attempt += 1) {
     try {
       return await attemptRegister(rpcAddr, webhookUrl);
