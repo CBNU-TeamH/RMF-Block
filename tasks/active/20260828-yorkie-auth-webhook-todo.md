@@ -142,11 +142,12 @@ Run against `yorkieteam/yorkie:0.7.13` on `mongo:8` with a throwaway webhook:
   ```
 
   Unlike the webhook URL this *is* a server flag, so it belongs in
-  `docker-compose.yml` rather than an Admin API call. Left at its default here on
-  purpose: shortening it is cheap — the webhook is a local call and SRS §2.4 sizes a
-  workspace at eight people, so even `0` would cost little — but *how fast a kick must
-  take effect* is UC-011's requirement to state, not this task's to assume. Whoever
-  builds that screen decides the number; this note is so they know the dial exists.
+  `docker-compose.yml` rather than an Admin API call. Left at its default here and
+  tracked as [#48](https://github.com/CBNU-TeamH/RMF-Block/issues/48): the number
+  follows from what UC-011 requires of a kick, which this task does not own. Worth
+  knowing that leaving it unset is not neutral — 10s is Yorkie's default for a
+  multi-tenant service whose webhook crosses a network, and none of that describes a
+  local call in an eight-person workspace.
 - **Docs that go stale**: `api.md` §2's "**Not implemented.**" paragraph, and its note
   that the SDK's refresh path "needs verifying" — it has been. Both are edited here,
   which is a design doc rather than an agreed one (`AGENTS.md` §5).
