@@ -109,13 +109,32 @@ Chat has two candidate implementations (§5). These REST endpoints belong to **v
 | Server → Yorkie | ~~`Watch`~~ — **decided: not kept** | This subscription existed only to drive the delayed-write trigger, which ADR-002 deletes; Mongo now provides durability directly, so nothing needs it | ADR-002 |
 | Server → Yorkie | Admin API, read-only — document summaries and active editors | Supplementary source for who is editing what | FR-040 (support), FR-022-06 (support) |
 
-**Not implemented.** `docker-compose.yml` passes no `--auth-webhook-url` and publishes Yorkie's
-port directly, so today any client that can reach that port attaches to any document with no
-session check — the session cookie gates the Next.js routes only, not Yorkie. Harmless while
-presence is all that rides on it, and NFR-SEC-002/005's problem the moment document content does.
-`lib/presence/roster.ts` already accounts for it.
+**Implemented.** Yorkie's port is still published, but reaching it no longer gets anyone in:
+without a token this server issued, a client is refused at `ActivateClient`, before it touches a
+document. The chain is three parts — `GET /api/auth/yorkie-token` trades the session cookie for
+something client JS can hold (the cookie is `httpOnly` so that page scripts, and anyone reading a
+shared screen under UC-030, never see it), the browser passes that through the SDK's
+`authTokenInjector`, and this webhook answers. Startup writes the webhook onto Yorkie's project
+itself, over the Admin API, and refuses to serve if it cannot: the webhook URL is a project field
+rather than a server flag, and a step the host could forget would make an unguarded Yorkie the
+default.
 
-The auth webhook is where short-lived tokens meet Yorkie: a token that expires mid-session must be refreshed on the client before Yorkie's next authorized call, or the webhook starts rejecting operations. How the SDK re-supplies a rotated token needs verifying against the pinned `@yorkie-js/sdk` version before the Sync module is built — the same caution `document-editing.md` applies to concurrent-move convergence.
+The webhook asks two questions, not one. A token can be valid while the session behind it is
+gone — a device displaced by another (FR-020-08) keeps its token — so tokens point at sessions and
+the session is resolved separately. Refusals answer `401` with `{ allowed: false, reason }`; Yorkie
+pairs status with body and accepts only `200`+allowed, `401`+refused, `403`+refused, reading
+anything else as a malfunction rather than a refusal.
+
+**The token-refresh question this section used to leave open is answered**: against the pinned
+`@yorkie-js/sdk@0.7.13`, the SDK calls `authTokenInjector` again whenever the webhook refuses and
+passes the refusal's own `reason` as its argument, then retries with what it gets back. So expiry
+needs no timer on either side, and `reason` is a channel rather than a log line — `"token expired"`
+means fetch another, `"session revoked"` means another will not help.
+
+One thing worth knowing wherever revocation is being reasoned about: **Yorkie caches an auth
+decision for ten seconds by default** (`--auth-webhook-cache-auth-ttl`). A guest removed through
+UC-011 keeps whatever Yorkie last decided about them until that expires. Choosing the value is
+[#48](https://github.com/CBNU-TeamH/RMF-Block/issues/48).
 
 Document keys carry no type prefix — a Yorkie key can only contain `a-z A-Z 0-9 - . _ ~` (120 chars max), which rules out a `:`-delimited scheme and makes any other delimiter ambiguous against UUIDs. Instead the key **is** the document's id as issued by `POST /api/documents`, and the webhook resolves its type by looking the id up in the App/WS Server's own document table — which it already needs for the Document Tree API. `chat` is a reserved literal key (version B, §5) rather than an id, since it's a workspace-wide singleton.
 
