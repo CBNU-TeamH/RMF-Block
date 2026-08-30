@@ -236,3 +236,24 @@ describe("readBlocks with a type it does not know", () => {
     );
   });
 });
+
+describe("readBlocks with a null element", () => {
+  it("drops it rather than crashing (#44)", () => {
+    // Yorkie's `JSONArray` accepts `null` as a plain element; nothing here
+    // writes one, but anything on the LAN reaching Yorkie directly could.
+    assert.deepEqual(read([null]), []);
+  });
+
+  it("still reads every block around it", () => {
+    const result = read([{ id: "a", type: "text", content: {} }, null, {
+      id: "b",
+      type: "text",
+      content: {},
+    }]);
+
+    assert.deepEqual(
+      result.map((block) => block.id),
+      ["a", "b"],
+    );
+  });
+});
