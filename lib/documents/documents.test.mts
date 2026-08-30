@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { readDocuments } from "./documents.ts";
+import { DocumentValidationError, createDocument, readDocuments } from "./documents.ts";
 
 const scratch = () => mkdtempSync(path.join(tmpdir(), "rmf-docs-"));
 
@@ -41,5 +41,52 @@ describe("readDocuments", () => {
     ]);
 
     assert.deepEqual(readDocuments(storePath).map((d) => d.id), ["newest", "middle", "older"]);
+  });
+});
+
+describe("createDocument", () => {
+  it("adds a document that a later readDocuments sees", () => {
+    const storePath = path.join(scratch(), "documents.json");
+
+    const created = createDocument("회의록", "m-1", storePath);
+
+    assert.equal(created.createdBy, "m-1");
+    assert.deepEqual(readDocuments(storePath).map((d) => d.id), [created.id]);
+  });
+
+  it("refuses an empty or blank name (#UC-021)", () => {
+    const storePath = path.join(scratch(), "documents.json");
+
+    assert.throws(() => createDocument("", "m-1", storePath), DocumentValidationError);
+    assert.throws(() => createDocument("   ", "m-1", storePath), DocumentValidationError);
+    assert.throws(() => createDocument(undefined, "m-1", storePath), DocumentValidationError);
+  });
+
+  it("trims the name", () => {
+    const storePath = path.join(scratch(), "documents.json");
+
+    const created = createDocument("  회의록  ", "m-1", storePath);
+
+    assert.equal(created.name, "회의록");
+  });
+
+  it("gives a repeated name a disambiguating suffix instead of refusing it (E4a)", () => {
+    const storePath = path.join(scratch(), "documents.json");
+
+    createDocument("회의록", "m-1", storePath);
+    const second = createDocument("회의록", "m-2", storePath);
+    const third = createDocument("회의록", "m-1", storePath);
+
+    assert.equal(second.name, "회의록 (2)");
+    assert.equal(third.name, "회의록 (3)");
+  });
+
+  it("never reuses an id, even for the same name", () => {
+    const storePath = path.join(scratch(), "documents.json");
+
+    const a = createDocument("회의록", "m-1", storePath);
+    const b = createDocument("회의록", "m-1", storePath);
+
+    assert.notEqual(a.id, b.id);
   });
 });
