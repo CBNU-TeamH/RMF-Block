@@ -1,11 +1,13 @@
 # Document Editing — Block Schema
 
-- **Status**: Agreed. All 12 block types finalized. The pre-implementation SDK convergence check it was waiting on has been run — see [Verification](#verification-2026-08-27).
+- **Status**: Agreed. All 12 block types finalized. The pre-implementation SDK convergence check it was waiting on has been run — see [Verification](#verification-2026-08-27). The [editing surface](#editing-surface) (textarea vs. rich text, IME handling) was decided 2026-08-30, ahead of `tasks/active/20260829-block-editor-todo.md`'s implementation milestones.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(a), §5; [`docs/SRS-ko.md`](../SRS-ko.md) §4.1
 
 ## Scope
 
-Field-level Yorkie document schema for each block type listed in SRS §4.1. Per `architecture.md` §3(a)/§5, this doc is written just-in-time, block type by block type, before the Document Editing module's implementation task starts.
+Field-level Yorkie document schema for each block type listed in SRS §4.1, plus the editing
+surface built on it. Per `architecture.md` §3(a)/§5, this doc is written just-in-time — the
+schema block type by block type, the surface just before the editor's implementation task starts.
 
 ## Document structure
 
@@ -331,9 +333,113 @@ content = {
 
 Matches the "문서 ID + 블록 위치 정보" pair used throughout SRS wherever a block reference appears (UC-050, UC-060, UC-070). No cached preview of the target block's content — block content is the highest-churn data in the system, so a cache would go stale faster than anything else considered here.
 
+## Editing surface
+
+The schema above says what Yorkie holds. This says what turns a key press into an edit on it,
+and — the one question worth settling before any of it is built — what happens when a remote
+edit lands while a person is composing Hangul (or any IME script) into the same block.
+
+**Decision: a plain `<textarea>` per text-bearing block, uncontrolled, patched imperatively.**
+Not a rich-text framework. Not React's `value={text}` binding either, even though that is the
+obvious first thing to reach for.
+
+### Why not a rich-text framework
+
+*"We need Notion-style block movement, so a rich-text editor is out"* is not the reason, and is
+not even true in general — ProseMirror-based Notion-style editors (BlockNote, for one) exist.
+The actual reason is specific to Yorkie: binding a rich-text framework's document model to Yorkie
+makes it a `yorkie.Tree`, and `yorkie.Tree` has no move operation at all —
+
+| | move operations |
+| --- | --- |
+| `yorkie.Array` (this schema's `root.blocks`) | `moveBefore`, `moveAfter`, `moveAfterByIndex`, `moveFront`, `moveLast` |
+| `yorkie.Tree` | none |
+
+— while [Verification](#verification-2026-08-27) item 3 measured that `Array`'s move survives a
+concurrent edit to the moved block, and item 4 measured that a `Tree`-shaped rebuild does not:
+re-parenting a CRDT is silent data loss, not an error. Reordering blocks (FR-022-04) is a
+requirement, and only one of the two shapes was measured safe under it. Adopting a rich-text
+framework now would also discard `lib/blocks/`'s tested `operations.ts`, built against the array
+shape this schema settled on.
+
+The honest framing: we take on IME handling ourselves in exchange for block movement that is
+safe under concurrent editing. A rich-text framework would have handed us IME for free — it has
+already solved what the rest of this section solves — so the next part existed to check whether
+that cost is actually payable.
+
+### What was measured (2026-08-29–30)
+
+Against a real two-client Yorkie session (0.7.13), using a throwaway harness at
+`app/(workspace)/spike/ime-harness/` (deleted once this section landed) that exercised the exact
+storage shape above — `root.blocks[0].content.text`, edited through `yorkie.Text.edit()` — rather
+than a bare string.
+
+1. **A naive controlled binding corrupts text under concurrent editing**, but not for the reason
+   first assumed. `<textarea value={text}>` re-rendering `value` from an incoming remote edit
+   does interrupt an in-progress IME composition in the way collaborative editors are known to
+   suffer from — but the sharper failure measured here was a bug in the harness itself: the
+   local diff baseline (`lastSyncedRef`, "what I last told Yorkie the text was") did not get
+   updated on the remote-render path, so the very next local keystroke was diffed against a
+   stale, shorter string and reinserted the *entire visible textarea content* as if it were new.
+   Two people typing "안녕하세요" into the same empty block concurrently produced
+   `"안안녕녕하세요"` — the whole greeting duplicated, not merely a lost syllable. **The lesson
+   generalizes past this one bug**: any surface that reads "the current text" from one source
+   (React state) while diffing against a second, independently-updated source (a sync baseline)
+   has to keep the two in lockstep on *every* path that touches either — the remote path is as
+   much a mutation of "what Yorkie holds" as the local path is, and both have to advance the same
+   baseline.
+2. **An uncontrolled textarea, patched only on the changed range, survives.** Two live clients
+   typing Hangul into the same block concurrently: remote edits arriving mid-composition are
+   queued rather than applied, flushed once `compositionend` fires, and the in-progress
+   composition was not observed to break in either the corrupted-duplication way above or the
+   composition-interruption way rich-text frameworks are built to avoid. Non-composing keystrokes
+   (plain ASCII, Enter, space) sync per keystroke with no queuing needed.
+3. **The SDK's own `EditOpInfo` carries exactly what patching needs**: `{ from, to, value:
+   { content }, path }`, character offsets against the pre-edit string. Caret adjustment measured
+   against a live remote edit: an edit entirely before the caret shifts it by the size
+   difference (measured: caret at 5, a 1-character insert at position 1, caret becomes 6); one
+   entirely after the caret leaves it alone.
+4. **A composed syllable is one edit, not one per candidate**, when composition is guarded:
+   `compositionstart` suppresses per-keystroke syncing and `compositionend` commits the finished
+   syllable as a single diff. The naive binding sends one edit per intermediate IME candidate
+   (measured: "안" alone produced three edits — `"ㅇ"` → `"아"` → `"안"` — before the composition
+   even ended), which is not just noisier but means Yorkie's own `doc.history.undo()` (§6 of the
+   editor task) would step back through IME candidates rather than through what a person thinks
+   of as a character.
+
+**Not yet measured**: composition survival at a network delay long enough that several remote
+edits queue before `compositionend` fires, and behaviour with more than two concurrent
+composers on one block. Neither is expected to change the surface decision; both are `#42`
+material if `#42`'s harness ever gets built.
+
+### Subscribing to remote changes
+
+Yorkie's path-based `subscribe` is typed against the document shape (e.g.
+`$.blocks.0.content.text`), which is enough to shrink what a remote change can disturb — a block
+component only needs to react to edits on its own text, not the whole document.
+
+**The path is positional, not by block id.** `$.blocks.0.…` names whatever sits at array index 0
+*right now*; a block does not carry its path with it when another block is inserted, removed, or
+moved ahead of it (see [Document structure](#document-structure): position is meaning here, on
+purpose, per ADR-001). A component subscribing once to a fixed path string goes stale the moment
+the array changes shape elsewhere. The editor has to re-derive each block's current path from its
+`id` on every structural change, or subscribe once at the document root and match operations by
+walking `path` against the current array — a fixed-path subscription per block, kept for the
+block's whole life, is the one option ruled out by this.
+
+### Writes never go through the `Block` view model
+
+Restated because the surface is where it would be easiest to forget: `editBlockText` (or
+whatever calls `yorkie.Text.edit()` under it) is the only way text changes, never an assignment of
+a whole string over the field. `lib/blocks/types.ts` already says why — a `Block`'s `text: string`
+is read-only shape, and assigning it back would erase whatever a peer typed at that moment instead
+of merging with it.
+
 ## Open questions
 
 - ~~Concurrent-move convergence on the pinned SDK version.~~ Closed by
   [Verification](#verification-2026-08-27) item 2, with two follow-up cases named
   there that were not covered.
+- ~~The editing surface (rich text vs. plain textarea, IME handling).~~ Closed above,
+  2026-08-30.
 - Block/text color and styling (`AGENTS.md` §7).
