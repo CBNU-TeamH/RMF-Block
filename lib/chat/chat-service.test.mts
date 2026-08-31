@@ -103,3 +103,71 @@ test("list() delegates to the repository", async () => {
 
   assert.deepEqual(await service.list(), repository.messages);
 });
+
+const attachment = {
+  fileId: "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+  fileName: "cat.png",
+  fileType: "image/png",
+  size: 8421,
+};
+
+test("send() accepts an attachment with no text", async () => {
+  // UC-060 step 1 is "텍스트 또는 URL을 입력하거나 파일을 첨부한다" — a photo
+  // with nothing typed under it is a message, and requiring text refuses it.
+  const service = new ChatService(fakeRepository(), fakeBroadcaster());
+
+  const message = await service.send({ sender: "alice", text: undefined, attachment });
+
+  assert.deepEqual(message.attachment, attachment);
+  assert.equal(message.text, "", "text is a string even when nothing was typed");
+});
+
+test("send() rejects a message that is neither text nor attachment", async () => {
+  const service = new ChatService(fakeRepository(), fakeBroadcaster());
+
+  await assert.rejects(
+    () => service.send({ sender: "alice", text: "   " }),
+    ChatValidationError,
+  );
+});
+
+test("send() carries text and an attachment together", async () => {
+  const service = new ChatService(fakeRepository(), fakeBroadcaster());
+
+  const message = await service.send({ sender: "alice", text: "이거 봐", attachment });
+
+  assert.equal(message.text, "이거 봐");
+  assert.deepEqual(message.attachment, attachment);
+});
+
+test("send() leaves the key out entirely when there is no attachment", async () => {
+  // Not `attachment: undefined`, which the JSON store would read back as null.
+  const service = new ChatService(fakeRepository(), fakeBroadcaster());
+
+  const message = await service.send({ sender: "alice", text: "hi" });
+
+  assert.equal("attachment" in message, false);
+  assert.equal(JSON.parse(JSON.stringify(message)).attachment, undefined);
+});
+
+test("send() broadcasts the attachment along with the message", async () => {
+  // FR-060-04 asks for the message *and* its attachment info to reach everyone.
+  const broadcaster = fakeBroadcaster();
+  const service = new ChatService(fakeRepository(), broadcaster);
+
+  await service.send({ sender: "alice", text: "", attachment });
+
+  assert.deepEqual(
+    (broadcaster.calls[0]!.payload as ChatMessage).attachment,
+    attachment,
+  );
+});
+
+test("send() still caps text when an attachment rides with it", async () => {
+  const service = new ChatService(fakeRepository(), fakeBroadcaster());
+
+  await assert.rejects(
+    () => service.send({ sender: "alice", text: "x".repeat(2001), attachment }),
+    ChatValidationError,
+  );
+});

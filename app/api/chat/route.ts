@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { currentMember } from "@/lib/auth/current-member";
 import { chatService } from "@/lib/chat/chat-service";
-import { ChatValidationError } from "@/lib/chat/types";
+import { ChatValidationError, type ChatAttachment } from "@/lib/chat/types";
+import { fileRepository } from "@/lib/files/file-repository";
 
 /**
  * Chat history (GET) and send (POST) — FR-060-01/04/05/07, `docs/design/api.md`
@@ -33,10 +34,33 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const text = typeof body?.text === "string" ? body.text : undefined;
+  const fileId = typeof body?.fileId === "string" ? body.fileId : undefined;
+
+  // The request names a file; the server describes it. A client that could send
+  // its own `fileName` and `size` could describe a file as something it is not,
+  // and that description is what every other client renders.
+  let attachment: ChatAttachment | undefined;
+  if (fileId) {
+    const file = await fileRepository.find(fileId);
+    if (!file) {
+      return NextResponse.json(
+        { error: "첨부 파일을 찾을 수 없습니다." },
+        { status: 400 },
+      );
+    }
+
+    attachment = {
+      fileId: file.id,
+      fileName: file.name,
+      fileType: file.type,
+      size: file.size,
+    };
+  }
 
   try {
-    // The session decides who sent this; the body is only read for `text`.
-    const message = await chatService.send({ sender: member.nickname, text });
+    // The session decides who sent this; the body is only read for `text` and
+    // which file to attach.
+    const message = await chatService.send({ sender: member.nickname, text, attachment });
     return NextResponse.json(message, { status: 201 });
   } catch (error) {
     if (error instanceof ChatValidationError) {

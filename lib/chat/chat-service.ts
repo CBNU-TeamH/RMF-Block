@@ -33,21 +33,30 @@ export class ChatService {
   // checked for emptiness when it was minted (`SessionRegistry.join`) — so
   // there is nothing left for this method to catch. `text` is still whatever
   // the person typed.
-  async send({ sender, text }: SendChatMessageInput): Promise<ChatMessage> {
-    if (!text?.trim()) {
-      throw new ChatValidationError("text is required");
+  async send({ sender, text, attachment }: SendChatMessageInput): Promise<ChatMessage> {
+    // Text *or* an attachment, not text unconditionally. UC-060's first step is
+    // "텍스트 또는 URL을 입력하거나 파일을 첨부한다" — a photo with nothing
+    // typed under it is a message, and requiring text would refuse it.
+    if (!text?.trim() && !attachment) {
+      throw new ChatValidationError("메시지나 첨부 파일 중 하나는 있어야 합니다.");
     }
     // Neither `request.json()` (App Router) nor the custom server caps body
     // size, and every append rewrites the whole JSON file — so unbounded text
     // is both a disk-fill and a per-message O(n) rewrite.
-    if (text.length > 2000) {
+    if (text && text.length > 2000) {
       throw new ChatValidationError("text is too long");
     }
 
     const message: ChatMessage = {
       id: randomUUID(),
       sender,
-      text,
+      // An attachment-only message stores "" rather than leaving the field out,
+      // so every reader can treat `text` as a string.
+      text: text ?? "",
+      // Spread rather than `attachment` outright: `undefined` would serialize
+      // the key into the JSON store as `null` on the way back, and a message
+      // with no attachment should simply not have one.
+      ...(attachment ? { attachment } : {}),
       sentAt: new Date().toISOString(),
     };
 
