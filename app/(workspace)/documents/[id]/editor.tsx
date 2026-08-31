@@ -493,7 +493,9 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         // no JS state tracking "which block is focused" needed.
         <div
           key={block.id}
-          className={`group relative ${block.id === draggedId ? "opacity-50" : ""} ${
+          className={`group relative rounded-md ${
+            block.id === draggedId ? "bg-paper-2 opacity-50" : ""
+          } ${
             dropIndicator?.targetId === block.id
               ? dropIndicator.before
                 ? "border-t-2 border-sky-deep"
