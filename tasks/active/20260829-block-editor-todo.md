@@ -224,7 +224,7 @@ Still `text` only. Enter to split, Backspace to merge, reordering.
 ### 4. Add the remaining types, one at a time
 
 Six types are left buildable: `heading` shipped early (Milestone 3, above) via its markdown
-shortcut. The rest, easiest first:
+shortcut.
 
 | Order | Type | The actual work |
 | --- | --- | --- |
@@ -234,14 +234,26 @@ shortcut. The rest, easiest first:
 | 4 | `list` | `style`/`depth`. Consecutive blocks of one style render as a single visual list, and **an ordered list's numbers are computed at render time from position** (`types.ts`: storing them would renumber everything after each insert) |
 | 5 | `divider` | **The only type with no text** → no textarea → focus, occupancy and delete all differ |
 
-- **Decided for `divider`**: render it as a `tabIndex={0}` div. Focus lands on it, occupancy works
-  the same way it does everywhere else, and Backspace deletes it. No separate selection model.
-- Lands alongside: `changeBlockType` (already exercised by heading's shortcut) and the remaining
-  markdown shortcuts (`- `, `1. `, `> ` — `# ` is done).
-- **Reuse**: `changeBlockType` already preserves the block's `id` and its `yorkie.Text` rather than
-  rebuilding — a rebuild loses whatever a peer typed at that moment.
-- **Done**: all seven render and edit, shortcuts convert between them, and a peer's input survives
-  a conversion.
+- **Shipped (quote/checklist/code/list)**: `detectMarkdownShortcut` (generalized from the
+  heading-only `headingShortcut`) covers `> `, ` ``` ` (no trailing space — a fence, not a prefix),
+  `[] `/`[ ] `, `- `/`* `, `1. `. All four already had full `changeBlockType`/`readBlocks`/
+  `toStoredBlock` support from the data layer — this chunk was the shortcut regexes, per-variant
+  rendering (`text-block.tsx`'s `BlockVariant`), and two behavioral differences: code's Enter is a
+  literal newline (not a split — matches Shift+Enter's existing behavior, and shortcut detection
+  itself is now gated to plain-text blocks only, so a code block's own literal "# " can't misfire a
+  conversion); list/checklist's Enter continues the same type for the new block, and an *empty*
+  list/checklist item's Enter exits back to plain text instead of splitting — no block-type menu
+  exists to leave a list any other way. Checklist's checkbox is a native `<input type="checkbox">`,
+  not a glyph — same reasoning as the drag handle's Braille lesson below. Ordered numbering
+  extracted to `lib/blocks/list-numbering.ts` (its own tests) rather than left inline, since it is
+  real arithmetic, not glue. Verified live: `changeBlockType`-equivalent conversions for all four
+  converge correctly across two clients, including a checklist toggle read against the *live*
+  `checked` value rather than a stale snapshot.
+- **Remaining: `divider`.** Decided already, not yet built: render it as a `tabIndex={0}` div, no
+  textarea — focus lands on it, occupancy works the same as everywhere else, Backspace deletes it,
+  no separate selection model. Needs its own `operations.ts` extension first (`changeBlockType`'s
+  `TypeFields` union has no `divider` case yet — it is the one type with no `content` at all, so
+  converting to it is not "clear the marker and change `type`" like the four above).
 
 ### 5. Show who is in which block (FR-022-06, SIR003)
 

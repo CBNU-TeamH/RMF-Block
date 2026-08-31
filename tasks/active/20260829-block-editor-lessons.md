@@ -110,6 +110,20 @@ that the next person does not rediscover this.
   that "restart and it's still broken" is itself a measurement**, one that rules the cache out and
   points at the code instead of inviting a second guess-and-restart cycle.
 
+- **A brand-new Tailwind utility value — not a wrong one, a value nothing in the project has used
+  yet — silently failed to compile three separate times in this dev environment, always a
+  first-time value and never a repeat one.** Bare `border-sky` (color existed, but only `bg-sky`/
+  `border-sky-deep` had ever been *used* as border/background before), `rounded-sm`/`opacity-70`
+  (both valid against `tailwindcss/theme.css`, neither ever used anywhere in this project before),
+  and `size-3.5` (`size-3`/`size-5`/`size-6` all compiled fine, `.5` never had). Every case measured
+  the same way: grep the actual compiled `.next/dev/static/chunks/*.css` for the literal class
+  name, not "restart and see if it looks right" — the fix each time was swapping to a value already
+  proven to compile somewhere else in the project, never chasing the underlying Turbopack/Tailwind
+  v4 cause. **Worth extracting as a real convention**: when adding a class using a numeric step or
+  color this project has never used before, grep the compiled CSS for it before trusting it —
+  cheaper than a round of "user reports it's invisible, restart, still invisible, only then
+  investigate."
+
 ## What we would do differently
 
 - Open the milestone in an actual browser before calling it done, not after the user's first try
@@ -127,4 +141,8 @@ that the next person does not rediscover this.
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- ...
+- Before trusting a first-time-in-this-project Tailwind class (a numeric step or color no existing
+  file uses yet), grep the compiled `.next/dev/static/chunks/*.css` for the literal class name.
+  Three separate silent failures this milestone (`border-sky`, `rounded-sm`/`opacity-70`,
+  `size-3.5`) all had the same shape and the same fix — swap to a value already proven elsewhere in
+  the project — and none of them needed the underlying Turbopack/Tailwind v4 cause actually found.
