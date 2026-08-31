@@ -15,11 +15,20 @@ const DEFAULT_SCALE = 1 / 3;
 export const MIN_WIDTH = 260;
 export const MIN_HEIGHT = 220;
 
-/** The gap kept from the viewport edge. */
-const MARGIN = 12;
-
-/** Height of the bar that opens the window, which it sits above by default. */
-const BAR_HEIGHT = 40;
+/**
+ * Height of the bar that opens the window, and the only edge the window does
+ * not reach.
+ *
+ * It stops above the bar wherever it is horizontally, not only when it would
+ * actually overlap the button. A limit that changed with the window's x would
+ * feel like snagging on something invisible; one that is always the same is a
+ * floor you learn once. The cost is a strip along the bottom-left the window
+ * cannot enter, which is 40px of nothing.
+ *
+ * Every other edge is reachable — the window sits flush against the left,
+ * right and top.
+ */
+export const BAR_HEIGHT = 40;
 
 export type Frame = { x: number; y: number; width: number; height: number };
 export type Viewport = { width: number; height: number };
@@ -31,8 +40,8 @@ export function defaultFrame(viewport: Viewport): Frame {
 
   return clamp(
     {
-      x: viewport.width - width - MARGIN,
-      y: viewport.height - height - BAR_HEIGHT - MARGIN,
+      x: viewport.width - width,
+      y: viewport.height - BAR_HEIGHT - height,
       width,
       height,
     },
@@ -51,14 +60,18 @@ export function defaultFrame(viewport: Viewport): Frame {
  * wins and the window overflows rather than collapsing into something unusable.
  */
 export function clamp(frame: Frame, viewport: Viewport): Frame {
-  const width = Math.min(Math.max(frame.width, MIN_WIDTH), Math.max(MIN_WIDTH, viewport.width - MARGIN * 2));
-  const height = Math.min(Math.max(frame.height, MIN_HEIGHT), Math.max(MIN_HEIGHT, viewport.height - MARGIN * 2));
+  // The bar's strip is not part of the space a window may occupy, so it comes
+  // off the height before anything else is decided.
+  const usableHeight = viewport.height - BAR_HEIGHT;
+
+  const width = Math.min(Math.max(frame.width, MIN_WIDTH), Math.max(MIN_WIDTH, viewport.width));
+  const height = Math.min(Math.max(frame.height, MIN_HEIGHT), Math.max(MIN_HEIGHT, usableHeight));
 
   return {
     width,
     height,
-    x: Math.min(Math.max(frame.x, MARGIN), Math.max(MARGIN, viewport.width - width - MARGIN)),
-    y: Math.min(Math.max(frame.y, MARGIN), Math.max(MARGIN, viewport.height - height - MARGIN)),
+    x: Math.min(Math.max(frame.x, 0), Math.max(0, viewport.width - width)),
+    y: Math.min(Math.max(frame.y, 0), Math.max(0, usableHeight - height)),
   };
 }
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  BAR_HEIGHT,
   applyGesture,
   clamp,
   defaultFrame,
@@ -171,7 +172,14 @@ export function ChatWindow({ me }: { me: string }) {
         </section>
       ) : null}
 
-      <div className="fixed right-0 bottom-0 z-30 flex h-10 items-center border-t border-l border-ink bg-paper px-3">
+      {/* The height here is the same number `window-frame` keeps the window
+          clear of. A Tailwind class would be a second place to change it, and
+          the two drifting apart is exactly how the window ends up covering the
+          button that opens it. */}
+      <div
+        style={{ height: BAR_HEIGHT }}
+        className="fixed right-0 bottom-0 z-30 flex items-center border-t border-l border-ink bg-paper px-3"
+      >
         <button
           type="button"
           onClick={() => (open ? setOpen(false) : openWindow())}

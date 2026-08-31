@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  BAR_HEIGHT,
   MIN_HEIGHT,
   MIN_WIDTH,
   applyGesture,
@@ -15,11 +16,17 @@ import {
 const laptop: Viewport = { width: 1440, height: 900 };
 
 const area = (frame: Frame) => frame.width * frame.height;
+
+/**
+ * The window may touch the left, right and top edges. The bottom is the one it
+ * may not reach: the bar that opens it lives there, and a window covering its
+ * own launcher cannot be closed by the control that opened it.
+ */
 const inside = (frame: Frame, viewport: Viewport) =>
   frame.x >= 0 &&
   frame.y >= 0 &&
   frame.x + frame.width <= viewport.width &&
-  frame.y + frame.height <= viewport.height;
+  frame.y + frame.height <= viewport.height - BAR_HEIGHT;
 
 describe("defaultFrame", () => {
   it("takes about a ninth of the viewport", () => {
@@ -29,11 +36,11 @@ describe("defaultFrame", () => {
     assert.ok(Math.abs(ratio - 1 / 9) < 0.01, `ratio was ${ratio}`);
   });
 
-  it("opens against the bottom right", () => {
+  it("opens flush against the right edge, and directly on top of the bar", () => {
     const frame = defaultFrame(laptop);
 
-    assert.ok(frame.x + frame.width > laptop.width * 0.9, "hugs the right edge");
-    assert.ok(frame.y + frame.height > laptop.height * 0.8, "sits low");
+    assert.equal(frame.x + frame.width, laptop.width, "no gap on the right");
+    assert.equal(frame.y + frame.height, laptop.height - BAR_HEIGHT, "sits on the bar");
   });
 
   it("stays on screen at every viewport worth trying", () => {
@@ -83,6 +90,36 @@ describe("clamp", () => {
     const frame = clamp({ x: 0, y: 0, width: 9999, height: 9999 }, laptop);
 
     assert.ok(inside(frame, laptop));
+  });
+
+  it("lets a window reach the right and top edges with no gap", () => {
+    // There is no margin: dragging right puts the window against the edge, not
+    // near it. A window that stops short of the edge reads as broken.
+    const frame = clamp({ x: 9999, y: -9999, width: 400, height: 300 }, laptop);
+
+    assert.equal(frame.x, laptop.width - 400, "flush right");
+    assert.equal(frame.y, 0, "flush top");
+  });
+
+  it("lets a window reach the left edge with no gap", () => {
+    assert.equal(clamp({ x: -50, y: 100, width: 400, height: 300 }, laptop).x, 0);
+  });
+
+  it("never lets a window cover the bar that opens it", () => {
+    // Dragged as far down as it will go, the window still stops at the top of
+    // the bar — otherwise the button that closes it is underneath it.
+    const frame = clamp({ x: 100, y: 9999, width: 400, height: 300 }, laptop);
+
+    assert.equal(frame.y + frame.height, laptop.height - BAR_HEIGHT);
+  });
+
+  it("keeps the bar clear when the window is grown instead of moved", () => {
+    // The same limit has to hold for a resize, which changes the bottom edge
+    // without ever moving the top one.
+    const frame = clamp({ x: 0, y: 0, width: 9999, height: 9999 }, laptop);
+
+    assert.equal(frame.width, laptop.width, "full width is allowed");
+    assert.equal(frame.height, laptop.height - BAR_HEIGHT, "full height is not");
   });
 
   it("leaves a frame that already fits alone", () => {
