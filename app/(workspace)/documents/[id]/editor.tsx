@@ -39,6 +39,17 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
   const docRef = useRef<Document<BlockDocumentRoot> | null>(null);
   const handlersRef = useRef(new Map<BlockId, (op: EditOpInfo) => void>());
+  // Chains one run's full teardown (unsubscribe + detach) in front of the
+  // next run's attach(). React's Strict Mode double-invokes this effect on
+  // mount (dev only) — mount → cleanup → mount, synchronously — which would
+  // otherwise fire two attach()es back to back for the same document key
+  // from the same client. Measured: the second one fails with a misleading
+  // "client not found", because Yorkie's server-side TryAttaching filters on
+  // the document not already being Attached for this client, and a cancelled
+  // run whose attach() succeeded anyway was never detached — same shape as
+  // `#32` in presence-provider.tsx, one layer deeper (the content document,
+  // not the workspace one).
+  const teardownRef = useRef<Promise<void>>(Promise.resolve());
 
   const registerRemoteHandler = (blockId: BlockId, handler: (op: EditOpInfo) => void) => {
     handlersRef.current.set(blockId, handler);
@@ -50,10 +61,25 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
     const doc = new yorkie.Document<BlockDocumentRoot>(documentId);
     let cancelled = false;
+    // Whether THIS run's attach() itself went through — independent of
+    // `cancelled`, and independent of `docRef`, which a cancelled run never
+    // gets to touch.
+    let attached = false;
     let unsubscribe: (() => void) | undefined;
 
+    // React runs cleanup(N) before effect(N+1) even in Strict Mode's
+    // synchronous double-invoke, so whatever `teardownRef.current` holds here
+    // is exactly the previous run's full teardown — attach() below waits for
+    // it, so it never reaches the server while that run's document is still
+    // marked Attached.
+    const readyToAttach = teardownRef.current;
+
     const setup = (async () => {
+      await readyToAttach;
+      if (cancelled) return;
+
       await client.attach(doc, { initialPresence: {} });
+      attached = true;
       if (cancelled) return;
 
       // Two people opening the same brand-new document at once could both
@@ -92,13 +118,19 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
     return () => {
       cancelled = true;
-      void setup.finally(() => {
+
+      // Own this run's teardown and publish it before any of it actually
+      // runs, so the next run's `readyToAttach` waits on exactly this.
+      const teardown = setup.finally(async () => {
         unsubscribe?.();
-        // Detaches only this document — the client is shared with the
-        // workspace roster and stays connected across navigations.
-        if (docRef.current) client.detach(docRef.current).catch(() => undefined);
-        docRef.current = null;
+        if (docRef.current === doc) docRef.current = null;
+        // Only this run's own successful attach leaves something to
+        // release — a run cancelled before attach() resolved never touched
+        // the server, so detaching it would be a no-op at best.
+        if (attached) await client.detach(doc).catch(() => undefined);
       });
+
+      teardownRef.current = teardown;
     };
   }, [client, documentId]);
 
