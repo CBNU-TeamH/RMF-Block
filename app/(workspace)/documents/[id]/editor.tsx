@@ -52,6 +52,15 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   // outside any block never fires `onDrop`, and without `dragend` too the
   // dragged block would stay dimmed).
   const [draggedId, setDraggedId] = useState<BlockId | null>(null);
+  // Which block the pointer is currently over during a drag, and which side
+  // of it a drop would land on — a Notion-style insertion line, not the
+  // exact-midpoint precision `dropsBeforeTarget` computes for the actual
+  // drop: this is feedback shown *while* dragging, so it only has to be
+  // approximately where the block will land, not pixel-exact.
+  const [dropIndicator, setDropIndicator] = useState<{
+    targetId: BlockId;
+    before: boolean;
+  } | null>(null);
 
   const docRef = useRef<Document<BlockDocumentRoot> | null>(null);
   const handlersRef = useRef(new Map<BlockId, (op: EditOpInfo) => void>());
@@ -442,6 +451,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     event.preventDefault();
     const draggedBlockId = event.dataTransfer.getData("text/plain");
     setDraggedId(null);
+    setDropIndicator(null);
 
     const doc = docRef.current;
     if (!doc || !blocks || !draggedBlockId || draggedBlockId === targetId) return;
@@ -483,8 +493,23 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         // no JS state tracking "which block is focused" needed.
         <div
           key={block.id}
-          className={`group relative ${block.id === draggedId ? "opacity-50" : ""}`}
-          onDragOver={(event) => event.preventDefault()}
+          className={`group relative ${block.id === draggedId ? "opacity-50" : ""} ${
+            dropIndicator?.targetId === block.id
+              ? dropIndicator.before
+                ? "border-t-2 border-sky"
+                : "border-b-2 border-sky"
+              : ""
+          }`}
+          onDragOver={(event) => {
+            event.preventDefault();
+            const rect = event.currentTarget.getBoundingClientRect();
+            const before = dropsBeforeTarget(event.clientY, rect.top, rect.height);
+            setDropIndicator((current) =>
+              current?.targetId === block.id && current.before === before
+                ? current
+                : { targetId: block.id, before },
+            );
+          }}
           onDrop={(event) => handleDrop(event, block.id)}
         >
           <span
@@ -493,7 +518,10 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               event.dataTransfer.setData("text/plain", block.id);
               setDraggedId(block.id);
             }}
-            onDragEnd={() => setDraggedId(null)}
+            onDragEnd={() => {
+              setDraggedId(null);
+              setDropIndicator(null);
+            }}
             className="absolute -left-4 top-0.5 cursor-grab text-ink-faint opacity-0 group-focus-within:opacity-100"
           >
             {/* A Unicode glyph (⠿ and friends) depends on the guest's font
