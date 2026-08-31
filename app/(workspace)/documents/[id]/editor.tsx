@@ -1,12 +1,22 @@
 "use client";
 
 import yorkie, { type Document, type EditOpInfo } from "@yorkie-js/sdk";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createText } from "@/lib/blocks/create";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot } from "@/lib/blocks/document";
+import {
+  appendBlock,
+  BlockNotFoundError,
+  changeBlockType,
+  editBlockText,
+  insertBlockAfter,
+  removeBlock,
+  type BlockArray,
+} from "@/lib/blocks/operations";
+import { idBeforeInOrder } from "@/lib/blocks/reorder";
 import { blockIndexFromEditPath } from "@/lib/blocks/text-surface";
-import type { Block, BlockId } from "@/lib/blocks/types";
+import type { Block, BlockId, HeadingLevel } from "@/lib/blocks/types";
 
 import { useWorkspacePresence } from "../../presence-provider";
 import { TextBlockView } from "./text-block";
@@ -56,6 +66,44 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     return () => handlersRef.current.delete(blockId);
   };
 
+  // Same Map-based registration as `registerRemoteHandler`, one level up:
+  // lets this component reach a specific block's live textarea by id, for
+  // focus after a split or merge. `useCallback` so the identity stays
+  // stable across re-renders — `text-block.tsx`'s own `setTextareaRef` is
+  // memoized on this reference, and an inline arrow here would make it
+  // re-run (tearing down and re-adding the Map entry) on every render.
+  const elementsRef = useRef(new Map<BlockId, HTMLTextAreaElement>());
+  const registerTextarea = useCallback((blockId: BlockId, el: HTMLTextAreaElement | null) => {
+    if (el) elementsRef.current.set(blockId, el);
+    else elementsRef.current.delete(blockId);
+  }, []);
+
+  // A pending "move focus here" request. A ref, not state: nothing here
+  // needs its own render — the `setBlocks` call that always accompanies a
+  // focus request is what re-renders, and the effect below rides that same
+  // commit.
+  const pendingFocusRef = useRef<{ blockId: BlockId; caret: number } | null>(null);
+  const focusBlock = (blockId: BlockId, caret: number) => {
+    pendingFocusRef.current = { blockId, caret };
+  };
+
+  useEffect(() => {
+    const pending = pendingFocusRef.current;
+    if (!pending) return;
+
+    const el = elementsRef.current.get(pending.blockId);
+    // Not registered — refs attach during React's commit, strictly before
+    // any effect (child or parent) runs in that commit, so a block that
+    // mounted this same render is already here. If it is not, the block
+    // this request named is already gone (a second, faster edit removed it
+    // first) — drop the request rather than guess where focus should land.
+    if (!el) return;
+
+    pendingFocusRef.current = null;
+    el.focus();
+    el.setSelectionRange(pending.caret, pending.caret);
+  }, [blocks]);
+
   useEffect(() => {
     if (!client) return;
 
@@ -101,13 +149,28 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         if (event.type !== "remote-change") return;
 
         for (const op of event.value.operations) {
-          if (op.type !== "edit") continue;
+          if (op.type === "edit") {
+            const index = blockIndexFromEditPath(op.path);
+            if (index === null) continue;
 
-          const index = blockIndexFromEditPath(op.path);
-          if (index === null) continue;
+            const id = doc.getRoot().blocks[index]?.id;
+            if (id) handlersRef.current.get(id)?.(op);
+            continue;
+          }
 
-          const id = doc.getRoot().blocks[index]?.id;
-          if (id) handlersRef.current.get(id)?.(op);
+          // Anything else touching the blocks array or a field inside one
+          // block: split/merge/reorder (add/remove/move, path exactly
+          // "$.blocks") or a markdown-shortcut conversion's set/remove on
+          // the block's own fields (`changeBlockType` sets `type` at
+          // "$.blocks.<i>" and level/style/checked at
+          // "$.blocks.<i>.content" — a peer's heading conversion was
+          // otherwise invisible here until a later, unrelated edit finally
+          // recomputed `blocks` for some other reason). Recomputed rather
+          // than patched either way: unlike a text edit there is no single
+          // DOM node whose value moved, the rendered list itself is stale.
+          if (op.path === "$.blocks" || op.path.startsWith("$.blocks.")) {
+            setBlocks(readBlocks(doc.getRoot().blocks));
+          }
         }
       });
     })().catch((error: unknown) => {
@@ -134,6 +197,167 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     };
   }, [client, documentId]);
 
+  /**
+   * A block's *live* text by id, read straight off the document rather than
+   * `blocks` state — that state's `text` field is a snapshot from whenever
+   * it was last recomputed, and per-block textareas patch the DOM directly
+   * without ever writing back into it, so it goes stale the moment anyone
+   * types. Plain `for...of`, not `.find`: every existing read of a live
+   * array in this codebase goes through iteration proven to work at
+   * runtime (`operations.ts`'s own `elementOf` warns `JSONArray<T>`'s
+   * `Array<T>` typing is a compile-time claim only — `unshift` type-checks
+   * and throws) rather than an untried method.
+   */
+  function liveTextOf(root: BlockDocumentRoot, blockId: BlockId): string {
+    for (const stored of root.blocks) {
+      if (stored?.id === blockId) return stored.content?.text?.toString() ?? "";
+    }
+    return "";
+  }
+
+  /**
+   * Keeps one empty text block always at the end of the document, so
+   * starting a new paragraph never means clicking into whatever block a
+   * peer happens to be actively typing in first — that was the only way in
+   * before this, since nothing else was ever empty to click into.
+   *
+   * Checked after every local text commit. Idempotent — a no-op the moment
+   * the invariant already holds — so calling it on every keystroke costs one
+   * cheap read rather than risking a loop: appending a genuinely empty block
+   * always satisfies the very next check.
+   *
+   * Local-only on purpose: each client enforces this only against its own
+   * edits, and the resulting append reaches every other client through the
+   * ordinary `add` op the subscribe callback above already recomputes
+   * `blocks` for — nothing here needs to run again on a remote edit.
+   */
+  const ensureTrailingEmptyBlock = () => {
+    const doc = docRef.current;
+    if (!doc) return;
+
+    const root = doc.getRoot();
+    const last = root.blocks[root.blocks.length - 1];
+    const lastIsEmptyText = last?.type === "text" && (last.content?.text?.toString() ?? "") === "";
+    if (lastIsEmptyText) return;
+
+    doc.update((root: BlockDocumentRoot) => {
+      appendBlock(root.blocks as BlockArray, toStoredBlock(createText()));
+    });
+    setBlocks(readBlocks(doc.getRoot().blocks));
+  };
+
+  /**
+   * A markdown marker just finished (`"# "` and friends — `text-block.tsx`
+   * only ever calls this once the block's *entire* text matches one).
+   * Clears the marker and converts the type in the same update, matching
+   * `changeBlockType`'s own contract: it keeps the block's `id` and its
+   * live `yorkie.Text`, so whatever a peer is concurrently typing into this
+   * block survives the conversion rather than being lost to a rebuild.
+   *
+   * Wrapped for `BlockNotFoundError` for the same reason split/merge are —
+   * a block a peer already removed can't be converted, and there is nothing
+   * left to fix on this replica once that happens.
+   */
+  const handleMarkdownShortcut = (blockId: BlockId, level: HeadingLevel) => {
+    const doc = docRef.current;
+    if (!doc) return;
+
+    try {
+      doc.update((root: BlockDocumentRoot) => {
+        const array = root.blocks as BlockArray;
+        const current = liveTextOf(root, blockId);
+        editBlockText(array, blockId, 0, current.length, "");
+        changeBlockType(array, blockId, { type: "heading", level });
+      });
+    } catch (error) {
+      if (error instanceof BlockNotFoundError) return;
+      throw error;
+    }
+
+    setBlocks(readBlocks(doc.getRoot().blocks));
+  };
+
+  /**
+   * Enter (FR-022-01). Trims `blockId` to `[0, cursorPosition)` and seeds a
+   * new block right after it with the tail — the same three-primitive
+   * composition `operations.test.mts`'s "splits a block into two" already
+   * proves, not a new named function (the task's own "reuse... as they
+   * stand"). Reads the *live* text, never the DOM's cached value: a
+   * concurrent remote edit past `cursorPosition` would otherwise be
+   * silently dropped or misplaced.
+   *
+   * `BlockNotFoundError` means a peer already removed this block (their
+   * merge, most likely) before this split reached it — nothing left to
+   * split, so this replica does nothing further and lets the other
+   * replica's operation stand.
+   */
+  const handleSplit = (blockId: BlockId, cursorPosition: number) => {
+    const doc = docRef.current;
+    if (!doc) return;
+
+    const newBlock = toStoredBlock(createText());
+
+    try {
+      doc.update((root: BlockDocumentRoot) => {
+        const array = root.blocks as BlockArray;
+        const liveText = liveTextOf(root, blockId);
+        const tail = liveText.slice(cursorPosition);
+
+        editBlockText(array, blockId, cursorPosition, liveText.length, "");
+        insertBlockAfter(array, blockId, newBlock);
+        if (tail) editBlockText(array, newBlock.id, 0, 0, tail);
+      });
+    } catch (error) {
+      if (error instanceof BlockNotFoundError) return;
+      throw error;
+    }
+
+    // Local structural change — the subscribe callback above only reacts to
+    // `remote-change`, so this is the only place this list update happens.
+    setBlocks(readBlocks(doc.getRoot().blocks));
+    focusBlock(newBlock.id, 0);
+  };
+
+  /**
+   * Backspace at the very start of a block (FR-022-03). Appends this
+   * block's live text onto the end of the *previous* block's, then removes
+   * this one. No previous block (this is the document's first) is a no-op.
+   *
+   * The previous block's id comes from `blocks` state's order — reliable
+   * for order, unlike its `text` (see `liveTextOf`) — so both blocks' actual
+   * content is still read live, inside the same update that mutates them.
+   */
+  const handleMergeWithPrevious = (blockId: BlockId) => {
+    const doc = docRef.current;
+    if (!doc || !blocks) return;
+
+    const previousId = idBeforeInOrder(
+      blocks.map((b) => b.id),
+      blockId,
+    );
+    if (previousId === null) return;
+
+    let mergeCaret = 0;
+
+    try {
+      doc.update((root: BlockDocumentRoot) => {
+        const array = root.blocks as BlockArray;
+        const previousText = liveTextOf(root, previousId);
+        const thisText = liveTextOf(root, blockId);
+        mergeCaret = previousText.length;
+
+        editBlockText(array, previousId, previousText.length, previousText.length, thisText);
+        removeBlock(array, blockId);
+      });
+    } catch (error) {
+      if (error instanceof BlockNotFoundError) return;
+      throw error;
+    }
+
+    setBlocks(readBlocks(doc.getRoot().blocks));
+    focusBlock(previousId, mergeCaret);
+  };
+
   if (failed) {
     return <p className="text-sm text-red-600">문서를 열지 못했습니다. 새로고침해 주세요.</p>;
   }
@@ -143,22 +367,28 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col">
       {blocks.map((block) =>
-        block.type === "text" ? (
+        block.type === "text" || block.type === "heading" ? (
           <TextBlockView
             key={block.id}
             blockId={block.id}
             initialText={block.text}
+            headingLevel={block.type === "heading" ? block.level : undefined}
             docRef={docRef}
             registerRemoteHandler={registerRemoteHandler}
+            registerTextarea={registerTextarea}
+            onMarkdownShortcut={handleMarkdownShortcut}
+            onSplit={handleSplit}
+            onMergeWithPrevious={handleMergeWithPrevious}
+            onTextCommitted={ensureTrailingEmptyBlock}
           />
         ) : (
           // Nothing before milestone 4 can create these, but the array is
           // read off whatever is actually in the document, not what this
           // build wrote — the same reason `readBlocks` drops rather than
           // crashes on a type it does not know.
-          <p key={block.id} className="p-1.5 text-sm text-ink-faint">
+          <p key={block.id} className="px-1 py-0.5 text-sm text-ink-faint">
             아직 편집할 수 없는 블록입니다 ({block.type}).
           </p>
         ),
