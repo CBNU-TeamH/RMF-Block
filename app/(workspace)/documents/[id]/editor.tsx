@@ -11,10 +11,11 @@ import {
   changeBlockType,
   editBlockText,
   insertBlockAfter,
+  moveBlockAfter,
   removeBlock,
   type BlockArray,
 } from "@/lib/blocks/operations";
-import { idBeforeInOrder } from "@/lib/blocks/reorder";
+import { dropsBeforeTarget, idAfterInOrder, idBeforeInOrder } from "@/lib/blocks/reorder";
 import { blockIndexFromEditPath } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, HeadingLevel } from "@/lib/blocks/types";
 
@@ -46,6 +47,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   const { client } = useWorkspacePresence();
   const [blocks, setBlocks] = useState<Array<Block> | null>(null);
   const [failed, setFailed] = useState(false);
+  // The block currently being dragged — opacity feedback only, cleared on
+  // both a successful drop and `dragend` (a drag cancelled or dropped
+  // outside any block never fires `onDrop`, and without `dragend` too the
+  // dragged block would stay dimmed).
+  const [draggedId, setDraggedId] = useState<BlockId | null>(null);
 
   const docRef = useRef<Document<BlockDocumentRoot> | null>(null);
   const handlersRef = useRef(new Map<BlockId, (op: EditOpInfo) => void>());
@@ -358,6 +364,108 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     focusBlock(previousId, mergeCaret);
   };
 
+  /**
+   * ArrowUp/ArrowDown from a block's first/last line. Focuses the target
+   * directly — `elementsRef.current.get(id)?.focus()` — rather than going
+   * through `focusBlock`/`pendingFocusRef`: that mechanism is only ever
+   * consumed by the effect above because split/merge always call
+   * `setBlocks` right after, giving the effect a reason to run. Navigation
+   * never touches the block list, so a request placed through it would sit
+   * unconsumed until some unrelated later edit happened to fire that
+   * effect. The target here is always already mounted (unlike split's
+   * brand-new block), so there is no "wait for it to render" problem the
+   * ref+effect indirection is actually needed for.
+   *
+   * `column` is offset within the *source* line the caret was on; landing
+   * it in the target means clamping against that target's *matching* edge
+   * line, not its whole text — a multi-line block (Shift+Enter makes this
+   * real, not hypothetical) would otherwise land the caret on the wrong
+   * line entirely.
+   */
+  const handleNavigateUp = (blockId: BlockId, column: number) => {
+    const doc = docRef.current;
+    if (!doc || !blocks) return;
+
+    const targetId = idBeforeInOrder(
+      blocks.map((b) => b.id),
+      blockId,
+    );
+    if (targetId === null) return;
+
+    const el = elementsRef.current.get(targetId);
+    if (!el) return;
+
+    const targetText = liveTextOf(doc.getRoot(), targetId);
+    const lastLineStart = targetText.lastIndexOf("\n") + 1;
+    const caret = lastLineStart + Math.min(column, targetText.length - lastLineStart);
+
+    el.focus();
+    el.setSelectionRange(caret, caret);
+  };
+
+  const handleNavigateDown = (blockId: BlockId, column: number) => {
+    const doc = docRef.current;
+    if (!doc || !blocks) return;
+
+    const targetId = idAfterInOrder(
+      blocks.map((b) => b.id),
+      blockId,
+    );
+    if (targetId === null) return;
+
+    const el = elementsRef.current.get(targetId);
+    if (!el) return;
+
+    const targetText = liveTextOf(doc.getRoot(), targetId);
+    const firstNewline = targetText.indexOf("\n");
+    const firstLineLength = firstNewline === -1 ? targetText.length : firstNewline;
+    const caret = Math.min(column, firstLineLength);
+
+    el.focus();
+    el.setSelectionRange(caret, caret);
+  };
+
+  /**
+   * Reorder (FR-022-04) — native HTML5 drag-and-drop, the dragged block's
+   * id carried as the browser's own transfer data rather than component
+   * state, since `dragstart` and `drop` can fire on different renders.
+   *
+   * `afterId` resolves "insert before/after `targetId`" the same way merge
+   * resolves "the previous block" — off `blocks` state's order, which is
+   * reliable for order even though its `text` fields go stale
+   * (`liveTextOf`'s own comment). Two no-ops guarded explicitly: dropping a
+   * block onto itself, and a drop that resolves to the position the block
+   * is already in — without the second, dropping back onto its own current
+   * neighbor still calls `moveBlockAfter` for no actual change.
+   */
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>, targetId: BlockId) => {
+    event.preventDefault();
+    const draggedBlockId = event.dataTransfer.getData("text/plain");
+    setDraggedId(null);
+
+    const doc = docRef.current;
+    if (!doc || !blocks || !draggedBlockId || draggedBlockId === targetId) return;
+
+    const order = blocks.map((b) => b.id);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const before = dropsBeforeTarget(event.clientY, rect.top, rect.height);
+    const afterId = before ? idBeforeInOrder(order, targetId) : targetId;
+
+    const currentAfterId = idBeforeInOrder(order, draggedBlockId);
+    if (afterId === draggedBlockId || afterId === currentAfterId) return;
+
+    try {
+      doc.update((root: BlockDocumentRoot) => {
+        moveBlockAfter(root.blocks as BlockArray, afterId, draggedBlockId);
+      });
+    } catch (error) {
+      if (error instanceof BlockNotFoundError) return;
+      throw error;
+    }
+
+    setBlocks(readBlocks(doc.getRoot().blocks));
+  };
+
   if (failed) {
     return <p className="text-sm text-red-600">문서를 열지 못했습니다. 새로고침해 주세요.</p>;
   }
@@ -368,31 +476,54 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
   return (
     <div className="flex flex-col">
-      {blocks.map((block) =>
-        block.type === "text" || block.type === "heading" ? (
-          <TextBlockView
-            key={block.id}
-            blockId={block.id}
-            initialText={block.text}
-            headingLevel={block.type === "heading" ? block.level : undefined}
-            docRef={docRef}
-            registerRemoteHandler={registerRemoteHandler}
-            registerTextarea={registerTextarea}
-            onMarkdownShortcut={handleMarkdownShortcut}
-            onSplit={handleSplit}
-            onMergeWithPrevious={handleMergeWithPrevious}
-            onTextCommitted={ensureTrailingEmptyBlock}
-          />
-        ) : (
-          // Nothing before milestone 4 can create these, but the array is
-          // read off whatever is actually in the document, not what this
-          // build wrote — the same reason `readBlocks` drops rather than
-          // crashes on a type it does not know.
-          <p key={block.id} className="px-1 py-0.5 text-sm text-ink-faint">
-            아직 편집할 수 없는 블록입니다 ({block.type}).
-          </p>
-        ),
-      )}
+      {blocks.map((block) => (
+        // `group`/`relative` here, not on the drag handle: the handle needs
+        // to be positioned against this block and shown only while this
+        // block's own textarea has focus (`group-focus-within`), pure CSS —
+        // no JS state tracking "which block is focused" needed.
+        <div
+          key={block.id}
+          className={`group relative ${block.id === draggedId ? "opacity-50" : ""}`}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => handleDrop(event, block.id)}
+        >
+          <span
+            draggable
+            onDragStart={(event) => {
+              event.dataTransfer.setData("text/plain", block.id);
+              setDraggedId(block.id);
+            }}
+            onDragEnd={() => setDraggedId(null)}
+            className="absolute -left-4 top-0.5 cursor-grab text-ink-faint opacity-0 group-focus-within:opacity-100"
+          >
+            ⠿
+          </span>
+          {block.type === "text" || block.type === "heading" ? (
+            <TextBlockView
+              blockId={block.id}
+              initialText={block.text}
+              headingLevel={block.type === "heading" ? block.level : undefined}
+              docRef={docRef}
+              registerRemoteHandler={registerRemoteHandler}
+              registerTextarea={registerTextarea}
+              onMarkdownShortcut={handleMarkdownShortcut}
+              onSplit={handleSplit}
+              onMergeWithPrevious={handleMergeWithPrevious}
+              onNavigateUp={handleNavigateUp}
+              onNavigateDown={handleNavigateDown}
+              onTextCommitted={ensureTrailingEmptyBlock}
+            />
+          ) : (
+            // Nothing before milestone 4 can create these, but the array is
+            // read off whatever is actually in the document, not what this
+            // build wrote — the same reason `readBlocks` drops rather than
+            // crashes on a type it does not know.
+            <p className="px-1 py-0.5 text-sm text-ink-faint">
+              아직 편집할 수 없는 블록입니다 ({block.type}).
+            </p>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

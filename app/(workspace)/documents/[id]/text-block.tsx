@@ -39,6 +39,8 @@ export function TextBlockView({
   onMarkdownShortcut,
   onSplit,
   onMergeWithPrevious,
+  onNavigateUp,
+  onNavigateDown,
   onTextCommitted,
 }: {
   blockId: BlockId;
@@ -65,6 +67,11 @@ export function TextBlockView({
    * needed — the merge point is the *previous* block's current length,
    * which only the parent (holding the ordered list) can resolve. */
   onMergeWithPrevious: (blockId: BlockId) => void;
+  /** ArrowUp/ArrowDown with the caret on the block's first/last logical
+   * line. `column` is the caret's offset within that line — the parent
+   * clamps it against the target block's matching edge line. */
+  onNavigateUp: (blockId: BlockId, column: number) => void;
+  onNavigateDown: (blockId: BlockId, column: number) => void;
   /** Called after every local text commit — not just here, and not tied to
    * this block's id, since the parent checks the *document's* trailing
    * block, not this one specifically. */
@@ -179,6 +186,32 @@ export function TextBlockView({
           if (el.selectionStart === 0 && el.selectionEnd === 0) {
             event.preventDefault();
             onMergeWithPrevious(blockId);
+          }
+          return;
+        }
+
+        if (event.key === "ArrowUp") {
+          const el = event.currentTarget;
+          const pos = el.selectionStart ?? 0;
+          // ponytail: logical \n boundaries only, not visual/wrapped lines —
+          // arrow-up from a wrapped middle line of a long single-paragraph
+          // block jumps a whole block instead of one visual line up. Real
+          // fix needs layout measurement; blocks are short enough in
+          // practice that this hasn't mattered yet.
+          if (!el.value.slice(0, pos).includes("\n")) {
+            event.preventDefault();
+            onNavigateUp(blockId, pos);
+          }
+          return;
+        }
+
+        if (event.key === "ArrowDown") {
+          const el = event.currentTarget;
+          const pos = el.selectionStart ?? 0;
+          if (!el.value.slice(pos).includes("\n")) {
+            event.preventDefault();
+            const lastNewline = el.value.slice(0, pos).lastIndexOf("\n");
+            onNavigateDown(blockId, pos - (lastNewline + 1));
           }
         }
       }}

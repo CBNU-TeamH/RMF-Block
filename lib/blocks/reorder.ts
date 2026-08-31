@@ -20,3 +20,23 @@ export function idBeforeInOrder(order: Array<string>, targetId: string): string 
   if (index <= 0) return null;
   return order[index - 1] ?? null;
 }
+
+/**
+ * The id currently right after `targetId` in `order`, or `null` if
+ * `targetId` is last (or absent). Mirrors `idBeforeInOrder` — used by
+ * arrow-key navigation's ArrowDown to find the next block to focus.
+ */
+export function idAfterInOrder(order: Array<string>, targetId: string): string | null {
+  const index = order.indexOf(targetId);
+  if (index === -1 || index === order.length - 1) return null;
+  return order[index + 1] ?? null;
+}
+
+/**
+ * Whether a drop at `clientY` lands before `target` (vs. after) — compared
+ * against the target's own vertical midpoint, not its top edge, so a drop
+ * anywhere in the bottom half of a block means "after this one."
+ */
+export function dropsBeforeTarget(clientY: number, rectTop: number, rectHeight: number): boolean {
+  return clientY < rectTop + rectHeight / 2;
+}
