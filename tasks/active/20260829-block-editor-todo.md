@@ -178,23 +178,51 @@ Still `text` only. Enter to split, Backspace to merge, reordering.
 - **Files**: the key handler, `lib/blocks/` (boundary-edit logic)
 - **Reuse**: `insertBlockAfter` / `removeBlock` / `moveBlockAfter` as they stand.
 - **Done**: all three reach the second browser inside a second (NFR-PER-002).
+- **Shipped (Phase A — split/merge; reorder is Phase B, below)**: subscribe callback extended for
+  remote `add`/`remove`/`move`; `handleSplit`/`handleMergeWithPrevious` in `editor.tsx`, both
+  wrapped for `BlockNotFoundError` (a race that could not exist before this milestone — nothing
+  removed a block before); cross-block programmatic focus via a second id→element `Map`, symmetric
+  with `registerRemoteHandler`. A heading markdown shortcut (`"# "` and friends) rode along —
+  pulled forward from milestone 4's table below, cheap enough (a style-only variant of
+  `TextBlockView`, no new component) to build alongside the same `onInput`/`changeBlockType` work.
+  Verified live: basic split/merge converge; **concurrent split of the same block converges to 3
+  blocks** (both replicas' inserts survive — expected, not a bug, same class as two people typing
+  one greeting concurrently); **concurrent merge converges** but duplicates the appended text
+  (`"paragraph"` → `"paragraphgraph"` when both sides append independently — the delete is
+  idempotent, the text insert is not); the `BlockNotFoundError` guard specifically confirmed against
+  the case it exists for (one replica already synced past the other's remove, not just fully
+  concurrent). Two bugs found and fixed after real-browser use: (1) `changeBlockType`'s field
+  assignments arrive as `set` ops, not `edit` or array ops — the subscribe callback originally only
+  watched for those two, so a peer's heading conversion was invisible until some unrelated later
+  edit happened to trigger a recompute; widened to any op whose path is `"$.blocks"` or starts with
+  `"$.blocks."`. (2) No "always one empty block at the end" — starting a new paragraph required
+  clicking into whichever block a peer was actively typing in; `ensureTrailingEmptyBlock` checks
+  after every local commit (idempotent, cheap) and appends one via the ordinary `add` path everyone
+  already recomputes for. Padding/gap also tightened (16px of dead space between blocks → ~4px) and
+  the focus border removed, both cosmetic.
+- **Phase B** (separate follow-up, not yet built): reorder (focused-block-only native
+  drag-and-drop, per the earlier decision) **and** ↑/↓ arrow-key cursor movement between blocks —
+  added to scope after Phase A landed; not a design decision that needs revisiting, just another
+  cross-block navigation case `elementsRef`/`registerTextarea` (built for split/merge's focus
+  handoff) already has the shape for.
 
 ### 4. Add the remaining types, one at a time
 
-Seven types are all that can be built: the six text-bearing ones plus `divider`. Easiest first:
+Six types are left buildable: `heading` shipped early (Milestone 3, above) via its markdown
+shortcut. The rest, easiest first:
 
 | Order | Type | The actual work |
 | --- | --- | --- |
 | 1 | `quote` | Nearly free — `types.ts` says *"Styling comes from `type` alone"*, so CSS only |
-| 2 | `heading` | `level` 1–3 → `h1`/`h2`/`h3` |
-| 3 | `checklist` | A `checked` checkbox |
-| 4 | `code` | `font-mono`. **Enter behaves differently** — inside code it is a newline, not a block split |
-| 5 | `list` | `style`/`depth`. Consecutive blocks of one style render as a single visual list, and **an ordered list's numbers are computed at render time from position** (`types.ts`: storing them would renumber everything after each insert) |
-| 6 | `divider` | **The only type with no text** → no textarea → focus, occupancy and delete all differ |
+| 2 | `checklist` | A `checked` checkbox |
+| 3 | `code` | `font-mono`. **Enter behaves differently** — inside code it is a newline, not a block split |
+| 4 | `list` | `style`/`depth`. Consecutive blocks of one style render as a single visual list, and **an ordered list's numbers are computed at render time from position** (`types.ts`: storing them would renumber everything after each insert) |
+| 5 | `divider` | **The only type with no text** → no textarea → focus, occupancy and delete all differ |
 
 - **Decided for `divider`**: render it as a `tabIndex={0}` div. Focus lands on it, occupancy works
   the same way it does everywhere else, and Backspace deletes it. No separate selection model.
-- Lands alongside: `changeBlockType`, and markdown shortcuts (`# `, `- `, `1. `, `> `).
+- Lands alongside: `changeBlockType` (already exercised by heading's shortcut) and the remaining
+  markdown shortcuts (`- `, `1. `, `> ` — `# ` is done).
 - **Reuse**: `changeBlockType` already preserves the block's `id` and its `yorkie.Text` rather than
   rebuilding — a rebuild loses whatever a peer typed at that moment.
 - **Done**: all seven render and edit, shortcuts convert between them, and a peer's input survives

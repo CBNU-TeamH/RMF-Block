@@ -48,11 +48,40 @@ that the next person does not rediscover this.
   component work" — the second question needs an actual browser at least once before a UI
   milestone is called done.**
 
+- **A `changeBlockType` conversion is invisible to a peer's `doc.subscribe()` unless the callback
+  watches for `set`, not just `edit` and `add`/`remove`/`move`.** Assigning a plain field
+  (`block.type = "heading"`, `content.level = 2`) is a `SetOpInfo` (`{ type: 'set'; path; key }`),
+  a fourth op shape distinct from all three the subscribe callback already handled. Missing it
+  meant a peer's heading conversion showed the text clearing (that part is an `edit`) but never
+  updated the block's rendered type — until some unrelated later op (e.g. Enter's `insertBlockAfter`)
+  happened to trigger a recompute for an entirely different reason, which is what made it look
+  like "renders correctly, just late" rather than "half the change never arrives." Fixed by
+  widening the condition to any op whose `path` is `"$.blocks"` or starts with `"$.blocks."` —
+  simpler than enumerating every op type `changeBlockType` can produce, and correct because the
+  `edit` branch above it already `continue`s past the one path shape that should *not* trigger a
+  full recompute.
+
+- **Concurrent merge duplicates text; concurrent split duplicates blocks — both converge, neither
+  is a bug.** Measured against a live server: two clients merging the same block concurrently
+  produced `"paragraphgraph"`, not `"paragraph"` — the block removal is idempotent (Yorkie
+  tombstones), but each side's text-append is an independent CRDT insert, and both survive. Same
+  shape as the earlier "안녕하세요" → "안안녕녕하세요" finding, at the block-structure level
+  instead of the character level. Worth remembering before "fixing" a future case like this:
+  correctness here means *converges without loss*, not *deduplicates human intent* — no pure CRDT
+  operation can tell that two people meant the same edit.
+
 ## What we would do differently
 
 - Open the milestone in an actual browser before calling it done, not after the user's first try
   finds the bug a script couldn't. The Strict Mode race above is exactly the gap: every automated
   check passed and the component still failed on first real use.
+
+- Enumerate a Yorkie op's *possible shapes* before writing a subscribe filter, not just the ones
+  the feature being built happens to produce today. The `set` gap above existed from milestone 2's
+  original subscribe callback — nothing needed it until milestone 3's `changeBlockType` started
+  emitting one, and it went unnoticed for the same reason the Strict Mode race did: every
+  automated check that talks to Yorkie directly (not through this specific component's remote
+  peer path) had no way to exercise it.
 
 ## Worth extracting
 
