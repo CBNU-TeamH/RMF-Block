@@ -18,7 +18,13 @@ export type ChatMessage = {
 };
 
 export type SendChatMessageInput = {
-  sender: string | undefined;
+  /**
+   * Who is sending, decided by the caller from the session — never by the
+   * request. Non-optional because there is no longer a way for it to be
+   * missing: `currentMember()` either produces a member or the route answers
+   * 401 before reaching here.
+   */
+  sender: string;
   text: string | undefined;
 };
 

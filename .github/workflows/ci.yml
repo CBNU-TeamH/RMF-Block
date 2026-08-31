@@ -153,6 +153,31 @@ jobs:
           assert_body "$guest_home" \
             'ci-guest' 'the guest reached the workspace under the wrong name'
 
+          # Chat is session-gated, and the sender comes from that session rather
+          # than the request body. Both were true of nothing until recently:
+          # this module shipped before guest login and took `sender` from the
+          # body with no session check at all.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 10 \
+            -X POST http://localhost:3000/api/chat \
+            -H 'Content-Type: application/json' \
+            -d '{"sender":"someone-else","text":"posted with no session"}')
+          [ "$code" = 401 ] || { echo "::error::posting chat with no session returned $code, not 401"; exit 1; }
+
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 10 \
+            http://localhost:3000/api/chat)
+          [ "$code" = 401 ] || { echo "::error::reading chat history with no session returned $code, not 401"; exit 1; }
+
+          # The body names a different sender on purpose: the stored message must
+          # say who the session is, not who the request claimed to be.
+          sent=$(curl -sS --connect-timeout 5 --max-time 10 -b guest.txt \
+            -X POST http://localhost:3000/api/chat \
+            -H 'Content-Type: application/json' \
+            -d '{"sender":"impersonated","text":"hello from ci"}')
+          assert_body "$sent" 'ci-guest' 'the message was not attributed to the session'
+          case "$sent" in
+            *impersonated*) echo "::error::the body's sender was trusted over the session"; exit 1 ;;
+          esac
+
           # The join address must never come out empty (compose passes
           # HOST_LAN_IP through as "" when it is unset).
           if docker compose logs app | grep -q 'Guest: http://:'; then
@@ -160,7 +185,7 @@ jobs:
             exit 1
           fi
 
-          echo "host/guest split and the join flow verified against the container"
+          echo "host/guest split, the join flow, and chat attribution verified against the container"
 
       - name: Server log
         if: always()

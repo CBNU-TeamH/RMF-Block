@@ -25,11 +25,10 @@ function fakeBroadcaster() {
   };
 }
 
-test("send() rejects a missing or blank sender", async () => {
-  const service = new ChatService(fakeRepository(), fakeBroadcaster());
-  await assert.rejects(() => service.send({ sender: undefined, text: "hi" }), ChatValidationError);
-  await assert.rejects(() => service.send({ sender: "   ", text: "hi" }), ChatValidationError);
-});
+// There is no "rejects a blank sender" test any more. `sender` is typed
+// non-optional and comes from the session, whose nickname `SessionRegistry.join`
+// already trimmed and refused when empty — so a blank one cannot reach here, and
+// a test for it would be asserting against a caller that cannot exist.
 
 test("send() rejects a missing or blank text", async () => {
   const service = new ChatService(fakeRepository(), fakeBroadcaster());
@@ -47,9 +46,11 @@ test("send() rejects text over 2000 characters", async () => {
   await assert.doesNotReject(() => service.send({ sender: "alice", text: "x".repeat(2000) }));
 });
 
-test("send() trims sender but leaves text as-is, and stamps id/sentAt", async () => {
+test("send() stores sender and text as given, and stamps id/sentAt", async () => {
+  // Neither is trimmed: `sender` arrives already trimmed from the session, and
+  // trimming `text` would silently edit what someone typed.
   const service = new ChatService(fakeRepository(), fakeBroadcaster());
-  const message = await service.send({ sender: "  alice  ", text: "  hi  " });
+  const message = await service.send({ sender: "alice", text: "  hi  " });
 
   assert.equal(message.sender, "alice");
   assert.equal(message.text, "  hi  ");

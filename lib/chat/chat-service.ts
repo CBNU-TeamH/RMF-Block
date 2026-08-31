@@ -28,10 +28,12 @@ export class ChatService {
     this.broadcaster = broadcaster;
   }
 
+  // `sender` is not validated here, unlike `text`. It comes from the session
+  // rather than the request now, and a session's nickname was trimmed and
+  // checked for emptiness when it was minted (`SessionRegistry.join`) — so
+  // there is nothing left for this method to catch. `text` is still whatever
+  // the person typed.
   async send({ sender, text }: SendChatMessageInput): Promise<ChatMessage> {
-    if (!sender?.trim()) {
-      throw new ChatValidationError("sender is required");
-    }
     if (!text?.trim()) {
       throw new ChatValidationError("text is required");
     }
@@ -44,7 +46,7 @@ export class ChatService {
 
     const message: ChatMessage = {
       id: randomUUID(),
-      sender: sender.trim(),
+      sender,
       text,
       sentAt: new Date().toISOString(),
     };

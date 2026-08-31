@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { currentMember } from "@/lib/auth/current-member";
 import { chatService } from "@/lib/chat/chat-service";
 import { ChatValidationError } from "@/lib/chat/types";
 
@@ -9,18 +10,33 @@ import { ChatValidationError } from "@/lib/chat/types";
  * (`server/ws-hub.mts`) so every connected client sees it inside NFR-PER-004's
  * 1s budget. GET is what a reconnecting client calls to backfill everything it
  * missed while disconnected.
+ *
+ * Both require a workspace session. `chat.md` shipped this module before guest
+ * login existed and left `sender` client-supplied, with a note that it "becomes
+ * server-derived once this module is wired to it" — login arrived and the wiring
+ * did not, so until now anything on the LAN could post as anyone without joining
+ * at all.
  */
 export async function GET() {
+  if (!(await currentMember())) {
+    return NextResponse.json({ error: "no workspace session" }, { status: 401 });
+  }
+
   return NextResponse.json(await chatService.list());
 }
 
 export async function POST(request: NextRequest) {
+  const member = await currentMember();
+  if (!member) {
+    return NextResponse.json({ error: "no workspace session" }, { status: 401 });
+  }
+
   const body = await request.json().catch(() => null);
-  const sender = typeof body?.sender === "string" ? body.sender : undefined;
   const text = typeof body?.text === "string" ? body.text : undefined;
 
   try {
-    const message = await chatService.send({ sender, text });
+    // The session decides who sent this; the body is only read for `text`.
+    const message = await chatService.send({ sender: member.nickname, text });
     return NextResponse.json(message, { status: 201 });
   } catch (error) {
     if (error instanceof ChatValidationError) {
