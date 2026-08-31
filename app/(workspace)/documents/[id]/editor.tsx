@@ -211,6 +211,14 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       unsubscribe = doc.subscribe((event) => {
         if (event.type !== "remote-change") return;
 
+        // Recomputed at most once per event, not once per matching op — a
+        // markdown-shortcut conversion alone already produces two ("set" on
+        // the block's `type`, "set" on its `content"), and a multi-block
+        // paste or reorder could add more. Recomputing `blocks` is an O(n)
+        // read of the whole array, so this only costs it once per batch
+        // instead of once per op inside one.
+        let needsRecompute = false;
+
         for (const op of event.value.operations) {
           if (op.type === "edit") {
             const index = blockIndexFromEditPath(op.path);
@@ -232,9 +240,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           // than patched either way: unlike a text edit there is no single
           // DOM node whose value moved, the rendered list itself is stale.
           if (op.path === "$.blocks" || op.path.startsWith("$.blocks.")) {
-            setBlocks(readBlocks(doc.getRoot().blocks));
+            needsRecompute = true;
           }
         }
+
+        if (needsRecompute) setBlocks(readBlocks(doc.getRoot().blocks));
       });
     })().catch((error: unknown) => {
       if (cancelled) return;
@@ -447,6 +457,17 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       blockId,
     );
     if (previousId === null) return;
+
+    // A non-text-bearing previous block (divider, or any of the file/link
+    // types nothing in this UI can create yet) has no `content.text` to
+    // append into — `editBlockText` would throw a plain `Error`, not
+    // `BlockNotFoundError`, and crash out of this handler uncaught. Such a
+    // block can still arrive from another client on the LAN
+    // (`document.ts`'s own documented no-auth threat model), so this is a
+    // real case, not a hypothetical one. Treated the same as "no previous
+    // block": nothing sensible to merge into, so do nothing.
+    const previousBlock = blocks.find((block) => block.id === previousId);
+    if (!previousBlock || !isTextBearing(previousBlock)) return;
 
     let mergeCaret = 0;
 
