@@ -496,7 +496,19 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
             onDragEnd={() => setDraggedId(null)}
             className="absolute -left-4 top-0.5 cursor-grab text-ink-faint opacity-0 group-focus-within:opacity-100"
           >
-            ⠿
+            {/* A Unicode glyph (⠿ and friends) depends on the guest's font
+             * having that specific block — Braille Patterns is one of the
+             * least reliably covered ranges across OSes. An inline SVG
+             * renders identically everywhere a browser does, with no font
+             * dependency at all. */}
+            <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
+              <circle cx="2.5" cy="2.5" r="1.5" />
+              <circle cx="7.5" cy="2.5" r="1.5" />
+              <circle cx="2.5" cy="8" r="1.5" />
+              <circle cx="7.5" cy="8" r="1.5" />
+              <circle cx="2.5" cy="13.5" r="1.5" />
+              <circle cx="7.5" cy="13.5" r="1.5" />
+            </svg>
           </span>
           {block.type === "text" || block.type === "heading" ? (
             <TextBlockView
