@@ -3,7 +3,7 @@
 import type { Document, EditOpInfo } from "@yorkie-js/sdk";
 import { useCallback, useEffect, useRef } from "react";
 
-import { headingShortcut } from "@/lib/blocks/markdown-shortcuts";
+import { detectMarkdownShortcut, type MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
 import { diffRange, shiftCaret } from "@/lib/blocks/text-surface";
 import { editBlockText, type BlockArray } from "@/lib/blocks/operations";
 import type { BlockDocumentRoot } from "@/lib/blocks/document";
@@ -19,6 +19,38 @@ const HEADING_CLASS: Record<HeadingLevel, string> = {
 };
 
 /**
+ * What this block renders as beyond plain text — everything `types.ts` says
+ * drives styling (or, for checklist/list, an extra element beside the
+ * textarea) rather than a different editing surface. Every variant still
+ * edits through the one `<textarea>` below; `document-editing.md`'s "text ↔
+ * quote... nothing but `type` changes" is what makes that true here too.
+ */
+export type BlockVariant =
+  | { type: "text" }
+  | { type: "heading"; level: HeadingLevel }
+  | { type: "list"; style: "ordered" | "unordered"; number: number }
+  | { type: "checklist"; checked: boolean }
+  | { type: "quote" }
+  | { type: "code" };
+
+const TEXTAREA_CLASS_BY_VARIANT: Record<BlockVariant["type"], string> = {
+  text: "text-[14px]",
+  heading: "", // filled in per-level below
+  list: "text-[14px]",
+  checklist: "text-[14px]",
+  quote: "text-[14px] border-l-2 border-ink-faint pl-3 italic text-ink-soft",
+  code: "text-[13px] font-mono bg-paper-2 rounded-md px-2",
+};
+
+function textareaClass(variant: BlockVariant): string {
+  if (variant.type === "heading") return HEADING_CLASS[variant.level];
+  if (variant.type === "checklist" && variant.checked) {
+    return `${TEXTAREA_CLASS_BY_VARIANT.checklist} text-ink-faint line-through`;
+  }
+  return TEXTAREA_CLASS_BY_VARIANT[variant.type];
+}
+
+/**
  * One text block's editing surface — `document-editing.md`'s "Editing
  * surface" decision, as code. An uncontrolled `<textarea>`, patched only on
  * the changed range, with remote edits held back while an IME composition is
@@ -32,7 +64,7 @@ const HEADING_CLASS: Record<HeadingLevel, string> = {
 export function TextBlockView({
   blockId,
   initialText,
-  headingLevel,
+  variant,
   docRef,
   registerRemoteHandler,
   registerTextarea,
@@ -41,13 +73,12 @@ export function TextBlockView({
   onMergeWithPrevious,
   onNavigateUp,
   onNavigateDown,
+  onToggleChecklist,
   onTextCommitted,
 }: {
   blockId: BlockId;
   initialText: string;
-  /** Set once this block's `type` is already `"heading"` — styling only.
-   * `undefined` renders as plain text. */
-  headingLevel?: HeadingLevel;
+  variant: BlockVariant;
   docRef: React.RefObject<Document<BlockDocumentRoot> | null>;
   /** Returns an unsubscribe — the parent owns one Yorkie subscription for the
    * whole document and routes each block's edits here by id. */
@@ -58,8 +89,9 @@ export function TextBlockView({
    * isn't remounting, both need the parent to reach in imperatively). */
   registerTextarea: (blockId: BlockId, el: HTMLTextAreaElement | null) => void;
   /** Reports a markdown marker completing (`"# "` and friends) — the parent
-   * owns `changeBlockType`, this component only ever edits text. */
-  onMarkdownShortcut: (blockId: BlockId, level: HeadingLevel) => void;
+   * owns `changeBlockType`, this component only ever edits text. Never
+   * fires except from a plain-text block — see the `onInput` guard below. */
+  onMarkdownShortcut: (blockId: BlockId, shortcut: MarkdownShortcut) => void;
   /** Enter, not mid-composition: reports where the caret was, so the parent
    * can trim this block to before it and seed a new one with the tail. */
   onSplit: (blockId: BlockId, cursorPosition: number) => void;
@@ -72,6 +104,8 @@ export function TextBlockView({
    * clamps it against the target block's matching edge line. */
   onNavigateUp: (blockId: BlockId, column: number) => void;
   onNavigateDown: (blockId: BlockId, column: number) => void;
+  /** The checklist's own checkbox, clicked. Absent for every other variant. */
+  onToggleChecklist: (blockId: BlockId) => void;
   /** Called after every local text commit — not just here, and not tied to
    * this block's id, since the parent checks the *document's* trailing
    * block, not this one specifically. */
@@ -161,7 +195,7 @@ export function TextBlockView({
     for (const op of queued) patchRange(el, op);
   };
 
-  return (
+  const textarea = (
     <textarea
       ref={setTextareaRef}
       defaultValue={initialText}
@@ -174,6 +208,10 @@ export function TextBlockView({
           // across browsers, and `composingRef` alone can lag a keydown
           // that also ends the composition.
           if (composingRef.current || event.nativeEvent.isComposing) return;
+          // Code is source text, not a sequence of blocks — Enter here is
+          // the same literal newline Shift+Enter is everywhere else, not a
+          // split (`document-editing.md`: "inside code it is a newline").
+          if (variant.type === "code") return;
           event.preventDefault();
           onSplit(blockId, event.currentTarget.selectionStart);
           return;
@@ -223,12 +261,14 @@ export function TextBlockView({
         // binding sends one edit per candidate revision, not per character).
         if (composingRef.current) return;
 
-        // Checked against the *whole* current value, not just what changed —
-        // `headingShortcut` only ever matches when that whole value is
-        // exactly a marker, so this never fires except right as one finishes.
-        const level = headingShortcut(el.value);
-        if (level !== null) {
-          onMarkdownShortcut(blockId, level);
+        // Only a plain-text block ever converts — re-checking an
+        // already-converted block would let a code block's own literal
+        // "# " or "- " (legitimate source text) trigger a conversion it
+        // never asked for, and re-typing a marker into an existing heading
+        // has the same problem at a smaller scale.
+        const shortcut = variant.type === "text" ? detectMarkdownShortcut(el.value) : null;
+        if (shortcut) {
+          onMarkdownShortcut(blockId, shortcut);
           // The parent clears this block's text as part of the conversion;
           // mirrored here so the *next* keystroke diffs against "", not
           // against a marker that no longer exists in Yorkie — the same
@@ -251,9 +291,34 @@ export function TextBlockView({
         onTextCommitted();
         flushQueuedRemoteEdits();
       }}
-      className={`w-full resize-none overflow-hidden bg-transparent px-1 py-0.5 text-ink outline-none ${
-        headingLevel ? HEADING_CLASS[headingLevel] : "text-[14px]"
-      }`}
+      className={`w-full resize-none overflow-hidden bg-transparent px-1 py-0.5 text-ink outline-none ${textareaClass(variant)}`}
     />
   );
+
+  if (variant.type === "checklist") {
+    return (
+      <div className="flex items-start gap-2">
+        <input
+          type="checkbox"
+          checked={variant.checked}
+          onChange={() => onToggleChecklist(blockId)}
+          className="mt-2 size-3 shrink-0 cursor-pointer"
+        />
+        {textarea}
+      </div>
+    );
+  }
+
+  if (variant.type === "list") {
+    return (
+      <div className="flex items-start gap-2">
+        <span className="mt-0.5 shrink-0 text-[14px] text-ink-faint select-none">
+          {variant.style === "ordered" ? `${variant.number}.` : "•"}
+        </span>
+        {textarea}
+      </div>
+    );
+  }
+
+  return textarea;
 }

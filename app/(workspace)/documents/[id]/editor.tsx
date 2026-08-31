@@ -3,8 +3,9 @@
 import yorkie, { type Document, type EditOpInfo } from "@yorkie-js/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { createText } from "@/lib/blocks/create";
-import { readBlocks, toStoredBlock, type BlockDocumentRoot } from "@/lib/blocks/document";
+import { createChecklist, createList, createText } from "@/lib/blocks/create";
+import { readBlocks, toStoredBlock, type BlockDocumentRoot, type StoredBlock } from "@/lib/blocks/document";
+import type { MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
 import {
   appendBlock,
   BlockNotFoundError,
@@ -15,12 +16,53 @@ import {
   removeBlock,
   type BlockArray,
 } from "@/lib/blocks/operations";
+import { orderedListNumbers } from "@/lib/blocks/list-numbering";
 import { dropsBeforeTarget, idAfterInOrder, idBeforeInOrder } from "@/lib/blocks/reorder";
 import { blockIndexFromEditPath } from "@/lib/blocks/text-surface";
-import type { Block, BlockId, HeadingLevel } from "@/lib/blocks/types";
+import type { Block, BlockId } from "@/lib/blocks/types";
 
 import { useWorkspacePresence } from "../../presence-provider";
-import { TextBlockView } from "./text-block";
+import { TextBlockView, type BlockVariant } from "./text-block";
+
+/** The six types that edit through `TextBlockView`'s one `<textarea>`. */
+function isTextBearing(
+  block: Block,
+): block is Extract<Block, { text: string }> {
+  return (
+    block.type === "text" ||
+    block.type === "heading" ||
+    block.type === "list" ||
+    block.type === "checklist" ||
+    block.type === "quote" ||
+    block.type === "code"
+  );
+}
+
+/** What continues after this block on Enter — only list/checklist keep their
+ * type (a running list stays a list); everything else's tail is plain text,
+ * matching how heading already worked before this block joined it. */
+function continuationBlock(original: Block | undefined): Block {
+  if (original?.type === "list") return createList(original.style, original.depth);
+  if (original?.type === "checklist") return createChecklist();
+  return createText();
+}
+
+function variantOf(block: Extract<Block, { text: string }>, orderedNumber: number): BlockVariant {
+  switch (block.type) {
+    case "heading":
+      return { type: "heading", level: block.level };
+    case "list":
+      return { type: "list", style: block.style, number: orderedNumber };
+    case "checklist":
+      return { type: "checklist", checked: block.checked };
+    case "quote":
+      return { type: "quote" };
+    case "code":
+      return { type: "code" };
+    default:
+      return { type: "text" };
+  }
+}
 
 /**
  * Attaches `documentId` through the workspace's one Yorkie client
@@ -223,11 +265,15 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    * `Array<T>` typing is a compile-time claim only — `unshift` type-checks
    * and throws) rather than an untried method.
    */
-  function liveTextOf(root: BlockDocumentRoot, blockId: BlockId): string {
+  function liveBlockOf(root: BlockDocumentRoot, blockId: BlockId): StoredBlock | null {
     for (const stored of root.blocks) {
-      if (stored?.id === blockId) return stored.content?.text?.toString() ?? "";
+      if (stored?.id === blockId) return stored;
     }
-    return "";
+    return null;
+  }
+
+  function liveTextOf(root: BlockDocumentRoot, blockId: BlockId): string {
+    return liveBlockOf(root, blockId)?.content?.text?.toString() ?? "";
   }
 
   /**
@@ -273,7 +319,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    * a block a peer already removed can't be converted, and there is nothing
    * left to fix on this replica once that happens.
    */
-  const handleMarkdownShortcut = (blockId: BlockId, level: HeadingLevel) => {
+  const handleMarkdownShortcut = (blockId: BlockId, shortcut: MarkdownShortcut) => {
     const doc = docRef.current;
     if (!doc) return;
 
@@ -282,7 +328,33 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         const array = root.blocks as BlockArray;
         const current = liveTextOf(root, blockId);
         editBlockText(array, blockId, 0, current.length, "");
-        changeBlockType(array, blockId, { type: "heading", level });
+        changeBlockType(array, blockId, shortcut);
+      });
+    } catch (error) {
+      if (error instanceof BlockNotFoundError) return;
+      throw error;
+    }
+
+    setBlocks(readBlocks(doc.getRoot().blocks));
+  };
+
+  /**
+   * The checklist's own checkbox, clicked. Reads the *live* `checked` value
+   * inside the same update rather than trusting `blocks` state's copy — a
+   * peer toggling the same box a moment earlier is exactly the race
+   * `changeBlockType`'s own docs accept for any primitive field, but reading
+   * live at least means this click flips from whatever is actually there
+   * right now, not a snapshot from the last render.
+   */
+  const handleToggleChecklist = (blockId: BlockId) => {
+    const doc = docRef.current;
+    if (!doc) return;
+
+    try {
+      doc.update((root: BlockDocumentRoot) => {
+        const array = root.blocks as BlockArray;
+        const checked = liveBlockOf(root, blockId)?.content?.checked === true;
+        changeBlockType(array, blockId, { type: "checklist", checked: !checked });
       });
     } catch (error) {
       if (error instanceof BlockNotFoundError) return;
@@ -301,6 +373,12 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    * concurrent remote edit past `cursorPosition` would otherwise be
    * silently dropped or misplaced.
    *
+   * The new block continues the original's type for list/checklist
+   * (`continuationBlock`) — a running list stays a list until you leave it —
+   * and pressing Enter on an *empty* list/checklist item exits back to plain
+   * text instead of splitting at all, the standard way to stop a list with
+   * no block-type menu to do it from otherwise.
+   *
    * `BlockNotFoundError` means a peer already removed this block (their
    * merge, most likely) before this split reached it — nothing left to
    * split, so this replica does nothing further and lets the other
@@ -308,19 +386,31 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    */
   const handleSplit = (blockId: BlockId, cursorPosition: number) => {
     const doc = docRef.current;
-    if (!doc) return;
+    if (!doc || !blocks) return;
 
-    const newBlock = toStoredBlock(createText());
+    const original = blocks.find((block) => block.id === blockId);
+    let newBlockId: BlockId | null = null;
 
     try {
       doc.update((root: BlockDocumentRoot) => {
         const array = root.blocks as BlockArray;
         const liveText = liveTextOf(root, blockId);
+
+        if (
+          liveText.length === 0 &&
+          (original?.type === "list" || original?.type === "checklist")
+        ) {
+          changeBlockType(array, blockId, { type: "text" });
+          return;
+        }
+
         const tail = liveText.slice(cursorPosition);
+        const newBlock = toStoredBlock(continuationBlock(original));
 
         editBlockText(array, blockId, cursorPosition, liveText.length, "");
         insertBlockAfter(array, blockId, newBlock);
         if (tail) editBlockText(array, newBlock.id, 0, 0, tail);
+        newBlockId = newBlock.id;
       });
     } catch (error) {
       if (error instanceof BlockNotFoundError) return;
@@ -330,7 +420,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     // Local structural change — the subscribe callback above only reacts to
     // `remote-change`, so this is the only place this list update happens.
     setBlocks(readBlocks(doc.getRoot().blocks));
-    focusBlock(newBlock.id, 0);
+    focusBlock(newBlockId ?? blockId, 0);
   };
 
   /**
@@ -484,9 +574,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     return <p className="text-sm text-ink-faint">여는 중…</p>;
   }
 
+  const listNumbers = orderedListNumbers(blocks);
+
   return (
     <div className="flex flex-col">
-      {blocks.map((block) => (
+      {blocks.map((block, index) => (
         // `group`/`relative` here, not on the drag handle: the handle needs
         // to be positioned against this block and shown only while this
         // block's own textarea has focus (`group-focus-within`), pure CSS —
@@ -540,11 +632,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               <circle cx="7.5" cy="13.5" r="1.5" />
             </svg>
           </span>
-          {block.type === "text" || block.type === "heading" ? (
+          {isTextBearing(block) ? (
             <TextBlockView
               blockId={block.id}
               initialText={block.text}
-              headingLevel={block.type === "heading" ? block.level : undefined}
+              variant={variantOf(block, listNumbers[index]!)}
               docRef={docRef}
               registerRemoteHandler={registerRemoteHandler}
               registerTextarea={registerTextarea}
@@ -553,13 +645,15 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               onMergeWithPrevious={handleMergeWithPrevious}
               onNavigateUp={handleNavigateUp}
               onNavigateDown={handleNavigateDown}
+              onToggleChecklist={handleToggleChecklist}
               onTextCommitted={ensureTrailingEmptyBlock}
             />
           ) : (
-            // Nothing before milestone 4 can create these, but the array is
-            // read off whatever is actually in the document, not what this
-            // build wrote — the same reason `readBlocks` drops rather than
-            // crashes on a type it does not know.
+            // Divider/file/image/pdf/doc-link/block-link: typed already, no
+            // renderer yet — dividers are next (they need their own
+            // no-textarea operation, unlike these four which just reused
+            // `changeBlockType` as-is), the file-backed ones wait on the File
+            // API this build does not have.
             <p className="px-1 py-0.5 text-sm text-ink-faint">
               아직 편집할 수 없는 블록입니다 ({block.type}).
             </p>
