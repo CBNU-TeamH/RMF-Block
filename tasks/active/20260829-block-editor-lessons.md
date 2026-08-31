@@ -124,6 +124,33 @@ that the next person does not rediscover this.
   cheaper than a round of "user reports it's invisible, restart, still invisible, only then
   investigate."
 
+- **A component's own conditional root element type is enough to remount it, even when its parent's
+  `key` never changes.** Converting a block to a list or checklist dropped focus and left the
+  textarea unclickable until reclicked. The parent (`editor.tsx`) keys each block by id and that id
+  never changed — but `TextBlockView` itself returned a bare `<textarea>` for text/heading/quote/code
+  and a `<div><span/><textarea/></div>` for list/checklist. React reconciles by element type at each
+  position in the tree, not by an ancestor's key; a `<textarea>` becoming a `<div>` at the same spot
+  is a type change, and React unmounts and remounts the whole subtree under it — a fresh DOM node,
+  never focused by default. Fixed by making `TextBlockView` always return the bare `<textarea>` in
+  every variant, and moving the list bullet/checklist checkbox out to `editor.tsx` as a fixed sibling
+  slot (always a `<span>`, empty or not) so `TextBlockView`'s position among its siblings never
+  shifts either. The general shape: **anything that conditionally changes what a component's own
+  root renders as is a remount risk, independent of whatever key or memoization sits above it** —
+  worth checking before adding a second visual mode to any component that owns uncontrolled state
+  (a ref, a textarea's own `.value`) it can't afford to lose.
+
+- **A one-shot HTTP fetch is not a faithful stand-in for what a real browser tab experiences in
+  dev mode.** Several rounds of "does class X actually compile" checks (`border-sky`, `rounded-sm`,
+  `size-3.5`, `w-4`/`w-5`) grepped the compiled CSS chunk after hitting the page with a plain
+  `fetch()`, which triggers the initial SSR compile but never opens the WebSocket a real browser tab
+  keeps for Fast Refresh — the channel Next actually uses to push incremental CSS after the first
+  load. Some of what looked like "this specific value never compiles" was at least partly this: a
+  value that had been in the source at some earlier point could show up in the bundle later, and a
+  brand new one could take more than one fetch to appear. The grep-the-compiled-CSS technique still
+  beats guessing, but its "absent" result is a weaker claim than it looks — a real user's live tab is
+  the only actually-authoritative check, same as this file's very first lesson about a script proving
+  the data layer and nothing about the component.
+
 ## What we would do differently
 
 - Open the milestone in an actual browser before calling it done, not after the user's first try
