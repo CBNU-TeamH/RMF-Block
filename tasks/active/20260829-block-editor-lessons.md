@@ -93,6 +93,23 @@ that the next person does not rediscover this.
   Nothing about single-line testing would have caught this; it only shows up once someone
   Shift+Enters inside a block and then arrows into it from a neighbor.
 
+- **A dev-server edit not showing up in the browser had two different, unrelated causes back to
+  back — worth separating them, since only one was ever a real code bug.** First: the SVG drag
+  handle's markup was entirely absent from the DOM (not just miscolored) — the running dev server's
+  `.next` was stale from an earlier `pnpm build` run alongside `pnpm dev` (a corruption this project
+  had already hit and fixed once before, milestone 2). Full restart + `.next` wipe fixed it. Second,
+  right after: the drop-indicator *line* was still invisible even post-restart. Measured properly
+  this time instead of guessing "must be cache again" — grepped the actual compiled CSS chunk and
+  found `border-t-2`/`border-b-2` present but bare `border-sky` completely absent, in every rebuild,
+  cache or no cache. Working directory is `/mnt/c/Users/user/Desktop/rmf-block` (WSL2 mounting a
+  Windows filesystem, DrvFs) — a real, known source of unreliable file-change detection for dev
+  watchers, which explains the first case, but the second was a genuine Tailwind gap: `bg-sky` and
+  `border-sky-deep` are this codebase's actual precedent (used in `document-list.tsx`/
+  `join-form.tsx`) and compile fine; a bare `border-sky` never has, anywhere, checked. Fixed by
+  switching to `border-sky-deep`. **The lesson isn't "restart when something doesn't show" — it's
+  that "restart and it's still broken" is itself a measurement**, one that rules the cache out and
+  points at the code instead of inviting a second guess-and-restart cycle.
+
 ## What we would do differently
 
 - Open the milestone in an actual browser before calling it done, not after the user's first try
