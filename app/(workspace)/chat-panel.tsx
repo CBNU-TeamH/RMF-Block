@@ -143,7 +143,7 @@ export function ChatPanel({ me }: { me: string }) {
   }
 
   return (
-    <section
+    <div
       onDragOver={(event) => {
         event.preventDefault();
         setDragging(true);
@@ -155,16 +155,8 @@ export function ChatPanel({ me }: { me: string }) {
         const dropped = event.dataTransfer.files[0];
         if (dropped) setFile(dropped);
       }}
-      className={`flex w-80 flex-none flex-col border-l bg-paper ${
-        dragging ? "border-sky-deep bg-sky-soft" : "border-ink"
-      }`}
+      className={`flex min-h-0 flex-1 flex-col ${dragging ? "bg-sky-soft" : "bg-paper"}`}
     >
-      <header className="flex h-9 flex-none items-center border-b border-ink px-3">
-        <span className="font-mono text-[10px] tracking-wide text-ink-soft uppercase">
-          채팅
-        </span>
-      </header>
-
       <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {messages.length === 0 && pending.length === 0 ? (
           <p className="pt-8 text-center text-[13px] text-ink-faint">
@@ -272,6 +264,6 @@ export function ChatPanel({ me }: { me: string }) {
           </button>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

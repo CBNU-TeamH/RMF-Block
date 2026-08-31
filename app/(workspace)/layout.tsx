@@ -9,7 +9,7 @@ import { getWorkspaceName } from "@/lib/workspace-config";
 import { yorkieClientConfig } from "@/lib/yorkie-address";
 
 import { SessionWatch } from "../session-watch";
-import { ChatPanel } from "./chat-panel";
+import { ChatWindow } from "./chat-window";
 import { PresenceProvider } from "./presence-provider";
 import { PresenceStack } from "./presence-stack";
 
@@ -103,13 +103,11 @@ export default async function WorkspaceLayout({
           </nav>
 
           <main className="min-w-0 flex-1 overflow-hidden bg-paper px-8 py-7">{children}</main>
-
-          {/* Always open rather than toggled: the workspace is people in one room
-              and chat is how they talk while working, so hiding it behind a
-              button would be hiding the thing the screen is for. A toggle is a
-              small change once there is a design that asks for one. */}
-          <ChatPanel me={me.nickname} />
         </div>
+
+        {/* Outside the row, and `fixed` — it floats over the shell rather than
+            taking a column from it. */}
+        <ChatWindow me={me.nickname} />
       </div>
     </PresenceProvider>
   );
