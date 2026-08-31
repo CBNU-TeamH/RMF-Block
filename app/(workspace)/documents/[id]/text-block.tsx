@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { detectMarkdownShortcut, type MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
 import { diffRange, shiftCaret } from "@/lib/blocks/text-surface";
-import { editBlockText, type BlockArray } from "@/lib/blocks/operations";
+import { BlockNotFoundError, editBlockText, type BlockArray } from "@/lib/blocks/operations";
 import type { BlockDocumentRoot } from "@/lib/blocks/document";
 import type { BlockId, HeadingLevel } from "@/lib/blocks/types";
 
@@ -184,9 +184,20 @@ export function TextBlockView({
     if (!doc || current === newValue) return;
 
     const { from, to, value } = diffRange(current, newValue);
-    doc.update((root: BlockDocumentRoot) => {
-      editBlockText(root.blocks as BlockArray, blockId, from, to, value);
-    });
+    try {
+      doc.update((root: BlockDocumentRoot) => {
+        editBlockText(root.blocks as BlockArray, blockId, from, to, value);
+      });
+    } catch (error) {
+      // A peer removed this block mid-keystroke — the same race every
+      // `doc.update` in `editor.tsx` already guards, and the one call site
+      // that was missing it. There is nothing left to write into, and the
+      // baseline deliberately stays where it is: this keystroke never
+      // reached Yorkie, so advancing it would make the *next* diff describe
+      // an edit against text that was never sent.
+      if (error instanceof BlockNotFoundError) return;
+      throw error;
+    }
     lastSyncedRef.current = newValue;
   };
 

@@ -160,9 +160,12 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     // mounted this same render is already here. If it is not, the block
     // this request named is already gone (a second, faster edit removed it
     // first) — drop the request rather than guess where focus should land.
-    if (!el) return;
-
+    // Cleared either way, and that matters: leaving it pending would let the
+    // next unrelated `setBlocks` (a peer's remote change, or
+    // `ensureTrailingEmptyBlock`) run this effect again and yank the caret
+    // out of whatever block the person had since started typing in.
     pendingFocusRef.current = null;
+    if (!el) return;
     el.focus();
     el.setSelectionRange(pending.caret, pending.caret);
   }, [blocks]);

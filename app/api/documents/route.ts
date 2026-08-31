@@ -27,14 +27,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
-  let body: { name?: unknown };
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "요청을 읽을 수 없습니다." }, { status: 400 });
   }
 
-  const name = typeof body.name === "string" ? body.name : undefined;
+  // `null`, a bare number, a string — all parse as valid JSON, so `.json()`
+  // does not throw and the property read below would, outside the catch
+  // above. That turned a malformed request into a 500 instead of the 400 it
+  // is.
+  if (typeof body !== "object" || body === null) {
+    return NextResponse.json({ error: "요청을 읽을 수 없습니다." }, { status: 400 });
+  }
+
+  const { name: rawName } = body as { name?: unknown };
+  const name = typeof rawName === "string" ? rawName : undefined;
   const createdBy = member?.id ?? HOST_PRESENCE.id;
 
   try {

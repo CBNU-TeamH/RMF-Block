@@ -23,7 +23,15 @@ export default async function DocumentPage({
   return (
     <div className="flex h-full flex-col gap-3">
       <h1 className="text-[22px] font-bold text-ink">{document.name}</h1>
-      <DocumentEditor documentId={document.id} />
+      {/* Keyed by the document it is showing, so opening a different one
+       * gets a fresh editor rather than the same instance with the previous
+       * document's `blocks` still rendered (and its `failed` still set, which
+       * would keep showing that error over a document that opens fine).
+       * `document-list.tsx` navigates with `Link`/`router.push`, so without a
+       * key React reuses this instance across that navigation and only the
+       * prop changes — the case React's own "resetting all state when a prop
+       * changes" guidance names a key for. */}
+      <DocumentEditor key={document.id} documentId={document.id} />
     </div>
   );
 }
