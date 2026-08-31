@@ -145,6 +145,9 @@ Written from Step 0's result. The schema sections are not touched (Status: Agree
 - **Route**: `app/(workspace)/documents/[id]/` — inside the route group, so it inherits the shell
   and `PresenceProvider`.
 - **Done**: a new document appears in the list, opens, and survives a reload.
+- **Shipped**: `c79a720`. Verified end to end against a live app+Yorkie+Mongo stack — join, create
+  (empty-name rejected, repeated name gets `(2)`), list, open, unknown id 404s, unauthenticated
+  create refused, record survives on disk.
 
 ### 2. Edit a text block (FR-022-02, FR-022-09)
 
@@ -157,6 +160,16 @@ Highest priority. Every other type is built on top of this.
   peer's keystrokes instead of merging them.
 - **Depends on**: Step 0
 - **Done**: two browsers typing into the same block keep both sides' characters.
+- **Shipped**: `66a4b24`, then `fb54102`. My own script-based verification (real Yorkie, no
+  browser) passed and missed a real bug: React Strict Mode double-invokes an effect on mount in
+  dev, so `DocumentEditor` fired two concurrent `client.attach()` calls for the same document; the
+  cancelled run's successful attach was never detached, and the surviving run's attach then failed
+  Yorkie's "not already Attached" filter — surfaced as a misleading "client not found" ConnectError
+  that the user hit on first real-browser use. `fb54102` serializes each run's attach behind the
+  previous run's full teardown (lessons has the mechanism). After the fix: two real browser windows
+  editing the same document concurrently, typing Hangul, held up — no corruption, and the one
+  remote-side delay on a composition's last syllable is expected (`document-editing.md`'s "Editing
+  surface" §"What was measured").
 
 ### 3. Create, delete and move blocks (FR-022-01/03/04)
 
@@ -226,19 +239,20 @@ Seven types are all that can be built: the six text-bearing ones plus `divider`.
 
 ## Acceptance
 
-- [ ] `pnpm lint`, `pnpm test` and `pnpm build` pass
-- [ ] A document can be created, opened, edited, and its content survives a reload
+- [x] `pnpm lint`, `pnpm test` and `pnpm build` pass
+- [x] A document can be created, opened, edited, and its content survives a reload
 - [ ] Two browsers in one document see each other's block create/edit/delete/move within a second
-      (NFR-PER-002)
-- [ ] Hangul typed in the same block from both sides never loses a composing syllable
-- [ ] All seven block types render, edit, and convert between each other
+      (NFR-PER-002) — edit confirmed (M2); create/delete/move are M3
+- [x] Hangul typed in the same block from both sides never loses a composing syllable — confirmed
+      in a real browser (M2), not just the Step 0 spike
+- [ ] All seven block types render, edit, and convert between each other — text only so far
 - [ ] Occupancy is distinguishable per user and **does not block editing** (SIR003)
 - [ ] Ctrl+Z reverts only the local change
 - [ ] Restarting the app server leaves an open document's content intact (Phase 1 exit criteria)
 - [ ] Restarting the Yorkie container brings the same content back from MongoDB (Phase 1 exit
       criteria)
-- [ ] #44 and #45 close, with regression tests
-- [ ] `document-editing.md` carries an "Editing surface" section
+- [x] #44 and #45 close, with regression tests
+- [x] `document-editing.md` carries an "Editing surface" section
 
 > FR-022-12 (reconnection) needs no code — the Yorkie client handles it. No code and *works* are
 > different claims, so it still gets **checked**: drop Wi-Fi, keep editing, reconnect, confirm it
