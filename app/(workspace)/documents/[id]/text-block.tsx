@@ -19,16 +19,22 @@ const HEADING_CLASS: Record<HeadingLevel, string> = {
 };
 
 /**
- * What this block renders as beyond plain text — everything `types.ts` says
- * drives styling (or, for checklist/list, an extra element beside the
- * textarea) rather than a different editing surface. Every variant still
- * edits through the one `<textarea>` below; `document-editing.md`'s "text ↔
+ * What this block renders as beyond plain text — everything here is styling
+ * only. The list bullet/number and the checklist's own checkbox render in
+ * `editor.tsx` instead, as fixed siblings of this component rather than
+ * something *inside* it that appears and disappears by variant — this
+ * component's own returned root has to stay a bare `<textarea>` in every
+ * variant, never conditionally wrapped in a `<div>`, or converting a block's
+ * type changes this component's root element and React remounts it (a fresh
+ * DOM node, focus lost — measured: converting to a list or checklist dropped
+ * the cursor and made the block unclickable until reclicked). Every variant
+ * still edits through the one `<textarea>`; `document-editing.md`'s "text ↔
  * quote... nothing but `type` changes" is what makes that true here too.
  */
 export type BlockVariant =
   | { type: "text" }
   | { type: "heading"; level: HeadingLevel }
-  | { type: "list"; style: "ordered" | "unordered"; number: number }
+  | { type: "list"; style: "ordered" | "unordered" }
   | { type: "checklist"; checked: boolean }
   | { type: "quote" }
   | { type: "code" };
@@ -73,7 +79,6 @@ export function TextBlockView({
   onMergeWithPrevious,
   onNavigateUp,
   onNavigateDown,
-  onToggleChecklist,
   onTextCommitted,
 }: {
   blockId: BlockId;
@@ -104,8 +109,6 @@ export function TextBlockView({
    * clamps it against the target block's matching edge line. */
   onNavigateUp: (blockId: BlockId, column: number) => void;
   onNavigateDown: (blockId: BlockId, column: number) => void;
-  /** The checklist's own checkbox, clicked. Absent for every other variant. */
-  onToggleChecklist: (blockId: BlockId) => void;
   /** Called after every local text commit — not just here, and not tied to
    * this block's id, since the parent checks the *document's* trailing
    * block, not this one specifically. */
@@ -195,7 +198,7 @@ export function TextBlockView({
     for (const op of queued) patchRange(el, op);
   };
 
-  const textarea = (
+  return (
     <textarea
       ref={setTextareaRef}
       defaultValue={initialText}
@@ -208,10 +211,22 @@ export function TextBlockView({
           // across browsers, and `composingRef` alone can lag a keydown
           // that also ends the composition.
           if (composingRef.current || event.nativeEvent.isComposing) return;
-          // Code is source text, not a sequence of blocks — Enter here is
-          // the same literal newline Shift+Enter is everywhere else, not a
-          // split (`document-editing.md`: "inside code it is a newline").
-          if (variant.type === "code") return;
+
+          if (variant.type === "code") {
+            // Code is source text, not a sequence of blocks — Enter here is
+            // a literal newline (`document-editing.md`: "inside code it is
+            // a newline"), same as Shift+Enter everywhere else, UNLESS the
+            // cursor is already on a blank line at the very end: that means
+            // this is a *second* Enter with nothing typed in between, which
+            // is how you leave a code block with no block-type menu to do
+            // it from otherwise. Only fires at the true end, not on a blank
+            // line in the middle of otherwise real code.
+            const el = event.currentTarget;
+            const pos = el.selectionStart ?? 0;
+            const onTrailingBlankLine = pos === el.value.length && el.value.endsWith("\n");
+            if (!onTrailingBlankLine) return;
+          }
+
           event.preventDefault();
           onSplit(blockId, event.currentTarget.selectionStart);
           return;
@@ -291,34 +306,7 @@ export function TextBlockView({
         onTextCommitted();
         flushQueuedRemoteEdits();
       }}
-      className={`w-full resize-none overflow-hidden bg-transparent px-1 py-0.5 text-ink outline-none ${textareaClass(variant)}`}
+      className={`min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-1 py-0.5 text-ink outline-none ${textareaClass(variant)}`}
     />
   );
-
-  if (variant.type === "checklist") {
-    return (
-      <div className="flex items-start gap-2">
-        <input
-          type="checkbox"
-          checked={variant.checked}
-          onChange={() => onToggleChecklist(blockId)}
-          className="mt-2 size-3 shrink-0 cursor-pointer"
-        />
-        {textarea}
-      </div>
-    );
-  }
-
-  if (variant.type === "list") {
-    return (
-      <div className="flex items-start gap-2">
-        <span className="mt-0.5 shrink-0 text-[14px] text-ink-faint select-none">
-          {variant.style === "ordered" ? `${variant.number}.` : "•"}
-        </span>
-        {textarea}
-      </div>
-    );
-  }
-
-  return textarea;
 }

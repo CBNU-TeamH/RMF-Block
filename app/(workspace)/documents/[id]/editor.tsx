@@ -3,7 +3,7 @@
 import yorkie, { type Document, type EditOpInfo } from "@yorkie-js/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { createChecklist, createList, createText } from "@/lib/blocks/create";
+import { createChecklist, createList, createQuote, createText } from "@/lib/blocks/create";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot, type StoredBlock } from "@/lib/blocks/document";
 import type { MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
 import {
@@ -38,21 +38,27 @@ function isTextBearing(
   );
 }
 
-/** What continues after this block on Enter — only list/checklist keep their
- * type (a running list stays a list); everything else's tail is plain text,
- * matching how heading already worked before this block joined it. */
+/** What continues after this block on Enter — list/checklist/quote keep
+ * their type (a running list stays a list, a quote stays a quote until an
+ * empty line exits it); everything else's tail is plain text, matching how
+ * heading already worked before these types joined it. Code never reaches
+ * this at all for its "normal" Enter (it is a literal newline within the one
+ * block, not a split) — only the exit case calls `onSplit`, and code isn't
+ * in the list below, so that tail is plain text too, which is exactly what
+ * leaving a code block means. */
 function continuationBlock(original: Block | undefined): Block {
   if (original?.type === "list") return createList(original.style, original.depth);
   if (original?.type === "checklist") return createChecklist();
+  if (original?.type === "quote") return createQuote();
   return createText();
 }
 
-function variantOf(block: Extract<Block, { text: string }>, orderedNumber: number): BlockVariant {
+function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
   switch (block.type) {
     case "heading":
       return { type: "heading", level: block.level };
     case "list":
-      return { type: "list", style: block.style, number: orderedNumber };
+      return { type: "list", style: block.style };
     case "checklist":
       return { type: "checklist", checked: block.checked };
     case "quote":
@@ -373,11 +379,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    * concurrent remote edit past `cursorPosition` would otherwise be
    * silently dropped or misplaced.
    *
-   * The new block continues the original's type for list/checklist
+   * The new block continues the original's type for list/checklist/quote
    * (`continuationBlock`) — a running list stays a list until you leave it —
-   * and pressing Enter on an *empty* list/checklist item exits back to plain
-   * text instead of splitting at all, the standard way to stop a list with
-   * no block-type menu to do it from otherwise.
+   * and pressing Enter on an *empty* list/checklist/quote item exits back to
+   * plain text instead of splitting at all, the standard way to stop one
+   * with no block-type menu to do it from otherwise.
    *
    * `BlockNotFoundError` means a peer already removed this block (their
    * merge, most likely) before this split reached it — nothing left to
@@ -398,7 +404,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
         if (
           liveText.length === 0 &&
-          (original?.type === "list" || original?.type === "checklist")
+          (original?.type === "list" || original?.type === "checklist" || original?.type === "quote")
         ) {
           changeBlockType(array, blockId, { type: "text" });
           return;
@@ -616,7 +622,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               setDraggedId(null);
               setDropIndicator(null);
             }}
-            className="absolute -left-4 top-0.5 cursor-grab text-ink-faint opacity-0 group-focus-within:opacity-100"
+            className="absolute -left-4 top-0.5 cursor-grab text-ink-faint opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
           >
             {/* A Unicode glyph (⠿ and friends) depends on the guest's font
              * having that specific block — Braille Patterns is one of the
@@ -633,21 +639,44 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
             </svg>
           </span>
           {isTextBearing(block) ? (
-            <TextBlockView
-              blockId={block.id}
-              initialText={block.text}
-              variant={variantOf(block, listNumbers[index]!)}
-              docRef={docRef}
-              registerRemoteHandler={registerRemoteHandler}
-              registerTextarea={registerTextarea}
-              onMarkdownShortcut={handleMarkdownShortcut}
-              onSplit={handleSplit}
-              onMergeWithPrevious={handleMergeWithPrevious}
-              onNavigateUp={handleNavigateUp}
-              onNavigateDown={handleNavigateDown}
-              onToggleChecklist={handleToggleChecklist}
-              onTextCommitted={ensureTrailingEmptyBlock}
-            />
+            // A fixed two-slot row, not a conditional wrapper: the marker
+            // slot is *always* a `<span>` here, present or empty, so
+            // `TextBlockView`'s own position among its siblings never
+            // shifts across a type conversion — the thing that was
+            // remounting it (and dropping focus) when the marker used to
+            // live conditionally inside `TextBlockView` itself.
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 flex size-6 shrink-0 justify-center text-[14px] text-ink-faint select-none">
+                {block.type === "checklist" ? (
+                  <input
+                    type="checkbox"
+                    checked={block.checked}
+                    onChange={() => handleToggleChecklist(block.id)}
+                    className="mt-1 size-3.5 cursor-pointer"
+                  />
+                ) : block.type === "list" ? (
+                  block.style === "ordered" ? (
+                    `${listNumbers[index]}.`
+                  ) : (
+                    "•"
+                  )
+                ) : null}
+              </span>
+              <TextBlockView
+                blockId={block.id}
+                initialText={block.text}
+                variant={variantOf(block)}
+                docRef={docRef}
+                registerRemoteHandler={registerRemoteHandler}
+                registerTextarea={registerTextarea}
+                onMarkdownShortcut={handleMarkdownShortcut}
+                onSplit={handleSplit}
+                onMergeWithPrevious={handleMergeWithPrevious}
+                onNavigateUp={handleNavigateUp}
+                onNavigateDown={handleNavigateDown}
+                onTextCommitted={ensureTrailingEmptyBlock}
+              />
+            </div>
           ) : (
             // Divider/file/image/pdf/doc-link/block-link: typed already, no
             // renderer yet — dividers are next (they need their own
