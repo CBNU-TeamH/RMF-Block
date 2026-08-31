@@ -46,41 +46,81 @@ export function ChatPanel({ me }: { me: string }) {
   const colourOf = (sender: string) =>
     members.find((member) => member.nickname === sender)?.colorTag;
 
-  const receive = useCallback((incoming: ChatMessage) => {
-    setMessages((current) =>
-      current.some((message) => message.id === incoming.id)
-        ? current
-        : [...current, incoming],
-    );
+  // One path for both sources. Backfill and the live feed overlap by design, so
+  // id is what decides what is new — and `sentAt` is what decides the order,
+  // because a reconnect can deliver an older message after a newer one.
+  const merge = useCallback((incoming: Array<ChatMessage>) => {
+    setMessages((current) => {
+      const known = new Set(current.map((message) => message.id));
+      const added = incoming.filter((message) => !known.has(message.id));
+      if (added.length === 0) return current;
+
+      return [...current, ...added].sort((a, b) => a.sentAt.localeCompare(b.sentAt));
+    });
   }, []);
+
+  const receive = useCallback(
+    (incoming: ChatMessage) => merge([incoming]),
+    [merge],
+  );
 
   useEffect(() => {
     let cancelled = false;
+    let socket: WebSocket | null = null;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let attempt = 0;
 
-    fetch("/api/chat")
-      .then((response) => (response.ok ? response.json() : []))
-      .then((history: Array<ChatMessage>) => {
-        if (!cancelled) setMessages(history);
-      })
-      .catch(() => undefined);
+    const backfill = () =>
+      fetch("/api/chat")
+        .then((response) => (response.ok ? response.json() : []))
+        .then((history: Array<ChatMessage>) => {
+          if (!cancelled) merge(history);
+        })
+        .catch(() => undefined);
 
-    const socket = new WebSocket(
-      `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}${WS_PATH}`,
-    );
-    socket.addEventListener("message", (event) => {
-      try {
-        const frame = JSON.parse(event.data as string);
-        if (frame.event === "chat:message") receive(frame.payload as ChatMessage);
-      } catch {
-        // A frame this client cannot parse is one it was not meant to read.
-      }
-    });
+    const connect = () => {
+      if (cancelled) return;
+
+      socket = new WebSocket(
+        `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}${WS_PATH}`,
+      );
+
+      // On every open, not just the first: a socket that was down missed
+      // whatever was said meanwhile, and reconnecting without asking for it
+      // leaves a hole in the history that nothing later fills.
+      socket.addEventListener("open", () => {
+        attempt = 0;
+        void backfill();
+      });
+
+      socket.addEventListener("message", (event) => {
+        try {
+          const frame = JSON.parse(event.data as string);
+          if (frame.event === "chat:message") receive(frame.payload as ChatMessage);
+        } catch {
+          // A frame this client cannot parse is one it was not meant to read.
+        }
+      });
+
+      // Without this the panel goes deaf for good on the first blip — the host
+      // restarting the container, a laptop waking up — and says nothing about
+      // it, which is worse than showing an error. Backing off because that
+      // restart is the common case, and a tight loop would hammer the server
+      // exactly while it is coming back up.
+      socket.addEventListener("close", () => {
+        if (cancelled) return;
+        retry = setTimeout(connect, Math.min(1000 * 2 ** attempt++, 15000));
+      });
+    };
+
+    connect();
 
     return () => {
       cancelled = true;
-      socket.close();
+      clearTimeout(retry);
+      socket?.close();
     };
-  }, [receive]);
+  }, [merge, receive]);
 
   // Only when already near the bottom, so reading history is not yanked away by
   // someone else's message.
