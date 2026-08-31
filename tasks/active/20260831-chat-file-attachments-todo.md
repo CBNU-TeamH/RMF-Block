@@ -111,9 +111,22 @@ Two endpoints rather than one, so neither has to branch on a stored value:
 | `preview` | **only** `image/png\|jpeg\|gif\|webp` | the stored type | `inline` |
 | `download` | anything | `application/octet-stream`, always | `attachment` |
 
-`preview` refuses everything it cannot prove is safe; `download` is safe unconditionally.
-Neither reads a stored string and decides to trust it. `filename*=UTF-8''…` is
-percent-encoded with CR/LF stripped, so a crafted name cannot inject a header.
+`download` is safe because it has no branch to get wrong — it never reads the stored type,
+so no upload can change the shape of its response, and a browser has no way to render
+`octet-stream` as a page. `preview` has to name a real type for `<img>` to work at all, so
+it is the one that needs the list, and the list is four literals rather than
+`startsWith("image/")` **because of SVG**: `image/svg+xml` is an image that can carry
+`<script>`, and served `inline` it runs.
+
+**Both responses carry `X-Content-Type-Options: nosniff`**, which is the second half and
+not optional. The stored type is whatever the uploader's client claimed, so an HTML file
+can be uploaded *as* `image/png` and pass the list. `nosniff` stops the browser
+re-deciding the type from the bytes, so it tries to draw a PNG, fails, and shows a broken
+image instead of a page. The list stops us naming a dangerous type; `nosniff` stops the
+browser overriding a safe one.
+
+`filename*=UTF-8''…` is percent-encoded with CR/LF stripped, so a crafted name cannot
+inject a header.
 
 - **Done**: an image uploads and renders through `preview`; an `.html` upload is refused by
   `preview` and downloads as an opaque attachment; an upload without a session is 401.
@@ -165,6 +178,10 @@ shapes.
 - [ ] A non-image appears as a card and downloads with its original name.
 - [ ] An uploaded `.html` cannot be made to render on our origin — `preview` refuses it and
       `download` sends it as an attachment.
+- [ ] The same `.html` uploaded *claiming* `image/png` still does not render: `preview`
+      serves it as `image/png` with `nosniff`, so the browser shows a broken image rather
+      than a page.
+- [ ] An `.svg` is refused by `preview` — the case the four-literal list exists for.
 - [ ] A file with a name like `../../etc/passwd` is stored and served without escaping
       `.data/files/`.
 - [ ] Attachments survive `docker compose down && up`.
