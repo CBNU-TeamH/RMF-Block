@@ -149,10 +149,63 @@ describe("applyGesture", () => {
     assert.deepEqual(moved, { x: 450, y: 220, width: 400, height: 300 });
   });
 
-  it("resizes without moving", () => {
-    const resized = applyGesture("resize", start, 120, 60, laptop);
+  it("widens from the right border without moving the window", () => {
+    assert.deepEqual(applyGesture("right", start, 120, 0, laptop), {
+      x: 400,
+      y: 300,
+      width: 520,
+      height: 300,
+    });
+  });
 
-    assert.deepEqual(resized, { x: 400, y: 300, width: 520, height: 360 });
+  it("widens from the left border by moving the left edge only", () => {
+    // Pulling left grows the window leftwards: x drops, width grows by the
+    // same amount, and the right edge is exactly where it was.
+    const resized = applyGesture("left", start, -120, 0, laptop);
+
+    assert.deepEqual(resized, { x: 280, y: 300, width: 520, height: 300 });
+    assert.equal(resized.x + resized.width, start.x + start.width, "right edge held");
+  });
+
+  it("holds the right edge when the left border is pushed past the minimum", () => {
+    // The bug this guards: clamping the width instead of the left edge lets the
+    // window slide right once it can get no narrower, so the border runs away
+    // from the pointer.
+    const resized = applyGesture("left", start, 9999, 0, laptop);
+
+    assert.equal(resized.width, MIN_WIDTH);
+    assert.equal(resized.x + resized.width, start.x + start.width, "right edge held");
+  });
+
+  it("holds the left edge when the right border is pushed past the minimum", () => {
+    const resized = applyGesture("right", start, -9999, 0, laptop);
+
+    assert.equal(resized.width, MIN_WIDTH);
+    assert.equal(resized.x, start.x, "left edge held");
+  });
+
+  it("grows from the bottom border down to the bar and no further", () => {
+    const resized = applyGesture("bottom", start, 0, 9999, laptop);
+
+    assert.equal(resized.y, start.y, "top edge held");
+    assert.equal(resized.y + resized.height, laptop.height - BAR_HEIGHT);
+  });
+
+  it("never moves the top edge, whichever border is dragged", () => {
+    // The top is the title bar. A border that shifted it would mean grabbing
+    // the bar and finding it somewhere else.
+    for (const kind of ["left", "right", "bottom"] as const) {
+      for (const [dx, dy] of [[9999, 9999], [-9999, -9999]]) {
+        assert.equal(applyGesture(kind, start, dx, dy, laptop).y, start.y, kind);
+      }
+    }
+  });
+
+  it("stretches a border to the viewport edge but not past it", () => {
+    const widened = applyGesture("right", start, 9999, 0, laptop);
+
+    assert.equal(widened.x + widened.width, laptop.width);
+    assert.equal(applyGesture("left", start, -9999, 0, laptop).x, 0);
   });
 
   it("measures from where the gesture began, not from the last frame", () => {

@@ -9,6 +9,7 @@ import {
   defaultFrame,
   parseFrame,
   type Frame,
+  type GestureKind,
 } from "@/lib/chat/window-frame";
 
 import { ChatPanel } from "./chat-panel";
@@ -20,6 +21,10 @@ import { ChatPanel } from "./chat-panel";
  * workspace screen is for the documents, and chat is something you pull up
  * beside them and push out of the way again. It drags and resizes for the same
  * reason — where it wants to sit depends on what is underneath it.
+ *
+ * It is driven like a desktop window: the title bar moves it, and its left,
+ * right and bottom borders resize it. There is no top border to pull, because
+ * that edge is the title bar.
  *
  * All the arithmetic — the default ninth-of-the-viewport placement, the minimum
  * size, staying reachable — is in `lib/chat/window-frame.ts` so it can be
@@ -62,11 +67,24 @@ function writeFrame(frame: Frame): void {
 }
 
 type Gesture = {
-  kind: "move" | "resize";
+  kind: GestureKind;
   pointerX: number;
   pointerY: number;
   start: Frame;
 };
+
+/**
+ * The three borders that resize the window.
+ *
+ * Invisible, and found by the cursor changing over them, exactly as a desktop
+ * window's borders are. They are wider than the 1px they sit on because a
+ * border you have to hit precisely is a border you miss.
+ */
+const BORDERS: Array<{ kind: GestureKind; className: string }> = [
+  { kind: "left", className: "top-8 bottom-0 left-0 w-1.5 cursor-ew-resize" },
+  { kind: "right", className: "top-8 right-0 bottom-0 w-1.5 cursor-ew-resize" },
+  { kind: "bottom", className: "right-0 bottom-0 left-0 h-1.5 cursor-ns-resize" },
+];
 
 export function ChatWindow({ me }: { me: string }) {
   const [open, setOpen] = useState(false);
@@ -162,13 +180,17 @@ export function ChatWindow({ me }: { me: string }) {
 
           <ChatPanel me={me} />
 
-          {/* Pointer-only, and marked as such: resizing is a drag, and there is
-              no keyboard equivalent yet. */}
-          <span
-            onPointerDown={begin("resize")}
-            aria-hidden
-            className="absolute right-0 bottom-0 size-4 cursor-nwse-resize touch-none bg-[repeating-linear-gradient(135deg,transparent_0_2px,var(--color-ink-faint)_2px_3px)]"
-          />
+          {/* Pointer-only, and marked as such: dragging a border has no keyboard
+              equivalent yet. They come after the panel so they sit above it —
+              the border must win the pointer, not the message list under it. */}
+          {BORDERS.map((border) => (
+            <span
+              key={border.kind}
+              onPointerDown={begin(border.kind)}
+              aria-hidden
+              className={`absolute touch-none ${border.className}`}
+            />
+          ))}
         </section>
       ) : null}
 

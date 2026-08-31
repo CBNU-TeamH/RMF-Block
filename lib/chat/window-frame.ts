@@ -33,6 +33,19 @@ export const BAR_HEIGHT = 40;
 export type Frame = { x: number; y: number; width: number; height: number };
 export type Viewport = { width: number; height: number };
 
+/**
+ * What a pointer drag on the window's chrome does.
+ *
+ * The resize kinds name the edge being pulled, the way a window manager does,
+ * because which edge is moving decides which one has to stay still. There are
+ * three: the top edge is the title bar and moves the window instead.
+ */
+export type GestureKind = "move" | "left" | "right" | "bottom";
+
+/** `value` held between two bounds, tolerating a `hi` below `lo`. */
+const between = (value: number, lo: number, hi: number) =>
+  Math.min(Math.max(value, lo), Math.max(lo, hi));
+
 /** Bottom right, above the bar that opened it. */
 export function defaultFrame(viewport: Viewport): Frame {
   const width = Math.max(MIN_WIDTH, Math.round(viewport.width * DEFAULT_SCALE));
@@ -75,20 +88,42 @@ export function clamp(frame: Frame, viewport: Viewport): Frame {
   };
 }
 
-/** The frame a drag or a resize produces, given how far the pointer has moved. */
+/**
+ * The frame a drag produces, given how far the pointer has moved.
+ *
+ * Resizing moves exactly one edge and must leave the other three where they
+ * were. That is why the moving edge is clamped as a position rather than the
+ * width being clamped as a size: pulling the left edge past the minimum width
+ * has to stop the left edge, and deriving the width from where it stopped is
+ * what keeps the right edge still. Clamping the width instead — the obvious
+ * way — makes the whole window slide right once it can get no narrower.
+ */
 export function applyGesture(
-  kind: "move" | "resize",
+  kind: GestureKind,
   start: Frame,
   dx: number,
   dy: number,
   viewport: Viewport,
 ): Frame {
-  return clamp(
-    kind === "move"
-      ? { ...start, x: start.x + dx, y: start.y + dy }
-      : { ...start, width: start.width + dx, height: start.height + dy },
-    viewport,
-  );
+  if (kind === "move") {
+    return clamp({ ...start, x: start.x + dx, y: start.y + dy }, viewport);
+  }
+
+  const right = start.x + start.width;
+  const bottom = start.y + start.height;
+  const floor = viewport.height - BAR_HEIGHT;
+
+  // One edge moves; `y` never does, because the top edge is the title bar.
+  switch (kind) {
+    case "left": {
+      const left = between(start.x + dx, 0, right - MIN_WIDTH);
+      return { ...start, x: left, width: right - left };
+    }
+    case "right":
+      return { ...start, width: between(right + dx, start.x + MIN_WIDTH, viewport.width) - start.x };
+    case "bottom":
+      return { ...start, height: between(bottom + dy, start.y + MIN_HEIGHT, floor) - start.y };
+  }
 }
 
 /**
