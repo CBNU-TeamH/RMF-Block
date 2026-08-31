@@ -496,8 +496,8 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           className={`group relative ${block.id === draggedId ? "opacity-50" : ""} ${
             dropIndicator?.targetId === block.id
               ? dropIndicator.before
-                ? "border-t-2 border-sky"
-                : "border-b-2 border-sky"
+                ? "border-t-2 border-sky-deep"
+                : "border-b-2 border-sky-deep"
               : ""
           }`}
           onDragOver={(event) => {
