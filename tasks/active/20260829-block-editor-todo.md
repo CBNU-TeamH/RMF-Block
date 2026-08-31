@@ -200,11 +200,26 @@ Still `text` only. Enter to split, Backspace to merge, reordering.
   after every local commit (idempotent, cheap) and appends one via the ordinary `add` path everyone
   already recomputes for. Padding/gap also tightened (16px of dead space between blocks → ~4px) and
   the focus border removed, both cosmetic.
-- **Phase B** (separate follow-up, not yet built): reorder (focused-block-only native
-  drag-and-drop, per the earlier decision) **and** ↑/↓ arrow-key cursor movement between blocks —
-  added to scope after Phase A landed; not a design decision that needs revisiting, just another
-  cross-block navigation case `elementsRef`/`registerTextarea` (built for split/merge's focus
-  handoff) already has the shape for.
+- **Shipped (Phase B — reorder + arrow-key navigation)**: `moveBlockAfter` wired to native HTML5
+  drag-and-drop, restricted to a handle visible only on the currently-focused block
+  (`group-focus-within`, pure CSS — no JS tracking "which block is focused"); every block is a
+  valid drop target, `dropsBeforeTarget` (new pure helper, `lib/blocks/reorder.ts`) resolves
+  before/after from the pointer's Y against the target's midpoint, `idBeforeInOrder` resolves the
+  actual `afterId`; wrapped in the same `BlockNotFoundError` guard split/merge use (a peer removing
+  either block mid-drag is the same race class). ↑/↓ moves focus to the adjacent block from the
+  first/last *logical* line (`\n` boundaries, not visual/wrapped ones — a documented ponytail
+  simplification); deliberately bypasses `focusBlock`/`pendingFocusRef` and reads `elementsRef`
+  directly, since that mechanism is only ever consumed because split/merge always call `setBlocks`
+  right after — arrow-nav never touches the block list, so a request routed through it would sit
+  unconsumed. Caret lands on the target's matching edge line (last line for ArrowUp, first for
+  ArrowDown), not clamped against the whole block — multi-line blocks are real once Shift+Enter is
+  in play, not just a hypothetical. Verified live: `moveBlockAfter` convergence between two clients
+  confirmed via script; a move-then-concurrent-remove race (server-side, not just app-level)
+  converges cleanly with no divergence once both sides finish syncing — the app's own
+  `BlockNotFoundError` guard is defense for the *local* replica's `doc.update()` callback, not
+  something the CRDT itself needed rescuing from. Drag-and-drop and arrow-key navigation themselves
+  are DOM/pointer interactions a script can't exercise — real-browser check is the user's own next
+  step, same gap Phase A's Strict Mode lesson already names.
 
 ### 4. Add the remaining types, one at a time
 

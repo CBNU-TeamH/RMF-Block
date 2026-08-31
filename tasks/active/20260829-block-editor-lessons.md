@@ -70,6 +70,29 @@ that the next person does not rediscover this.
   correctness here means *converges without loss*, not *deduplicates human intent* — no pure CRDT
   operation can tell that two people meant the same edit.
 
+- **A focus-handoff mechanism built for one case (a block that doesn't exist yet) doesn't
+  automatically fit a different case (a block that already exists).** `pendingFocusRef` +
+  `useEffect(..., [blocks])` only works because split/merge always call `setBlocks` right after
+  `focusBlock` — the effect needs a render to re-run, and that render is a side effect of the
+  block-list change, not something the mechanism itself causes. Arrow-key navigation never touches
+  the block list, so routing it through the same ref+effect would silently strand the request until
+  some unrelated later edit happened to fire the effect for a different reason — a bug that would
+  only show up as "arrow key sometimes doesn't focus," easy to blame on something else. Caught before
+  writing any code, during a Plan-agent validation pass that re-read the effect's own comment
+  ("refs attach during commit, strictly before effects... nothing async is actually being waited
+  for") and noticed navigation doesn't share the one thing the mechanism actually depends on.
+  Fixed by reading `elementsRef` directly and calling `.focus()` synchronously — the target block
+  is always already mounted for navigation, so the effect's whole reason to exist (wait for a
+  brand-new block to render) never applied here.
+
+- **Caret math that works for a single-line block silently breaks for a multi-line one, and
+  multi-line is real the moment Shift+Enter exists.** The first draft of ↑/↓ navigation clamped the
+  landing caret against the *whole* target block's text length. That's only correct when the target
+  has no `\n` in it — for a multi-line block, ArrowUp needs the caret on the target's *last* line
+  and ArrowDown on its *first*, each clamped against that one line's length, not the block's total.
+  Nothing about single-line testing would have caught this; it only shows up once someone
+  Shift+Enters inside a block and then arrows into it from a neighbor.
+
 ## What we would do differently
 
 - Open the milestone in an actual browser before calling it done, not after the user's first try
