@@ -10,6 +10,8 @@ import { yorkieClientConfig } from "@/lib/yorkie-address";
 
 import { SessionWatch } from "../session-watch";
 import { ChatWindow } from "./chat-window";
+import { FocusFollowProvider } from "./focus-follow-provider";
+import { FocusShare } from "./focus-share";
 import { PresenceProvider } from "./presence-provider";
 import { PresenceStack } from "./presence-stack";
 
@@ -64,51 +66,58 @@ export default async function WorkspaceLayout({
       override={yorkie.override}
       port={yorkie.port}
     >
-      <div className="flex min-h-full flex-1 flex-col bg-shell">
-        {member ? <SessionWatch /> : null}
+      <FocusFollowProvider>
+        {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
+            shell has to be exactly the viewport's height, not merely at least
+            it, or the row below never bounds `<main>` and the editor's own
+            scroll container grows to fit its blocks instead of scrolling. */}
+        <div className="flex h-full flex-1 flex-col bg-shell">
+          {member ? <SessionWatch /> : null}
 
-        <header className="flex h-11 flex-none items-center gap-3 border-b border-ink bg-paper px-4">
-          <span className="text-sm font-semibold text-ink">{workspaceName}</span>
-          <span className="flex-1" />
-          <PresenceStack memberId={me.id} />
-        </header>
+          <header className="flex h-11 flex-none items-center gap-3 border-b border-ink bg-paper px-4">
+            <span className="text-sm font-semibold text-ink">{workspaceName}</span>
+            <span className="flex-1" />
+            <FocusShare memberId={me.id} />
+            <PresenceStack memberId={me.id} />
+          </header>
 
-        <div className="flex min-h-0 flex-1">
-          <nav className="flex w-50 flex-none flex-col border-r border-ink bg-paper">
-            <div className="border-b border-ink/60 px-3 py-2 text-sm font-bold text-ink">
-              {workspaceName}
-            </div>
-            <ul className="flex flex-col gap-0.5 p-2">
-              {NAV.map((item) => (
-                <li key={item.label}>
-                  <span
-                    aria-current={item.current ? "page" : undefined}
-                    className={`flex items-center gap-2 rounded px-2.5 py-1.5 text-sm ${
-                      item.current
-                        ? "bg-sky-soft font-bold text-ink"
-                        : "text-ink-faint line-through decoration-ink-faint/50"
-                    }`}
-                  >
-                    <span aria-hidden>{item.icon}</span>
-                    {item.label}
-                    {/* `aria-disabled` on a bare span is a no-op — the attribute
-                        only means anything on a role that has a disabled state.
-                        The strikethrough says "not yet" to sighted readers; this
-                        says it to everyone else. */}
-                    {item.current ? null : <span className="sr-only">(준비 중)</span>}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          <div className="flex min-h-0 flex-1">
+            <nav className="flex w-50 flex-none flex-col border-r border-ink bg-paper">
+              <div className="border-b border-ink/60 px-3 py-2 text-sm font-bold text-ink">
+                {workspaceName}
+              </div>
+              <ul className="flex flex-col gap-0.5 p-2">
+                {NAV.map((item) => (
+                  <li key={item.label}>
+                    <span
+                      aria-current={item.current ? "page" : undefined}
+                      className={`flex items-center gap-2 rounded px-2.5 py-1.5 text-sm ${
+                        item.current
+                          ? "bg-sky-soft font-bold text-ink"
+                          : "text-ink-faint line-through decoration-ink-faint/50"
+                      }`}
+                    >
+                      <span aria-hidden>{item.icon}</span>
+                      {item.label}
+                      {/* `aria-disabled` on a bare span is a no-op — the attribute
+                          only means anything on a role that has a disabled state.
+                          The strikethrough says "not yet" to sighted readers; this
+                          says it to everyone else. */}
+                      {item.current ? null : <span className="sr-only">(준비 중)</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </nav>
 
-          <main className="min-w-0 flex-1 overflow-hidden bg-paper px-8 py-7">{children}</main>
+            <main className="min-w-0 flex-1 overflow-hidden bg-paper px-8 py-7">{children}</main>
+          </div>
+
+          {/* Outside the row, and `fixed` — it floats over the shell rather than
+              taking a column from it. */}
+          <ChatWindow me={me.nickname} />
         </div>
-
-        {/* Outside the row, and `fixed` — it floats over the shell rather than
-            taking a column from it. */}
-        <ChatWindow me={me.nickname} />
-      </div>
+      </FocusFollowProvider>
     </PresenceProvider>
   );
 }

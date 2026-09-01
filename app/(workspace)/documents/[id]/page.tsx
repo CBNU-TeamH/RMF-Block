@@ -21,7 +21,7 @@ export default async function DocumentPage({
   if (!document) notFound();
 
   return (
-    <div className="flex h-full flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       <h1 className="text-[22px] font-bold text-ink">{document.name}</h1>
       {/* Keyed by the document it is showing, so opening a different one
        * gets a fresh editor rather than the same instance with the previous

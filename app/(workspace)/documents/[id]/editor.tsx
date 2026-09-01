@@ -17,13 +17,31 @@ import {
   type BlockArray,
 } from "@/lib/blocks/operations";
 import { orderedListNumbers } from "@/lib/blocks/list-numbering";
-import { dropsBeforeTarget, idAfterInOrder, idBeforeInOrder } from "@/lib/blocks/reorder";
+import {
+  dropDestination,
+  dropsBeforeTarget,
+  idAfterInOrder,
+  idBeforeInOrder,
+} from "@/lib/blocks/reorder";
 import { blockIndexFromEditPath } from "@/lib/blocks/text-surface";
 import type { Block, BlockId } from "@/lib/blocks/types";
+import { anchorAt, scrollTopFor, type FocusAnchor } from "@/lib/focus/anchor";
+import { readBoxes } from "@/lib/focus/dom";
 
+import { useFocusFollow } from "../../focus-follow-provider";
 import { useWorkspacePresence } from "../../presence-provider";
 import { PdfBlockView } from "./pdf-block";
 import { TextBlockView, type BlockVariant } from "./text-block";
+
+/**
+ * How often a presenter's anchor may go out over presence, at most.
+ *
+ * ponytail: a plain interval, no easing or adaptive cadence. 10 a second is
+ * well under what a follower can perceive as lag — their side scrolls
+ * smoothly between anchors anyway — and it is 6x fewer writes than the
+ * display's frame rate. Lower it if following ever reads as steppy.
+ */
+const PUBLISH_MS = 100;
 
 /** The six types that edit through `TextBlockView`'s one `<textarea>`. */
 function isTextBearing(
@@ -93,7 +111,8 @@ function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
  * change.
  */
 export function DocumentEditor({ documentId }: { documentId: string }) {
-  const { client } = useWorkspacePresence();
+  const { client, members, isPresenting, setPresenting } = useWorkspacePresence();
+  const { followingId } = useFocusFollow();
   const [blocks, setBlocks] = useState<Array<Block> | null>(null);
   const [failed, setFailed] = useState(false);
   // The block currently being dragged — opacity feedback only, cleared on
@@ -125,6 +144,24 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
   const docRef = useRef<Document<BlockDocumentRoot> | null>(null);
   const handlersRef = useRef(new Map<BlockId, (op: EditOpInfo) => void>());
+  // The scroll container from the render below (`data-focus-scroll`) — read
+  // by both the presenter effect (this browser's own scroll → published
+  // anchor) and the follower effect (a followed anchor → `scrollTo`).
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  // The last `FocusAnchor` this browser published while presenting. Not
+  // `blocks` state — it exists purely to satisfy "only publish when the
+  // anchor actually changed" without recomputing what was last sent from
+  // presence itself.
+  const lastPublishedAnchorRef = useRef<FocusAnchor | null>(null);
+  // The last scroll target this browser *commanded* while following, so an
+  // unchanged target is never re-issued. `scrollTo({ behavior: "smooth" })`
+  // aborts an in-flight smooth scroll and restarts its easing curve from
+  // wherever it had reached, so re-issuing the same target faster than the
+  // animation completes leaves the follower creeping and never arriving —
+  // measured as "it just doesn't follow" with the effect firing correctly
+  // every time. Not `scrollTop`: that reads where the animation *is*, not
+  // where it was told to go.
+  const lastScrolledToRef = useRef<number | null>(null);
   // Chains one run's full teardown (unsubscribe + detach) in front of the
   // next run's attach(). React's Strict Mode double-invokes this effect on
   // mount (dev only) — mount → cleanup → mount, synchronously — which would
@@ -285,6 +322,162 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       teardownRef.current = teardown;
     };
   }, [client, documentId]);
+
+  // Whether the editor has finished loading, as a value that changes once
+  // rather than on every recompute — see the presenter effect's own note.
+  const blocksLoaded = blocks !== null;
+
+  // The followed member's anchor, pulled apart into primitives. The effects
+  // below depend on these rather than on `members`, which `rosterFrom`
+  // rebuilds on every presence event: an anchor that has not moved should not
+  // re-run anything. Same lesson `presence-provider.tsx`'s header already
+  // records for its own connection effect ("a fresh object every render would
+  // give the effect a new dependency every render").
+  const followed = followingId
+    ? (members.find((m) => m.id === followingId)?.presenting ?? null)
+    : null;
+  const followedDocumentId = followed?.documentId ?? null;
+  const followedBlockId = followed?.blockId ?? null;
+  const followedRatio = followed?.ratio ?? null;
+
+  // Presenter side (FR-030-07): while this browser is presenting, publish
+  // this scroller's anchor as it moves. `isPresenting` is `presence-provider
+  // .tsx`'s own local state, set synchronously by `setPresenting` — not read
+  // back off `members` (this browser's own row echoed through Yorkie's
+  // `'my-presence'` channel), because every publish below would then change
+  // `members` and re-run this very effect: tear down the scroll listener,
+  // publish once up front again, re-attach — churn that can drop a native
+  // `scroll` event landing in the gap. See presence-provider.tsx's
+  // `isPresenting` doc comment.
+  //
+  // Throttled to one publish per `PUBLISH_MS`, trailing edge included, and
+  // skipped when the anchor has not actually changed.
+  useEffect(() => {
+    if (!isPresenting) {
+      lastPublishedAnchorRef.current = null;
+      return;
+    }
+
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let publishedAt = 0;
+
+    const publish = () => {
+      timer = null;
+      const anchor = anchorAt(readBoxes(container), container.scrollTop);
+      if (!anchor) return;
+
+      const last = lastPublishedAnchorRef.current;
+      if (last && last.blockId === anchor.blockId && last.ratio === anchor.ratio) {
+        return;
+      }
+
+      lastPublishedAnchorRef.current = anchor;
+      publishedAt = Date.now();
+      setPresenting({ documentId, blockId: anchor.blockId, ratio: anchor.ratio });
+    };
+
+    // A wall-clock bound, not `requestAnimationFrame`: rAF bounds this to the
+    // display's refresh rate, which is not a network cadence. Blocks are
+    // short, so a scroll moves the anchor onto a *different block* every
+    // couple of frames — the "has it changed?" check above passes almost
+    // every time and ~60 presence writes a second go out, each one landing on
+    // every follower as a re-render and a restarted smooth scroll.
+    //
+    // A pending timer is left alone rather than pushed back: it reads
+    // `scrollTop` live when it fires, so it always publishes the newest
+    // position, and it is the trailing edge — the last scroll of a gesture
+    // schedules it, so the final resting position is never left unpublished.
+    const onScroll = () => {
+      if (timer !== null) return;
+      timer = setTimeout(publish, Math.max(0, PUBLISH_MS - (Date.now() - publishedAt)));
+    };
+
+    // Published once up front too, not only on the next scroll — otherwise
+    // starting a share (or presenting into a freshly opened document) would
+    // leave the previous anchor standing until this browser's next scroll.
+    onScroll();
+
+    container.addEventListener("scroll", onScroll);
+    return () => {
+      container.removeEventListener("scroll", onScroll);
+      if (timer !== null) clearTimeout(timer);
+    };
+    // `blocksLoaded`, a boolean that flips once — never `blocks` itself.
+    // The container does not exist while `blocks` is still `null`, so this
+    // effect needs one more chance once loading finishes; but `blocks` is a
+    // fresh array on every recompute, and depending on it tore the scroll
+    // listener down and rebuilt it continuously. A native `scroll` event
+    // landing in that gap is dropped, which is what made following work
+    // sometimes and not others. Nothing in here reads `blocks` anyway —
+    // `readBoxes` measures the live DOM at publish time.
+  }, [isPresenting, documentId, setPresenting, blocksLoaded]);
+
+  // Follower side (FR-030-05/07): once joined (`followingId` set by
+  // `FocusShare`) and looking at the same document the presenter is in
+  // (cross-document navigation is `focus-follow-provider.tsx`'s job, not
+  // this component's — it has to run even when no editor is mounted at
+  // all), scroll to match every time the presenter's anchor changes.
+  //
+  // `blocks` is a dependency too, not just the presenter's own anchor:
+  // a third person inserting blocks above the presenter moves every
+  // `BlockBox`'s `top` without the anchor's `blockId`/`ratio` changing at
+  // all, and only recomputing `scrollTopFor` against fresh boxes keeps the
+  // follower on the same content through that (see the acceptance list).
+  useEffect(() => {
+    // Nothing to follow right now — not following anyone, the presenter has
+    // no anchor yet, or they are in a different document. Forget the last
+    // commanded position along with it: it exists only to stop the *same*
+    // target being re-issued, and holding it across a pause would swallow
+    // the first scroll after rejoining a presenter who never moved.
+    if (
+      !followingId ||
+      followedBlockId === null ||
+      followedRatio === null ||
+      followedDocumentId !== documentId
+    ) {
+      lastScrolledToRef.current = null;
+      return;
+    }
+
+    const container = scrollContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const top = scrollTopFor(readBoxes(container), {
+      blockId: followedBlockId,
+      ratio: followedRatio,
+    });
+    // `null` means the anchor's block is gone — hold the current position
+    // rather than jump anywhere, per `scrollTopFor`'s own documented contract.
+    if (top === null) return;
+
+    // Never re-issue a target already commanded: see `lastScrolledToRef`.
+    // A pixel of slack because `top` is a float off live layout and a block's
+    // height can wobble by sub-pixels between recomputes.
+    const last = lastScrolledToRef.current;
+    if (last !== null && Math.abs(top - last) <= 1) {
+      return;
+    }
+
+    lastScrolledToRef.current = top;
+    container.scrollTo({ top, behavior: "smooth" });
+    // `blocks` stays a dependency on purpose, unlike the presenter effect
+    // above: a third person inserting blocks above the presenter moves every
+    // box's `top` without the anchor's own `blockId`/`ratio` changing at all,
+    // and only recomputing against fresh boxes keeps the follower on the same
+    // content through that (it is in the acceptance list).
+  }, [
+    followingId,
+    followedDocumentId,
+    followedBlockId,
+    followedRatio,
+    documentId,
+    blocks,
+  ]);
 
   /**
    * A block's *live* text by id, read straight off the document rather than
@@ -679,15 +872,20 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    * id carried as the browser's own transfer data rather than component
    * state, since `dragstart` and `drop` can fire on different renders.
    *
-   * `afterId` resolves "insert before/after `targetId`" the same way merge
-   * resolves "the previous block" — off `blocks` state's order, which is
-   * reliable for order even though its `text` fields go stale
-   * (`liveTextOf`'s own comment). Two no-ops guarded explicitly: dropping a
-   * block onto itself, and a drop that resolves to the position the block
-   * is already in — without the second, dropping back onto its own current
-   * neighbor still calls `moveBlockAfter` for no actual change.
+   * Where the block lands is `dropDestination`'s call, not this function's —
+   * the same call the insertion line is drawn from, so the line and the drop
+   * can never disagree about whether a position is real.
+   *
+   * `forcedBefore` is for callers that are not the target block itself: the
+   * footer under the document drops at the end, and deriving "before or
+   * after?" from *its* rect would answer about the footer, not about the
+   * block.
    */
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>, targetId: BlockId) => {
+  const handleDrop = (
+    event: React.DragEvent<HTMLDivElement>,
+    targetId: BlockId,
+    forcedBefore?: boolean,
+  ) => {
     event.preventDefault();
     // A drop on a block also reaches the container below it, which is where a
     // drop into the empty space under the document is handled. Only one of the
@@ -702,7 +900,8 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
     const order = blocks.map((b) => b.id);
     const rect = event.currentTarget.getBoundingClientRect();
-    const before = dropsBeforeTarget(event.clientY, rect.top, rect.height);
+    const before =
+      forcedBefore ?? dropsBeforeTarget(event.clientY, rect.top, rect.height);
 
     // A drag from the desktop carries files; a drag from the drag handle
     // carries a block id. Same event, same handler, one branch — the file case
@@ -714,16 +913,14 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       return;
     }
 
-    if (!draggedBlockId || draggedBlockId === targetId) return;
+    if (!draggedBlockId) return;
 
-    const afterId = before ? idBeforeInOrder(order, targetId) : targetId;
-
-    const currentAfterId = idBeforeInOrder(order, draggedBlockId);
-    if (afterId === draggedBlockId || afterId === currentAfterId) return;
+    const destination = dropDestination(order, draggedBlockId, targetId, before);
+    if (!destination) return;
 
     try {
       doc.update((root: BlockDocumentRoot) => {
-        moveBlockAfter(root.blocks as BlockArray, afterId, draggedBlockId);
+        moveBlockAfter(root.blocks as BlockArray, destination.afterId, draggedBlockId);
       });
     } catch (error) {
       if (error instanceof BlockNotFoundError) return;
@@ -742,6 +939,30 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   }
 
   const listNumbers = orderedListNumbers(blocks);
+  const order = blocks.map((b) => b.id);
+  const lastBlockId = order[order.length - 1] ?? null;
+
+  /**
+   * Draw the insertion line — but only where a drop would actually land the
+   * block somewhere, which is `dropDestination`'s answer, the very one
+   * `handleDrop` acts on. A line over a position the drop declines is the
+   * whole complaint: it says "here" and releasing does nothing.
+   *
+   * A file drag has no `draggedId`, and for it every position is a real
+   * insertion point — a new block goes in wherever the pointer is — so it
+   * always draws.
+   */
+  const showIndicator = (targetId: BlockId, before: boolean) => {
+    const next =
+      draggedId === null || dropDestination(order, draggedId, targetId, before)
+        ? { targetId, before }
+        : null;
+    setDropIndicator((current) =>
+      current?.targetId === next?.targetId && current?.before === next?.before
+        ? current
+        : next,
+    );
+  };
 
   return (
     // The whole editor is a drop target, not only the blocks in it: a document
@@ -749,12 +970,35 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     // space is where a file naturally gets dropped. A drop that lands on a
     // block stops there (`handleDrop`) and lands at the pointer instead.
     <div
-      className="flex min-h-0 flex-1 flex-col"
+      ref={scrollContainerRef}
+      data-focus-scroll
+      // `relative` so this container — not some further-out ancestor —
+      // becomes each block's `offsetParent`: `lib/focus/dom.ts`'s
+      // `readBoxes` reads `offsetTop` and needs it in this element's own
+      // coordinate space, the same one `scrollTop` is measured in.
+      //
+      // `-ml-4 pl-4` is one thing, not two: it bleeds the container 16px left
+      // into `<main>`'s `px-8` and gives that width straight back as padding,
+      // so the blocks stay exactly where they were while the box that clips
+      // them grows to cover the drag handle at `-left-4`. Needed because
+      // `overflow-y-auto` clips *both* axes — per CSS, a non-`visible`
+      // overflow on one axis computes the other's `visible` to `auto` — and
+      // the handle sits outside the block's own left edge. Delete either half
+      // and the handle silently disappears again: it starts at `opacity-0`,
+      // so nothing errors, it just never shows on hover.
+      className="relative -ml-4 flex min-h-0 flex-1 flex-col overflow-y-auto pl-4"
       onDragOver={(event) => {
-        // Only for files. Calling `preventDefault` for everything would make
-        // this a valid drop target for a block being reordered too, and a
-        // block dropped here would silently do nothing.
-        if (event.dataTransfer.types.includes("Files")) event.preventDefault();
+        if (event.dataTransfer.types.includes("Files")) {
+          event.preventDefault();
+          return;
+        }
+        // A block drag reaching the container has passed every block and the
+        // footer without being claimed — the pointer is in the padding strip
+        // beside the blocks, where there is nothing to drop onto. No
+        // `preventDefault`, so the browser shows "no drop"; the line goes too,
+        // rather than being left over the last block crossed, promising a
+        // landing spot the release would not honour.
+        setDropIndicator(null);
       }}
       onDrop={(event) => {
         const files = droppedFiles(event);
@@ -770,6 +1014,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         // no JS state tracking "which block is focused" needed.
         <div
           key={block.id}
+          data-block-id={block.id}
           className={`group relative ${
             block.id === draggedId ? "rounded-md bg-paper-2 opacity-50" : ""
           } ${
@@ -781,13 +1026,12 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           }`}
           onDragOver={(event) => {
             event.preventDefault();
+            // The container below also listens, to notice the pointer
+            // sitting somewhere no block is. This *is* a block, so it
+            // answers for itself.
+            event.stopPropagation();
             const rect = event.currentTarget.getBoundingClientRect();
-            const before = dropsBeforeTarget(event.clientY, rect.top, rect.height);
-            setDropIndicator((current) =>
-              current?.targetId === block.id && current.before === before
-                ? current
-                : { targetId: block.id, before },
-            );
+            showIndicator(block.id, dropsBeforeTarget(event.clientY, rect.top, rect.height));
           }}
           onDrop={(event) => handleDrop(event, block.id)}
         >
@@ -875,7 +1119,26 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
        * button sitting where the new block will appear is less surprising
        * than a toolbar. It also gives the empty half of the page something
        * to say — a drop target nobody can see is a feature nobody finds. */}
-      <div className="mt-3 flex flex-1 flex-wrap items-center gap-2 pt-1">
+      <div
+        className="mt-3 flex flex-1 flex-wrap items-center gap-2 pt-1"
+        // This div is `flex-1`: it *is* the empty space under the document,
+        // which is exactly where a block gets dragged when the intent is
+        // "put it at the end". Before, nothing here claimed the drop, so the
+        // browser refused it while the line drawn over the last block crossed
+        // stayed on screen. Files are left to bubble to the container, which
+        // already appends them.
+        onDragOver={(event) => {
+          if (event.dataTransfer.types.includes("Files")) return;
+          if (lastBlockId === null) return;
+          event.preventDefault();
+          event.stopPropagation();
+          showIndicator(lastBlockId, false);
+        }}
+        onDrop={(event) => {
+          if (lastBlockId === null || droppedFiles(event).length > 0) return;
+          handleDrop(event, lastBlockId, false);
+        }}
+      >
         <label
           className={`rounded-md border border-ink bg-paper-2 px-2.5 py-1 text-[11px] font-semibold text-ink ${
             uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-sky-soft"

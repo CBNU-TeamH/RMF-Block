@@ -1,7 +1,15 @@
 "use client";
 
-import yorkie, { type Client } from "@yorkie-js/sdk";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import yorkie, { type Client, type Document } from "@yorkie-js/sdk";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { rosterFrom } from "@/lib/presence/roster";
 import { WORKSPACE_DOC_KEY, type WorkspacePresence } from "@/lib/presence/types";
@@ -18,12 +26,43 @@ export type PresenceState = {
   members: Array<WorkspacePresence>;
   /** Non-null exactly when `status` is `"active"`; callers check this, not status. */
   client: Client | null;
+  /** This browser's own id — a prop on `PresenceProvider` already, exposed
+   * here too so a consumer that only has the context (`editor.tsx`'s
+   * presenter/follower logic) can pick its own row out of `members` without
+   * a second prop threaded down just for that. */
+  memberId: string;
+  /**
+   * Whether THIS browser is presenting. Local state, set synchronously by
+   * `setPresenting` below — not derived from reading this browser's own row
+   * back out of `members`. That row is real (subscribing to `'my-presence'`
+   * is a correct, separate fix, see this component's own note below) but it
+   * echoes through the same `doc.update()` this browser just made, which
+   * means using it here would make `members` change on every one of this
+   * browser's own presence publishes — exactly the loop that made the
+   * presenter's scroll-publish effect in `editor.tsx` tear down and rebuild
+   * its scroll listener on every scroll while presenting. `followingId` in
+   * `focus-follow-provider.tsx` already made this call for "who am I
+   * following"; "am I presenting" is the same kind of fact.
+   */
+  isPresenting: boolean;
+  /**
+   * Publishes (or, with `null`, clears) this browser's own `presenting`
+   * anchor on the workspace presence document — see `WorkspacePresence` in
+   * `lib/presence/types.ts` for why `null` and not `undefined` ends a share.
+   * A no-op before the document has attached, same as `client` being `null`
+   * before `status` is `"active"`: a caller racing ahead of attach should not
+   * crash the app, it should just have nothing to publish yet.
+   */
+  setPresenting: (presenting: WorkspacePresence["presenting"]) => void;
 };
 
 const PresenceContext = createContext<PresenceState>({
   status: "connecting",
   members: [],
   client: null,
+  memberId: "",
+  isPresenting: false,
+  setPresenting: () => undefined,
 });
 
 /** Read the workspace roster. Every consumer shares one Yorkie connection. */
@@ -103,6 +142,11 @@ export function PresenceProvider({
   const [status, setStatus] = useState<PresenceState["status"]>("connecting");
   const [members, setMembers] = useState<Array<WorkspacePresence>>([]);
   const [client, setClient] = useState<Client | null>(null);
+  const [isPresenting, setIsPresenting] = useState(false);
+  // A ref, not state: the document itself is never rendered, only used from
+  // inside `setPresenting` below, so putting it in state would just be an
+  // extra render on every attach for nothing render-related.
+  const docRef = useRef<Document<Record<string, never>, WorkspacePresence> | null>(null);
 
   useEffect(() => {
     // Resolved in here, not in render: `window` does not exist while this
@@ -114,9 +158,15 @@ export function PresenceProvider({
     const doc = new yorkie.Document<Record<string, never>, WorkspacePresence>(
       WORKSPACE_DOC_KEY,
     );
+    // Stashed for `setPresenting` below, which runs outside this closure —
+    // set as soon as `doc` exists rather than only after attach, since
+    // `setPresenting` already no-ops on a `null` ref and does not need a
+    // second "is it attached" check to stay safe.
+    docRef.current = doc;
 
     let cancelled = false;
-    let unsubscribe: (() => void) | undefined;
+    let unsubscribeOthers: (() => void) | undefined;
+    let unsubscribeMine: (() => void) | undefined;
 
     // Yorkie counts clients; the list shows people. `rosterFrom` is where the
     // two are reconciled, and it lives in `lib/` so that rule is tested without
@@ -136,8 +186,16 @@ export function PresenceProvider({
 
       // Subscribed before the first read so an arrival between the two is not
       // missed. `others` covers all three of watched, unwatched, and a peer
-      // changing their own presence.
-      unsubscribe = doc.subscribe("others", readRoster);
+      // changing their own presence. It does not cover this browser's own —
+      // Yorkie routes a client's own presence changes through a separate
+      // `my-presence` channel, so without subscribing to that too, this
+      // browser's own `setPresenting` (`FocusShare`'s share/end buttons) would
+      // publish correctly for everyone else and never update `members` here,
+      // leaving its own header stuck showing the share as never having
+      // started. Found by testing the presenter's own button, not by reading
+      // the SDK first.
+      unsubscribeOthers = doc.subscribe("others", readRoster);
+      unsubscribeMine = doc.subscribe("my-presence", readRoster);
       setStatus("active");
       setClient(client);
       readRoster();
@@ -163,18 +221,34 @@ export function PresenceProvider({
       // a no-op while the client is still activating, so the chain went on to
       // attach behind the cleanup's back.
       void setup.finally(() => {
-        unsubscribe?.();
+        unsubscribeOthers?.();
+        unsubscribeMine?.();
         // Detaches every document this client holds, which is what tells the
         // other browsers to drop this member — including any content document
         // the block editor attached through it.
         client.deactivate().catch(() => undefined);
       });
+      // Nothing after this effect re-runs should still be able to publish
+      // through a document this browser has (or is about to have) detached.
+      docRef.current = null;
     };
   }, [memberId, nickname, colorTag, override, port]);
 
+  // Stable across renders — it only ever reads `docRef.current`, so it needs
+  // no dependency on `client`/`status`/props the way the effect above does.
+  const setPresenting = useCallback((presenting: WorkspacePresence["presenting"]) => {
+    const doc = docRef.current;
+    if (!doc) return;
+
+    doc.update((_root, presence) => {
+      presence.set({ presenting });
+    });
+    setIsPresenting(presenting != null);
+  }, []);
+
   const value = useMemo<PresenceState>(
-    () => ({ status, members, client }),
-    [status, members, client],
+    () => ({ status, members, client, memberId, isPresenting, setPresenting }),
+    [status, members, client, memberId, isPresenting, setPresenting],
   );
 
   return <PresenceContext.Provider value={value}>{children}</PresenceContext.Provider>;
