@@ -9,6 +9,7 @@ import { getWorkspaceName } from "@/lib/workspace-config";
 import { yorkieClientConfig } from "@/lib/yorkie-address";
 
 import { SessionWatch } from "../session-watch";
+import { ChatWindow } from "./chat-window";
 import { PresenceProvider } from "./presence-provider";
 import { PresenceStack } from "./presence-stack";
 
@@ -103,6 +104,10 @@ export default async function WorkspaceLayout({
 
           <main className="min-w-0 flex-1 overflow-hidden bg-paper px-8 py-7">{children}</main>
         </div>
+
+        {/* Outside the row, and `fixed` — it floats over the shell rather than
+            taking a column from it. */}
+        <ChatWindow me={me.nickname} />
       </div>
     </PresenceProvider>
   );

@@ -1,6 +1,6 @@
 # API Design — Endpoint Catalog
 
-- **Status**: Draft. Endpoints only — no request/response schemas yet. Shipped so far: `/api/auth/host` (as a simplified interim `GET` + query param, not the `POST` below — see `app/api/auth/host/route.ts`), `/api/chat`, and `/api/workspace/join`. Every other row below is target design, not yet built.
+- **Status**: Draft. Endpoints only — no request/response schemas yet. Shipped so far: `/api/auth/host` (as a simplified interim `GET` + query param, not the `POST` below — see `app/api/auth/host/route.ts`), `/api/workspace/join`, `/api/chat`, `/api/chat/files`, `/api/files/:id/preview`, `/api/files/:id/download`, plus two endpoints this catalogue does not list because they are not client-facing: `/api/auth/yorkie-token` (issues a per-session token) and `/api/internal/yorkie/auth` (the webhook Yorkie itself calls). Every other row below is target design, not yet built.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(b); [`docs/adr/002-persistence-on-yorkie-mongo.md`](../adr/002-persistence-on-yorkie-mongo.md); [`docs/SRS-ko.md`](../SRS-ko.md) §3.2, §3.3
 
 ## Scope
@@ -87,6 +87,43 @@ Tree mutations are relayed to other clients over the workspace WebSocket (§4), 
 | `GET` | `/api/files/:id/download` | Download the original bytes | guest | FR-050-04, FR-061-04, FR-080-05 |
 
 File bytes never travel through Yorkie — blocks carry only a `fileId` reference (`document-editing.md` §8~10), so every read of actual content lands here.
+
+Bytes live at `.data/files/<fileId>` and metadata in `.data/files/index.json`. **The id is the
+filename on disk, never the uploaded name** — a name is attacker-controlled and `../../` is a
+valid string. One store is shared with document files (FR-022-13/14) when those land, with an
+`origin` field recording which; FR-050-06 and FR-061-01 are queries over it.
+
+#### Why preview and download are two endpoints
+
+Hosting user bytes on the app's own origin has one serious failure mode: **a file the browser
+treats as active content**. An uploaded `.html` echoed back as `text/html` executes *in this
+origin*, where the session cookie lives.
+
+Blocking extensions at upload does not fix it — `.exe` is harmless at rest, `.html` renamed to
+`.txt` slips through, and a blacklist has to stay right forever. The decision belongs where it
+is decidable: **at serving time, from server-held state.** Two endpoints, so neither has to
+branch on a stored value:
+
+| | serves | `Content-Type` | `Content-Disposition` |
+| --- | --- | --- | --- |
+| `preview` | **only** `image/png\|jpeg\|gif\|webp` | the stored type | `inline` |
+| `download` | anything | `application/octet-stream`, always | `attachment` |
+
+`download` is safe because it has no branch to get wrong: it never reads the stored type, so no
+upload can change the shape of its response, and a browser cannot render `octet-stream` as a
+page. `preview` must name a real type for `<img>` to work, so it is the one that needs a list —
+and the list is four literals rather than `startsWith("image/")` **because of SVG**:
+`image/svg+xml` is an image that can carry `<script>`, and served `inline` it runs.
+
+**Both responses carry `X-Content-Type-Options: nosniff`**, which is the other half. The stored
+type is whatever the uploading client claimed, so an HTML file can be uploaded *as* `image/png`
+and pass the list; `nosniff` stops the browser re-deciding from the bytes, so it tries to draw a
+PNG, fails, and shows a broken image instead of a page. The list stops the server naming a
+dangerous type; `nosniff` stops the browser overriding a safe one.
+
+`filename*=UTF-8''…` is percent-encoded with CR/LF stripped, so a crafted name cannot inject a
+header. This rule is [wafflebase](https://github.com/wafflebase/wafflebase)'s
+`generic-file-upload.md`, which hit the problem first.
 
 ### Chat
 
