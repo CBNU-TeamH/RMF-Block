@@ -943,7 +943,17 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       // becomes each block's `offsetParent`: `lib/focus/dom.ts`'s
       // `readBoxes` reads `offsetTop` and needs it in this element's own
       // coordinate space, the same one `scrollTop` is measured in.
-      className="relative flex min-h-0 flex-1 flex-col overflow-y-auto"
+      //
+      // `-ml-4 pl-4` is one thing, not two: it bleeds the container 16px left
+      // into `<main>`'s `px-8` and gives that width straight back as padding,
+      // so the blocks stay exactly where they were while the box that clips
+      // them grows to cover the drag handle at `-left-4`. Needed because
+      // `overflow-y-auto` clips *both* axes — per CSS, a non-`visible`
+      // overflow on one axis computes the other's `visible` to `auto` — and
+      // the handle sits outside the block's own left edge. Delete either half
+      // and the handle silently disappears again: it starts at `opacity-0`,
+      // so nothing errors, it just never shows on hover.
+      className="relative -ml-4 flex min-h-0 flex-1 flex-col overflow-y-auto pl-4"
       onDragOver={(event) => {
         // Only for files. Calling `preventDefault` for everything would make
         // this a valid drop target for a block being reordered too, and a
