@@ -3,8 +3,8 @@ import { describe, it } from "node:test";
 
 import {
   attachmentHeaders,
-  inlineImageHeaders,
-  isInlineImageType,
+  inlineHeaders,
+  isInlineType,
 } from "./serving.ts";
 
 /**
@@ -13,18 +13,24 @@ import {
  * rather than as the happy path.
  */
 
-describe("isInlineImageType", () => {
-  it("allows the four types a browser draws and cannot script", () => {
+describe("isInlineType", () => {
+  it("allows the four image types a browser draws and cannot script", () => {
     for (const type of ["image/png", "image/jpeg", "image/gif", "image/webp"]) {
-      assert.equal(isInlineImageType(type), true, type);
+      assert.equal(isInlineType(type), true, type);
     }
+  });
+
+  it("allows PDF, which the browser renders in a viewer of its own", () => {
+    // The PDF block's `<iframe>` (FR-080-01~03). Unlike an SVG's, a PDF's
+    // scripting runs in the browser's viewer rather than in this origin.
+    assert.equal(isInlineType("application/pdf"), true);
   });
 
   it("refuses SVG — an image that can carry a script", () => {
     // The whole reason this is a list of literals instead of
     // `startsWith("image/")`. An `<svg>` with a `<script>` inside runs when it
     // is served inline.
-    assert.equal(isInlineImageType("image/svg+xml"), false);
+    assert.equal(isInlineType("image/svg+xml"), false);
   });
 
   it("refuses the types that would execute", () => {
@@ -33,9 +39,8 @@ describe("isInlineImageType", () => {
       "application/xhtml+xml",
       "text/javascript",
       "application/javascript",
-      "application/pdf",
     ]) {
-      assert.equal(isInlineImageType(type), false, type);
+      assert.equal(isInlineType(type), false, type);
     }
   });
 
@@ -45,13 +50,14 @@ describe("isInlineImageType", () => {
       "image/pngx",
       " image/png",
       "IMAGE/PNG",
+      "application/pdfx",
     ]) {
-      assert.equal(isInlineImageType(type), false, type);
+      assert.equal(isInlineType(type), false, type);
     }
   });
 
   it("refuses an empty or missing type", () => {
-    assert.equal(isInlineImageType(""), false);
+    assert.equal(isInlineType(""), false);
   });
 });
 
@@ -108,12 +114,28 @@ describe("attachmentHeaders", () => {
   });
 });
 
-describe("inlineImageHeaders", () => {
-  it("serves the image inline under its own type", () => {
-    const headers = inlineImageHeaders("image/png");
+describe("inlineHeaders", () => {
+  it("serves the file inline under its own type", () => {
+    const headers = inlineHeaders("image/png", "shot.png");
 
     assert.equal(headers.get("Content-Type"), "image/png");
-    assert.equal(headers.get("Content-Disposition"), "inline");
+    assert.match(headers.get("Content-Disposition")!, /^inline;/);
+  });
+
+  it("carries the original name, so the viewer's Save button uses it", () => {
+    assert.equal(
+      inlineHeaders("application/pdf", "보고서 (최종).pdf").get("Content-Disposition"),
+      `inline; filename*=UTF-8''${encodeURIComponent("보고서 (최종).pdf")}`,
+    );
+  });
+
+  it("cannot be made to inject a response header either", () => {
+    const header = inlineHeaders("application/pdf", "a.pdf\r\nSet-Cookie: stolen=1").get(
+      "Content-Disposition",
+    )!;
+
+    assert.equal(header.includes("\r"), false, "no carriage return survives");
+    assert.equal(header.includes("\n"), false, "no line feed survives");
   });
 });
 
@@ -122,12 +144,15 @@ describe("every file response", () => {
     // The other half of the list: an HTML file can be uploaded *claiming*
     // `image/png` and pass. `nosniff` is what stops the browser noticing the
     // bytes are HTML and rendering them as a page anyway.
-    assert.equal(inlineImageHeaders("image/png").get("X-Content-Type-Options"), "nosniff");
+    assert.equal(
+      inlineHeaders("image/png", "a.png").get("X-Content-Type-Options"),
+      "nosniff",
+    );
     assert.equal(attachmentHeaders("a.bin").get("X-Content-Type-Options"), "nosniff");
   });
 
   it("is not cached by anything shared", () => {
-    for (const headers of [inlineImageHeaders("image/png"), attachmentHeaders("a.bin")]) {
+    for (const headers of [inlineHeaders("image/png", "a.png"), attachmentHeaders("a.bin")]) {
       assert.match(headers.get("Cache-Control")!, /private/);
     }
   });

@@ -7,18 +7,20 @@ import type {
   HeadingLevel,
   ListBlock,
   ListStyle,
+  PdfBlock,
   QuoteBlock,
   TextBlock,
 } from "./types.ts";
 
 /**
- * New blocks of the seven types this project can currently create.
+ * New blocks of the eight types this project can currently create.
  *
- * The other five — file, image, PDF and the two link blocks — have no factory
- * because there is nothing to build one from: they need a `fileId` or a
- * `documentId`, and neither the File API (FR-022-13/14) nor the document tree
- * (UC-021/023) exists yet. They stay typed in `types.ts` so a renderer must
- * still handle them.
+ * The other four — file, image and the two link blocks — have no factory
+ * because there is nothing to build one from: they need a `fileId` from an
+ * upload this build refuses (only PDFs are accepted, see
+ * `app/api/documents/[id]/files/route.ts`) or a `documentId` from a document
+ * tree that does not exist (UC-021/023). They stay typed in `types.ts` so a
+ * renderer must still handle them.
  *
  * **No factory takes initial text.** That is not an omission to fill in later.
  * A block's text is a `yorkie.Text`, and the only correct way to put characters
@@ -98,4 +100,25 @@ export function createCode(): CodeBlock {
 
 export function createDivider(): DividerBlock {
   return { id: newBlockId(), type: "divider" };
+}
+
+/**
+ * The first factory that takes arguments beyond a style choice, and every one
+ * of them comes from an upload that already happened: `POST
+ * /api/documents/:id/files` returns the id, and the name and size are echoed
+ * back with it. Nothing here validates them, because there is nowhere better to
+ * check — a `fileId` is only meaningful to the server, which is where it came
+ * from.
+ *
+ * The name and size are *cached* into the block on purpose rather than looked
+ * up per render: the block has to draw immediately on every other client
+ * (NFR-PER-002), and files have no rename in the SRS, so the copy cannot go
+ * stale (`docs/design/document-editing.md` §8~10).
+ */
+export function createPdf(file: {
+  fileId: string;
+  fileName: string;
+  size: number;
+}): PdfBlock {
+  return { id: newBlockId(), type: "pdf", ...file };
 }

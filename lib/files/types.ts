@@ -1,23 +1,21 @@
 /**
- * Files uploaded into the workspace — today only through chat (FR-060-02), and
- * `docs/design/api.md` §1 already points both FR-061-04 (chat) and FR-050-04
- * (documents) at the same `/api/files/:id/download`. One store rather than two,
- * with `origin` recording which side put a file there.
+ * Files uploaded into the workspace — through chat (FR-060-02) or into a
+ * document as a file block (FR-022-13/14). `docs/design/api.md` §1 points both
+ * FR-061-04 (chat) and FR-050-04 (documents) at the same
+ * `/api/files/:id/download`. One store rather than two, with `origin`
+ * recording which side put a file there.
  */
 
 /**
- * Where a file came from. One member today; document file blocks
- * (FR-022-13/14) become the second, and that is what FR-050-06 ("exclude files
- * whose block was deleted") and FR-061-01 will filter on.
+ * Where a file came from — a chat attachment (FR-060-02) or a document file
+ * block (FR-022-13/14). This is what FR-050-06 ("exclude files whose block was
+ * deleted") and FR-061-01 filter on: the same store holds both, and only the
+ * origin distinguishes them.
  *
- * A union of one rather than a bare string. That does not make every reader
- * fail to compile when the second value lands — a plain `if (origin ===
- * "chat")` keeps compiling and silently drops document files. What it does buy
- * is a typo caught now (`"chatt"` is an error, not a value), and the option of
- * an exhaustive `switch` or a `Record<FileOrigin, …>` later, which a bare
- * `string` would rule out entirely.
+ * A union rather than a bare string, so a typo is an error rather than a value
+ * and an exhaustive `switch` or a `Record<FileOrigin, …>` stays available.
  */
-export type FileOrigin = "chat";
+export type FileOrigin = "chat" | "document";
 
 export type StoredFile = {
   /**

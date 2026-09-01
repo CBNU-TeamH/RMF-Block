@@ -1,6 +1,6 @@
 # API Design — Endpoint Catalog
 
-- **Status**: Draft. Endpoints only — no request/response schemas yet. Shipped so far: `/api/auth/host` (as a simplified interim `GET` + query param, not the `POST` below — see `app/api/auth/host/route.ts`), `/api/workspace/join`, `/api/chat`, `/api/chat/files`, `/api/files/:id/preview`, `/api/files/:id/download`, plus two endpoints this catalogue does not list because they are not client-facing: `/api/auth/yorkie-token` (issues a per-session token) and `/api/internal/yorkie/auth` (the webhook Yorkie itself calls). Every other row below is target design, not yet built.
+- **Status**: Draft. Endpoints only — no request/response schemas yet. Shipped so far: `/api/auth/host` (as a simplified interim `GET` + query param, not the `POST` below — see `app/api/auth/host/route.ts`), `/api/workspace/join`, `/api/chat`, `/api/chat/files`, `/api/documents/:id/files` (PDFs only, see below), `/api/files/:id/preview`, `/api/files/:id/download`, plus two endpoints this catalogue does not list because they are not client-facing: `/api/auth/yorkie-token` (issues a per-session token) and `/api/internal/yorkie/auth` (the webhook Yorkie itself calls). Every other row below is target design, not yet built.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(b); [`docs/adr/002-persistence-on-yorkie-mongo.md`](../adr/002-persistence-on-yorkie-mongo.md); [`docs/SRS-ko.md`](../SRS-ko.md) §3.2, §3.3
 
 ## Scope
@@ -69,22 +69,31 @@ One requirement, two halves — the tree half is served here, the roster half is
 
 ### Documents
 
-| Method | Path | Purpose | Auth | Traceability |
-| --- | --- | --- | --- | --- |
-| `POST` | `/api/documents` | Create a document or folder, resolving name collisions | guest | FR-021-01~05 |
-| `PATCH` | `/api/documents/:id` | Rename or move to another folder | guest | FR-023-01~03 |
-| `DELETE` | `/api/documents/:id` | Delete, cascading to child documents | guest | FR-023-04~06 |
-| `POST` | `/api/documents/:id/files` | Upload a file to embed as a file block | guest | FR-022-13/14 |
+| Method | Path | Purpose | Auth | Traceability | Status |
+| --- | --- | --- | --- | --- | --- |
+| `POST` | `/api/documents` | Create a document or folder, resolving name collisions | guest | FR-021-01~05 | ✅ |
+| `PATCH` | `/api/documents/:id` | Rename or move to another folder | guest | FR-023-01~03 | |
+| `DELETE` | `/api/documents/:id` | Delete, cascading to child documents | guest | FR-023-04~06 | |
+| `POST` | `/api/documents/:id/files` | Upload a file to embed as a file block | guest | FR-022-13/14 | ✅ PDF only |
 
 Tree mutations are relayed to other clients over the workspace WebSocket (§4), not polled — FR-021-06 and FR-023-07 both require realtime reflection in every client's tree.
 
+`POST /api/documents/:id/files` **accepts PDFs and refuses everything else (415)**, and
+decides that from the bytes (`%PDF-`) rather than the client's claimed MIME type. FR-022-14
+dispatches five kinds into three block types and only the PDF block has a renderer today, so
+accepting the rest would store bytes no block can display. It stores the file with
+`origin: "document"` and `type: "application/pdf"` — a type this server verified, not one it was
+told — and returns the metadata; the client then puts the `fileId` on the block it creates.
+Every check on the request itself (declared length, 25 MB cap, the `file` field) is shared with
+`POST /api/chat/files` in `lib/files/upload.ts`.
+
 ### Files
 
-| Method | Path | Purpose | Auth | Traceability |
-| --- | --- | --- | --- | --- |
-| `GET` | `/api/files` | Workspace-wide list of embedded files, grouped by kind | guest | FR-050-01/02 |
-| `GET` | `/api/files/:id/preview` | In-app preview render/stream | guest | FR-050-03, FR-080-01~03 |
-| `GET` | `/api/files/:id/download` | Download the original bytes | guest | FR-050-04, FR-061-04, FR-080-05 |
+| Method | Path | Purpose | Auth | Traceability | Status |
+| --- | --- | --- | --- | --- | --- |
+| `GET` | `/api/files` | Workspace-wide list of embedded files, grouped by kind | guest | FR-050-01/02 | |
+| `GET` | `/api/files/:id/preview` | In-app preview render/stream | guest | FR-050-03, FR-080-01~03 | ✅ images + PDF |
+| `GET` | `/api/files/:id/download` | Download the original bytes | guest | FR-050-04, FR-061-04, FR-080-05 | ✅ |
 
 File bytes never travel through Yorkie — blocks carry only a `fileId` reference (`document-editing.md` §8~10), so every read of actual content lands here.
 
@@ -106,14 +115,20 @@ branch on a stored value:
 
 | | serves | `Content-Type` | `Content-Disposition` |
 | --- | --- | --- | --- |
-| `preview` | **only** `image/png\|jpeg\|gif\|webp` | the stored type | `inline` |
-| `download` | anything | `application/octet-stream`, always | `attachment` |
+| `preview` | **only** `image/png\|jpeg\|gif\|webp` and `application/pdf` | the stored type | `inline; filename*=…` |
+| `download` | anything | `application/octet-stream`, always | `attachment; filename*=…` |
 
 `download` is safe because it has no branch to get wrong: it never reads the stored type, so no
 upload can change the shape of its response, and a browser cannot render `octet-stream` as a
-page. `preview` must name a real type for `<img>` to work, so it is the one that needs a list —
-and the list is four literals rather than `startsWith("image/")` **because of SVG**:
+page. `preview` must name a real type for `<img>` or `<iframe>` to work, so it is the one that
+needs a list — and the list is literals rather than `startsWith("image/")` **because of SVG**:
 `image/svg+xml` is an image that can carry `<script>`, and served `inline` it runs.
+
+`application/pdf` is on that list so the PDF block can hold an `<iframe>` of it
+(FR-080-01~03) — every browser in `docs/SRS-ko.md` §4.2 has its own PDF viewer, which is why
+this needs no PDF library. A PDF's own scripting runs inside that viewer, not in this origin,
+which is the difference from SVG. And nothing reaches the list on a claim alone: the document
+upload endpoint stores `application/pdf` only for bytes that start with `%PDF-`.
 
 **Both responses carry `X-Content-Type-Options: nosniff`**, which is the other half. The stored
 type is whatever the uploading client claimed, so an HTML file can be uploaded *as* `image/png`
