@@ -30,12 +30,13 @@ export type FocusAnchor = {
   ratio: number;
 };
 
-// ponytail: quantized to 1% of the block's height on the way out. A raw
-// float changes on every scrolled pixel, so the presenter's "has the anchor
-// actually moved?" check in `editor.tsx` never once matched and every
-// animation frame of a scroll became a presence publish. 1% of a block is
-// far below what a follower can see; drop the rounding if a block ever gets
-// tall enough for 1% to read as a jump.
+// ponytail: quantized to 1% of the block's height on the way out, so that
+// the presenter's "has the anchor actually moved?" check in `editor.tsx` can
+// ever match — against a raw float it never did, since a fraction changes on
+// every scrolled pixel. This bounds nothing on its own: a scroll crosses
+// whole short blocks in a frame or two, so the cadence is `PUBLISH_MS`'s job,
+// not this. 1% of a block is far below what a follower can see; drop the
+// rounding if a block ever gets tall enough for 1% to read as a jump.
 const clampRatio = (ratio: number): number =>
   Math.round(Math.min(Math.max(ratio, 0), 1) * 100) / 100;
 

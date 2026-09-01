@@ -28,6 +28,16 @@ import { useWorkspacePresence } from "../../presence-provider";
 import { PdfBlockView } from "./pdf-block";
 import { TextBlockView, type BlockVariant } from "./text-block";
 
+/**
+ * How often a presenter's anchor may go out over presence, at most.
+ *
+ * ponytail: a plain interval, no easing or adaptive cadence. 10 a second is
+ * well under what a follower can perceive as lag — their side scrolls
+ * smoothly between anchors anyway — and it is 6x fewer writes than the
+ * display's frame rate. Lower it if following ever reads as steppy.
+ */
+const PUBLISH_MS = 100;
+
 /** The six types that edit through `TextBlockView`'s one `<textarea>`. */
 function isTextBearing(
   block: Block,
@@ -335,10 +345,8 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   // `scroll` event landing in the gap. See presence-provider.tsx's
   // `isPresenting` doc comment.
   //
-  // Coalesced to one publish per animation frame, and only when the anchor
-  // actually changed — the block anchor already changes only a handful of
-  // times per screen of scrolling (see the todo's milestone 3), so this adds
-  // no throttle of its own on top of that.
+  // Throttled to one publish per `PUBLISH_MS`, trailing edge included, and
+  // skipped when the anchor has not actually changed.
   useEffect(() => {
     if (!isPresenting) {
       lastPublishedAnchorRef.current = null;
@@ -348,10 +356,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    let frame: number | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let publishedAt = 0;
 
     const publish = () => {
-      frame = null;
+      timer = null;
       const anchor = anchorAt(readBoxes(container), container.scrollTop);
       if (!anchor) return;
 
@@ -361,12 +370,24 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       }
 
       lastPublishedAnchorRef.current = anchor;
+      publishedAt = Date.now();
       setPresenting({ documentId, blockId: anchor.blockId, ratio: anchor.ratio });
     };
 
+    // A wall-clock bound, not `requestAnimationFrame`: rAF bounds this to the
+    // display's refresh rate, which is not a network cadence. Blocks are
+    // short, so a scroll moves the anchor onto a *different block* every
+    // couple of frames — the "has it changed?" check above passes almost
+    // every time and ~60 presence writes a second go out, each one landing on
+    // every follower as a re-render and a restarted smooth scroll.
+    //
+    // A pending timer is left alone rather than pushed back: it reads
+    // `scrollTop` live when it fires, so it always publishes the newest
+    // position, and it is the trailing edge — the last scroll of a gesture
+    // schedules it, so the final resting position is never left unpublished.
     const onScroll = () => {
-      if (frame !== null) return;
-      frame = requestAnimationFrame(publish);
+      if (timer !== null) return;
+      timer = setTimeout(publish, Math.max(0, PUBLISH_MS - (Date.now() - publishedAt)));
     };
 
     // Published once up front too, not only on the next scroll — otherwise
@@ -377,7 +398,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     container.addEventListener("scroll", onScroll);
     return () => {
       container.removeEventListener("scroll", onScroll);
-      if (frame !== null) cancelAnimationFrame(frame);
+      if (timer !== null) clearTimeout(timer);
     };
     // `blocksLoaded`, a boolean that flips once — never `blocks` itself.
     // The container does not exist while `blocks` is still `null`, so this
