@@ -181,8 +181,20 @@ function readBlock(stored: StoredBlock | null): Block | null {
         blockId: content?.blockId ?? "",
       };
 
-    default:
+    default: {
+      // Two different failures share this branch, and only one of them is
+      // allowed to be silent. A `type` that is not in the union at all can
+      // arrive at runtime — Yorkie is on the LAN with no schema enforcement
+      // (`docs/design/api.md` §2) — and dropping that block is the documented
+      // behaviour above. A type that *is* in the union but has no `case` is a
+      // different thing entirely: a block this build knows about and forgot to
+      // read. `never` separates them, because it only holds while every member
+      // is handled — add a thirteenth type and this line stops compiling.
+      const unhandled: never = stored.type;
+      void unhandled;
+
       return null;
+    }
   }
 }
 

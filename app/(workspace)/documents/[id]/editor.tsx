@@ -1,9 +1,10 @@
 "use client";
 
 import yorkie, { type Document, type EditOpInfo } from "@yorkie-js/sdk";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { createChecklist, createList, createPdf, createQuote, createText } from "@/lib/blocks/create";
+import { createPdf, createText } from "@/lib/blocks/create";
+import { BLOCK_KINDS, continuationBlock, isTextBearing } from "@/lib/blocks/registry";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot, type StoredBlock } from "@/lib/blocks/document";
 import type { MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
 import {
@@ -24,7 +25,7 @@ import {
   idBeforeInOrder,
 } from "@/lib/blocks/reorder";
 import { blockIndexFromEditPath } from "@/lib/blocks/text-surface";
-import type { Block, BlockId } from "@/lib/blocks/types";
+import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
 import { anchorAt, scrollTopFor, type FocusAnchor } from "@/lib/focus/anchor";
 import { readBoxes } from "@/lib/focus/dom";
 
@@ -43,37 +44,26 @@ import { TextBlockView, type BlockVariant } from "./text-block";
  */
 const PUBLISH_MS = 100;
 
-/** The six types that edit through `TextBlockView`'s one `<textarea>`. */
-function isTextBearing(
-  block: Block,
-): block is Extract<Block, { text: string }> {
+/**
+ * Exhaustive on purpose — every text-bearing type has its own `case`, and the
+ * `never` below is what makes a seventh one a compile error here rather than a
+ * block that silently renders as plain text. `BLOCK_KINDS` decides *which*
+ * types reach this function; this decides how each of them looks.
+ */
+/** Typed and stored, but nothing can draw it yet. Shared so the wording is
+ *  one string rather than one per surface. */
+function UnsupportedBlock({ type }: { type: BlockType }) {
   return (
-    block.type === "text" ||
-    block.type === "heading" ||
-    block.type === "list" ||
-    block.type === "checklist" ||
-    block.type === "quote" ||
-    block.type === "code"
+    <p className="px-1 py-0.5 text-sm text-ink-faint">
+      아직 편집할 수 없는 블록입니다 ({type}).
+    </p>
   );
-}
-
-/** What continues after this block on Enter — list/checklist/quote keep
- * their type (a running list stays a list, a quote stays a quote until an
- * empty line exits it); everything else's tail is plain text, matching how
- * heading already worked before these types joined it. Code never reaches
- * this at all for its "normal" Enter (it is a literal newline within the one
- * block, not a split) — only the exit case calls `onSplit`, and code isn't
- * in the list below, so that tail is plain text too, which is exactly what
- * leaving a code block means. */
-function continuationBlock(original: Block | undefined): Block {
-  if (original?.type === "list") return createList(original.style, original.depth);
-  if (original?.type === "checklist") return createChecklist();
-  if (original?.type === "quote") return createQuote();
-  return createText();
 }
 
 function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
   switch (block.type) {
+    case "text":
+      return { type: "text" };
     case "heading":
       return { type: "heading", level: block.level };
     case "list":
@@ -84,8 +74,10 @@ function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
       return { type: "quote" };
     case "code":
       return { type: "code" };
-    default:
-      return { type: "text" };
+    default: {
+      const unhandled: never = block;
+      return unhandled;
+    }
   }
 }
 
@@ -327,6 +319,13 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   // rather than on every recompute — see the presenter effect's own note.
   const blocksLoaded = blocks !== null;
 
+  // The block ids in render order, which is the one thing `blocks` state is
+  // reliable for (its `text` goes stale the moment anyone types — see
+  // `liveTextOf`). Derived once instead of at each of the five places that
+  // used to rebuild the same array: merge, both arrow-key handlers, the drop
+  // handler and the render body.
+  const order = useMemo(() => blocks?.map((block) => block.id) ?? [], [blocks]);
+
   // The followed member's anchor, pulled apart into primitives. The effects
   // below depend on these rather than on `members`, which `rosterFrom`
   // rebuilds on every presence event: an anchor that has not moved should not
@@ -502,6 +501,47 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   }
 
   /**
+   * Runs one mutation against the live document and republishes the block
+   * list. Every local edit in this component goes through here.
+   *
+   * Returns whether the edit landed, so a caller with follow-up work — moving
+   * the caret, appending the trailing block — can tell. `false` means one of
+   * two things, and neither is an error to report:
+   *
+   * - **No document.** The editor is not attached (yet, or any more).
+   * - **`BlockNotFoundError`.** A peer removed the block this edit named
+   *   before it got here — their merge or delete, most likely. That operation
+   *   is the one that stands; there is nothing left on this replica to fix, and
+   *   nothing sensible to tell the person who typed. This is the reason the
+   *   error is swallowed rather than surfaced, and it is written here once
+   *   instead of at each of the six call sites that used to repeat it.
+   *
+   * Two mutations deliberately cannot raise it and are no less safe for going
+   * through the same door: `ensureTrailingEmptyBlock` only pushes, and the
+   * upload's insert re-checks its anchor inside the update.
+   *
+   * `setBlocks` runs only on success and only here: the subscribe callback
+   * reacts to `remote-change` alone, so a local structural change has no other
+   * route to the rendered list.
+   */
+  const applyEdit = (
+    mutate: (root: BlockDocumentRoot, blocks: BlockArray) => void,
+  ): boolean => {
+    const doc = docRef.current;
+    if (!doc) return false;
+
+    try {
+      doc.update((root: BlockDocumentRoot) => mutate(root, root.blocks as BlockArray));
+    } catch (error) {
+      if (error instanceof BlockNotFoundError) return false;
+      throw error;
+    }
+
+    setBlocks(readBlocks(doc.getRoot().blocks));
+    return true;
+  };
+
+  /**
    * Keeps one empty text block always at the end of the document, so
    * starting a new paragraph never means clicking into whatever block a
    * peer happens to be actively typing in first — that was the only way in
@@ -526,10 +566,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     const lastIsEmptyText = last?.type === "text" && (last.content?.text?.toString() ?? "") === "";
     if (lastIsEmptyText) return;
 
-    doc.update((root: BlockDocumentRoot) => {
-      appendBlock(root.blocks as BlockArray, toStoredBlock(createText()));
-    });
-    setBlocks(readBlocks(doc.getRoot().blocks));
+    applyEdit((_root, blocks) => appendBlock(blocks, toStoredBlock(createText())));
   };
 
   /**
@@ -545,22 +582,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    * left to fix on this replica once that happens.
    */
   const handleMarkdownShortcut = (blockId: BlockId, shortcut: MarkdownShortcut) => {
-    const doc = docRef.current;
-    if (!doc) return;
-
-    try {
-      doc.update((root: BlockDocumentRoot) => {
-        const array = root.blocks as BlockArray;
-        const current = liveTextOf(root, blockId);
-        editBlockText(array, blockId, 0, current.length, "");
-        changeBlockType(array, blockId, shortcut);
-      });
-    } catch (error) {
-      if (error instanceof BlockNotFoundError) return;
-      throw error;
-    }
-
-    setBlocks(readBlocks(doc.getRoot().blocks));
+    applyEdit((root, blocks) => {
+      const current = liveTextOf(root, blockId);
+      editBlockText(blocks, blockId, 0, current.length, "");
+      changeBlockType(blocks, blockId, shortcut);
+    });
   };
 
   /**
@@ -572,21 +598,10 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    * right now, not a snapshot from the last render.
    */
   const handleToggleChecklist = (blockId: BlockId) => {
-    const doc = docRef.current;
-    if (!doc) return;
-
-    try {
-      doc.update((root: BlockDocumentRoot) => {
-        const array = root.blocks as BlockArray;
-        const checked = liveBlockOf(root, blockId)?.content?.checked === true;
-        changeBlockType(array, blockId, { type: "checklist", checked: !checked });
-      });
-    } catch (error) {
-      if (error instanceof BlockNotFoundError) return;
-      throw error;
-    }
-
-    setBlocks(readBlocks(doc.getRoot().blocks));
+    applyEdit((root, blocks) => {
+      const checked = liveBlockOf(root, blockId)?.content?.checked === true;
+      changeBlockType(blocks, blockId, { type: "checklist", checked: !checked });
+    });
   };
 
   /**
@@ -610,41 +625,32 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    * replica's operation stand.
    */
   const handleSplit = (blockId: BlockId, cursorPosition: number) => {
-    const doc = docRef.current;
-    if (!doc || !blocks) return;
+    if (!blocks) return;
 
     const original = blocks.find((block) => block.id === blockId);
     let newBlockId: BlockId | null = null;
 
-    try {
-      doc.update((root: BlockDocumentRoot) => {
-        const array = root.blocks as BlockArray;
-        const liveText = liveTextOf(root, blockId);
+    const applied = applyEdit((root, array) => {
+      const liveText = liveTextOf(root, blockId);
 
-        if (
-          liveText.length === 0 &&
-          (original?.type === "list" || original?.type === "checklist" || original?.type === "quote")
-        ) {
-          changeBlockType(array, blockId, { type: "text" });
-          return;
-        }
+      if (
+        liveText.length === 0 &&
+        (original?.type === "list" || original?.type === "checklist" || original?.type === "quote")
+      ) {
+        changeBlockType(array, blockId, { type: "text" });
+        return;
+      }
 
-        const tail = liveText.slice(cursorPosition);
-        const newBlock = toStoredBlock(continuationBlock(original));
+      const tail = liveText.slice(cursorPosition);
+      const newBlock = toStoredBlock(continuationBlock(original));
 
-        editBlockText(array, blockId, cursorPosition, liveText.length, "");
-        insertBlockAfter(array, blockId, newBlock);
-        if (tail) editBlockText(array, newBlock.id, 0, 0, tail);
-        newBlockId = newBlock.id;
-      });
-    } catch (error) {
-      if (error instanceof BlockNotFoundError) return;
-      throw error;
-    }
+      editBlockText(array, blockId, cursorPosition, liveText.length, "");
+      insertBlockAfter(array, blockId, newBlock);
+      if (tail) editBlockText(array, newBlock.id, 0, 0, tail);
+      newBlockId = newBlock.id;
+    });
+    if (!applied) return;
 
-    // Local structural change — the subscribe callback above only reacts to
-    // `remote-change`, so this is the only place this list update happens.
-    setBlocks(readBlocks(doc.getRoot().blocks));
     focusBlock(newBlockId ?? blockId, 0);
   };
 
@@ -658,13 +664,9 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    * content is still read live, inside the same update that mutates them.
    */
   const handleMergeWithPrevious = (blockId: BlockId) => {
-    const doc = docRef.current;
-    if (!doc || !blocks) return;
+    if (!blocks) return;
 
-    const previousId = idBeforeInOrder(
-      blocks.map((b) => b.id),
-      blockId,
-    );
+    const previousId = idBeforeInOrder(order, blockId);
     if (previousId === null) return;
 
     // A non-text-bearing previous block (divider, or any of the file/link
@@ -680,22 +682,16 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
     let mergeCaret = 0;
 
-    try {
-      doc.update((root: BlockDocumentRoot) => {
-        const array = root.blocks as BlockArray;
-        const previousText = liveTextOf(root, previousId);
-        const thisText = liveTextOf(root, blockId);
-        mergeCaret = previousText.length;
+    const applied = applyEdit((root, array) => {
+      const previousText = liveTextOf(root, previousId);
+      const thisText = liveTextOf(root, blockId);
+      mergeCaret = previousText.length;
 
-        editBlockText(array, previousId, previousText.length, previousText.length, thisText);
-        removeBlock(array, blockId);
-      });
-    } catch (error) {
-      if (error instanceof BlockNotFoundError) return;
-      throw error;
-    }
+      editBlockText(array, previousId, previousText.length, previousText.length, thisText);
+      removeBlock(array, blockId);
+    });
+    if (!applied) return;
 
-    setBlocks(readBlocks(doc.getRoot().blocks));
     focusBlock(previousId, mergeCaret);
   };
 
@@ -721,10 +717,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     const doc = docRef.current;
     if (!doc || !blocks) return;
 
-    const targetId = idBeforeInOrder(
-      blocks.map((b) => b.id),
-      blockId,
-    );
+    const targetId = idBeforeInOrder(order, blockId);
     if (targetId === null) return;
 
     const el = elementsRef.current.get(targetId);
@@ -742,10 +735,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     const doc = docRef.current;
     if (!doc || !blocks) return;
 
-    const targetId = idAfterInOrder(
-      blocks.map((b) => b.id),
-      blockId,
-    );
+    const targetId = idAfterInOrder(order, blockId);
     if (targetId === null) return;
 
     const el = elementsRef.current.get(targetId);
@@ -770,19 +760,8 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    * asking for, so there is nothing to report.
    */
   const handleDeleteBlock = (blockId: BlockId) => {
-    const doc = docRef.current;
-    if (!doc) return;
+    if (!applyEdit((_root, blocks) => removeBlock(blocks, blockId))) return;
 
-    try {
-      doc.update((root: BlockDocumentRoot) => {
-        removeBlock(root.blocks as BlockArray, blockId);
-      });
-    } catch (error) {
-      if (error instanceof BlockNotFoundError) return;
-      throw error;
-    }
-
-    setBlocks(readBlocks(doc.getRoot().blocks));
     ensureTrailingEmptyBlock();
   };
 
@@ -825,18 +804,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         }
 
         const stored = await response.json();
-        const doc = docRef.current;
-        // The document closed mid-upload. The bytes are stored and orphaned,
-        // which UC-050's file manager is the place to deal with; inventing a
-        // block in a document nobody is attached to is not.
-        if (!doc) return;
-
         const block = toStoredBlock(
           createPdf({ fileId: stored.id, fileName: stored.name, size: stored.size }),
         );
 
-        doc.update((root: BlockDocumentRoot) => {
-          const array = root.blocks as BlockArray;
+        const placed = applyEdit((root, array) => {
           // The anchor can be gone — a peer deleting that block while the
           // upload was in flight is exactly the window this covers. Appending
           // is the sensible fallback: the PDF still lands in the document.
@@ -845,9 +817,12 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           if (anchor === null) appendBlock(array, block);
           else insertBlockAfter(array, anchor, block);
         });
+        // The document closed mid-upload. The bytes are stored and orphaned,
+        // which UC-050's file manager is the place to deal with; inventing a
+        // block in a document nobody is attached to is not.
+        if (!placed) return;
 
         anchor = block.id;
-        setBlocks(readBlocks(doc.getRoot().blocks));
       }
 
       ensureTrailingEmptyBlock();
@@ -895,10 +870,8 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     setDraggedId(null);
     setDropIndicator(null);
 
-    const doc = docRef.current;
-    if (!doc || !blocks) return;
+    if (!blocks) return;
 
-    const order = blocks.map((b) => b.id);
     const rect = event.currentTarget.getBoundingClientRect();
     const before =
       forcedBefore ?? dropsBeforeTarget(event.clientY, rect.top, rect.height);
@@ -918,16 +891,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     const destination = dropDestination(order, draggedBlockId, targetId, before);
     if (!destination) return;
 
-    try {
-      doc.update((root: BlockDocumentRoot) => {
-        moveBlockAfter(root.blocks as BlockArray, destination.afterId, draggedBlockId);
-      });
-    } catch (error) {
-      if (error instanceof BlockNotFoundError) return;
-      throw error;
-    }
-
-    setBlocks(readBlocks(doc.getRoot().blocks));
+    applyEdit((_root, blocks) => moveBlockAfter(blocks, destination.afterId, draggedBlockId));
   };
 
   if (failed) {
@@ -939,8 +903,99 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   }
 
   const listNumbers = orderedListNumbers(blocks);
-  const order = blocks.map((b) => b.id);
   const lastBlockId = order[order.length - 1] ?? null;
+
+  /**
+   * One block's body, chosen by its **surface** rather than by its type
+   * (`lib/blocks/registry.ts`). Four cases instead of a ternary chain that
+   * grew a branch per type, and — the point of the exercise — a thirteenth
+   * type cannot reach here without `BLOCK_KINDS` gaining an entry first, which
+   * is a compile error until someone writes one.
+   *
+   * `isTextBearing` rather than `surface === "text"` for the first branch: the
+   * two agree by construction (`Kind`'s own type enforces it), but only the
+   * guard narrows `Block` down to something with a `.text` for `TextBlockView`.
+   */
+  const rowFor = (block: Block, index: number) => {
+    if (isTextBearing(block)) {
+      return (
+        // A fixed two-slot row, not a conditional wrapper: the marker slot is
+        // *always* a `<span>` here, present or empty, so `TextBlockView`'s own
+        // position among its siblings never shifts across a type conversion —
+        // the thing that was remounting it (and dropping focus) when the marker
+        // used to live conditionally inside `TextBlockView` itself.
+        <div className="flex items-start gap-2">
+          <span className="mt-0.5 flex size-6 shrink-0 justify-center text-[14px] text-ink-faint select-none">
+            {block.type === "checklist" ? (
+              <input
+                type="checkbox"
+                checked={block.checked}
+                onChange={() => handleToggleChecklist(block.id)}
+                className="mt-1 size-3.5 cursor-pointer"
+              />
+            ) : block.type === "list" ? (
+              block.style === "ordered" ? (
+                `${listNumbers[index]}.`
+              ) : (
+                "•"
+              )
+            ) : null}
+          </span>
+          <TextBlockView
+            blockId={block.id}
+            initialText={block.text}
+            variant={variantOf(block)}
+            docRef={docRef}
+            registerRemoteHandler={registerRemoteHandler}
+            registerTextarea={registerTextarea}
+            onMarkdownShortcut={handleMarkdownShortcut}
+            onSplit={handleSplit}
+            onMergeWithPrevious={handleMergeWithPrevious}
+            onNavigateUp={handleNavigateUp}
+            onNavigateDown={handleNavigateDown}
+            onTextCommitted={ensureTrailingEmptyBlock}
+          />
+        </div>
+      );
+    }
+
+    // Bound to a const so the switch narrows it — TypeScript re-evaluates a
+    // property access on each `case` and will not carry the narrowing across.
+    const surface = BLOCK_KINDS[block.type].surface;
+
+    switch (surface) {
+      case "embed":
+        // PDF is the only embed with a renderer: the image and generic-file
+        // legs of FR-022-14 are refused at the upload endpoint until they have
+        // one, so a block of either kind can only have come from elsewhere.
+        return block.type === "pdf" ? (
+          <PdfBlockView block={block} onDelete={handleDeleteBlock} />
+        ) : (
+          <UnsupportedBlock type={block.type} />
+        );
+
+      // Divider, and the two link blocks: typed and stored already, no
+      // renderer yet. A divider needs its own no-textarea operation; the link
+      // blocks wait on the document tree (UC-021/023) that would give them a
+      // `documentId`.
+      case "none":
+      case "link":
+        return <UnsupportedBlock type={block.type} />;
+
+      default: {
+        // Not defensive padding: `never` holds only while every surface a
+        // non-text block can have is handled above, so adding a fifth
+        // `BlockSurface` stops this compiling until it has a case. ("text"
+        // itself cannot reach here — `isTextBearing` returned above, and
+        // `Kind` ties the two together, which TypeScript checks: a `case
+        // "text"` here is rejected as unreachable.)
+        const unhandled: never = surface;
+        void unhandled;
+
+        return <UnsupportedBlock type={block.type} />;
+      }
+    }
+  };
 
   /**
    * Draw the insertion line — but only where a drop would actually land the
@@ -1061,57 +1116,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               <circle cx="7.5" cy="13.5" r="1.5" />
             </svg>
           </span>
-          {isTextBearing(block) ? (
-            // A fixed two-slot row, not a conditional wrapper: the marker
-            // slot is *always* a `<span>` here, present or empty, so
-            // `TextBlockView`'s own position among its siblings never
-            // shifts across a type conversion — the thing that was
-            // remounting it (and dropping focus) when the marker used to
-            // live conditionally inside `TextBlockView` itself.
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5 flex size-6 shrink-0 justify-center text-[14px] text-ink-faint select-none">
-                {block.type === "checklist" ? (
-                  <input
-                    type="checkbox"
-                    checked={block.checked}
-                    onChange={() => handleToggleChecklist(block.id)}
-                    className="mt-1 size-3.5 cursor-pointer"
-                  />
-                ) : block.type === "list" ? (
-                  block.style === "ordered" ? (
-                    `${listNumbers[index]}.`
-                  ) : (
-                    "•"
-                  )
-                ) : null}
-              </span>
-              <TextBlockView
-                blockId={block.id}
-                initialText={block.text}
-                variant={variantOf(block)}
-                docRef={docRef}
-                registerRemoteHandler={registerRemoteHandler}
-                registerTextarea={registerTextarea}
-                onMarkdownShortcut={handleMarkdownShortcut}
-                onSplit={handleSplit}
-                onMergeWithPrevious={handleMergeWithPrevious}
-                onNavigateUp={handleNavigateUp}
-                onNavigateDown={handleNavigateDown}
-                onTextCommitted={ensureTrailingEmptyBlock}
-              />
-            </div>
-          ) : block.type === "pdf" ? (
-            <PdfBlockView block={block} onDelete={handleDeleteBlock} />
-          ) : (
-            // Divider/file/image/doc-link/block-link: typed already, no
-            // renderer yet — dividers are next (they need their own
-            // no-textarea operation, unlike these four which just reused
-            // `changeBlockType` as-is), and image/file wait on the other two
-            // legs of FR-022-14, which the upload endpoint refuses for now.
-            <p className="px-1 py-0.5 text-sm text-ink-faint">
-              아직 편집할 수 없는 블록입니다 ({block.type}).
-            </p>
-          )}
+          {rowFor(block, index)}
         </div>
       ))}
 
