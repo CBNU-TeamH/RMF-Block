@@ -3,8 +3,9 @@ import { describe, it } from "node:test";
 
 import yorkie from "@yorkie-js/sdk";
 
+import { createChecklist, createHeading, createList, createText } from "./create.ts";
 import type { BlockDocumentRoot, StoredBlock } from "./document.ts";
-import { readBlocks } from "./document.ts";
+import { readBlocks, toStoredBlock } from "./document.ts";
 import {
   BlockNotFoundError,
   appendBlock,
@@ -217,6 +218,63 @@ describe("editBlockText", () => {
     });
 
     assert.throws(() => doc.update((root) => editBlockText(blocks(root), "d", 0, 0, "x")));
+  });
+});
+
+describe("toStoredBlock (#45)", () => {
+  it("makes a create.ts factory's output immediately editable", () => {
+    // The exact gap #45 reported: create.ts's factories return the view-model
+    // `Block`, not the `StoredBlock` operations.ts expects, and nothing bridged
+    // them — a block inserted straight from a factory had no `content.text` to
+    // edit and `editBlockText` threw the moment anyone typed into it.
+    const doc = newDoc();
+    seed(doc, []);
+    const created = createText();
+
+    doc.update((root) => appendBlock(blocks(root), toStoredBlock(created)));
+    doc.update((root) => editBlockText(blocks(root), created.id, 0, 0, "hello"));
+
+    assert.equal(doc.getRoot().blocks[0]!.content!.text!.toString(), "hello");
+  });
+
+  it("carries a heading's level and a list's style/depth into content", () => {
+    const doc = newDoc();
+    seed(doc, []);
+    const heading = createHeading(2);
+    const list = createList("ordered", 1);
+
+    doc.update((root) => {
+      appendBlock(blocks(root), toStoredBlock(heading));
+      appendBlock(blocks(root), toStoredBlock(list));
+    });
+
+    const [read1, read2] = readBlocks(doc.getRoot().blocks);
+    assert.deepEqual(read1, { id: heading.id, type: "heading", level: 2, text: "" });
+    assert.deepEqual(read2, {
+      id: list.id,
+      type: "list",
+      style: "ordered",
+      depth: 1,
+      text: "",
+    });
+  });
+
+  it("gives a checklist item its own text separately from another's", () => {
+    // Each block's `new Text()` has to be its own CRDT instance, not one
+    // shared reference — otherwise editing one would edit them all.
+    const doc = newDoc();
+    seed(doc, []);
+    const a = createChecklist();
+    const b = createChecklist();
+
+    doc.update((root) => {
+      appendBlock(blocks(root), toStoredBlock(a));
+      appendBlock(blocks(root), toStoredBlock(b));
+    });
+    doc.update((root) => editBlockText(blocks(root), a.id, 0, 0, "wash dishes"));
+
+    assert.equal(doc.getRoot().blocks[0]!.content!.text!.toString(), "wash dishes");
+    assert.equal(doc.getRoot().blocks[1]!.content!.text!.toString(), "");
   });
 });
 
