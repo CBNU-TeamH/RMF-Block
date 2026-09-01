@@ -311,4 +311,47 @@ For whichever steps get approved:
 
 ## Review
 
-Filled in at the end.
+**Done: R1, R3, M1, M2** — the five steps agreed off the table above. R2 (splitting
+`handleDrop`) is the one refactor left, and the improvements are unchanged.
+
+| | | |
+| --- | --- | --- |
+| R1 | `applyEdit` | 8 mutation sites through one envelope. Before: 10 × the `docRef` guard, 10 × `setBlocks`, 6 × `catch BlockNotFoundError`. After: 4 (all reads), 3 (initial load, remote change, local edit), 1. `handleToggleChecklist` 17 → 5 lines |
+| R3 | `order` | memoized once; five rebuild sites gone |
+| M1 | `lib/blocks/registry.ts` | `BLOCK_KINDS`, `isTextBearing`, `continuationBlock`, + 10 tests |
+| M2 | three hooks | `use-block-document.ts` (161), `use-focus-presence.ts` (223), `use-pdf-upload.ts` (117) |
+
+`editor.tsx`: **1176 → 823 lines.**
+
+### The acceptance criterion that mattered
+
+> Adding a thirteenth type to the `Block` union fails to compile in every place
+> that has to handle it.
+
+Before, one error. After, five — the table, `readBlock`, `toStoredBlock`,
+`variantOf`, and the render dispatch. The two `default` branches that must stay
+for runtime resilience (the LAN can write a type this build has never heard of)
+now carry a `never` guard, which separates that case from "a type we forgot".
+
+TypeScript was stricter than the plan assumed, twice, and both were improvements:
+a `case "text"` in the surface switch is *rejected* as unreachable, because
+`Kind` ties "carries text" to `surface: "text"`; and narrowing does not survive a
+repeated property access, so the surface has to be bound to a const first.
+
+### Verified
+
+`pnpm lint`, `pnpm test` (331), `tsc --noEmit`, `pnpm build` — green after each
+step. Behaviour checked against a real Yorkie stack, because none of this is
+reachable from unit tests: nested-list continuation keeps style and depth, an
+empty list item exits to text on Enter, Backspace-at-start merges, and a block
+pushed by a separate Node client appears live.
+
+### Found while verifying, not caused by it
+
+Both A/B-confirmed against `3865ab8` on the same stack:
+
+- **#59** — split and merge leave the surviving textarea showing stale text.
+- A block a peer adds *and then writes into* arrives with an empty textarea: the
+  `edit` op is routed to a handler the new row has not registered yet. Same root
+  design as #59, noted there.
+- A tab that once failed to connect never recovers without a fresh tab (**#37**).
