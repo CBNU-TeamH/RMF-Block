@@ -20,7 +20,10 @@ import { orderedListNumbers } from "@/lib/blocks/list-numbering";
 import { dropsBeforeTarget, idAfterInOrder, idBeforeInOrder } from "@/lib/blocks/reorder";
 import { blockIndexFromEditPath } from "@/lib/blocks/text-surface";
 import type { Block, BlockId } from "@/lib/blocks/types";
+import { anchorAt, scrollTopFor, type FocusAnchor } from "@/lib/focus/anchor";
+import { readBoxes } from "@/lib/focus/dom";
 
+import { useFocusFollow } from "../../focus-follow-provider";
 import { useWorkspacePresence } from "../../presence-provider";
 import { PdfBlockView } from "./pdf-block";
 import { TextBlockView, type BlockVariant } from "./text-block";
@@ -93,7 +96,8 @@ function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
  * change.
  */
 export function DocumentEditor({ documentId }: { documentId: string }) {
-  const { client } = useWorkspacePresence();
+  const { client, members, isPresenting, setPresenting } = useWorkspacePresence();
+  const { followingId } = useFocusFollow();
   const [blocks, setBlocks] = useState<Array<Block> | null>(null);
   const [failed, setFailed] = useState(false);
   // The block currently being dragged — opacity feedback only, cleared on
@@ -125,6 +129,24 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
   const docRef = useRef<Document<BlockDocumentRoot> | null>(null);
   const handlersRef = useRef(new Map<BlockId, (op: EditOpInfo) => void>());
+  // The scroll container from the render below (`data-focus-scroll`) — read
+  // by both the presenter effect (this browser's own scroll → published
+  // anchor) and the follower effect (a followed anchor → `scrollTo`).
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  // The last `FocusAnchor` this browser published while presenting. Not
+  // `blocks` state — it exists purely to satisfy "only publish when the
+  // anchor actually changed" without recomputing what was last sent from
+  // presence itself.
+  const lastPublishedAnchorRef = useRef<FocusAnchor | null>(null);
+  // The last scroll target this browser *commanded* while following, so an
+  // unchanged target is never re-issued. `scrollTo({ behavior: "smooth" })`
+  // aborts an in-flight smooth scroll and restarts its easing curve from
+  // wherever it had reached, so re-issuing the same target faster than the
+  // animation completes leaves the follower creeping and never arriving —
+  // measured as "it just doesn't follow" with the effect firing correctly
+  // every time. Not `scrollTop`: that reads where the animation *is*, not
+  // where it was told to go.
+  const lastScrolledToRef = useRef<number | null>(null);
   // Chains one run's full teardown (unsubscribe + detach) in front of the
   // next run's attach(). React's Strict Mode double-invokes this effect on
   // mount (dev only) — mount → cleanup → mount, synchronously — which would
@@ -285,6 +307,151 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       teardownRef.current = teardown;
     };
   }, [client, documentId]);
+
+  // Whether the editor has finished loading, as a value that changes once
+  // rather than on every recompute — see the presenter effect's own note.
+  const blocksLoaded = blocks !== null;
+
+  // The followed member's anchor, pulled apart into primitives. The effects
+  // below depend on these rather than on `members`, which `rosterFrom`
+  // rebuilds on every presence event: an anchor that has not moved should not
+  // re-run anything. Same lesson `presence-provider.tsx`'s header already
+  // records for its own connection effect ("a fresh object every render would
+  // give the effect a new dependency every render").
+  const followed = followingId
+    ? (members.find((m) => m.id === followingId)?.presenting ?? null)
+    : null;
+  const followedDocumentId = followed?.documentId ?? null;
+  const followedBlockId = followed?.blockId ?? null;
+  const followedRatio = followed?.ratio ?? null;
+
+  // Presenter side (FR-030-07): while this browser is presenting, publish
+  // this scroller's anchor as it moves. `isPresenting` is `presence-provider
+  // .tsx`'s own local state, set synchronously by `setPresenting` — not read
+  // back off `members` (this browser's own row echoed through Yorkie's
+  // `'my-presence'` channel), because every publish below would then change
+  // `members` and re-run this very effect: tear down the scroll listener,
+  // publish once up front again, re-attach — churn that can drop a native
+  // `scroll` event landing in the gap. See presence-provider.tsx's
+  // `isPresenting` doc comment.
+  //
+  // Coalesced to one publish per animation frame, and only when the anchor
+  // actually changed — the block anchor already changes only a handful of
+  // times per screen of scrolling (see the todo's milestone 3), so this adds
+  // no throttle of its own on top of that.
+  useEffect(() => {
+    if (!isPresenting) {
+      lastPublishedAnchorRef.current = null;
+      return;
+    }
+
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    let frame: number | null = null;
+
+    const publish = () => {
+      frame = null;
+      const anchor = anchorAt(readBoxes(container), container.scrollTop);
+      if (!anchor) return;
+
+      const last = lastPublishedAnchorRef.current;
+      if (last && last.blockId === anchor.blockId && last.ratio === anchor.ratio) {
+        return;
+      }
+
+      lastPublishedAnchorRef.current = anchor;
+      setPresenting({ documentId, blockId: anchor.blockId, ratio: anchor.ratio });
+    };
+
+    const onScroll = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(publish);
+    };
+
+    // Published once up front too, not only on the next scroll — otherwise
+    // starting a share (or presenting into a freshly opened document) would
+    // leave the previous anchor standing until this browser's next scroll.
+    onScroll();
+
+    container.addEventListener("scroll", onScroll);
+    return () => {
+      container.removeEventListener("scroll", onScroll);
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+    // `blocksLoaded`, a boolean that flips once — never `blocks` itself.
+    // The container does not exist while `blocks` is still `null`, so this
+    // effect needs one more chance once loading finishes; but `blocks` is a
+    // fresh array on every recompute, and depending on it tore the scroll
+    // listener down and rebuilt it continuously. A native `scroll` event
+    // landing in that gap is dropped, which is what made following work
+    // sometimes and not others. Nothing in here reads `blocks` anyway —
+    // `readBoxes` measures the live DOM at publish time.
+  }, [isPresenting, documentId, setPresenting, blocksLoaded]);
+
+  // Follower side (FR-030-05/07): once joined (`followingId` set by
+  // `FocusShare`) and looking at the same document the presenter is in
+  // (cross-document navigation is `focus-follow-provider.tsx`'s job, not
+  // this component's — it has to run even when no editor is mounted at
+  // all), scroll to match every time the presenter's anchor changes.
+  //
+  // `blocks` is a dependency too, not just the presenter's own anchor:
+  // a third person inserting blocks above the presenter moves every
+  // `BlockBox`'s `top` without the anchor's `blockId`/`ratio` changing at
+  // all, and only recomputing `scrollTopFor` against fresh boxes keeps the
+  // follower on the same content through that (see the acceptance list).
+  useEffect(() => {
+    // Nothing to follow right now — not following anyone, the presenter has
+    // no anchor yet, or they are in a different document. Forget the last
+    // commanded position along with it: it exists only to stop the *same*
+    // target being re-issued, and holding it across a pause would swallow
+    // the first scroll after rejoining a presenter who never moved.
+    if (
+      !followingId ||
+      followedBlockId === null ||
+      followedRatio === null ||
+      followedDocumentId !== documentId
+    ) {
+      lastScrolledToRef.current = null;
+      return;
+    }
+
+    const container = scrollContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const top = scrollTopFor(readBoxes(container), {
+      blockId: followedBlockId,
+      ratio: followedRatio,
+    });
+    // `null` means the anchor's block is gone — hold the current position
+    // rather than jump anywhere, per `scrollTopFor`'s own documented contract.
+    if (top === null) return;
+
+    // Never re-issue a target already commanded: see `lastScrolledToRef`.
+    // A pixel of slack because `top` is a float off live layout and a block's
+    // height can wobble by sub-pixels between recomputes.
+    const last = lastScrolledToRef.current;
+    if (last !== null && Math.abs(top - last) <= 1) {
+      return;
+    }
+
+    lastScrolledToRef.current = top;
+    container.scrollTo({ top, behavior: "smooth" });
+    // `blocks` stays a dependency on purpose, unlike the presenter effect
+    // above: a third person inserting blocks above the presenter moves every
+    // box's `top` without the anchor's own `blockId`/`ratio` changing at all,
+    // and only recomputing against fresh boxes keeps the follower on the same
+    // content through that (it is in the acceptance list).
+  }, [
+    followingId,
+    followedDocumentId,
+    followedBlockId,
+    followedRatio,
+    documentId,
+    blocks,
+  ]);
 
   /**
    * A block's *live* text by id, read straight off the document rather than
@@ -749,7 +916,13 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     // space is where a file naturally gets dropped. A drop that lands on a
     // block stops there (`handleDrop`) and lands at the pointer instead.
     <div
-      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+      ref={scrollContainerRef}
+      data-focus-scroll
+      // `relative` so this container — not some further-out ancestor —
+      // becomes each block's `offsetParent`: `lib/focus/dom.ts`'s
+      // `readBoxes` reads `offsetTop` and needs it in this element's own
+      // coordinate space, the same one `scrollTop` is measured in.
+      className="relative flex min-h-0 flex-1 flex-col overflow-y-auto"
       onDragOver={(event) => {
         // Only for files. Calling `preventDefault` for everything would make
         // this a valid drop target for a block being reordered too, and a
@@ -770,6 +943,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         // no JS state tracking "which block is focused" needed.
         <div
           key={block.id}
+          data-block-id={block.id}
           className={`group relative ${
             block.id === draggedId ? "rounded-md bg-paper-2 opacity-50" : ""
           } ${
