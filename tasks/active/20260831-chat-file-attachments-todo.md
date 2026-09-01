@@ -171,22 +171,42 @@ shapes.
 
 ## Acceptance
 
-- [ ] `pnpm lint`, `pnpm test` and `pnpm build` pass.
-- [ ] Posting a chat message without a session is refused, and `sender` is the session's
-      nickname regardless of what the body says.
-- [ ] An image sent from one browser appears inline in another's chat, without a reload.
-- [ ] A non-image appears as a card and downloads with its original name.
-- [ ] An uploaded `.html` cannot be made to render on our origin — `preview` refuses it and
+All verified 2026-08-31. The serving cases are also a script — `node
+scripts/verify-chat-files.mjs` — because they are the ones worth re-running whenever these
+routes are touched, and a unit test proves the rule while the script proves the *running
+server* puts that rule on the wire.
+
+- [x] `pnpm lint`, `pnpm test` and `pnpm build` pass. 215 tests.
+- [x] Posting a chat message without a session is refused, and `sender` is the session's
+      nickname regardless of what the body says. CI asserts both, including that a body
+      claiming `sender: "impersonated"` is stored as the session's name.
+- [x] An image sent from one browser appears inline in another's chat, without a reload.
+      Sent from a second session; the row appeared and the `<img>` reported
+      `naturalWidth > 0`, so it decoded rather than merely being requested.
+- [x] A non-image appears as a card and downloads with its original name — `📎 보고서.pdf`
+      linking to `/api/files/<id>/download`.
+- [x] An uploaded `.html` cannot be made to render on our origin — `preview` refuses it and
       `download` sends it as an attachment.
-- [ ] The same `.html` uploaded *claiming* `image/png` still does not render: `preview`
-      serves it as `image/png` with `nosniff`, so the browser shows a broken image rather
-      than a page.
-- [ ] An `.svg` is refused by `preview` — the case the four-literal list exists for.
-- [ ] A file with a name like `../../etc/passwd` is stored and served without escaping
-      `.data/files/`.
-- [ ] Attachments survive `docker compose down && up`.
-- [ ] An upload larger than the cap is refused with a message the sender can act on, not a
-      500.
+- [x] The same `.html` uploaded *claiming* `image/png` still does not render: it passes the
+      whitelist, and `preview` serves it as `image/png` with `nosniff` — so the browser
+      draws a broken image rather than a page. This is the case the whitelist alone cannot
+      catch and `nosniff` exists for.
+- [x] An `.svg` is refused by `preview` — the case the four-literal list exists for.
+- [x] A file with a name like `../../etc/passwd` is stored and served without escaping
+      `.data/files/`: the id is the filename on disk and the original name survives only as
+      metadata.
+- [x] Attachments survive `docker compose down && up` — verified in two parts, because
+      Compose on this machine is 2.13 and `docker-compose.yml` needs 2.20+ for `attach:
+      false` (a limitation README already documents, not a defect). Part one: uploads land
+      under `.data/files/`, which is inside the `app-data:/app/.data` mount. Part two: a
+      named volume outlives the container that wrote it — written in one container, read
+      back in a fresh one.
+- [x] An upload larger than the cap is refused with a message the sender can act on, not a
+      500: `413`, "파일은 25MB 이하만 첨부할 수 있습니다."
+
+Found while verifying, fixed here rather than filed: **the panel never reconnected its
+WebSocket.** One drop and it was deaf for the rest of the page's life, silently. See the
+Review below.
 
 ## Cut
 
@@ -217,4 +237,33 @@ Named so nobody re-adds them by accident.
 
 ## Review
 
-Filled in at the end.
+**Shipped.** Milestones 0–4, plus the floating window the panel lives in.
+
+Two things were found by running the thing rather than reading it, and both were real:
+
+1. **Chat had no idea who was talking** (milestone 0). `sender` came off the request body
+   and the route checked no session, so anything on the LAN could post as any name without
+   joining the workspace. Planned as a prerequisite once noticed, not discovered late — but
+   it was a live authentication hole, not a tidy-up. `chat.md` had predicted the fix would
+   be caller-side only, and it was: `ChatService` and `ChatRepository` were untouched.
+
+2. **The panel never reconnected its socket.** It opened one WebSocket and never another,
+   so a host restart, a sleeping laptop or a Wi-Fi blip left it permanently deaf — while
+   looking perfectly healthy. Caught because a stale tab stopped updating during a check of
+   something else; confirmed by opening a socket by hand in the console and watching the
+   server fan out to it while the panel beside it sat unchanged. Reconnect alone would have
+   left a hole where the outage was, so every open now refetches history too.
+
+**What the design got right.** The `attachment` field reusing `FileBlock`'s four fields,
+and the two-endpoint serving split, both survived contact unchanged. `download` having no
+branch to get wrong is what makes it reviewable in one line.
+
+**What it got wrong.** The plan said "the chat panel components" for milestone 4 as if the
+UI were one file. It became four, and the floating window's geometry needed rules of its
+own — an anchored edge cannot be clamped as a size, and a window must not cover the button
+that opens it. That went into `lib/chat/window-frame.ts` as pure functions with the
+viewport passed in, because the failure mode is unrecoverable: a window dragged off the top
+cannot be dragged back.
+
+**Deferred, unchanged from the plan**: UC-061's file drawer, link attachments
+(FR-060-03/06), attachment deletion. See `chat.md`'s Open questions.
