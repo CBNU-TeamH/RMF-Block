@@ -3,7 +3,7 @@
 import yorkie, { type Document, type EditOpInfo } from "@yorkie-js/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { createChecklist, createList, createQuote, createText } from "@/lib/blocks/create";
+import { createChecklist, createList, createPdf, createQuote, createText } from "@/lib/blocks/create";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot, type StoredBlock } from "@/lib/blocks/document";
 import type { MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
 import {
@@ -22,6 +22,7 @@ import { blockIndexFromEditPath } from "@/lib/blocks/text-surface";
 import type { Block, BlockId } from "@/lib/blocks/types";
 
 import { useWorkspacePresence } from "../../presence-provider";
+import { PdfBlockView } from "./pdf-block";
 import { TextBlockView, type BlockVariant } from "./text-block";
 
 /** The six types that edit through `TextBlockView`'s one `<textarea>`. */
@@ -109,6 +110,18 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     targetId: BlockId;
     before: boolean;
   } | null>(null);
+  // Uploads in flight, and the last one that failed. Both are about the
+  // *request*, not the document: a PDF block only ever exists once its bytes
+  // are stored, so there is no optimistic block to reconcile and nothing here
+  // reaches Yorkie.
+  //
+  // A count rather than a flag, because a second drop while the first upload is
+  // still running is a perfectly ordinary thing to do — and with a flag the
+  // first one to finish would clear the indicator while the other was still
+  // going.
+  const [uploadsInFlight, setUploadsInFlight] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const uploading = uploadsInFlight > 0;
 
   const docRef = useRef<Document<BlockDocumentRoot> | null>(null);
   const handlersRef = useRef(new Map<BlockId, (op: EditOpInfo) => void>());
@@ -555,6 +568,113 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   };
 
   /**
+   * Removes a block outright (FR-022-05). Text blocks reach this through
+   * Backspace-at-the-start, which merges rather than deletes; a PDF block has
+   * no caret to press Backspace in, so it carries its own delete button and
+   * this is what that button calls.
+   *
+   * `BlockNotFoundError` means a peer removed it first — the outcome this was
+   * asking for, so there is nothing to report.
+   */
+  const handleDeleteBlock = (blockId: BlockId) => {
+    const doc = docRef.current;
+    if (!doc) return;
+
+    try {
+      doc.update((root: BlockDocumentRoot) => {
+        removeBlock(root.blocks as BlockArray, blockId);
+      });
+    } catch (error) {
+      if (error instanceof BlockNotFoundError) return;
+      throw error;
+    }
+
+    setBlocks(readBlocks(doc.getRoot().blocks));
+    ensureTrailingEmptyBlock();
+  };
+
+  /**
+   * Uploads dropped or picked PDFs and puts a block for each one into the
+   * document (FR-022-13, FR-022-14).
+   *
+   * **The upload finishes before the block exists.** The alternative — a
+   * placeholder block that fills in when the bytes land — would mean every
+   * other client on the LAN seeing a block pointing at a `fileId` the server
+   * has not issued yet, and a failed upload leaving one behind permanently.
+   * The cost is that a large file shows nothing but the "올리는 중" line for a
+   * few seconds, which is the honest state of affairs.
+   *
+   * Several files at once are uploaded in order, each anchored after the last,
+   * so three PDFs dropped together land in the order they were dropped rather
+   * than in whatever order their requests happened to finish.
+   */
+  const uploadPdfs = async (files: Array<File>, afterId: BlockId | null) => {
+    setUploadError(null);
+    setUploadsInFlight((n) => n + 1);
+
+    let anchor = afterId;
+
+    try {
+      for (const file of files) {
+        const form = new FormData();
+        form.append("file", file);
+
+        const response = await fetch(`/api/documents/${documentId}/files`, {
+          method: "POST",
+          body: form,
+        });
+        if (!response.ok) {
+          // The endpoint phrases its own refusals in Korean and they are the
+          // useful part — "PDF만" and "25MB 이하" are what the person has to
+          // act on. A body that is not the JSON we expect falls back.
+          const body = await response.json().catch(() => null);
+          throw new Error(body?.error ?? "파일을 올리지 못했습니다.");
+        }
+
+        const stored = await response.json();
+        const doc = docRef.current;
+        // The document closed mid-upload. The bytes are stored and orphaned,
+        // which UC-050's file manager is the place to deal with; inventing a
+        // block in a document nobody is attached to is not.
+        if (!doc) return;
+
+        const block = toStoredBlock(
+          createPdf({ fileId: stored.id, fileName: stored.name, size: stored.size }),
+        );
+
+        doc.update((root: BlockDocumentRoot) => {
+          const array = root.blocks as BlockArray;
+          // The anchor can be gone — a peer deleting that block while the
+          // upload was in flight is exactly the window this covers. Appending
+          // is the sensible fallback: the PDF still lands in the document.
+          if (anchor !== null && !liveBlockOf(root, anchor)) anchor = null;
+
+          if (anchor === null) appendBlock(array, block);
+          else insertBlockAfter(array, anchor, block);
+        });
+
+        anchor = block.id;
+        setBlocks(readBlocks(doc.getRoot().blocks));
+      }
+
+      ensureTrailingEmptyBlock();
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "파일을 올리지 못했습니다.");
+    } finally {
+      setUploadsInFlight((n) => n - 1);
+    }
+  };
+
+  /**
+   * The files a drag is carrying, or an empty array when it is carrying a
+   * block being reordered instead. Read synchronously: a `DataTransfer` is only
+   * valid for the duration of the event, so the `File` objects have to be taken
+   * out before the first `await`.
+   */
+  const droppedFiles = (event: React.DragEvent): Array<File> =>
+    Array.from(event.dataTransfer.files ?? []);
+
+  /**
    * Reorder (FR-022-04) — native HTML5 drag-and-drop, the dragged block's
    * id carried as the browser's own transfer data rather than component
    * state, since `dragstart` and `drop` can fire on different renders.
@@ -569,16 +689,33 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    */
   const handleDrop = (event: React.DragEvent<HTMLDivElement>, targetId: BlockId) => {
     event.preventDefault();
+    // A drop on a block also reaches the container below it, which is where a
+    // drop into the empty space under the document is handled. Only one of the
+    // two should act on this file.
+    event.stopPropagation();
     const draggedBlockId = event.dataTransfer.getData("text/plain");
     setDraggedId(null);
     setDropIndicator(null);
 
     const doc = docRef.current;
-    if (!doc || !blocks || !draggedBlockId || draggedBlockId === targetId) return;
+    if (!doc || !blocks) return;
 
     const order = blocks.map((b) => b.id);
     const rect = event.currentTarget.getBoundingClientRect();
     const before = dropsBeforeTarget(event.clientY, rect.top, rect.height);
+
+    // A drag from the desktop carries files; a drag from the drag handle
+    // carries a block id. Same event, same handler, one branch — the file case
+    // lands where the pointer is, exactly as a reorder would (UC-022 기본 흐름 1,
+    // "파일을 문서에 드래그 앤 드롭한다").
+    const files = droppedFiles(event);
+    if (files.length > 0) {
+      void uploadPdfs(files, before ? idBeforeInOrder(order, targetId) : targetId);
+      return;
+    }
+
+    if (!draggedBlockId || draggedBlockId === targetId) return;
+
     const afterId = before ? idBeforeInOrder(order, targetId) : targetId;
 
     const currentAfterId = idBeforeInOrder(order, draggedBlockId);
@@ -607,7 +744,25 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   const listNumbers = orderedListNumbers(blocks);
 
   return (
-    <div className="flex flex-col">
+    // The whole editor is a drop target, not only the blocks in it: a document
+    // whose last block is short leaves most of the page empty, and that empty
+    // space is where a file naturally gets dropped. A drop that lands on a
+    // block stops there (`handleDrop`) and lands at the pointer instead.
+    <div
+      className="flex min-h-0 flex-1 flex-col"
+      onDragOver={(event) => {
+        // Only for files. Calling `preventDefault` for everything would make
+        // this a valid drop target for a block being reordered too, and a
+        // block dropped here would silently do nothing.
+        if (event.dataTransfer.types.includes("Files")) event.preventDefault();
+      }}
+      onDrop={(event) => {
+        const files = droppedFiles(event);
+        if (files.length === 0) return;
+        event.preventDefault();
+        void uploadPdfs(files, null);
+      }}
+    >
       {blocks.map((block, index) => (
         // `group`/`relative` here, not on the drag handle: the handle needs
         // to be positioned against this block and shown only while this
@@ -701,18 +856,58 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
                 onTextCommitted={ensureTrailingEmptyBlock}
               />
             </div>
+          ) : block.type === "pdf" ? (
+            <PdfBlockView block={block} onDelete={handleDeleteBlock} />
           ) : (
-            // Divider/file/image/pdf/doc-link/block-link: typed already, no
+            // Divider/file/image/doc-link/block-link: typed already, no
             // renderer yet — dividers are next (they need their own
             // no-textarea operation, unlike these four which just reused
-            // `changeBlockType` as-is), the file-backed ones wait on the File
-            // API this build does not have.
+            // `changeBlockType` as-is), and image/file wait on the other two
+            // legs of FR-022-14, which the upload endpoint refuses for now.
             <p className="px-1 py-0.5 text-sm text-ink-faint">
               아직 편집할 수 없는 블록입니다 ({block.type}).
             </p>
           )}
         </div>
       ))}
+
+      {/* Below the document rather than above it: this appends, and the
+       * button sitting where the new block will appear is less surprising
+       * than a toolbar. It also gives the empty half of the page something
+       * to say — a drop target nobody can see is a feature nobody finds. */}
+      <div className="mt-3 flex flex-1 flex-wrap items-center gap-2 pt-1">
+        <label
+          className={`rounded-md border border-ink bg-paper-2 px-2.5 py-1 text-[11px] font-semibold text-ink ${
+            uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-sky-soft"
+          }`}
+        >
+          PDF 추가
+          <input
+            type="file"
+            accept="application/pdf,.pdf"
+            multiple
+            disabled={uploading}
+            className="hidden"
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? []);
+              // Cleared so picking the *same* file again still fires a change
+              // event — otherwise a failed upload cannot be retried from here.
+              event.target.value = "";
+              if (files.length > 0) void uploadPdfs(files, null);
+            }}
+          />
+        </label>
+
+        {uploading ? (
+          <span className="text-[11px] text-ink-faint">올리는 중…</span>
+        ) : uploadError ? (
+          <span className="text-[11px] text-red-600">{uploadError}</span>
+        ) : (
+          <span className="text-[11px] text-ink-faint">
+            PDF 파일을 문서에 끌어다 놓을 수도 있습니다.
+          </span>
+        )}
+      </div>
     </div>
   );
 }

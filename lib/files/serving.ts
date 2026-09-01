@@ -16,24 +16,38 @@
  *
  * - `download` never reads the stored type, so no upload can change the shape
  *   of its response. There is no `if` to get wrong.
- * - `preview` must name a real type for `<img>` to work at all, so it is the
- *   one that needs a list — and it refuses everything not on it.
+ * - `preview` must name a real type for `<img>` or `<iframe>` to work at all,
+ *   so it is the one that needs a list — and it refuses everything not on it.
  */
 
 /**
- * The types `preview` will serve inline. Four literals rather than
- * `startsWith("image/")` **because of SVG**: `image/svg+xml` is an image that
- * can carry `<script>`, and served inline it runs.
+ * The types `preview` will serve inline.
+ *
+ * Literals rather than `startsWith("image/")` **because of SVG**:
+ * `image/svg+xml` is an image that can carry `<script>`, and served inline it
+ * runs.
+ *
+ * `application/pdf` is on the list because the PDF block renders one in an
+ * `<iframe>` (FR-080-01~03), and every browser `docs/SRS-ko.md` §4.2 supports
+ * has its own viewer for it. That viewer is not the page: it parses the bytes
+ * in its own context, so a PDF's scripting — unlike an SVG's — has no reach
+ * into the origin this file is worried about. And a *non*-PDF served under this
+ * type does not become one: `nosniff` below keeps the browser from re-deciding,
+ * so it reaches the PDF viewer, fails to parse, and shows an error rather than
+ * a page. The document upload endpoint additionally refuses anything whose
+ * bytes do not start with `%PDF-`, so nothing stored under this type reached it
+ * on a claim alone.
  */
-const INLINE_IMAGE_TYPES = new Set([
+const INLINE_TYPES = new Set([
   "image/png",
   "image/jpeg",
   "image/gif",
   "image/webp",
+  "application/pdf",
 ]);
 
-export function isInlineImageType(type: string): boolean {
-  return INLINE_IMAGE_TYPES.has(type);
+export function isInlineType(type: string): boolean {
+  return INLINE_TYPES.has(type);
 }
 
 /**
@@ -58,9 +72,15 @@ function baseHeaders(contentType: string, disposition: string): Headers {
   });
 }
 
-/** `inline`, with the stored type — only ever called after the list said yes. */
-export function inlineImageHeaders(type: string): Headers {
-  return baseHeaders(type, "inline");
+/**
+ * `inline`, with the stored type — only ever called after the list said yes.
+ *
+ * The name rides along for the same reason the download response carries one:
+ * a PDF opened in the browser's viewer offers a Save button, and without this
+ * it saves under the opaque uuid the file is stored as.
+ */
+export function inlineHeaders(type: string, fileName: string): Headers {
+  return baseHeaders(type, `inline; ${dispositionName(fileName)}`);
 }
 
 /**

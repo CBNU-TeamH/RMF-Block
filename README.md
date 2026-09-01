@@ -96,7 +96,7 @@ pnpm test                     # node:test, no framework
 pnpm build
 ```
 
-Two traps worth knowing before you hit them, both found the hard way:
+Three traps worth knowing before you hit them, all found the hard way:
 
 - **Run `pnpm build` last, not before `pnpm dev`.** A production build leaves a `.next` the dev
   server cannot use, and it fails with `Could not parse module '[project]/instrumentation.ts', file
@@ -105,6 +105,13 @@ Two traps worth knowing before you hit them, both found the hard way:
 - **Docker Compose must be 2.20 or newer.** `docker-compose.yml` uses `attach: false` on the mongo
   service to keep the host's terminal readable. Older Compose (2.13 was measured) refuses the whole
   file with `services.mongo Additional property attach is not allowed`.
+- **`pnpm dev` is reachable from this machine only — test other devices against `pnpm start`.**
+  Next's dev server refuses `/_next/*` to any host but `localhost`, so a phone at
+  `http://<LAN-IP>:3000` gets the server-rendered HTML and no client JavaScript. Nothing errors on
+  screen: the page draws, React never hydrates, and the join form quietly falls back to a plain
+  `GET /join?nickname=…&password=…` that never attempts a login — which reads exactly like a wrong
+  password. Build first (`pnpm build && pnpm start`, or `pnpm docker:up`) and the restriction is
+  gone.
 
 Documents live in Yorkie, which persists them to MongoDB — see [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2.
 The app's own state is written as JSON under `.data/` — chat history and the workspace's members,

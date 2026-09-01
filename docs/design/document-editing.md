@@ -310,7 +310,7 @@ content = {
 }
 ```
 
-Identical shape to the image block. No page-count or current-page tracking — not required by SRS.
+Identical shape to the image block. No page-count or current-page tracking — not required by SRS, and nothing in the renderer wants them: the block embeds `/api/files/:id/preview` in an `<iframe>` and lets the browser's own PDF viewer do the paging (FR-080-01~03), so page state lives in that viewer rather than in the document. That also keeps the block free of anything per-viewer — two people reading the same PDF block scroll it independently, which is what a shared document with a private reading position should do.
 
 ### 11. Document link block (`type: "doc-link"`)
 

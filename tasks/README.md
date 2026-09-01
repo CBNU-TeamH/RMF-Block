@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [PDF block and its in-app viewer](active/20260901-pdf-block-viewer-todo.md) | [lessons](active/20260901-pdf-block-viewer-lessons.md) |
 | [Chat file attachments](active/20260831-chat-file-attachments-todo.md) | [lessons](active/20260831-chat-file-attachments-lessons.md) |
 | [Open a document and edit it together](active/20260829-block-editor-todo.md) | [lessons](active/20260829-block-editor-lessons.md) |
 | [Gate Yorkie behind the workspace session](active/20260828-yorkie-auth-webhook-todo.md) | [lessons](active/20260828-yorkie-auth-webhook-lessons.md) |

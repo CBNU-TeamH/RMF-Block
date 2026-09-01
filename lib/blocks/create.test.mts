@@ -7,6 +7,7 @@ import {
   createDivider,
   createHeading,
   createList,
+  createPdf,
   createQuote,
   createText,
   newBlockId,
@@ -57,6 +58,7 @@ describe("block factories", () => {
       createQuote(),
       createCode(),
       createDivider(),
+      createPdf({ fileId: "f", fileName: "a.pdf", size: 1 }),
     ].map((block) => block.id);
 
     assert.equal(new Set(ids).size, ids.length);
@@ -115,5 +117,18 @@ describe("block factories", () => {
 
     assert.equal(divider.type, "divider");
     assert.deepEqual(Object.keys(divider).sort(), ["id", "type"]);
+  });
+
+  it("creates a PDF block holding the reference and the cached display fields", () => {
+    // The bytes never enter the document; this is the whole of what does. The
+    // name and size are cached so every other client can draw the block without
+    // a File API round trip (`document-editing.md` §10).
+    const pdf = createPdf({ fileId: "9f-uuid", fileName: "보고서.pdf", size: 2048 });
+
+    assert.equal(pdf.type, "pdf");
+    assert.equal(pdf.fileId, "9f-uuid");
+    assert.equal(pdf.fileName, "보고서.pdf");
+    assert.equal(pdf.size, 2048);
+    assert.deepEqual(Object.keys(pdf).sort(), ["fileId", "fileName", "id", "size", "type"]);
   });
 });
