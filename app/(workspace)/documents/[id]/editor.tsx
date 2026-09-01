@@ -749,7 +749,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     // space is where a file naturally gets dropped. A drop that lands on a
     // block stops there (`handleDrop`) and lands at the pointer instead.
     <div
-      className="flex min-h-0 flex-1 flex-col"
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
       onDragOver={(event) => {
         // Only for files. Calling `preventDefault` for everything would make
         // this a valid drop target for a block being reordered too, and a

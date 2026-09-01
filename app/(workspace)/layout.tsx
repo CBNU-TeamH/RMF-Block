@@ -64,7 +64,11 @@ export default async function WorkspaceLayout({
       override={yorkie.override}
       port={yorkie.port}
     >
-      <div className="flex min-h-full flex-1 flex-col bg-shell">
+      {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
+          shell has to be exactly the viewport's height, not merely at least
+          it, or the row below never bounds `<main>` and the editor's own
+          scroll container grows to fit its blocks instead of scrolling. */}
+      <div className="flex h-full flex-1 flex-col bg-shell">
         {member ? <SessionWatch /> : null}
 
         <header className="flex h-11 flex-none items-center gap-3 border-b border-ink bg-paper px-4">
