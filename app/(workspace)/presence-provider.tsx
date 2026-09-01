@@ -1,17 +1,30 @@
 "use client";
 
-import yorkie from "@yorkie-js/sdk";
+import yorkie, { type Client } from "@yorkie-js/sdk";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { rosterFrom } from "@/lib/presence/roster";
 import { WORKSPACE_DOC_KEY, type WorkspacePresence } from "@/lib/presence/types";
 
-export type PresenceState =
-  | { status: "connecting"; members: Array<WorkspacePresence> }
-  | { status: "active"; members: Array<WorkspacePresence> }
-  | { status: "failed"; members: Array<WorkspacePresence> };
+/**
+ * `client` is the workspace's one Yorkie connection, `null` until it has
+ * activated. The block editor attaches its content document through this
+ * same client rather than opening a second one — a second client is a second
+ * connection per browser, and one built without `fetchToken` below would
+ * quietly reopen the hole PR #50 closed (no `authTokenInjector` at all).
+ */
+export type PresenceState = {
+  status: "connecting" | "active" | "failed";
+  members: Array<WorkspacePresence>;
+  /** Non-null exactly when `status` is `"active"`; callers check this, not status. */
+  client: Client | null;
+};
 
-const PresenceContext = createContext<PresenceState>({ status: "connecting", members: [] });
+const PresenceContext = createContext<PresenceState>({
+  status: "connecting",
+  members: [],
+  client: null,
+});
 
 /** Read the workspace roster. Every consumer shares one Yorkie connection. */
 export function useWorkspacePresence(): PresenceState {
@@ -89,6 +102,7 @@ export function PresenceProvider({
 }) {
   const [status, setStatus] = useState<PresenceState["status"]>("connecting");
   const [members, setMembers] = useState<Array<WorkspacePresence>>([]);
+  const [client, setClient] = useState<Client | null>(null);
 
   useEffect(() => {
     // Resolved in here, not in render: `window` does not exist while this
@@ -125,10 +139,12 @@ export function PresenceProvider({
       // changing their own presence.
       unsubscribe = doc.subscribe("others", readRoster);
       setStatus("active");
+      setClient(client);
       readRoster();
     })().catch((error: unknown) => {
       if (cancelled) return;
       setStatus("failed");
+      setClient(null);
       // ponytail: the address and the reason go to the console until someone
       // asks for a real error surface. A 44px top bar has room for a state, not
       // for a stack trace, and this is the one place a guest can be told
@@ -149,13 +165,17 @@ export function PresenceProvider({
       void setup.finally(() => {
         unsubscribe?.();
         // Detaches every document this client holds, which is what tells the
-        // other browsers to drop this member.
+        // other browsers to drop this member — including any content document
+        // the block editor attached through it.
         client.deactivate().catch(() => undefined);
       });
     };
   }, [memberId, nickname, colorTag, override, port]);
 
-  const value = useMemo<PresenceState>(() => ({ status, members }), [status, members]);
+  const value = useMemo<PresenceState>(
+    () => ({ status, members, client }),
+    [status, members, client],
+  );
 
   return <PresenceContext.Provider value={value}>{children}</PresenceContext.Provider>;
 }

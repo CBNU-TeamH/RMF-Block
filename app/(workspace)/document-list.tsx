@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
 
 import type { WorkspaceMember } from "@/lib/auth/types";
 import type { WorkspaceDocument } from "@/lib/documents/documents";
@@ -27,26 +29,80 @@ const day = new Intl.DateTimeFormat("ko-KR", {
 });
 const stamp = (iso: string) => (iso ? day.format(new Date(iso)) : "—");
 
+// Same input styling as `app/join/join-form.tsx`'s dialog, not reused directly
+// — that form is a route apart and pulling shared constants in for two call
+// sites is not worth the indirection yet.
+const INPUT_BASE = "rounded-md border bg-paper-2 px-3 py-2 text-base text-ink";
+const INPUT_OK = "border-ink";
+const INPUT_BAD = "border-red-600";
+
 /**
- * The workspace's documents (FR-020-06, the document half).
+ * The workspace's documents (FR-020-06, the document half) and where UC-021's
+ * 기본 흐름 starts.
  *
- * Rows do not navigate. There is no editor to open until the block work
- * (FR-022), and a row that looks clickable and goes nowhere is worse than one
- * that never offered — so no anchor, no pointer cursor. `+ 새 문서` and the type
- * filter are rendered disabled for the same reason: nothing creates a document
- * yet, and every document is the same type until file blocks exist.
+ * Rows navigate to `/documents/[id]`; "+ 새 문서" opens a `<dialog>` for the
+ * one thing UC-021 asks for before creating one — a name — the same
+ * `showModal()`-only-for-real-modality pattern `join-form.tsx` already uses,
+ * not a second one invented for this file.
  *
- * Client-side only because of the search box. The rows themselves arrive as
+ * Client-side for the search box and the dialog. The rows themselves arrive as
  * props from the server component, so the list is in the HTML on first paint.
  */
 export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
+
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return documents;
     return documents.filter((doc) => doc.name.toLowerCase().includes(needle));
   }, [documents, query]);
+
+  function openDialog() {
+    setName("");
+    setError(null);
+    dialogRef.current?.showModal();
+    // showModal() moves focus to the dialog itself; the name field is what a
+    // person actually wants to type into.
+    requestAnimationFrame(() => nameRef.current?.focus());
+  }
+
+  async function create() {
+    setCreating(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setError(body.error ?? "문서를 만들지 못했습니다.");
+        nameRef.current?.focus();
+        return;
+      }
+
+      dialogRef.current?.close();
+      // This page is a server component reading `readDocuments()` fresh per
+      // request; refresh() is what makes going back to it show the new row
+      // without a full reload.
+      router.refresh();
+      router.push(`/documents/${body.document.id}`);
+    } catch {
+      setError("서버에 연결할 수 없습니다.");
+    } finally {
+      setCreating(false);
+    }
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -66,17 +122,13 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
           className="w-full max-w-95 rounded-md border border-ink bg-paper-2 px-3 py-1.5 text-[13px] text-ink placeholder:text-ink-faint"
         />
         <span className="flex-1" />
-        {/* A disabled button swallows pointer events in most browsers, so a
-            title on it never shows. The wrapper is what the pointer hits. */}
-        <span title="문서 생성은 블록 편집기와 함께 들어옵니다">
-          <button
-            type="button"
-            disabled
-            className="rounded-md border border-sky-deep bg-sky px-4 py-1.5 text-[13px] font-bold text-ink disabled:opacity-40"
-          >
-            + 새 문서
-          </button>
-        </span>
+        <button
+          type="button"
+          onClick={openDialog}
+          className="rounded-md border border-sky-deep bg-sky px-4 py-1.5 text-[13px] font-bold text-ink"
+        >
+          + 새 문서
+        </button>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-ink">
@@ -100,27 +152,87 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
             {rows.map((doc) => (
               <li
                 key={doc.id}
-                className={`grid ${COLUMNS} items-center border-b border-dashed border-ink/15 px-3.5 py-2.5 last:border-b-0`}
+                className="border-b border-dashed border-ink/15 last:border-b-0"
               >
-                <span className="truncate text-[13.5px] font-semibold text-ink">{doc.name}</span>
-                <span>
-                  {doc.creator ? (
-                    <span
-                      title={doc.creator.nickname}
-                      style={{ backgroundColor: doc.creator.colorTag }}
-                      className="inline-flex size-5.5 items-center justify-center rounded-full border border-ink text-[11px] font-bold text-ink"
-                    >
-                      {doc.creator.nickname.slice(0, 1)}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="text-[13px] text-ink">{stamp(doc.updatedAt)}</span>
-                <span className="text-[13px] text-ink-soft">{stamp(doc.createdAt)}</span>
+                <Link
+                  href={`/documents/${doc.id}`}
+                  className={`grid ${COLUMNS} items-center px-3.5 py-2.5 hover:bg-paper-2`}
+                >
+                  <span className="truncate text-[13.5px] font-semibold text-ink">
+                    {doc.name}
+                  </span>
+                  <span>
+                    {doc.creator ? (
+                      <span
+                        title={doc.creator.nickname}
+                        style={{ backgroundColor: doc.creator.colorTag }}
+                        className="inline-flex size-5.5 items-center justify-center rounded-full border border-ink text-[11px] font-bold text-ink"
+                      >
+                        {doc.creator.nickname.slice(0, 1)}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="text-[13px] text-ink">{stamp(doc.updatedAt)}</span>
+                  <span className="text-[13px] text-ink-soft">{stamp(doc.createdAt)}</span>
+                </Link>
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      <dialog
+        ref={dialogRef}
+        onCancel={(event) => {
+          if (creating) event.preventDefault();
+        }}
+        className="m-auto max-w-sm rounded-lg border border-ink bg-paper p-5 text-ink backdrop:bg-ink/40"
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void create();
+          }}
+          className="flex flex-col gap-3"
+        >
+          <h2 className="text-base font-bold text-ink">새 문서</h2>
+          <label className="flex flex-col gap-1 text-sm text-ink-soft">
+            문서 이름
+            <input
+              ref={nameRef}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              required
+              aria-invalid={error !== null}
+              className={`${INPUT_BASE} ${error ? INPUT_BAD : INPUT_OK}`}
+            />
+          </label>
+
+          {error ? (
+            <p role="alert" className="text-sm font-medium text-red-600">
+              {error}
+            </p>
+          ) : null}
+
+          <div className="mt-1 flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={creating}
+              onClick={() => dialogRef.current?.close()}
+              className="rounded-md border border-ink px-3 py-1.5 text-sm text-ink disabled:opacity-40"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={creating}
+              className="rounded-md border border-sky-deep bg-sky px-3 py-1.5 text-sm font-bold text-ink disabled:opacity-40"
+            >
+              {creating ? "만드는 중…" : "만들기"}
+            </button>
+          </div>
+        </form>
+      </dialog>
     </div>
   );
 }

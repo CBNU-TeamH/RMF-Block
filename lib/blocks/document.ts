@@ -1,4 +1,4 @@
-import type { Text } from "@yorkie-js/sdk";
+import { Text } from "@yorkie-js/sdk";
 
 import type {
   Block,
@@ -85,7 +85,7 @@ const textOf = (content: StoredContent | undefined): string =>
  * the block stays in the document and reappears the moment a build that knows
  * the type reads it.
  */
-export function readBlocks(blocks: Array<StoredBlock>): Array<Block> {
+export function readBlocks(blocks: Array<StoredBlock | null>): Array<Block> {
   const result: Array<Block> = [];
 
   for (const stored of blocks) {
@@ -96,7 +96,15 @@ export function readBlocks(blocks: Array<StoredBlock>): Array<Block> {
   return result;
 }
 
-function readBlock(stored: StoredBlock): Block | null {
+/**
+ * `null` is dropped like any other malformed entry, not treated as a crash.
+ * Yorkie's `JSONArray` accepts `null` as a plain element — nothing here writes
+ * one, but the LAN can (`docs/design/api.md` §2) — and destructuring it before
+ * this check threw before `readBlocks`'s per-block resilience ever applied.
+ */
+function readBlock(stored: StoredBlock | null): Block | null {
+  if (!stored) return null;
+
   const { id, content } = stored;
 
   switch (stored.type) {
@@ -175,5 +183,82 @@ function readBlock(stored: StoredBlock): Block | null {
 
     default:
       return null;
+  }
+}
+
+/**
+ * The reverse of `readBlock`: what a `create.ts` factory's output has to become
+ * before `operations.ts` will touch it.
+ *
+ * A block's text turns into a live, empty `yorkie.Text` here, never the plain
+ * string a `Block` carries — assigning the string itself would be exactly the
+ * mistake this file's own top comment warns against, and the one `create.ts`
+ * avoids by returning empty text and leaving the first `edit()` to the caller.
+ * `toStoredBlock` only creates the CRDT; filling it is `editBlockText`'s job.
+ *
+ * Exhaustive over all twelve types, not just the seven `create.ts` can build
+ * today, so a renderer added for the other five (`docs/design/document-editing.md`)
+ * finds this already able to store what it creates.
+ */
+export function toStoredBlock(block: Block): StoredBlock {
+  switch (block.type) {
+    case "text":
+    case "quote":
+    case "code":
+      return { id: block.id, type: block.type, content: { text: new Text() } };
+
+    case "heading":
+      return {
+        id: block.id,
+        type: "heading",
+        content: { level: block.level, text: new Text() },
+      };
+
+    case "list":
+      return {
+        id: block.id,
+        type: "list",
+        content: { style: block.style, depth: block.depth, text: new Text() },
+      };
+
+    case "checklist":
+      return {
+        id: block.id,
+        type: "checklist",
+        content: { checked: block.checked, text: new Text() },
+      };
+
+    case "divider":
+      return { id: block.id, type: "divider" };
+
+    case "file":
+      return {
+        id: block.id,
+        type: "file",
+        content: {
+          fileId: block.fileId,
+          fileName: block.fileName,
+          fileType: block.fileType,
+          size: block.size,
+        },
+      };
+
+    case "image":
+    case "pdf":
+      return {
+        id: block.id,
+        type: block.type,
+        content: { fileId: block.fileId, fileName: block.fileName, size: block.size },
+      };
+
+    case "doc-link":
+      return { id: block.id, type: "doc-link", content: { documentId: block.documentId } };
+
+    case "block-link":
+      return {
+        id: block.id,
+        type: "block-link",
+        content: { documentId: block.documentId, blockId: block.blockId },
+      };
   }
 }
