@@ -1,4 +1,5 @@
 import type { WorkspaceMember } from "../auth/types.ts";
+import type { BlockId } from "../blocks/types.ts";
 
 /**
  * The contract for the connected-user list (FR-020-06/07).
@@ -30,7 +31,17 @@ export const WORKSPACE_DOC_KEY = "workspace";
  * the roster has to be the one FR-020-08 promises stays yours across devices,
  * and a second identity type would be a second chance to disagree about it.
  */
-export type WorkspacePresence = WorkspaceMember;
+export type WorkspacePresence = WorkspaceMember & {
+  /** Set while this member is presenting (sharing their view); `null` (not
+   * `undefined`) ends the share — see why in this task's todo, "the SDK
+   * `JSON.stringify`s each presence value, and `undefined` doesn't survive
+   * that round trip." Absent entirely for a member who has never presented. */
+  presenting?: {
+    documentId: string;
+    blockId: BlockId;
+    ratio: number;
+  } | null;
+};
 
 /**
  * The host has no session and no nickname — identity comes from having started
