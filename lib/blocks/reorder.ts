@@ -40,3 +40,30 @@ export function idAfterInOrder(order: Array<string>, targetId: string): string |
 export function dropsBeforeTarget(clientY: number, rectTop: number, rectHeight: number): boolean {
   return clientY < rectTop + rectHeight / 2;
 }
+
+/**
+ * Where a drop on `targetId` puts `draggedId` — or `null` when it puts it
+ * nowhere: dropped onto itself, or into the slot it already occupies (either
+ * side of the neighbour it is already next to). The result is
+ * `moveBlockAfter`'s `afterId`, wrapped so that a legitimate `null` ("insert
+ * at the front") stays distinguishable from "no move at all".
+ *
+ * One rule, two callers, on purpose: `editor.tsx` draws its insertion line
+ * only where this returns a destination and moves the block only where this
+ * returns a destination. Split across two places they drifted, and the line
+ * promised drops that silently did nothing.
+ */
+export function dropDestination(
+  order: Array<string>,
+  draggedId: string,
+  targetId: string,
+  before: boolean,
+): { afterId: string | null } | null {
+  if (draggedId === targetId) return null;
+
+  const afterId = before ? idBeforeInOrder(order, targetId) : targetId;
+  if (afterId === draggedId) return null;
+  if (afterId === idBeforeInOrder(order, draggedId)) return null;
+
+  return { afterId };
+}

@@ -17,7 +17,12 @@ import {
   type BlockArray,
 } from "@/lib/blocks/operations";
 import { orderedListNumbers } from "@/lib/blocks/list-numbering";
-import { dropsBeforeTarget, idAfterInOrder, idBeforeInOrder } from "@/lib/blocks/reorder";
+import {
+  dropDestination,
+  dropsBeforeTarget,
+  idAfterInOrder,
+  idBeforeInOrder,
+} from "@/lib/blocks/reorder";
 import { blockIndexFromEditPath } from "@/lib/blocks/text-surface";
 import type { Block, BlockId } from "@/lib/blocks/types";
 import { anchorAt, scrollTopFor, type FocusAnchor } from "@/lib/focus/anchor";
@@ -867,15 +872,20 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    * id carried as the browser's own transfer data rather than component
    * state, since `dragstart` and `drop` can fire on different renders.
    *
-   * `afterId` resolves "insert before/after `targetId`" the same way merge
-   * resolves "the previous block" — off `blocks` state's order, which is
-   * reliable for order even though its `text` fields go stale
-   * (`liveTextOf`'s own comment). Two no-ops guarded explicitly: dropping a
-   * block onto itself, and a drop that resolves to the position the block
-   * is already in — without the second, dropping back onto its own current
-   * neighbor still calls `moveBlockAfter` for no actual change.
+   * Where the block lands is `dropDestination`'s call, not this function's —
+   * the same call the insertion line is drawn from, so the line and the drop
+   * can never disagree about whether a position is real.
+   *
+   * `forcedBefore` is for callers that are not the target block itself: the
+   * footer under the document drops at the end, and deriving "before or
+   * after?" from *its* rect would answer about the footer, not about the
+   * block.
    */
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>, targetId: BlockId) => {
+  const handleDrop = (
+    event: React.DragEvent<HTMLDivElement>,
+    targetId: BlockId,
+    forcedBefore?: boolean,
+  ) => {
     event.preventDefault();
     // A drop on a block also reaches the container below it, which is where a
     // drop into the empty space under the document is handled. Only one of the
@@ -890,7 +900,8 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
     const order = blocks.map((b) => b.id);
     const rect = event.currentTarget.getBoundingClientRect();
-    const before = dropsBeforeTarget(event.clientY, rect.top, rect.height);
+    const before =
+      forcedBefore ?? dropsBeforeTarget(event.clientY, rect.top, rect.height);
 
     // A drag from the desktop carries files; a drag from the drag handle
     // carries a block id. Same event, same handler, one branch — the file case
@@ -902,16 +913,14 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       return;
     }
 
-    if (!draggedBlockId || draggedBlockId === targetId) return;
+    if (!draggedBlockId) return;
 
-    const afterId = before ? idBeforeInOrder(order, targetId) : targetId;
-
-    const currentAfterId = idBeforeInOrder(order, draggedBlockId);
-    if (afterId === draggedBlockId || afterId === currentAfterId) return;
+    const destination = dropDestination(order, draggedBlockId, targetId, before);
+    if (!destination) return;
 
     try {
       doc.update((root: BlockDocumentRoot) => {
-        moveBlockAfter(root.blocks as BlockArray, afterId, draggedBlockId);
+        moveBlockAfter(root.blocks as BlockArray, destination.afterId, draggedBlockId);
       });
     } catch (error) {
       if (error instanceof BlockNotFoundError) return;
@@ -930,6 +939,30 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   }
 
   const listNumbers = orderedListNumbers(blocks);
+  const order = blocks.map((b) => b.id);
+  const lastBlockId = order[order.length - 1] ?? null;
+
+  /**
+   * Draw the insertion line — but only where a drop would actually land the
+   * block somewhere, which is `dropDestination`'s answer, the very one
+   * `handleDrop` acts on. A line over a position the drop declines is the
+   * whole complaint: it says "here" and releasing does nothing.
+   *
+   * A file drag has no `draggedId`, and for it every position is a real
+   * insertion point — a new block goes in wherever the pointer is — so it
+   * always draws.
+   */
+  const showIndicator = (targetId: BlockId, before: boolean) => {
+    const next =
+      draggedId === null || dropDestination(order, draggedId, targetId, before)
+        ? { targetId, before }
+        : null;
+    setDropIndicator((current) =>
+      current?.targetId === next?.targetId && current?.before === next?.before
+        ? current
+        : next,
+    );
+  };
 
   return (
     // The whole editor is a drop target, not only the blocks in it: a document
@@ -955,10 +988,17 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       // so nothing errors, it just never shows on hover.
       className="relative -ml-4 flex min-h-0 flex-1 flex-col overflow-y-auto pl-4"
       onDragOver={(event) => {
-        // Only for files. Calling `preventDefault` for everything would make
-        // this a valid drop target for a block being reordered too, and a
-        // block dropped here would silently do nothing.
-        if (event.dataTransfer.types.includes("Files")) event.preventDefault();
+        if (event.dataTransfer.types.includes("Files")) {
+          event.preventDefault();
+          return;
+        }
+        // A block drag reaching the container has passed every block and the
+        // footer without being claimed — the pointer is in the padding strip
+        // beside the blocks, where there is nothing to drop onto. No
+        // `preventDefault`, so the browser shows "no drop"; the line goes too,
+        // rather than being left over the last block crossed, promising a
+        // landing spot the release would not honour.
+        setDropIndicator(null);
       }}
       onDrop={(event) => {
         const files = droppedFiles(event);
@@ -986,13 +1026,12 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           }`}
           onDragOver={(event) => {
             event.preventDefault();
+            // The container below also listens, to notice the pointer
+            // sitting somewhere no block is. This *is* a block, so it
+            // answers for itself.
+            event.stopPropagation();
             const rect = event.currentTarget.getBoundingClientRect();
-            const before = dropsBeforeTarget(event.clientY, rect.top, rect.height);
-            setDropIndicator((current) =>
-              current?.targetId === block.id && current.before === before
-                ? current
-                : { targetId: block.id, before },
-            );
+            showIndicator(block.id, dropsBeforeTarget(event.clientY, rect.top, rect.height));
           }}
           onDrop={(event) => handleDrop(event, block.id)}
         >
@@ -1080,7 +1119,26 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
        * button sitting where the new block will appear is less surprising
        * than a toolbar. It also gives the empty half of the page something
        * to say — a drop target nobody can see is a feature nobody finds. */}
-      <div className="mt-3 flex flex-1 flex-wrap items-center gap-2 pt-1">
+      <div
+        className="mt-3 flex flex-1 flex-wrap items-center gap-2 pt-1"
+        // This div is `flex-1`: it *is* the empty space under the document,
+        // which is exactly where a block gets dragged when the intent is
+        // "put it at the end". Before, nothing here claimed the drop, so the
+        // browser refused it while the line drawn over the last block crossed
+        // stayed on screen. Files are left to bubble to the container, which
+        // already appends them.
+        onDragOver={(event) => {
+          if (event.dataTransfer.types.includes("Files")) return;
+          if (lastBlockId === null) return;
+          event.preventDefault();
+          event.stopPropagation();
+          showIndicator(lastBlockId, false);
+        }}
+        onDrop={(event) => {
+          if (lastBlockId === null || droppedFiles(event).length > 0) return;
+          handleDrop(event, lastBlockId, false);
+        }}
+      >
         <label
           className={`rounded-md border border-ink bg-paper-2 px-2.5 py-1 text-[11px] font-semibold text-ink ${
             uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-sky-soft"
