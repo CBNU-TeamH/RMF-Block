@@ -1,9 +1,8 @@
 "use client";
 
-import yorkie, { type Document, type EditOpInfo } from "@yorkie-js/sdk";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { createPdf, createText } from "@/lib/blocks/create";
+import { createText } from "@/lib/blocks/create";
 import { BLOCK_KINDS, continuationBlock, isTextBearing } from "@/lib/blocks/registry";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot, type StoredBlock } from "@/lib/blocks/document";
 import type { MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
@@ -24,25 +23,15 @@ import {
   idAfterInOrder,
   idBeforeInOrder,
 } from "@/lib/blocks/reorder";
-import { blockIndexFromEditPath } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
-import { anchorAt, scrollTopFor, type FocusAnchor } from "@/lib/focus/anchor";
-import { readBoxes } from "@/lib/focus/dom";
 
 import { useFocusFollow } from "../../focus-follow-provider";
 import { useWorkspacePresence } from "../../presence-provider";
 import { PdfBlockView } from "./pdf-block";
 import { TextBlockView, type BlockVariant } from "./text-block";
-
-/**
- * How often a presenter's anchor may go out over presence, at most.
- *
- * ponytail: a plain interval, no easing or adaptive cadence. 10 a second is
- * well under what a follower can perceive as lag — their side scrolls
- * smoothly between anchors anyway — and it is 6x fewer writes than the
- * display's frame rate. Lower it if following ever reads as steppy.
- */
-const PUBLISH_MS = 100;
+import { useBlockDocument } from "./use-block-document";
+import { useFocusPresence } from "./use-focus-presence";
+import { usePdfUpload } from "./use-pdf-upload";
 
 /**
  * Exhaustive on purpose — every text-bearing type has its own `case`, and the
@@ -105,8 +94,10 @@ function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
 export function DocumentEditor({ documentId }: { documentId: string }) {
   const { client, members, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId } = useFocusFollow();
-  const [blocks, setBlocks] = useState<Array<Block> | null>(null);
-  const [failed, setFailed] = useState(false);
+  const { blocks, setBlocks, failed, docRef, registerRemoteHandler } = useBlockDocument(
+    client,
+    documentId,
+  );
   // The block currently being dragged — opacity feedback only, cleared on
   // both a successful drop and `dragend` (a drag cancelled or dropped
   // outside any block never fires `onDrop`, and without `dragend` too the
@@ -121,56 +112,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     targetId: BlockId;
     before: boolean;
   } | null>(null);
-  // Uploads in flight, and the last one that failed. Both are about the
-  // *request*, not the document: a PDF block only ever exists once its bytes
-  // are stored, so there is no optimistic block to reconcile and nothing here
-  // reaches Yorkie.
-  //
-  // A count rather than a flag, because a second drop while the first upload is
-  // still running is a perfectly ordinary thing to do — and with a flag the
-  // first one to finish would clear the indicator while the other was still
-  // going.
-  const [uploadsInFlight, setUploadsInFlight] = useState(0);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const uploading = uploadsInFlight > 0;
 
-  const docRef = useRef<Document<BlockDocumentRoot> | null>(null);
-  const handlersRef = useRef(new Map<BlockId, (op: EditOpInfo) => void>());
   // The scroll container from the render below (`data-focus-scroll`) — read
   // by both the presenter effect (this browser's own scroll → published
   // anchor) and the follower effect (a followed anchor → `scrollTo`).
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  // The last `FocusAnchor` this browser published while presenting. Not
-  // `blocks` state — it exists purely to satisfy "only publish when the
-  // anchor actually changed" without recomputing what was last sent from
-  // presence itself.
-  const lastPublishedAnchorRef = useRef<FocusAnchor | null>(null);
-  // The last scroll target this browser *commanded* while following, so an
-  // unchanged target is never re-issued. `scrollTo({ behavior: "smooth" })`
-  // aborts an in-flight smooth scroll and restarts its easing curve from
-  // wherever it had reached, so re-issuing the same target faster than the
-  // animation completes leaves the follower creeping and never arriving —
-  // measured as "it just doesn't follow" with the effect firing correctly
-  // every time. Not `scrollTop`: that reads where the animation *is*, not
-  // where it was told to go.
-  const lastScrolledToRef = useRef<number | null>(null);
-  // Chains one run's full teardown (unsubscribe + detach) in front of the
-  // next run's attach(). React's Strict Mode double-invokes this effect on
-  // mount (dev only) — mount → cleanup → mount, synchronously — which would
-  // otherwise fire two attach()es back to back for the same document key
-  // from the same client. Measured: the second one fails with a misleading
-  // "client not found", because Yorkie's server-side TryAttaching filters on
-  // the document not already being Attached for this client, and a cancelled
-  // run whose attach() succeeded anyway was never detached — same shape as
-  // `#32` in presence-provider.tsx, one layer deeper (the content document,
-  // not the workspace one).
-  const teardownRef = useRef<Promise<void>>(Promise.resolve());
-
-  const registerRemoteHandler = (blockId: BlockId, handler: (op: EditOpInfo) => void) => {
-    handlersRef.current.set(blockId, handler);
-    return () => handlersRef.current.delete(blockId);
-  };
-
   // Same Map-based registration as `registerRemoteHandler`, one level up:
   // lets this component reach a specific block's live textarea by id, for
   // focus after a split or merge. `useCallback` so the identity stays
@@ -212,108 +158,6 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     el.setSelectionRange(pending.caret, pending.caret);
   }, [blocks]);
 
-  useEffect(() => {
-    if (!client) return;
-
-    const doc = new yorkie.Document<BlockDocumentRoot>(documentId);
-    let cancelled = false;
-    // Whether THIS run's attach() itself went through — independent of
-    // `cancelled`, and independent of `docRef`, which a cancelled run never
-    // gets to touch.
-    let attached = false;
-    let unsubscribe: (() => void) | undefined;
-
-    // React runs cleanup(N) before effect(N+1) even in Strict Mode's
-    // synchronous double-invoke, so whatever `teardownRef.current` holds here
-    // is exactly the previous run's full teardown — attach() below waits for
-    // it, so it never reaches the server while that run's document is still
-    // marked Attached.
-    const readyToAttach = teardownRef.current;
-
-    const setup = (async () => {
-      await readyToAttach;
-      if (cancelled) return;
-
-      await client.attach(doc, { initialPresence: {} });
-      attached = true;
-      if (cancelled) return;
-
-      // Two people opening the same brand-new document at once could both
-      // see it empty and both seed it — last-write-wins on `blocks` as a
-      // whole, so one seed's block would replace the other's outright. The
-      // same category of race `changeBlockType` already accepts for a
-      // conversion two people make at once; worth measuring properly
-      // (`#42`) if it ever turns out to matter at this app's scale.
-      doc.update((root: BlockDocumentRoot) => {
-        if (!root.blocks || root.blocks.length === 0) {
-          root.blocks = [toStoredBlock(createText())];
-        }
-      });
-
-      docRef.current = doc;
-      setBlocks(readBlocks(doc.getRoot().blocks));
-
-      unsubscribe = doc.subscribe((event) => {
-        if (event.type !== "remote-change") return;
-
-        // Recomputed at most once per event, not once per matching op — a
-        // markdown-shortcut conversion alone already produces two ("set" on
-        // the block's `type`, "set" on its `content"), and a multi-block
-        // paste or reorder could add more. Recomputing `blocks` is an O(n)
-        // read of the whole array, so this only costs it once per batch
-        // instead of once per op inside one.
-        let needsRecompute = false;
-
-        for (const op of event.value.operations) {
-          if (op.type === "edit") {
-            const index = blockIndexFromEditPath(op.path);
-            if (index === null) continue;
-
-            const id = doc.getRoot().blocks[index]?.id;
-            if (id) handlersRef.current.get(id)?.(op);
-            continue;
-          }
-
-          // Anything else touching the blocks array or a field inside one
-          // block: split/merge/reorder (add/remove/move, path exactly
-          // "$.blocks") or a markdown-shortcut conversion's set/remove on
-          // the block's own fields (`changeBlockType` sets `type` at
-          // "$.blocks.<i>" and level/style/checked at
-          // "$.blocks.<i>.content" — a peer's heading conversion was
-          // otherwise invisible here until a later, unrelated edit finally
-          // recomputed `blocks` for some other reason). Recomputed rather
-          // than patched either way: unlike a text edit there is no single
-          // DOM node whose value moved, the rendered list itself is stale.
-          if (op.path === "$.blocks" || op.path.startsWith("$.blocks.")) {
-            needsRecompute = true;
-          }
-        }
-
-        if (needsRecompute) setBlocks(readBlocks(doc.getRoot().blocks));
-      });
-    })().catch((error: unknown) => {
-      if (cancelled) return;
-      setFailed(true);
-      console.error(`Could not open document ${documentId}`, error);
-    });
-
-    return () => {
-      cancelled = true;
-
-      // Own this run's teardown and publish it before any of it actually
-      // runs, so the next run's `readyToAttach` waits on exactly this.
-      const teardown = setup.finally(async () => {
-        unsubscribe?.();
-        if (docRef.current === doc) docRef.current = null;
-        // Only this run's own successful attach leaves something to
-        // release — a run cancelled before attach() resolved never touched
-        // the server, so detaching it would be a no-op at best.
-        if (attached) await client.detach(doc).catch(() => undefined);
-      });
-
-      teardownRef.current = teardown;
-    };
-  }, [client, documentId]);
 
   // Whether the editor has finished loading, as a value that changes once
   // rather than on every recompute — see the presenter effect's own note.
@@ -326,157 +170,16 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   // handler and the render body.
   const order = useMemo(() => blocks?.map((block) => block.id) ?? [], [blocks]);
 
-  // The followed member's anchor, pulled apart into primitives. The effects
-  // below depend on these rather than on `members`, which `rosterFrom`
-  // rebuilds on every presence event: an anchor that has not moved should not
-  // re-run anything. Same lesson `presence-provider.tsx`'s header already
-  // records for its own connection effect ("a fresh object every render would
-  // give the effect a new dependency every render").
-  const followed = followingId
-    ? (members.find((m) => m.id === followingId)?.presenting ?? null)
-    : null;
-  const followedDocumentId = followed?.documentId ?? null;
-  const followedBlockId = followed?.blockId ?? null;
-  const followedRatio = followed?.ratio ?? null;
-
-  // Presenter side (FR-030-07): while this browser is presenting, publish
-  // this scroller's anchor as it moves. `isPresenting` is `presence-provider
-  // .tsx`'s own local state, set synchronously by `setPresenting` — not read
-  // back off `members` (this browser's own row echoed through Yorkie's
-  // `'my-presence'` channel), because every publish below would then change
-  // `members` and re-run this very effect: tear down the scroll listener,
-  // publish once up front again, re-attach — churn that can drop a native
-  // `scroll` event landing in the gap. See presence-provider.tsx's
-  // `isPresenting` doc comment.
-  //
-  // Throttled to one publish per `PUBLISH_MS`, trailing edge included, and
-  // skipped when the anchor has not actually changed.
-  useEffect(() => {
-    if (!isPresenting) {
-      lastPublishedAnchorRef.current = null;
-      return;
-    }
-
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let publishedAt = 0;
-
-    const publish = () => {
-      timer = null;
-      const anchor = anchorAt(readBoxes(container), container.scrollTop);
-      if (!anchor) return;
-
-      const last = lastPublishedAnchorRef.current;
-      if (last && last.blockId === anchor.blockId && last.ratio === anchor.ratio) {
-        return;
-      }
-
-      lastPublishedAnchorRef.current = anchor;
-      publishedAt = Date.now();
-      setPresenting({ documentId, blockId: anchor.blockId, ratio: anchor.ratio });
-    };
-
-    // A wall-clock bound, not `requestAnimationFrame`: rAF bounds this to the
-    // display's refresh rate, which is not a network cadence. Blocks are
-    // short, so a scroll moves the anchor onto a *different block* every
-    // couple of frames — the "has it changed?" check above passes almost
-    // every time and ~60 presence writes a second go out, each one landing on
-    // every follower as a re-render and a restarted smooth scroll.
-    //
-    // A pending timer is left alone rather than pushed back: it reads
-    // `scrollTop` live when it fires, so it always publishes the newest
-    // position, and it is the trailing edge — the last scroll of a gesture
-    // schedules it, so the final resting position is never left unpublished.
-    const onScroll = () => {
-      if (timer !== null) return;
-      timer = setTimeout(publish, Math.max(0, PUBLISH_MS - (Date.now() - publishedAt)));
-    };
-
-    // Published once up front too, not only on the next scroll — otherwise
-    // starting a share (or presenting into a freshly opened document) would
-    // leave the previous anchor standing until this browser's next scroll.
-    onScroll();
-
-    container.addEventListener("scroll", onScroll);
-    return () => {
-      container.removeEventListener("scroll", onScroll);
-      if (timer !== null) clearTimeout(timer);
-    };
-    // `blocksLoaded`, a boolean that flips once — never `blocks` itself.
-    // The container does not exist while `blocks` is still `null`, so this
-    // effect needs one more chance once loading finishes; but `blocks` is a
-    // fresh array on every recompute, and depending on it tore the scroll
-    // listener down and rebuilt it continuously. A native `scroll` event
-    // landing in that gap is dropped, which is what made following work
-    // sometimes and not others. Nothing in here reads `blocks` anyway —
-    // `readBoxes` measures the live DOM at publish time.
-  }, [isPresenting, documentId, setPresenting, blocksLoaded]);
-
-  // Follower side (FR-030-05/07): once joined (`followingId` set by
-  // `FocusShare`) and looking at the same document the presenter is in
-  // (cross-document navigation is `focus-follow-provider.tsx`'s job, not
-  // this component's — it has to run even when no editor is mounted at
-  // all), scroll to match every time the presenter's anchor changes.
-  //
-  // `blocks` is a dependency too, not just the presenter's own anchor:
-  // a third person inserting blocks above the presenter moves every
-  // `BlockBox`'s `top` without the anchor's `blockId`/`ratio` changing at
-  // all, and only recomputing `scrollTopFor` against fresh boxes keeps the
-  // follower on the same content through that (see the acceptance list).
-  useEffect(() => {
-    // Nothing to follow right now — not following anyone, the presenter has
-    // no anchor yet, or they are in a different document. Forget the last
-    // commanded position along with it: it exists only to stop the *same*
-    // target being re-issued, and holding it across a pause would swallow
-    // the first scroll after rejoining a presenter who never moved.
-    if (
-      !followingId ||
-      followedBlockId === null ||
-      followedRatio === null ||
-      followedDocumentId !== documentId
-    ) {
-      lastScrolledToRef.current = null;
-      return;
-    }
-
-    const container = scrollContainerRef.current;
-    if (!container) {
-      return;
-    }
-
-    const top = scrollTopFor(readBoxes(container), {
-      blockId: followedBlockId,
-      ratio: followedRatio,
-    });
-    // `null` means the anchor's block is gone — hold the current position
-    // rather than jump anywhere, per `scrollTopFor`'s own documented contract.
-    if (top === null) return;
-
-    // Never re-issue a target already commanded: see `lastScrolledToRef`.
-    // A pixel of slack because `top` is a float off live layout and a block's
-    // height can wobble by sub-pixels between recomputes.
-    const last = lastScrolledToRef.current;
-    if (last !== null && Math.abs(top - last) <= 1) {
-      return;
-    }
-
-    lastScrolledToRef.current = top;
-    container.scrollTo({ top, behavior: "smooth" });
-    // `blocks` stays a dependency on purpose, unlike the presenter effect
-    // above: a third person inserting blocks above the presenter moves every
-    // box's `top` without the anchor's own `blockId`/`ratio` changing at all,
-    // and only recomputing against fresh boxes keeps the follower on the same
-    // content through that (it is in the acceptance list).
-  }, [
-    followingId,
-    followedDocumentId,
-    followedBlockId,
-    followedRatio,
+  useFocusPresence({
     documentId,
+    containerRef: scrollContainerRef,
+    blocksLoaded,
     blocks,
-  ]);
+    members,
+    followingId,
+    isPresenting,
+    setPresenting,
+  });
 
   /**
    * A block's *live* text by id, read straight off the document rather than
@@ -568,6 +271,13 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
     applyEdit((_root, blocks) => appendBlock(blocks, toStoredBlock(createText())));
   };
+
+  const { uploading, uploadError, uploadPdfs } = usePdfUpload({
+    documentId,
+    applyEdit,
+    liveBlockOf,
+    ensureTrailingEmptyBlock,
+  });
 
   /**
    * A markdown marker just finished (`"# "` and friends — `text-block.tsx`
@@ -763,74 +473,6 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     if (!applyEdit((_root, blocks) => removeBlock(blocks, blockId))) return;
 
     ensureTrailingEmptyBlock();
-  };
-
-  /**
-   * Uploads dropped or picked PDFs and puts a block for each one into the
-   * document (FR-022-13, FR-022-14).
-   *
-   * **The upload finishes before the block exists.** The alternative — a
-   * placeholder block that fills in when the bytes land — would mean every
-   * other client on the LAN seeing a block pointing at a `fileId` the server
-   * has not issued yet, and a failed upload leaving one behind permanently.
-   * The cost is that a large file shows nothing but the "올리는 중" line for a
-   * few seconds, which is the honest state of affairs.
-   *
-   * Several files at once are uploaded in order, each anchored after the last,
-   * so three PDFs dropped together land in the order they were dropped rather
-   * than in whatever order their requests happened to finish.
-   */
-  const uploadPdfs = async (files: Array<File>, afterId: BlockId | null) => {
-    setUploadError(null);
-    setUploadsInFlight((n) => n + 1);
-
-    let anchor = afterId;
-
-    try {
-      for (const file of files) {
-        const form = new FormData();
-        form.append("file", file);
-
-        const response = await fetch(`/api/documents/${documentId}/files`, {
-          method: "POST",
-          body: form,
-        });
-        if (!response.ok) {
-          // The endpoint phrases its own refusals in Korean and they are the
-          // useful part — "PDF만" and "25MB 이하" are what the person has to
-          // act on. A body that is not the JSON we expect falls back.
-          const body = await response.json().catch(() => null);
-          throw new Error(body?.error ?? "파일을 올리지 못했습니다.");
-        }
-
-        const stored = await response.json();
-        const block = toStoredBlock(
-          createPdf({ fileId: stored.id, fileName: stored.name, size: stored.size }),
-        );
-
-        const placed = applyEdit((root, array) => {
-          // The anchor can be gone — a peer deleting that block while the
-          // upload was in flight is exactly the window this covers. Appending
-          // is the sensible fallback: the PDF still lands in the document.
-          if (anchor !== null && !liveBlockOf(root, anchor)) anchor = null;
-
-          if (anchor === null) appendBlock(array, block);
-          else insertBlockAfter(array, anchor, block);
-        });
-        // The document closed mid-upload. The bytes are stored and orphaned,
-        // which UC-050's file manager is the place to deal with; inventing a
-        // block in a document nobody is attached to is not.
-        if (!placed) return;
-
-        anchor = block.id;
-      }
-
-      ensureTrailingEmptyBlock();
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : "파일을 올리지 못했습니다.");
-    } finally {
-      setUploadsInFlight((n) => n - 1);
-    }
   };
 
   /**
