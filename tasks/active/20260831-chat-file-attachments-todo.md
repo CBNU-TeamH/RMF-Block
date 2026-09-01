@@ -53,7 +53,10 @@ that on a name the sender picks means presenting an unauthenticated claim as a f
 fix is the caller-side change `chat.md` predicted — `ChatService` and `ChatMessage` are
 untouched.
 
-- **Files**: `app/api/chat/route.ts`, `lib/chat/types.ts` (drop `sender` from the input).
+- **Files**: `app/api/chat/route.ts`, `lib/chat/types.ts`. *(As built: `sender` stayed on
+  `SendChatMessageInput` and became **required** rather than being dropped — the route
+  resolves it from the session and must pass it in. The plan's wording was about removing it
+  from the request body, which is what happened.)*
 - **Done**: posting without a session is 401; `sender` is the session's nickname and a
   `sender` in the body is ignored.
 
@@ -67,7 +70,7 @@ untouched.
 
 ```
 .data/files/<fileId>      the bytes, named by id
-.data/files.json          [{ id, name, type, size, uploadedBy, uploadedAt, origin }]
+.data/files/index.json    [{ id, name, type, size, uploadedBy, uploadedAt, origin }]
 ```
 
 **The id is the filename on disk, never the uploaded name.** A name is attacker-controlled
@@ -232,8 +235,9 @@ Named so nobody re-adds them by accident.
 - **Docs that go stale**: `api.md` §1's chat table marks these endpoints unbuilt;
   `chat.md`'s "Open questions" names attachments as not-yet-designed and `sender` as
   client-supplied. All three are edited at the end, not the start.
-- **Groundwork for**: UC-061's drawer, which is a query over `files.json` filtered by
-  `origin`, and FR-022-13/14's document file blocks, which become a second `origin`.
+- **Groundwork for**: UC-061's drawer, which is a query over `.data/files/index.json`
+  filtered by `origin`, and FR-022-13/14's document file blocks, which become a second
+  `origin`.
 
 ## Review
 

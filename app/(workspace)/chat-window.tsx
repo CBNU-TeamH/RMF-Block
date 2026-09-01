@@ -170,6 +170,12 @@ export function ChatWindow({ me }: { me: string }) {
             <span className="flex-1" />
             <button
               type="button"
+              // The button sits inside the header, so its pointerdown would
+              // bubble into `begin("move")` and start a drag. Release without
+              // moving and the click still closes; twitch first and the window
+              // has been moved and the new frame saved, by a control that is
+              // not for moving it.
+              onPointerDown={(event) => event.stopPropagation()}
               onClick={() => setOpen(false)}
               aria-label="채팅 닫기"
               className="px-1 text-[13px] leading-none text-ink-faint"

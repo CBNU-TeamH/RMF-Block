@@ -29,12 +29,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "no workspace session" }, { status: 401 });
   }
 
-  // Checked before parsing, because `formData()` reads the entire body into
-  // memory first — after it resolves, refusing is too late to have saved
-  // anything. The header is the uploader's claim, so the real size is checked
-  // again below; this one is only here to refuse the obvious case cheaply.
+  // Both checks happen before parsing, because `formData()` reads the entire
+  // body into memory first — once it resolves, refusing is too late to have
+  // saved anything.
+  //
+  // A declared length is required, not merely inspected. Without one the
+  // request is chunked, nothing bounds it, and the body is fully buffered
+  // before `file.size` below can object — so an oversized upload costs the
+  // memory whether or not it is ultimately refused. With one, Node reads
+  // exactly that many bytes as the body, so this check bounds what parsing can
+  // cost. It excludes no real client: `fetch` computes the length for a
+  // `FormData` body.
   const declared = Number(request.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > MAX_BYTES) {
+  if (!Number.isFinite(declared) || declared <= 0) {
+    return NextResponse.json(
+      { error: "업로드 크기를 알 수 없습니다." },
+      { status: 411 },
+    );
+  }
+  // The length is still only the uploader's claim about the whole body, so the
+  // file's own size is checked again after parsing.
+  if (declared > MAX_BYTES) {
     return tooLarge();
   }
 

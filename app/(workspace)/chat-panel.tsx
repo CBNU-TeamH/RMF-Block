@@ -27,6 +27,15 @@ type Pending = {
   key: string;
   text: string;
   file: File | null;
+  /**
+   * Set once the file is stored, so a retry does not upload it again.
+   *
+   * The upload and the send are two requests, and only the second one tends to
+   * fail. Re-uploading on retry would store a second copy under a new id and
+   * strand the first, which nothing ever collects — deleting a file is
+   * deliberately out of scope, so an orphan is permanent.
+   */
+  fileId?: string;
   failed: boolean;
 };
 
@@ -133,14 +142,20 @@ export function ChatPanel({ me }: { me: string }) {
   }, [messages, pending]);
 
   async function deliver(entry: Pending): Promise<void> {
-    let fileId: string | undefined;
+    let fileId = entry.fileId;
 
-    if (entry.file) {
+    if (entry.file && !fileId) {
       const form = new FormData();
       form.append("file", entry.file);
       const upload = await fetch("/api/chat/files", { method: "POST", body: form });
       if (!upload.ok) throw new Error(await upload.text());
       fileId = (await upload.json()).id;
+
+      // Recorded before the send is attempted, because the send is the part
+      // that fails and the retry reads this back.
+      setPending((current) =>
+        current.map((item) => (item.key === entry.key ? { ...item, fileId } : item)),
+      );
     }
 
     const sent = await fetch("/api/chat", {

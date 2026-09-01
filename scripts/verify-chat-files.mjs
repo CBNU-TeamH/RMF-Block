@@ -145,7 +145,24 @@ report("25MB 초과는 거부", 413, huge.status);
 report("메시지가 있다", true, typeof huge.body?.error === "string" && huge.body.error.length > 0);
 console.log(`     └ "${huge.body?.error}"`);
 
-console.log("\n⑥ 세션 없이는 아무것도 못 한다");
+console.log("\n⑥ 길이를 밝히지 않은 업로드는 파싱 전에 거부된다");
+// A chunked body has no `Content-Length`, so nothing bounds what `formData()`
+// would buffer before `file.size` could object. Sent as a stream, which is what
+// makes `fetch` drop the header.
+const chunked = await fetch(`${APP}/api/chat/files`, {
+  method: "POST",
+  headers: { cookie: session, "content-type": "multipart/form-data; boundary=x" },
+  body: new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode("--x--\r\n"));
+      controller.close();
+    },
+  }),
+  duplex: "half",
+});
+report("Content-Length 없는 업로드", 411, chunked.status);
+
+console.log("\n⑦ 세션 없이는 아무것도 못 한다");
 const anonUpload = await fetch(`${APP}/api/chat/files`, { method: "POST", body: new FormData() });
 report("세션 없는 업로드", 401, anonUpload.status);
 
