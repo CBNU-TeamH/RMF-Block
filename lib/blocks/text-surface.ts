@@ -11,6 +11,22 @@
  * tested rather than inline in an effect.
  */
 
+/**
+ * One replacement inside a block's text, in the shape a textarea can apply:
+ * "swap `[from, to)` for `value.content`".
+ *
+ * Deliberately narrower than Yorkie's `EditOpInfo`, which is assignable to it.
+ * A remote edit is not the only thing that has to reach a textarea — the editor
+ * itself rewrites a block's text on the person's behalf when it splits or
+ * merges one, and that has to travel the same road or the DOM and the document
+ * drift apart (issue #59).
+ */
+export type TextPatch = {
+  from: number;
+  to: number;
+  value: { content: string };
+};
+
 /** The smallest edit that turns `oldStr` into `newStr` — common prefix and suffix trimmed off. */
 export function diffRange(
   oldStr: string,
