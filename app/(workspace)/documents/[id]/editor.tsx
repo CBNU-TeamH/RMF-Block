@@ -260,16 +260,54 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
    * ordinary `add` op the subscribe callback above already recomputes
    * `blocks` for — nothing here needs to run again on a remote edit.
    */
-  const ensureTrailingEmptyBlock = () => {
+  const ensureTrailingEmptyBlock = (): BlockId | null => {
     const doc = docRef.current;
-    if (!doc) return;
+    if (!doc) return null;
 
     const root = doc.getRoot();
     const last = root.blocks[root.blocks.length - 1];
     const lastIsEmptyText = last?.type === "text" && (last.content?.text?.toString() ?? "") === "";
-    if (lastIsEmptyText) return;
+    if (lastIsEmptyText) return last.id;
 
-    applyEdit((_root, blocks) => appendBlock(blocks, toStoredBlock(createText())));
+    // Returns the block it guarantees — the one that was already there, or the
+    // one it just made. Callers that only want the invariant can ignore it;
+    // `focusEndOfDocument` needs to know where to put the caret.
+    const block = toStoredBlock(createText());
+    return applyEdit((_root, blocks) => appendBlock(blocks, block)) ? block.id : null;
+  };
+
+  /**
+   * A click on the empty space under the document puts the caret at the end of
+   * it, the way clicking under any other page of text does.
+   *
+   * Without this the only way in was to hit one of the block rows exactly, and
+   * the trailing empty block is a single line of text at the top of a mostly
+   * empty page — a small target above a large expanse that looked clickable and
+   * was not.
+   *
+   * Usually there is already an empty text block to land in: `ensureTrailingEmptyBlock`
+   * runs after every text commit and keeps one there. When there is not — the
+   * document ends in a PDF, say, because it was opened without this browser
+   * having edited it yet — one is made, which is the same answer, just a block
+   * later.
+   */
+  const focusEndOfDocument = () => {
+    const last = blocks?.[blocks.length - 1];
+
+    if (last && isTextBearing(last)) {
+      const el = elementsRef.current.get(last.id);
+      if (el) {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+        return;
+      }
+    }
+
+    // The new block does not exist in the DOM yet, so this goes through the
+    // pending-focus request the split/merge handlers use: the `setBlocks`
+    // inside `applyEdit` is what gives the effect a commit to run on.
+    const blockId = ensureTrailingEmptyBlock();
+    if (blockId) focusBlock(blockId, 0);
   };
 
   const { uploading, uploadError, uploadPdfs } = usePdfUpload({
@@ -768,6 +806,12 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
        * to say — a drop target nobody can see is a feature nobody finds. */}
       <div
         className="mt-3 flex flex-1 flex-wrap items-center gap-2 pt-1"
+        // Only a click on this div itself, never one that landed on the button
+        // or the hint inside it — `currentTarget` is the empty space, `target`
+        // is whatever was actually under the pointer.
+        onClick={(event) => {
+          if (event.target === event.currentTarget) focusEndOfDocument();
+        }}
         // This div is `flex-1`: it *is* the empty space under the document,
         // which is exactly where a block gets dragged when the intent is
         // "put it at the end". Before, nothing here claimed the drop, so the
