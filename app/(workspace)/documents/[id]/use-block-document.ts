@@ -1,10 +1,14 @@
-import type { Client, Document, EditOpInfo } from "@yorkie-js/sdk";
+import type { Client, Document } from "@yorkie-js/sdk";
 import yorkie from "@yorkie-js/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createText } from "@/lib/blocks/create";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot } from "@/lib/blocks/document";
-import { blockIndexFromEditPath, touchesBlockList } from "@/lib/blocks/text-surface";
+import {
+  blockIndexFromEditPath,
+  touchesBlockList,
+  type TextPatch,
+} from "@/lib/blocks/text-surface";
 import type { Block, BlockId } from "@/lib/blocks/types";
 
 /**
@@ -27,7 +31,9 @@ export function useBlockDocument(client: Client | null, documentId: string) {
   const [failed, setFailed] = useState(false);
 
   const docRef = useRef<Document<BlockDocumentRoot> | null>(null);
-  const handlersRef = useRef(new Map<BlockId, (op: EditOpInfo) => void>());
+  // Each mounted text block's "apply this to your textarea". Fed by remote
+  // edits below and by the editor's own split/merge through `patchBlockText`.
+  const handlersRef = useRef(new Map<BlockId, (patch: TextPatch) => void>());
 
   // Chains one run's full teardown (unsubscribe + detach) in front of the
   // next run's attach(). React's Strict Mode double-invokes this effect on
@@ -46,7 +52,7 @@ export function useBlockDocument(client: Client | null, documentId: string) {
   // Nothing observable changes — that effect reads this once, with empty deps —
   // but the claim is now true rather than true-in-practice.
   const registerRemoteHandler = useCallback(
-    (blockId: BlockId, handler: (op: EditOpInfo) => void) => {
+    (blockId: BlockId, handler: (patch: TextPatch) => void) => {
       handlersRef.current.set(blockId, handler);
       return () => handlersRef.current.delete(blockId);
     },
@@ -112,7 +118,20 @@ export function useBlockDocument(client: Client | null, documentId: string) {
             if (index === null) continue;
 
             const id = doc.getRoot().blocks[index]?.id;
-            if (id) handlersRef.current.get(id)?.(op);
+            const handler = id ? handlersRef.current.get(id) : undefined;
+            if (handler) {
+              handler(op);
+              continue;
+            }
+
+            // No handler yet: the block's row exists in the document but has
+            // not mounted here, so the textarea that would take this patch does
+            // not exist. Dropping the op would leave that block permanently
+            // showing the text it had at mount — a peer creating a block and
+            // typing into it does exactly this within a frame or two. Fall back
+            // to rebuilding the list, which remounts the row with the text the
+            // document holds *now* (issue #59).
+            needsRecompute = true;
             continue;
           }
 
@@ -149,5 +168,23 @@ export function useBlockDocument(client: Client | null, documentId: string) {
     };
   }, [client, documentId]);
 
-  return { blocks, setBlocks, failed, docRef, registerRemoteHandler };
+  /**
+   * Apply a patch to one block's textarea without it having come from the
+   * network — the editor's own split and merge rewrite a block's text on the
+   * person's behalf, and the textarea is uncontrolled, so nothing else would
+   * ever tell it (issue #59).
+   *
+   * Routed through the same handler a remote edit uses, on purpose: that is
+   * what keeps the block's diff baseline (`lastSyncedRef` in `text-block.tsx`)
+   * in step. Writing `el.value` from outside would fix the display and leave
+   * the next keystroke diffing against a string the document does not have.
+   *
+   * A missing handler means the block has no mounted textarea, which for these
+   * two callers cannot happen — they patch a block they are editing.
+   */
+  const patchBlockText = useCallback((blockId: BlockId, patch: TextPatch) => {
+    handlersRef.current.get(blockId)?.(patch);
+  }, []);
+
+  return { blocks, setBlocks, failed, docRef, registerRemoteHandler, patchBlockText };
 }
