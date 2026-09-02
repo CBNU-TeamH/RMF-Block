@@ -805,7 +805,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
        * than a toolbar. It also gives the empty half of the page something
        * to say — a drop target nobody can see is a feature nobody finds. */}
       <div
-        className="mt-3 flex flex-1 flex-wrap items-center gap-2 pt-1"
+        // `cursor-text` so the empty space says what it does before it is
+        // clicked: an I-beam over blank page is the convention for "there is
+        // writing here to land in". The button inside sets its own
+        // `cursor-pointer`, which wins over this on the part that is not empty.
+        className="mt-3 flex flex-1 cursor-text flex-wrap items-center gap-2 pt-1"
         // Only a click on this div itself, never one that landed on the button
         // or the hint inside it — `currentTarget` is the empty space, `target`
         // is whatever was actually under the pointer.
