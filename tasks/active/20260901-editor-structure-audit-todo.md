@@ -311,8 +311,7 @@ For whichever steps get approved:
 
 ## Review
 
-**Done: R1, R3, M1, M2** — the five steps agreed off the table above. R2 (splitting
-`handleDrop`) is the one refactor left, and the improvements are unchanged.
+**Done: R1, R3, M1, M2, I1.** R2 is deliberately not done — see below.
 
 | | | |
 | --- | --- | --- |
@@ -320,6 +319,7 @@ For whichever steps get approved:
 | R3 | `order` | memoized once; five rebuild sites gone |
 | M1 | `lib/blocks/registry.ts` | `BLOCK_KINDS`, `isTextBearing`, `continuationBlock`, + 10 tests |
 | M2 | three hooks | `use-block-document.ts` (161), `use-focus-presence.ts` (223), `use-pdf-upload.ts` (117) |
+| I1 | `touchesBlockList` | the last decision still inline in an effect, now beside its tested sibling + 4 tests |
 
 `editor.tsx`: **1176 → 823 lines.**
 
@@ -345,6 +345,30 @@ step. Behaviour checked against a real Yorkie stack, because none of this is
 reachable from unit tests: nested-list continuation keeps style and depth, an
 empty list item exits to text on Enter, Backspace-at-start merges, and a block
 pushed by a separate Node client appears live.
+
+### R2, and why it is being left alone
+
+Splitting `handleDrop` was on the list and is not worth doing. It is tidiness:
+the function works, and `forcedBefore?` is a smell rather than a defect. Against
+that, it is drag-and-drop — the one area here whose bugs are invisible to the
+type checker and to `node --test`, and findable only by dragging things around a
+browser by hand. Paying that verification cost to remove one optional parameter
+is a bad trade. It should ride along with the next change that has to touch drop
+handling for its own reasons.
+
+The same reasoning retires I2 (waits for the image block), I3 (needs a
+measurement first) and I4 (a note, not a task). **This plan is finished.**
+
+### Two things the click fix added afterwards
+
+Not in the original audit — they came out of using the editor rather than
+reading it:
+
+- Clicking the empty space under the document now puts the caret at the end of
+  it, making a new trailing block if the document ends in something that cannot
+  hold one. `ensureTrailingEmptyBlock` returns the block it guarantees so the
+  caller knows where to put the caret.
+- That space shows an I-beam, so the target is visible before it is clicked.
 
 ### Found while verifying, not caused by it
 

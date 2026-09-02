@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createText } from "@/lib/blocks/create";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot } from "@/lib/blocks/document";
-import { blockIndexFromEditPath } from "@/lib/blocks/text-surface";
+import { blockIndexFromEditPath, touchesBlockList } from "@/lib/blocks/text-surface";
 import type { Block, BlockId } from "@/lib/blocks/types";
 
 /**
@@ -116,17 +116,9 @@ export function useBlockDocument(client: Client | null, documentId: string) {
             continue;
           }
 
-          // Anything else touching the blocks array or a field inside one
-          // block: split/merge/reorder (add/remove/move, path exactly
-          // "$.blocks") or a markdown-shortcut conversion's set/remove on
-          // the block's own fields (`changeBlockType` sets `type` at
-          // "$.blocks.<i>" and level/style/checked at
-          // "$.blocks.<i>.content" — a peer's heading conversion was
-          // otherwise invisible here until a later, unrelated edit finally
-          // recomputed `blocks` for some other reason). Recomputed rather
-          // than patched either way: unlike a text edit there is no single
-          // DOM node whose value moved, the rendered list itself is stale.
-          if (op.path === "$.blocks" || op.path.startsWith("$.blocks.")) {
+          // Which paths mean "the list is stale", and why, is stated once in
+          // `touchesBlockList` — where it is also tested.
+          if (touchesBlockList(op.path)) {
             needsRecompute = true;
           }
         }
