@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { blockIndexFromEditPath, diffRange, shiftCaret } from "./text-surface.ts";
+import {
+  blockIndexFromEditPath,
+  diffRange,
+  shiftCaret,
+  touchesBlockList,
+} from "./text-surface.ts";
 
 describe("diffRange", () => {
   const cases: Array<[string, string]> = [
@@ -74,5 +79,35 @@ describe("blockIndexFromEditPath", () => {
     assert.equal(blockIndexFromEditPath("$.blocks.3.content.level"), null);
     assert.equal(blockIndexFromEditPath("$.blocks"), null);
     assert.equal(blockIndexFromEditPath(""), null);
+  });
+});
+
+describe("touchesBlockList", () => {
+  it("recomputes for a change to the array itself", () => {
+    // A split, merge or reorder: add, remove, move.
+    assert.equal(touchesBlockList("$.blocks"), true);
+  });
+
+  it("recomputes for a conversion's set on one block", () => {
+    // `changeBlockType` writes `type` here…
+    assert.equal(touchesBlockList("$.blocks.0"), true);
+    assert.equal(touchesBlockList("$.blocks.12"), true);
+    // …and level/style/checked one level down. Missing this made a peer's
+    // heading conversion invisible until some unrelated later edit.
+    assert.equal(touchesBlockList("$.blocks.3.content"), true);
+  });
+
+  it("leaves other parts of the document alone", () => {
+    for (const path of ["$", "$.chat", "$.title", ""]) {
+      assert.equal(touchesBlockList(path), false, JSON.stringify(path));
+    }
+  });
+
+  it("is not fooled by a key that merely starts the same way", () => {
+    // The dot is what does this: without it, a future `root.blocksOrder`
+    // would drag the whole list through a recompute on every change.
+    for (const path of ["$.blocksOrder", "$.blocksomething", "$.blocks2"]) {
+      assert.equal(touchesBlockList(path), false, path);
+    }
   });
 });

@@ -3,6 +3,12 @@
  * `docs/design/document-editing.md`'s "Editing surface" section that does not
  * need a DOM to run. Kept apart from the `<textarea>` component so it is
  * tested without a browser, the way `lib/presence/roster.ts` is.
+ *
+ * The two path readers at the bottom stretch that description a little: they
+ * are about Yorkie's op paths rather than about text. They live here because
+ * they are read together, in the same loop over one change event, and because
+ * a decision with three documented edge cases belongs somewhere it can be
+ * tested rather than inline in an effect.
  */
 
 /** The smallest edit that turns `oldStr` into `newStr` — common prefix and suffix trimmed off. */
@@ -53,4 +59,32 @@ export function blockIndexFromEditPath(path: string): number | null {
   const match = /^\$\.blocks\.(\d+)\.content\.text$/.exec(path);
   if (!match) return null;
   return Number(match[1]);
+}
+
+/**
+ * Whether a remote operation means the rendered block list is stale.
+ *
+ * True for anything touching the array itself or a field inside one block:
+ *
+ * - `$.blocks` — a split, merge or reorder (`add`, `remove`, `move`).
+ * - `$.blocks.<i>` — a markdown-shortcut conversion setting the block's `type`.
+ * - `$.blocks.<i>.content` — the same conversion setting `level`, `style` or
+ *   `checked`. Missing this one made a peer's heading conversion invisible
+ *   until some later, unrelated edit happened to recompute for its own reasons.
+ *
+ * Text edits do *not* come through here — they are routed to the block's own
+ * textarea by `blockIndexFromEditPath` instead, because there the DOM node to
+ * patch is known and rebuilding the whole list would throw away the caret.
+ * Everything else is recomputed rather than patched: there is no single node
+ * whose value moved, the list itself is wrong.
+ *
+ * **Open question, deliberately not changed while extracting this:** a peer
+ * seeding a brand-new document assigns the whole array (`root.blocks = [...]`),
+ * and whether Yorkie reports that as `$.blocks` or as a set on `$` has not been
+ * measured. If it is the latter, this returns false and that peer's seed is not
+ * drawn until something else happens — which the seeding race in `#42` would
+ * usually hide. Worth measuring before anyone relies on it.
+ */
+export function touchesBlockList(path: string): boolean {
+  return path === "$.blocks" || path.startsWith("$.blocks.");
 }
