@@ -1,9 +1,15 @@
 "use client";
 
 import type { Document, EditOpInfo } from "@yorkie-js/sdk";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { detectMarkdownShortcut, type MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
+import {
+  detectSlashQuery,
+  moveHighlight,
+  slashMenuItems,
+  type SlashAction,
+} from "@/lib/blocks/slash-menu";
 import { diffRange, shiftCaret } from "@/lib/blocks/text-surface";
 import { BlockNotFoundError, editBlockText, type BlockArray } from "@/lib/blocks/operations";
 import type { BlockDocumentRoot } from "@/lib/blocks/document";
@@ -80,6 +86,7 @@ export function TextBlockView({
   onNavigateUp,
   onNavigateDown,
   onTextCommitted,
+  onSlashSelect,
 }: {
   blockId: BlockId;
   initialText: string;
@@ -97,6 +104,10 @@ export function TextBlockView({
    * owns `changeBlockType`, this component only ever edits text. Never
    * fires except from a plain-text block — see the `onInput` guard below. */
   onMarkdownShortcut: (blockId: BlockId, shortcut: MarkdownShortcut) => void;
+  /** A `/` menu item was chosen. Like `onMarkdownShortcut`, the parent does the
+   * document work — this component only ever edits text, and clearing the
+   * query is the one edit it makes here. */
+  onSlashSelect: (blockId: BlockId, action: SlashAction) => void;
   /** Enter, not mid-composition: reports where the caret was, so the parent
    * can trim this block to before it and seed a new one with the tail. */
   onSplit: (blockId: BlockId, cursorPosition: number) => void;
@@ -127,6 +138,42 @@ export function TextBlockView({
     },
     [blockId, registerTextarea],
   );
+  /**
+   * The `/` menu's session, as two pieces of state rather than one object:
+   * the query is read off the textarea on every input, and the highlight is
+   * moved by arrow keys. Only a plain text block opens one — the same guard
+   * `onMarkdownShortcut` uses, and for the same reason: `/` inside a code
+   * block is source, and re-triggering inside a heading is noise.
+   */
+  const [slashQuery, setSlashQuery] = useState<string | null>(null);
+  const [highlight, setHighlight] = useState(0);
+  const slashItems = slashQuery === null ? [] : slashMenuItems(slashQuery);
+  // "Open" means there is something to choose. With no matches the menu hides
+  // and every key goes back to meaning what it usually means — Enter splits.
+  const slashOpen = slashItems.length > 0;
+
+  const closeSlash = () => {
+    setSlashQuery(null);
+    setHighlight(0);
+  };
+
+  /** Clears the query text this block is holding, then hands the choice up. */
+  const chooseSlashItem = (index: number) => {
+    const item = slashItems[index];
+    if (!item) return;
+
+    const el = textareaRef.current;
+    if (el) {
+      // The query is text like any other, so it goes out as an ordinary edit —
+      // that keeps the diff baseline honest, the way the markdown path does.
+      commitLocal("");
+      el.value = "";
+      autoGrow(el);
+    }
+    closeSlash();
+    onSlashSelect(blockId, item.action);
+  };
+
   const composingRef = useRef(false);
   const pendingRemoteRef = useRef<Array<EditOpInfo>>([]);
   // "What I last told Yorkie the text was" — the diff baseline for the next
@@ -210,11 +257,41 @@ export function TextBlockView({
   };
 
   return (
-    <textarea
-      ref={setTextareaRef}
+    <>
+      <textarea
+        ref={setTextareaRef}
       defaultValue={initialText}
       rows={1}
       onKeyDown={(event) => {
+        // While the `/` menu is up it owns these four keys — Enter especially,
+        // which must choose an item rather than split the block. Everything
+        // else still reaches the textarea, so the query keeps being typed.
+        if (slashOpen) {
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setHighlight((current) => moveHighlight(current, 1, slashItems.length));
+            return;
+          }
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setHighlight((current) => moveHighlight(current, -1, slashItems.length));
+            return;
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closeSlash();
+            return;
+          }
+          if (event.key === "Enter" && !event.shiftKey) {
+            // An Enter that is confirming an IME candidate belongs to the IME,
+            // not to the menu — the same two-signal check the split path makes.
+            if (composingRef.current || event.nativeEvent.isComposing) return;
+            event.preventDefault();
+            chooseSlashItem(highlight);
+            return;
+          }
+        }
+
         if (event.key === "Enter" && !event.shiftKey) {
           // Shift+Enter is a literal newline within the block — normal
           // behavior, not intercepted. Both signals checked, not just one:
@@ -292,6 +369,16 @@ export function TextBlockView({
         // "# " or "- " (legitimate source text) trigger a conversion it
         // never asked for, and re-typing a marker into an existing heading
         // has the same problem at a smaller scale.
+        // Same guard as the markdown check below, for the same reason: `/` in a
+        // code block is source text, and a heading does not need converting
+        // again. Recomputed from the text rather than tracked as a session, so
+        // deleting back through the slash closes the menu on its own.
+        const query = variant.type === "text" ? detectSlashQuery(el.value) : null;
+        if (query !== slashQuery) {
+          setSlashQuery(query);
+          setHighlight(0);
+        }
+
         const shortcut = variant.type === "text" ? detectMarkdownShortcut(el.value) : null;
         if (shortcut) {
           onMarkdownShortcut(blockId, shortcut);
@@ -317,7 +404,46 @@ export function TextBlockView({
         onTextCommitted();
         flushQueuedRemoteEdits();
       }}
-      className={`min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-1 py-0.5 text-ink outline-none ${textareaClass(variant)}`}
-    />
+        className={`min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-1 py-0.5 text-ink outline-none ${textareaClass(variant)}`}
+      />
+
+      {/* Absolutely positioned against the block row, which is already
+       * `relative`. That is what keeps this component's contract intact: the
+       * textarea is still the first child and still a bare `<textarea>`, and an
+       * out-of-flow sibling is not a flex item, so the row's layout does not
+       * move when the menu opens (`BlockVariant`'s note on why a wrapper here
+       * remounts the textarea and drops the caret). */}
+      {slashOpen ? (
+        <ul
+          role="listbox"
+          aria-label="블록 종류"
+          className="absolute top-full left-6 z-20 mt-1 max-h-64 w-64 overflow-y-auto rounded-md border border-ink bg-paper py-1 shadow-lg"
+        >
+          {slashItems.map((item, index) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={index === highlight}
+                // `mousedown`, not `click`: the textarea would blur first
+                // otherwise, and the block would lose the caret the choice is
+                // supposed to land in.
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  chooseSlashItem(index);
+                }}
+                onMouseEnter={() => setHighlight(index)}
+                className={`flex w-full flex-col items-start px-3 py-1.5 text-left ${
+                  index === highlight ? "bg-sky-soft" : "bg-transparent"
+                }`}
+              >
+                <span className="text-[13px] font-semibold text-ink">{item.label}</span>
+                <span className="text-[11px] text-ink-faint">{item.hint}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
   );
 }

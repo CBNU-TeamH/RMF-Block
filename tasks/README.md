@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [The `/` block menu, and the divider it can finally create](active/20260902-slash-menu-todo.md) | [lessons](active/20260902-slash-menu-lessons.md) |
 | [PDF block and its in-app viewer](active/20260901-pdf-block-viewer-todo.md) | [lessons](active/20260901-pdf-block-viewer-lessons.md) |
 | [Focus following — follow the presenter's view](active/20260901-focus-following-todo.md) | [lessons](active/20260901-focus-following-lessons.md) |
 | [Editor structure — audit and refactoring plan](active/20260901-editor-structure-audit-todo.md) | [lessons](active/20260901-editor-structure-audit-lessons.md) |

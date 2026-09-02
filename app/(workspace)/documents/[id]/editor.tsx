@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { createText } from "@/lib/blocks/create";
+import { createDivider, createText } from "@/lib/blocks/create";
 import { BLOCK_KINDS, continuationBlock, isTextBearing } from "@/lib/blocks/registry";
+import type { SlashAction } from "@/lib/blocks/slash-menu";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot, type StoredBlock } from "@/lib/blocks/document";
 import type { MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
 import {
@@ -27,6 +28,7 @@ import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
 
 import { useFocusFollow } from "../../focus-follow-provider";
 import { useWorkspacePresence } from "../../presence-provider";
+import { DividerBlockView } from "./divider-block";
 import { PdfBlockView } from "./pdf-block";
 import { TextBlockView, type BlockVariant } from "./text-block";
 import { useBlockDocument } from "./use-block-document";
@@ -117,6 +119,13 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   // by both the presenter effect (this browser's own scroll → published
   // anchor) and the follower effect (a followed anchor → `scrollTo`).
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  // The footer's hidden file input, so the `/` menu's PDF item can open the
+  // same picker the button does rather than growing a second one…
+  const pdfInputRef = useRef<HTMLInputElement | null>(null);
+  // …and where the block should land when it does. The picker is a native
+  // dialog with its own lifetime, so the anchor cannot be an argument — it has
+  // to wait somewhere until `change` fires, or be forgotten if it never does.
+  const pdfAnchorRef = useRef<BlockId | null>(null);
   // Same Map-based registration as `registerRemoteHandler`, one level up:
   // lets this component reach a specific block's live textarea by id, for
   // focus after a split or merge. `useCallback` so the identity stays
@@ -350,6 +359,35 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       const checked = liveBlockOf(root, blockId)?.content?.checked === true;
       changeBlockType(blocks, blockId, { type: "checklist", checked: !checked });
     });
+  };
+
+  /**
+   * A `/` menu choice (UC-022 기본 흐름 1). The menu names an action; this does
+   * it. `text-block.tsx` has already cleared the query text by the time this
+   * runs, so the block is empty and ready to become whatever was picked.
+   */
+  const handleSlashSelect = (blockId: BlockId, action: SlashAction) => {
+    if (action.kind === "convert") {
+      // The block keeps its id and its `yorkie.Text`, so a peer typing into it
+      // through the conversion keeps their characters — `changeBlockType`'s own
+      // contract, the same one the markdown shortcuts rely on.
+      applyEdit((_root, blocks) => changeBlockType(blocks, blockId, action.fields));
+      return;
+    }
+
+    if (action.kind === "divider") {
+      // Above this block, not replacing it: the divider has no caret, and
+      // leaving the person in the block they were already typing in means the
+      // line they wanted under the rule is ready for them.
+      const divider = toStoredBlock(createDivider());
+      applyEdit((_root, blocks) =>
+        insertBlockAfter(blocks, idBeforeInOrder(order, blockId), divider),
+      );
+      return;
+    }
+
+    pdfAnchorRef.current = blockId;
+    pdfInputRef.current?.click();
   };
 
   /**
@@ -634,6 +672,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
             onNavigateUp={handleNavigateUp}
             onNavigateDown={handleNavigateDown}
             onTextCommitted={ensureTrailingEmptyBlock}
+            onSlashSelect={handleSlashSelect}
           />
         </div>
       );
@@ -654,11 +693,15 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           <UnsupportedBlock type={block.type} />
         );
 
-      // Divider, and the two link blocks: typed and stored already, no
-      // renderer yet. A divider needs its own no-textarea operation; the link
-      // blocks wait on the document tree (UC-021/023) that would give them a
-      // `documentId`.
       case "none":
+        return block.type === "divider" ? (
+          <DividerBlockView block={block} onDelete={handleDeleteBlock} />
+        ) : (
+          <UnsupportedBlock type={block.type} />
+        );
+
+      // The two link blocks wait on the document tree (UC-021/023), which is
+      // what would give them a `documentId` to point at.
       case "link":
         return <UnsupportedBlock type={block.type} />;
 
@@ -841,6 +884,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         >
           PDF 추가
           <input
+            ref={pdfInputRef}
             type="file"
             accept="application/pdf,.pdf"
             multiple
@@ -851,7 +895,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               // Cleared so picking the *same* file again still fires a change
               // event — otherwise a failed upload cannot be retried from here.
               event.target.value = "";
-              if (files.length > 0) void uploadPdfs(files, null);
+              // Set only when the `/` menu opened this picker; the button below
+              // leaves it null, which still means "at the end".
+              const anchor = pdfAnchorRef.current;
+              pdfAnchorRef.current = null;
+              if (files.length > 0) void uploadPdfs(files, anchor);
             }}
           />
         </label>
