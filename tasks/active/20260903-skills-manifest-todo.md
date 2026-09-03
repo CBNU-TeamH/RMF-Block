@@ -60,7 +60,8 @@ result *is* `skills/README.md` itself.
 - **Reuse**: nothing.
 - **Done**: both answers are written down, with the source, so nobody re-checks them.
 
-  **Both were settled by reading the plugins' own command files — no install needed.**
+  **One was settled by reading the plugins' own command files. The other was not — reading gave
+  the wrong answer, and only running it revealed that.**
 
   1. **No.** `commands/revise-claude-md.md` locates files literally with
      `find . -name "CLAUDE.md" -o -name ".claude.local.md"` and does not resolve imports.
@@ -100,7 +101,7 @@ result *is* `skills/README.md` itself.
 
 ## Review
 
-Shipped all three milestones. Two things came out differently than planned.
+Shipped all four milestones. Three things came out differently than planned.
 
 **One question was answered by reading, one needed running.** Milestone 3 assumed both needed
 the plugins installed. The import question was answered from a public `commands/*.md` file in
@@ -108,6 +109,13 @@ minutes. The model question was *not*: the command file names Sonnet, and that t
 describe intent rather than behaviour — the sub-agents take the session's model. Only running
 it revealed that. Reading the command file rather than the README still corrected a separate
 detail this task was built on — see lessons.
+
+**The `Reuse` claim in milestone 1 was wrong, and the template caught it.** It said the existing
+table "gains two columns rather than being replaced". It was replaced — the file now opens with the
+two conventions as prose and splits into Required / Optional / Deferred / Considered-and-not-used,
+and the old two-column *When | Suggest* table is gone. The todo template asks for that claim
+precisely so it gets checked (*"If nothing, say so — that claim gets checked"*), and this is the
+check firing.
 
 **One acceptance criterion was self-contradictory** and got rewritten mid-task: milestone 2
 asks for the rejection to be recorded in the manifest, while acceptance demanded the string

@@ -31,7 +31,7 @@ Which checks were actually run — not whether the diff was read carefully.
 [`skills/README.md`](../skills/README.md) says what each one is, and in which order.
 
 - [ ] `pnpm lint` / `pnpm test` / `pnpm build` locally
-- [ ] `/simplify` — ran · or not applicable because:
+- [ ] `/simplify`, **from a Sonnet session** — ran · or not applicable because:
 - [ ] `/code-review low`, **from a Sonnet session** — ran · or not applicable because:
 
 Sub-agents inherit the session's model, so an Opus session runs the review on Opus and

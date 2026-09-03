@@ -31,7 +31,7 @@ through review and one that did not.
 
 | Plugin | Why this repository needs it | When to invoke |
 | --- | --- | --- |
-| **`code-review`** | Launches **five parallel review agents** (see the model note below — they inherit your session's model), and **two of them read our rules** — one checks CLAUDE.md compliance, one checks code-comment compliance. The other three cover obvious bugs, git blame, and previous PRs. Findings are scored 0–100 and anything under 80 is dropped. Our `docs/conventions.md` is the rubric those two agents apply, which is what turns a written rule into a check that actually runs. | Before opening a PR, **from a Sonnet session**: `/code-review low` |
+| **`code-review`** | Launches **five parallel review agents** (see the model note below — they inherit your session's model), and **two of them read our rules** — one checks CLAUDE.md compliance, one checks code-comment compliance. The other three cover obvious bugs, git blame, and previous PRs. Findings are scored 0–100 and anything under 80 is dropped. Once `docs/conventions.md` lands (#65) it becomes the rubric those two agents apply — that is what turns a written rule into a check that runs. **Until then they have no project rulebook to check against**, which is the gap Phase 1 closes. | Before opening a PR, **from a Sonnet session**: `/code-review low` |
 | **`code-simplifier`** | *"Simplifies and refines code for clarity, consistency, and maintainability **while preserving functionality**."* Those last three words are the failure mode tests cannot see — code that behaves correctly and is shaped wrongly. #40 is the worked example. | While working, **from a Sonnet session**: `/simplify` |
 | **`claude-md-management`** | Two halves. `claude-md-improver` audits the harness against the actual state of the codebase, which is how we catch `AGENTS.md` routing to files that do not exist. `/revise-claude-md` captures what a session learned, which is the execution step our lessons → harness promotion loop has always been missing. | Starting work: audit. Finishing a task: `/revise-claude-md` as the promotion step |
 
@@ -53,24 +53,28 @@ not from any single command.
 
 ### Run the free checks first
 
-`pnpm lint`, `pnpm comments` and `pnpm verify:docs` cost **zero tokens**. Anything they can
-catch, they should catch — a review that spends findings slots on a lint-level nit is paying
-model tokens for something a script already knows, and costing the reader attention on top.
+`pnpm verify:fast` — lint plus the test suite — costs **zero tokens**. Anything it can catch, it
+should catch: a review that spends a findings slot on a lint-level nit is paying model tokens for
+something a script already knows, and costs the reader attention on top.
 
-So the order is: **scripts clean → then `/simplify` → then `/code-review low`**. The pre-commit
-hook already enforces the first step for staged files, which is most of the way there.
+So the order is: **`pnpm verify:fast` clean → then `/simplify` → then `/code-review low`**.
+
+#65 widens that first step — it adds `pnpm comments` (the comment budget) and `pnpm verify:docs`
+(index freshness, dead paths, archive backlog), plus a pre-commit hook that runs the staged-file
+part automatically. **Neither script exists yet; do not add them to this list before they do.**
 
 This matters more than it sounds. Our PRs run to a median of 494 changed lines across 12
 files, with the larger ones (#51, #53, #60) between 2,000 and 2,800 lines — for a repository
-whose entire source is 3,991 lines. Five agents each reading a diff that size is effectively
-several passes over the codebase, and `low` reduces the number of *findings*, not the amount
-read.
+whose entire source is under 4,400 lines. Five agents each reading a diff that size is
+effectively several passes over the codebase, and `low` reduces the number of *findings*, not
+the amount read.
+
 
 ### Model: switch to Sonnet before running either command
 
 **Both `/code-review` and `/simplify` must be run from a Sonnet session.**
 
-```
+```bash
 /model claude-sonnet-5     # then run /code-review low, or /simplify
 ```
 

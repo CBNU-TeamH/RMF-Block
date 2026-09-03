@@ -63,8 +63,9 @@ Things that should become a convention, a helper, or a line in `AGENTS.md`.
   five Opus agents. Worth stating wherever we write down what to run: *pick the depth and the
   model together.*
 
-- **Order the checks by what they cost, not by what they cover.** `lint`, the comment budget
-  and `verify:docs` cost zero tokens; a model pass costs tokens proportional to the diff,
+- **Order the checks by what they cost, not by what they cover.** `pnpm verify:fast` today —
+  joined by the comment budget and `verify:docs` once #65 adds them — costs zero tokens, while
+  a model pass costs tokens proportional to the diff,
   multiplied by the number of agents. Letting a review spend findings on something a script
   already knows pays twice — once in tokens, once in the reader's attention. Sized against
   this repo it is not a small effect: PRs run to a median of 494 changed lines and the larger
