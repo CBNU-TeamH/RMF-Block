@@ -70,11 +70,12 @@ to design against. Full derivation: the harness review linked from #67.
 
 ## Acceptance
 
-- [ ] `docs/conventions.md` exists with all five shapes, the three-comment-kinds rule, the
+- [x] `docs/conventions.md` exists with all five shapes, the three-comment-kinds rule, the
       `simple:` convention, the consolidated type-stripping statement, and the Tailwind rule.
-- [ ] Every issue citation resolves via `gh issue view <n>` and its open/closed state in the doc
-      matches reality at merge time.
-- [ ] `bash scripts/tasks-index.sh` is idempotent.
+- [x] Every issue citation resolves via `gh issue view <n>` and its open/closed state in the doc
+      matches reality at merge time. Checked 2026-09-04: #40/#52/#56/#57 open, #59 closed —
+      matches what the doc says.
+- [x] `bash scripts/tasks-index.sh` is idempotent.
 
 ## Cross-cutting
 
@@ -89,4 +90,14 @@ to design against. Full derivation: the harness review linked from #67.
 
 ## Review
 
-Filled in at the end.
+Shipped as planned — one file, five shapes, three milestones folded into one write since the
+sections are short enough that splitting them into separate commits would have added no
+verification value. Two things worth noting:
+
+- The type-stripping statement (milestone 3) turned out to need `lib/chat/chat-service.ts`'s
+  existing explanation as its base text almost verbatim — that file already had the *correct*
+  reasoning, just not the production-side half. `tsconfig.json`'s comment had the wrong half.
+  Consolidating meant keeping the right parts of both, not writing new prose.
+- Citation state was double-checked against `gh issue view` right before this doc was written,
+  not copied from an earlier pass — `#59` closing between when Phase 1 was scoped and now is
+  exactly the kind of drift the milestone anticipated.
