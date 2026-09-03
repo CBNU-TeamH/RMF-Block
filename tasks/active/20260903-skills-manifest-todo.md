@@ -34,7 +34,23 @@ result *is* `skills/README.md` itself.
   markers leaves them pointing at nothing for the length of Phase 1; that is accepted, because
   renaming them here would put a source-wide `sed` inside a docs-only PR.
 
-### 3. Answer the two open questions in the manifest
+### 3. Bring the PR template's review section forward (C5a)
+
+- **What**: this branch is the first PR of the harness rework, and opening it against a
+  template whose checklist says *"I read every line of this diff"* would be the change
+  arguing against itself. Replace that line with **which checks were actually run**.
+- **Files**: `.github/pull_request_template.md`.
+- **Reuse**: the template's own "or explicit skip reason below" pattern, already used for the
+  container smoke job. The review commands get the same escape hatch — a docs-only PR should
+  be able to say *not applicable because…* rather than tick a box it did not earn.
+- **Done**: the template asks for `/simplify` and `/code-review low`, notes the Sonnet-session
+  requirement, and has a line for findings filed rather than fixed.
+
+  **Only what exists today.** #65's C5 also wanted `docs/conventions.md`, `pnpm comments` and
+  `pnpm verify:docs` in this file — none of them exist yet, and adding them now would create
+  exactly the dangling pointer (F-1) this whole effort is about. That half stays C5b in #65.
+
+### 4. Answer the two open questions in the manifest
 
 - **What**: two things were expected to need the plugins installed.
   1. Does `claude-md-management` follow our `CLAUDE.md`, which is the single line `@AGENTS.md`?
@@ -68,6 +84,7 @@ result *is* `skills/README.md` itself.
       manifest's "considered and not used" table — recording why a tool was rejected is the
       point of that table, so "no occurrences of the string" was the wrong test to write.
 - [x] Both open questions are answered in the file, with their source, not left open.
+- [x] The PR template asks which checks ran, and references only files that exist today.
 - [x] `bash scripts/tasks-index.sh` is idempotent — re-running it changes nothing.
 
 ## Cross-cutting
