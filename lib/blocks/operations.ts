@@ -151,7 +151,9 @@ export function editBlockText(
 }
 
 /** The primitives a block type owns, minus the text every one of them keeps. */
-type TypeFields =
+/** The fields a conversion takes on, by target type. Exported because the `/`
+ *  menu's items name one of these (`lib/blocks/slash-menu.ts`). */
+export type TypeFields =
   | { type: "text" }
   | { type: "heading"; level: HeadingLevel }
   | { type: "list"; style: ListStyle; depth?: number }
