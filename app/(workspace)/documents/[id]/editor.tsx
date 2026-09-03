@@ -24,6 +24,7 @@ import {
   idAfterInOrder,
   idBeforeInOrder,
 } from "@/lib/blocks/reorder";
+import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
 
 import { useFocusFollow } from "../../focus-follow-provider";
@@ -96,10 +97,8 @@ function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
 export function DocumentEditor({ documentId }: { documentId: string }) {
   const { client, members, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId } = useFocusFollow();
-  const { blocks, setBlocks, failed, docRef, registerRemoteHandler } = useBlockDocument(
-    client,
-    documentId,
-  );
+  const { blocks, setBlocks, failed, docRef, registerRemoteHandler, patchBlockText } =
+    useBlockDocument(client, documentId);
   // The block currently being dragged — opacity feedback only, cleared on
   // both a successful drop and `dragend` (a drag cancelled or dropped
   // outside any block never fires `onDrop`, and without `dragend` too the
@@ -415,6 +414,9 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
     const original = blocks.find((block) => block.id === blockId);
     let newBlockId: BlockId | null = null;
+    // What the document did to *this* block's text, so the same thing can be
+    // done to its textarea afterwards — see `trimmed` below.
+    let trimmed: TextPatch | null = null;
 
     const applied = applyEdit((root, array) => {
       const liveText = liveTextOf(root, blockId);
@@ -434,8 +436,16 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       insertBlockAfter(array, blockId, newBlock);
       if (tail) editBlockText(array, newBlock.id, 0, 0, tail);
       newBlockId = newBlock.id;
+      trimmed = { from: cursorPosition, to: liveText.length, value: { content: "" } };
     });
     if (!applied) return;
+
+    // The tail is gone from the document but still sitting in the original
+    // block's textarea, which is uncontrolled and reads `initialText` once.
+    // Without this the text appears in both blocks — and worse, the next
+    // keystroke there diffs against a string the document no longer has
+    // (issue #59). The new block needs nothing: it mounts from the document.
+    if (trimmed) patchBlockText(blockId, trimmed);
 
     focusBlock(newBlockId ?? blockId, 0);
   };
@@ -467,6 +477,8 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     if (!previousBlock || !isTextBearing(previousBlock)) return;
 
     let mergeCaret = 0;
+    // What the previous block's text gained, to be mirrored into its textarea.
+    let appended: TextPatch | null = null;
 
     const applied = applyEdit((root, array) => {
       const previousText = liveTextOf(root, previousId);
@@ -475,8 +487,19 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
       editBlockText(array, previousId, previousText.length, previousText.length, thisText);
       removeBlock(array, blockId);
+      appended = {
+        from: mergeCaret,
+        to: mergeCaret,
+        value: { content: thisText },
+      };
     });
     if (!applied) return;
+
+    // The previous block keeps its id, so React keeps its textarea mounted with
+    // the value it had before the merge — the appended text would be invisible
+    // until a reload (issue #59). Patched before the caret moves, so the caret
+    // lands after text that is actually on screen.
+    if (appended) patchBlockText(previousId, appended);
 
     focusBlock(previousId, mergeCaret);
   };

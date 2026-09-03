@@ -1,16 +1,10 @@
 "use client";
 
-import type { Document, EditOpInfo } from "@yorkie-js/sdk";
-import { useCallback, useEffect, useRef, useState } from "react";
+import type { Document } from "@yorkie-js/sdk";
+import { useCallback, useEffect, useRef } from "react";
 
 import { detectMarkdownShortcut, type MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
-import {
-  detectSlashQuery,
-  moveHighlight,
-  slashMenuItems,
-  type SlashAction,
-} from "@/lib/blocks/slash-menu";
-import { diffRange, shiftCaret } from "@/lib/blocks/text-surface";
+import { diffRange, shiftCaret, type TextPatch } from "@/lib/blocks/text-surface";
 import { BlockNotFoundError, editBlockText, type BlockArray } from "@/lib/blocks/operations";
 import type { BlockDocumentRoot } from "@/lib/blocks/document";
 import type { BlockId, HeadingLevel } from "@/lib/blocks/types";
@@ -94,7 +88,7 @@ export function TextBlockView({
   docRef: React.RefObject<Document<BlockDocumentRoot> | null>;
   /** Returns an unsubscribe — the parent owns one Yorkie subscription for the
    * whole document and routes each block's edits here by id. */
-  registerRemoteHandler: (blockId: BlockId, handler: (op: EditOpInfo) => void) => () => void;
+  registerRemoteHandler: (blockId: BlockId, handler: (patch: TextPatch) => void) => () => void;
   /** Same shape as `registerRemoteHandler`, one layer up — lets the parent
    * reach this block's live textarea by id, for focus after a split or
    * merge (a block that just mounted, or one that already existed and
@@ -175,7 +169,7 @@ export function TextBlockView({
   };
 
   const composingRef = useRef(false);
-  const pendingRemoteRef = useRef<Array<EditOpInfo>>([]);
+  const pendingRemoteRef = useRef<Array<TextPatch>>([]);
   // "What I last told Yorkie the text was" — the diff baseline for the next
   // local keystroke. Has to advance on *every* path that touches the text,
   // remote patches included, or the next local edit reinserts whatever the
@@ -187,7 +181,7 @@ export function TextBlockView({
     el.style.height = `${el.scrollHeight}px`;
   };
 
-  const patchRange = (el: HTMLTextAreaElement, op: EditOpInfo) => {
+  const patchRange = (el: HTMLTextAreaElement, op: TextPatch) => {
     const { from, to, value } = op;
     const selStart = el.selectionStart ?? 0;
     const selEnd = el.selectionEnd ?? 0;
