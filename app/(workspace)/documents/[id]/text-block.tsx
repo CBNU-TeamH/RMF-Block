@@ -1,9 +1,15 @@
 "use client";
 
 import type { Document } from "@yorkie-js/sdk";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { detectMarkdownShortcut, type MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
+import {
+  detectSlashQuery,
+  moveHighlight,
+  slashMenuItems,
+  type SlashAction,
+} from "@/lib/blocks/slash-menu";
 import { diffRange, shiftCaret, type TextPatch } from "@/lib/blocks/text-surface";
 import { BlockNotFoundError, editBlockText, type BlockArray } from "@/lib/blocks/operations";
 import type { BlockDocumentRoot } from "@/lib/blocks/document";
