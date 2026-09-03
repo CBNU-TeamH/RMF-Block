@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Tool alignment — skills/ as an install manifest](active/20260903-skills-manifest-todo.md) | [lessons](active/20260903-skills-manifest-lessons.md) |
 | [The `/` block menu, and the divider it can finally create](active/20260902-slash-menu-todo.md) | [lessons](active/20260902-slash-menu-lessons.md) |
 | [PDF block and its in-app viewer](active/20260901-pdf-block-viewer-todo.md) | [lessons](active/20260901-pdf-block-viewer-lessons.md) |
 | [Focus following — follow the presenter's view](active/20260901-focus-following-todo.md) | [lessons](active/20260901-focus-following-lessons.md) |
