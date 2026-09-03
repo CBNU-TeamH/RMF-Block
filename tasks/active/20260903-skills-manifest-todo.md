@@ -117,6 +117,15 @@ and the old two-column *When | Suggest* table is gone. The todo template asks fo
 precisely so it gets checked (*"If nothing, say so — that claim gets checked"*), and this is the
 check firing.
 
+**The rejection list shrank on review.** It started as five rows of "considered and not used",
+which is trivia in a file whose job is telling you what to install. Two of the five had triggers
+(`hookify`, `security-guidance`) and belonged in *Deferred*; one (`commit-commands`,
+`typescript-lsp`) said nothing anyone would miss and is gone. Two stayed, under a heading that
+gives an instruction rather than a category — **Do not add these** — because each prevents a
+specific mistake: `feature-dev` looks like an obvious install and would compete with our own
+workflow, and `ponytail` still has nine markers live in the source. That second row carries its
+own expiry: #65 renames the markers, and the row goes with them.
+
 **One acceptance criterion was self-contradictory** and got rewritten mid-task: milestone 2
 asks for the rejection to be recorded in the manifest, while acceptance demanded the string
 `ponytail` appear nowhere under `skills/`. The file is gone; the name stays in the

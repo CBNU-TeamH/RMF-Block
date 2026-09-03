@@ -120,15 +120,16 @@ rule list, which is Sonnet-shaped work.
 | Skill | Status |
 | --- | --- |
 | `webapp-testing` ([anthropics/skills](https://github.com/anthropics/skills)) | Playwright-based browser verification. The only thing that can reach #52 (needs a real browser and a Korean IME) and the gaps that leaf server-component tests leave open. Held back for cost — a third runner, browser binaries, and a Python runtime in a pnpm/Node repo — not for doubt. Tracked with its trigger in **#61**. |
+| `hookify` | Builds Claude Code hooks, which act on agent behaviour during a session — a different layer from the git hooks `.githooks/` will add at commit time. Tempting for enforcing things like "write the task doc first", but automating a rule before it has settled in writing is the wrong order. **Trigger**: `docs/conventions.md` in daily use. |
+| `security-guidance` | **Trigger**: #19 (OPAQUE over plaintext HTTP) or #27 (join rate limiting) being picked up. Those issues carry the trigger themselves; no separate one is needed. |
 
 ---
 
-## Considered and not used
+## Do not add these
+
+Both look like obvious additions to the list above, and are not.
 
 | | Why not |
 | --- | --- |
-| `ponytail` | Described itself as *"not installed by default — it's a per-person plugin choice"*, which is not something a repository convention can rest on. `code-simplifier` fills the same slot as an official plugin. |
-| `feature-dev` | *"Specialized agents for codebase exploration, architecture design, and quality review."* Good, but it overlaps our own SDD workflow (`tasks/` todo + lessons) head-on. Two procedures for the same job means neither gets followed. This is duplication, not bad timing — so it is a rejection, not a deferral. |
-| `hookify` | Builds Claude Code hooks, which act on agent behaviour during a session — a different layer from the git hooks in `.githooks/`, which act on code at commit time. Tempting for enforcing things like "write the task doc first", but automating a rule before it has settled in writing is the wrong order. Revisit once `docs/conventions.md` is in use. |
-| `security-guidance` | A candidate when #19 (OPAQUE) and #27 (join rate limiting) are actually worked on. Those issues are the trigger; no separate one is needed. |
-| `commit-commands`, `typescript-lsp` | Commit conventions already live in `AGENTS.md` §5, and a language server is not a bottleneck today. |
+| `feature-dev` | Its agents for exploration, architecture and quality review overlap our SDD workflow (`tasks/` todo + lessons) head-on, and two procedures for one job means neither is followed. Duplication rather than bad timing, so a rejection rather than a deferral. |
+| `ponytail` | Said of itself *"not installed by default — it's a per-person plugin choice"*, which a repository convention cannot rest on; `code-simplifier` fills the slot officially. The `ponytail:` markers still in the source are separate — #65 renames them to `simple:`, and **this row can go with them.** |
