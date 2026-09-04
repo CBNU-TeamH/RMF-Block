@@ -41,6 +41,8 @@ borrowing `scripts/verify-docs.mjs` from the not-yet-merged `chore/verify-script
 branch doesn't have it yet, being cut from `main`) — dead-link count went from 9 to 7, not 9 to 8
 as the plan assumed, because both shorthand spans on that one source line counted as separate
 findings. Also caught and fixed a self-inflicted instance of the same bug Track C's lessons
-already named: this task's own todo doc quoted the broken line using the exact
-`` [`x`](y) `` markdown-link syntax to describe it, which the checker read as a real link and
-flagged. Rewrote it as plain prose instead of literal link syntax.
+already named: this task's own todo doc quoted the broken line using real markdown-link syntax
+to describe it, which the checker read as an actual link and flagged. Rewrote it as plain prose
+instead — twice now (this sentence is a second occurrence, worded to describe the trap without
+writing the trap: any square-bracket-then-parenthesis span reads as a link candidate to
+`extractMarkdownLinks`, backtick escaping or not).
