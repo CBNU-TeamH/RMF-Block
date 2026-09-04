@@ -168,6 +168,12 @@ mislead the next person into thinking the constraint goes away once the test run
 doesn't — `server/index.mts` still runs the same way in production regardless of what runs the
 tests.
 
+**Revise this section once #66 (Phase 2) migrates the runner to Vitest.** The paragraph above
+stops being true, not just stale — tests won't run under `node --test` at all once that lands,
+so "hits the identical constraint, for the identical reason" would be describing a runner this
+repo no longer uses. Drop that paragraph; keep only the production-side reasoning, which doesn't
+change (`server/index.mts` still runs directly under `node` regardless of what runs the tests).
+
 ## Verifying a Tailwind class before trusting it
 
 Before using a Tailwind class that's new to this project — a numeric step or color no existing
