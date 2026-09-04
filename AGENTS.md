@@ -25,7 +25,7 @@ This version (16.2.12) has breaking changes — APIs, conventions, and file stru
 
 ## 2. How we work (SDD workflow)
 
-We adopt [Spec-Driven Development](https://github.com/github/spec-kit) **as a methodology only** — no slash commands, no extra tooling. Work follows this order.
+We adopt [Spec-Driven Development](https://github.com/github/spec-kit) **as a methodology only** — no slash commands, no extra tooling. Run `pnpm verify:docs` before touching anything — it catches doc drift (dead links, a stale task index, an ownership gap) before it compounds. Work follows this order.
 
 | Step | Do | Where |
 | --- | --- | --- |
@@ -34,9 +34,13 @@ We adopt [Spec-Driven Development](https://github.com/github/spec-kit) **as a me
 | 2. Plan | Write down the approach and trade-offs (no over-engineering) | inside the task doc |
 | 3. Task | Register the work as a todo + lessons pair from the templates | `tasks/active/` ([conventions](tasks/active/README.md)) |
 | 4. Build | Define success criteria, then iterate until they are met | `app/` |
-| 5. Done | `pnpm tasks:archive <slug>` | → `tasks/archive/YYYY/MM/` |
+| 5. Done | Check the task's lessons for a "Worth extracting" item worth promoting into `docs/conventions.md` or this file, then `pnpm tasks:archive <slug>` | → `tasks/archive/YYYY/MM/` |
 
 The overall plan lives in [`ROADMAP.md`](ROADMAP.md).
+
+**Run and verify**: changes to server startup, auth, or networking are verified with `docker compose up --build`, not `pnpm dev` — a container behaves differently from the dev server, and that gap has already produced real bugs (`tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`).
+
+**Delegating work**: hand repo-wide fact-finding (where is X defined, which files reference Y) to a search/explore-style sub-agent when your tool has one — Claude Code's `Explore` agent is the concrete case this repo has used. Small, localized edits are done directly. Judgement calls — what a thing should do, which trade-off wins — are never delegated; only whoever is actually deciding stays accountable for the decision.
 
 ---
 
@@ -49,6 +53,8 @@ The four [Karpathy guidelines](https://github.com/multica-ai/andrej-karpathy-ski
 3. **Surgical changes** — touch only what needs touching. Leave unrelated code and formatting alone, clean up only your own traces, and follow the existing style.
 4. **Goal-driven execution** — turn the task into verifiable success criteria and iterate until they are met.
 
+[`docs/conventions.md`](docs/conventions.md) is what principles 2 and 3 look like as checkable rules — five concrete shapes that behave correctly and are still wrong.
+
 ---
 
 ## 4. Doc routing
@@ -57,7 +63,9 @@ Which document to open for which job.
 
 | When you need | Read |
 | --- | --- |
-| Requirements · module design · code conventions · test strategy · ADRs · UI wireframes ([`docs/ui/`](docs/ui/)) | [`docs/`](docs/) |
+| Requirements · module design · ADRs · UI wireframes ([`docs/ui/`](docs/ui/)) | [`docs/`](docs/) |
+| Code conventions | [`docs/conventions.md`](docs/conventions.md) |
+| Test strategy | Doesn't exist yet — arrives with Phase 2 (#66)'s Vitest migration |
 | Lint / format config | [`eslint.config.mjs`](eslint.config.mjs) |
 | Open work and its status | [`tasks/`](tasks/) (`tasks/active/`, `tasks/archive/`) |
 | The overall plan | [`ROADMAP.md`](ROADMAP.md) |
@@ -97,3 +105,4 @@ section the third place to look.
 - [ ] Set the load-test baseline that `docs/SRS-ko.md` §2.4 defers. Blocks nothing today; NFR-PER-001/006 cannot be verified without it (`ROADMAP.md` Phase 5).
 - [ ] Decide block/text color and styling (block background/text color, and whether it extends to inline text ranges) — not in `docs/SRS-ko.md` today, tracked as issue #6. Deferring is low-risk: block-level color is an additive `content` field per type, and inline color can ride `yorkie.Text`'s native range-style attributes without changing the block schema, so it doesn't block finishing the base 12-type schema in [`docs/design/document-editing.md`](docs/design/document-editing.md).
 - [ ] Decide what triggers the App/WS Server to call Yorkie's `createRevision` — Yorkie itself never auto-snapshots, so a revision is only ever created by an explicit call; the open question is what event or cadence in the app should make that call. No FR or UC covers version history today, so nothing forces the answer yet — see issue #23.
+- [ ] Promote `comment-budget` from a local-only signal to a required CI check — `scripts/lib/promotion-date.mjs` names 2026-09-23 as the earliest date. Blocks nothing today; the promotion itself is gated on zero false positives and the rest of the criteria tracked in issue #65's own Gate checklist.

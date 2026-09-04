@@ -64,17 +64,19 @@ pointing them at doc/script deliverables Tracks A–C already shipped.
 
 ## Acceptance
 
-- [ ] `AGENTS.md` diff is additive only — no unrelated line changed.
-- [ ] §2 references `pnpm verify:docs` and folds the promotion review into step 5, not a new row.
-- [ ] New "Run and verify" section present with the exact drafted wording.
-- [ ] §4 points "code conventions" at `docs/conventions.md`; "test strategy" states the #66 gap
+- [x] `AGENTS.md` diff is additive only — no unrelated line changed.
+- [x] §2 references `pnpm verify:docs` and folds the promotion review into step 5, not a new row.
+- [x] "Run and verify" wording present with the exact drafted text — as a bold-lead-in bullet
+      inside §2 rather than a new H2 section (see Review: kept the diff surgical, avoided
+      renumbering every section from §3 on for one sentence).
+- [x] §4 points "code conventions" at `docs/conventions.md`; "test strategy" states the #66 gap
       explicitly rather than pointing at a file that doesn't exist.
-- [ ] §7 has a fourth TODO item for the 2026-09-23 promotion date.
-- [ ] Sub-agent delegation note added, worded tool-neutral.
-- [ ] `.github/pull_request_template.md` includes `pnpm comments` and `pnpm verify:docs`, and a
+- [x] §7 has a fourth TODO item for the 2026-09-23 promotion date.
+- [x] Sub-agent delegation note added, worded tool-neutral.
+- [x] `.github/pull_request_template.md` includes `pnpm comments` and `pnpm verify:docs`, and a
       `docs/conventions.md` reference.
-- [ ] Comment posted on `#65` with the two scope corrections; `#65` checklist updated for Track D.
-- [ ] `pnpm verify:docs` run against the final state — no new dead-link findings introduced by
+- [x] Comment posted on `#65` with the two scope corrections; `#65` checklist updated for Track D.
+- [x] `pnpm verify:docs` run against the final state — no new dead-link findings introduced by
       this task's own edits (the 7 pre-existing ones are not this task's to fix).
 
 ## Cross-cutting
@@ -87,4 +89,23 @@ task's scope.
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+Shipped all three milestones as planned, with one deliberate deviation from the plan's wording:
+the plan called for a "new 'Run and verify' section," but a genuine new `## ` section would have
+meant renumbering §3 through §7 for one sentence's worth of content. Added it as a bold-lead-in
+bullet inside §2 instead — same findability, no disruption to every other section's anchor links
+(several of which are referenced elsewhere in this repo, e.g. `#3-coding-principles` from §2's
+own table). Added a second bullet the same way for the sub-agent delegation note.
+
+`§4`'s doc-routing table split "code conventions" and "test strategy" out of the old catch-all
+`docs/` row into their own rows — the catch-all row (module design, ADRs, UI wireframes) is
+unaffected. Verified with `node scripts/verify-docs.mjs` after every edit, not just at the end —
+zero new dead-link findings from any of the new links added (`docs/conventions.md` ×2,
+`tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`), same 7 pre-existing findings as on
+`main`.
+
+Also worth noting: while confirming the Turbopack/pre-push push block was purely environmental
+(same recurring Windows-only native-binding gap this whole Phase hit repeatedly, unrelated to
+this task's doc-only changes), wrote up the distinction between that failure mode and a
+superficially similar Docker+WSL2 HMR issue as a personal study note — deliberately kept outside
+this branch (`TURBOPACK-WINDOWS-NOTES.md`, untracked at the repo root) since it isn't project
+content.
