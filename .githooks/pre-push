@@ -6,6 +6,13 @@
 # `node --test` directly (package.json's own "test" script) and
 # node_modules/.bin/next for the same PATH reason pre-commit avoids `pnpm` —
 # see that file's comment.
+#
+# Update the `node --test` line once #66 (Phase 2) migrates the runner to
+# Vitest — measured 2026-09-04: bare `node --test` finds 0 tests on local
+# Node 22 (its default test-file discovery doesn't pick up *.test.mts the
+# way Node 24 does, which is what CI runs), so this line is already tied to
+# the current runner's own defaults, not just to the package.json script
+# name. Swap it for whatever Vitest invocation C4 settles on.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"

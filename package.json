@@ -15,6 +15,7 @@
     "test": "node --test",
     "verify:fast": "pnpm lint && pnpm test",
     "comments": "node scripts/comment-budget.mjs",
+    "verify:docs": "node scripts/verify-docs.mjs",
     "docker:up": "bash scripts/detect-host-ip.sh && docker compose up --build",
     "tasks:index": "bash scripts/tasks-index.sh",
     "tasks:archive": "bash scripts/tasks-archive.sh"

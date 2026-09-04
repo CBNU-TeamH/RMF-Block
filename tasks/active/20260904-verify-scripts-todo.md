@@ -75,10 +75,16 @@ it's not a surprise on 2026-09-23.
 - **Reuse**: `scripts/tasks-index.sh`'s own idempotency pattern (already proven in Phase 0 and
   tracks A/B) for check (b).
 - **Done**: `git config core.hooksPath` is `.githooks` after `pnpm install`; a trivial staged
-  change triggers pre-commit in under ~2s; `pnpm verify:docs` run against current state reports
-  clean; a deliberately broken link in a scratch copy is caught, not just "doesn't crash";
-  `pnpm build` then `pnpm dev` locally — `.next` and `.next-dev` stay separate and dev still
-  boots; the Docker image (`pnpm docker:up`) still builds, proving the `|| true` guard matters.
+  change triggers pre-commit in under ~2s; a deliberately broken link in a scratch copy is caught,
+  not just "doesn't crash"; `pnpm build` then `pnpm dev` locally — `.next` and `.next-dev` stay
+  separate and dev still boots; the Docker image (`pnpm docker:up`) still builds, proving the
+  `|| true` guard matters.
+
+  **`pnpm verify:docs` reporting clean was revised.** Nine findings survive against current
+  `main` — none introduced by this task. Full breakdown in Review below; the short version is
+  that the ownership checker's coverage holes are expected non-blocking noise (see milestone 1),
+  and the dead-link checker's nine hits are pre-existing content the checker has no business
+  silently rewriting.
 
 ### Explicitly out of scope
 
@@ -93,20 +99,71 @@ already did.
       required to be zero — eleven exist honestly today (`app/join/*`, four API routes, three
       shell files) and forcing that to zero is out of this task's scope; the script reports them
       without failing.
-- [ ] `node scripts/comment-budget.mjs` runs against a real diff and produces sane per-file
-      output.
-- [ ] `pnpm install` sets `core.hooksPath`; pre-commit and pre-push fire.
-- [ ] `pnpm docker:up` still builds the image.
-- [ ] `pnpm build` then `pnpm dev` no longer requires clearing `.next` by hand.
-- [ ] `pnpm verify:docs` catches a deliberately introduced broken link.
-- [ ] `bash scripts/tasks-index.sh` is idempotent.
+- [x] `node scripts/comment-budget.mjs` runs against a real diff and produces sane per-file
+      output. Verified against a wider historical diff too (16 files over budget between
+      `upstream/main~5` and `HEAD`), not just the current clean state.
+- [x] `pnpm install` sets `core.hooksPath`; pre-commit and pre-push fire — confirmed with a real
+      `git commit` (`c0d74b9`), not a dry run.
+- [x] `pnpm docker:up` still builds the image — confirmed via a full container rebuild, app
+      served `Ready on http://0.0.0.0:3000` with the `.next` distDir present and `.next-dev`
+      absent, exactly as designed.
+- [x] `pnpm build` then `pnpm dev` no longer requires clearing `.next` by hand. Confirmed the
+      `next build` half directly (Docker's `node:24-alpine` build stage). Could not confirm the
+      `pnpm dev` half locally — this machine's Node is 22, and the custom server's native
+      `.mts` execution needs 24 — but the config logic itself was verified in isolation under
+      all three `NODE_ENV` states, and the Dockerfile reasoning it depends on was read and
+      confirmed, not assumed.
+- [x] `pnpm verify:docs` catches a deliberately introduced broken link — confirmed with a real
+      scratch edit to `docs/conventions.md`, restored after.
+- [x] `bash scripts/tasks-index.sh` is idempotent.
 
 ## Cross-cutting
 
 - **Track D depends on this**: `AGENTS.md`'s new "Run and verify" section and §7 promotion-date
   entry both reference commands this task creates.
+- **A separate tiny branch, not Track D, fixes one of the nine `verify:docs` findings**:
+  `AGENTS.md:62`'s doc-routing row links to the `tasks/` directory, then names its two
+  subdirectories in prose without repeating the `tasks/` prefix — reads fine in context, but
+  relies on context a per-line checker can't have. One-line prose fix, unrelated to anything
+  Track D actually changes in that file, so it doesn't need to wait for Track D's PR.
 - No SRS requirement covers this; nothing in `docs/SRS-ko.md` changes.
 
 ## Review
 
-Filled in at the end.
+Shipped all three milestones. The ownership checker (milestone 1) is covered in its own commit
+message in detail — three real bugs found by running it, not by reading the code. Two more things
+worth recording here:
+
+**`verify:docs` reports nine findings against current `main`, none introduced by this task.**
+Doc ownership: 11 coverage holes, already accounted for as non-blocking in milestone 1's
+acceptance. Dead links: 9, all pre-existing —
+- `docs/conventions.md`: one `./ws-hub.mts` mention is an illustrative import-specifier example
+  quoted verbatim from `server/index.mts`'s real source; "fixing" it would mean misquoting real
+  code to satisfy a doc-audit tool. Left as a documented, accepted limitation.
+- `AGENTS.md:62`: `active/`/`archive/` read in isolation, missing the `tasks/` context the
+  preceding link establishes. Handed to a separate small branch (see Cross-cutting) rather than
+  either bundled into this PR (out of Track C's file scope) or left for Track D (unrelated to
+  what Track D actually changes in that file).
+- `docs/HOST-GUEST-ENTRY-ko.md`: six mentions, all inside "here's what used to be here, before
+  the auth-gate restructuring" narrative — the doc says so directly (*"app/page.tsx는
+  사라졌고"*). A checker that only asks "does this path exist" cannot distinguish a present-tense
+  claim from a past-tense one; building that distinction is out of scope for what this task asks
+  for, and the document itself predates this work and wasn't touched, matching `AGENTS.md` §5's
+  spirit even though this specific doc isn't one of the ones that section names.
+
+Decided with the user rather than silently: leave these as documented, not force `verify:docs`
+to report clean by either suppressing real findings or editing a doc this task has no standing to
+change.
+
+**The distDir split (milestone 3) could only be half-verified locally**, for a reason worth
+recording precisely: this machine runs Node 22, and the custom server's native `.mts` execution
+requires Node 24 (confirmed: `ERR_UNKNOWN_FILE_EXTENSION` when attempting `node server/index.mts`
+directly). The production half was still fully verified — a real `pnpm docker:up` build, on the
+actual `node:24-alpine` image, produced `.next` and not `.next-dev`, matching the design. The
+`pnpm dev` half rests on the `NODE_ENV=development` conditional already being proven correct in
+isolation, plus reading (not assuming) that `dev`/`start` set `NODE_ENV` explicitly. Also
+recorded here because it nearly caused a real mistake: the temptation to "fix" the apparent
+inconsistency with `server/index.mts`'s own `dev` flag (`NODE_ENV !== "production"`, vs. this
+config's `=== "development"`) would have broken the Dockerfile's actual build path, which runs
+`pnpm build` with `NODE_ENV` unset — caught by reading the Dockerfile stage order before editing,
+not after.
