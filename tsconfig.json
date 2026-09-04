@@ -11,9 +11,12 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    // `*.test.mts` runs on Node's type stripping, which resolves import
-    // specifiers literally — the modules under test have to be imported as
-    // `.ts`.
+    // `server/index.mts` runs directly under `node` in production (see the
+    // Dockerfile's CMD and package.json's dev/start scripts), and its native
+    // type stripping resolves import specifiers literally — every module it
+    // reaches has to be imported with its `.ts` extension. `*.test.mts` hits
+    // the same constraint for the same reason, but production is the cause;
+    // see docs/conventions.md, "The Node type-stripping constraint".
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "incremental": true,

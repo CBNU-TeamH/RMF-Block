@@ -15,7 +15,7 @@ const BUTTON =
 /**
  * The one header control for UC-030's thin slice: 공유 → 참여 → 종료
  * (FR-030-01/03/04/09). Lives beside `PresenceStack` rather than as a toast —
- * see `tasks/active/20260901-focus-following-todo.md`, milestone 3.
+ * see `docs/design/presence-and-focus.md`.
  *
  * Four states, checked in this order because they are mutually exclusive in
  * practice (you would not be following while also presenting):
@@ -35,7 +35,7 @@ export function FocusShare({ memberId }: { memberId: string }) {
     const documentId = documentIdFromPathname(pathname);
     if (!documentId) return;
 
-    // ponytail: read straight off the live DOM rather than threading the
+    // simple: read straight off the live DOM rather than threading the
     // current anchor down through a context — this only ever needs it once,
     // at the moment of the click. A `null` here (the editor for this route
     // has not finished mounting yet) is rare and self-resolves: nothing

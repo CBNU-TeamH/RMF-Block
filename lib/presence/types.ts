@@ -7,7 +7,8 @@ import type { BlockId } from "../blocks/types.ts";
  * Presence rides Yorkie rather than the WS hub. Yorkie already answers "who is
  * attached right now" — including the hard half, noticing that someone stopped
  * being attached — so the roster is read off the document instead of being
- * bookkept by us. See this task's todo for why the hub was not used.
+ * bookkept by us. See `docs/design/presence-and-focus.md` for why the hub was
+ * not used.
  */
 
 /**
@@ -33,9 +34,10 @@ export const WORKSPACE_DOC_KEY = "workspace";
  */
 export type WorkspacePresence = WorkspaceMember & {
   /** Set while this member is presenting (sharing their view); `null` (not
-   * `undefined`) ends the share — see why in this task's todo, "the SDK
-   * `JSON.stringify`s each presence value, and `undefined` doesn't survive
-   * that round trip." Absent entirely for a member who has never presented. */
+   * `undefined`) ends the share — see `docs/design/presence-and-focus.md`,
+   * "the SDK `JSON.stringify`s each presence value, and `undefined` doesn't
+   * survive that round trip." Absent entirely for a member who has never
+   * presented. */
   presenting?: {
     documentId: string;
     blockId: BlockId;

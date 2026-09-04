@@ -10,9 +10,8 @@ import { isHostSecret } from "@/lib/host-secret";
 /**
  * UC-021's 기본 흐름: creates a document and adds it to the workspace's catalogue
  * (`lib/documents/documents.ts`). Yorkie is not touched here — the document's
- * content is seeded with its first block the moment the editor opens it
- * (`tasks/active/20260829-block-editor-todo.md` milestone 1), not at this call,
- * so creating one never has to reach Yorkie at all.
+ * content is seeded with its first block the moment the editor opens it, not
+ * at this call, so creating one never has to reach Yorkie at all.
  *
  * Every member may create a document (SIR003's "모든 참가 사용자가 문서를 생성할
  * 수 있다"), the host included — hence the same `role` fallback `layout.tsx` uses
