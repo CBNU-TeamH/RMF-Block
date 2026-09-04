@@ -10,7 +10,6 @@
 // day-to-day use; nothing wires it in yet.
 
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 
 import { promotionNotice } from "./lib/promotion-date.mjs";
 
@@ -70,12 +69,13 @@ function ratioFromSource(source) {
   return total === 0 ? null : comment / total;
 }
 
-// Working-tree content — what `HEAD` already has, plus any committed-but-not-
-// pushed history the diff below walks past. Used when comparing base..HEAD.
+// The committed content at HEAD — `git show HEAD:path`, not the working tree,
+// so an uncommitted edit sitting on top of a committed file can't leak into a
+// base..HEAD comparison.
 function ratioForCommitted(path) {
   let source;
   try {
-    source = readFileSync(path, "utf8");
+    source = git(["show", `HEAD:${path}`]);
   } catch {
     return null; // deleted in this diff — nothing to measure
   }

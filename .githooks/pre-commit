@@ -13,10 +13,13 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-staged_ts=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.tsx' || true)
+staged_ts=()
+while IFS= read -r -d '' file; do
+  staged_ts+=("$file")
+done < <(git diff --cached --name-only -z --diff-filter=ACMR -- '*.ts' '*.tsx')
 
-if [ -n "$staged_ts" ]; then
-  echo "$staged_ts" | xargs node_modules/.bin/eslint --no-warn-ignored
+if [ ${#staged_ts[@]} -gt 0 ]; then
+  node_modules/.bin/eslint --no-warn-ignored -- "${staged_ts[@]}"
 fi
 
 node scripts/comment-budget.mjs --staged

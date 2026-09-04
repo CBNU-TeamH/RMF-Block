@@ -50,7 +50,9 @@ it's not a surprise on 2026-09-23.
 
 - **What**:
   - `.githooks/pre-commit` — staged-file lint + comment budget, target ~2s.
-  - `.githooks/pre-push` — `pnpm test && pnpm build`.
+  - `.githooks/pre-push` — `node --test` and `node_modules/.bin/next build` (the pnpm-script
+    equivalents of `pnpm test`/`pnpm build`, called directly for the same PATH reason pre-commit
+    avoids `pnpm` — see the hook's own header comment).
   - `"prepare": "git config core.hooksPath .githooks || true"` in `package.json`. The `|| true`
     is required: the Dockerfile's `deps` and `prod-deps` stages run `pnpm install
     --frozen-lockfile` (which triggers `prepare`) after copying only `package.json`,
@@ -107,7 +109,7 @@ already did.
 - [x] `pnpm docker:up` still builds the image — confirmed via a full container rebuild, app
       served `Ready on http://0.0.0.0:3000` with the `.next` distDir present and `.next-dev`
       absent, exactly as designed.
-- [x] `pnpm build` then `pnpm dev` no longer requires clearing `.next` by hand. Confirmed the
+- [ ] `pnpm build` then `pnpm dev` no longer requires clearing `.next` by hand. Confirmed the
       `next build` half directly (Docker's `node:24-alpine` build stage). Could not confirm the
       `pnpm dev` half locally — this machine's Node is 22, and the custom server's native
       `.mts` execution needs 24 — but the config logic itself was verified in isolation under
@@ -167,3 +169,38 @@ inconsistency with `server/index.mts`'s own `dev` flag (`NODE_ENV !== "productio
 config's `=== "development"`) would have broken the Dockerfile's actual build path, which runs
 `pnpm build` with `NODE_ENV` unset — caught by reading the Dockerfile stage order before editing,
 not after.
+
+**CodeRabbit review response (6 findings, 5 fixed):** each verified against the running code
+before deciding, not taken on trust.
+
+- `.githooks/pre-commit`: `xargs` over `\n`-joined paths silently mis-splits a staged path
+  containing a space. Switched to null-delimited `git diff -z` into a Bash array. Confirmed with
+  an isolated shell test — a fake `"src/my file.ts"` entry now survives as one array element.
+- `scripts/comment-budget.mjs`'s `ratioForCommitted` read the working tree, not the committed
+  blob, so an uncommitted edit on a file already in the `base..HEAD` diff would leak into the
+  reported ratio. Switched to `git show HEAD:path`. Confirmed by adding 5 uncommitted comment
+  lines to `next.config.ts` (already over-budget in the diff) and checking the reported ratio
+  didn't move.
+- `scripts/verify-docs.mjs`'s task-index-freshness restore used `git checkout --`, which reads
+  the Git index/HEAD rather than the snapshot this function itself captured — an unstaged edit to
+  `tasks/README.md` would have been silently destroyed by running `verify:docs`. Switched to
+  restoring the captured bytes directly in a `finally` block. Confirmed by adding an unstaged
+  edit to `tasks/README.md`, running the script, and checking the edit was still there afterward.
+  While in that function: `eslint` independently flagged the file's `git()` helper as dead code
+  (confirmed nothing calls it post-fix) — removed in the same edit, which also cleared the one
+  pre-existing lint warning on this branch.
+- This task doc's own milestone bullet said pre-push runs `pnpm test && pnpm build`; the shipped
+  hook runs `node --test` / `node_modules/.bin/next build` directly. Reworded to match what
+  actually ships.
+- This task doc's own acceptance list had the `pnpm build`-then-`pnpm dev` item checked while its
+  own next sentence says the `pnpm dev` half was never run locally. Unchecked it — the honest gap
+  was already documented in prose, just not reflected in the checkbox.
+
+**Declined, decided with the user:** CodeRabbit also wants full-repo lint and `verify:docs` wired
+into `.githooks/pre-push`. Verified that would break every push today — `verify:docs` exits 1 on
+a dead-link finding, and the 9 pre-existing ones above (7 once the small `active/`/`archive/`
+branch merges) are findings the team already chose not to touch. Full-repo lint is also redundant
+with pre-commit's staged-file lint plus CI's required `lint · test · build` check, and this task's
+own original scope named `pnpm test && pnpm build` only. Left `.githooks/pre-push` as-is; no
+reply on the CodeRabbit thread (the user's call — this becomes natural once the dead-link backlog
+clears); tracked instead as a comment on `#65`.

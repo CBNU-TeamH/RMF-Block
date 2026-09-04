@@ -18,7 +18,7 @@
 // Exit 1 if (a) or (c) fail. (b) and (d) are informational.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -26,10 +26,6 @@ import { checkOwnership } from "./verify-doc-ownership.mjs";
 import { promotionNotice } from "./lib/promotion-date.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([a-zA-Z]):/, "$1:");
-
-function git(args) {
-  return execFileSync("git", args, { cwd: ROOT, encoding: "utf8" }).trim();
-}
 
 function checkOwnershipSection() {
   const { unowned, deadReferences, duplicates, missingOwnsLine } = checkOwnership();
@@ -57,40 +53,55 @@ function checkOwnershipSection() {
 // so this never mutates a tracked file — only `pnpm tasks:index` does that,
 // on purpose.
 function checkTaskIndexFreshness() {
-  let stdout;
+  // tasks-index.sh always writes to the real paths; there's no dry-run flag.
+  // Snapshot current content, run it, diff, then restore the snapshot bytes
+  // directly — not `git checkout`, which reads the index/HEAD and would
+  // discard an unstaged edit the developer had before running this check.
+  // The finally runs even if tasks-index.sh itself throws, so a failed run
+  // can't leave the restore skipped.
+  const targets = ["tasks/README.md", "tasks/archive/README.md"];
+  const before = targets.map((t) => {
+    try {
+      return readFileSync(join(ROOT, t), "utf8");
+    } catch {
+      return null;
+    }
+  });
+  let stale;
   try {
-    // tasks-index.sh always writes to the real paths; there's no dry-run
-    // flag. Snapshot current content, run it, diff, then restore if it
-    // changed — the check's job is to report drift, not fix it.
-    const targets = ["tasks/README.md", "tasks/archive/README.md"];
-    const before = targets.map((t) => {
+    execFileSync("bash", ["scripts/tasks-index.sh"], { cwd: ROOT, stdio: "pipe" });
+    const after = targets.map((t) => {
       try {
         return readFileSync(join(ROOT, t), "utf8");
       } catch {
         return null;
       }
     });
-    execFileSync("bash", ["scripts/tasks-index.sh"], { cwd: ROOT, stdio: "pipe" });
-    const after = targets.map((t) => readFileSync(join(ROOT, t), "utf8"));
-    const stale = targets.filter((_, i) => before[i] !== after[i]);
-    stdout = { stale, targets, before };
-    // Restore whatever this check changed — verify-docs only reports.
-    for (let i = 0; i < targets.length; i++) {
-      if (before[i] !== null && stale.includes(targets[i])) {
-        execFileSync("git", ["checkout", "--", targets[i]], { cwd: ROOT, stdio: "pipe" });
-      }
-    }
+    stale = targets.filter((_, i) => before[i] !== after[i]);
   } catch (err) {
     return { name: "Task index freshness", failed: false, lines: [`Could not run tasks-index.sh: ${err.message}`] };
+  } finally {
+    for (let i = 0; i < targets.length; i++) {
+      const target = join(ROOT, targets[i]);
+      if (before[i] === null) {
+        try {
+          unlinkSync(target);
+        } catch {
+          // wasn't there before, isn't there now — nothing to undo
+        }
+      } else {
+        writeFileSync(target, before[i]);
+      }
+    }
   }
-  if (stdout.stale.length === 0) {
+  if (stale.length === 0) {
     return { name: "Task index freshness", failed: false, lines: [] };
   }
   return {
     name: "Task index freshness",
     failed: false,
     lines: [
-      `Stale: ${stdout.stale.join(", ")}`,
+      `Stale: ${stale.join(", ")}`,
       `Run \`pnpm tasks:index\` and commit the result.`,
     ],
   };
