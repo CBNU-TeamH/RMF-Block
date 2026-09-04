@@ -58,7 +58,7 @@ for work this size.
     `lib/auth/member-repository.ts:17`, `lib/focus/anchor.ts:33`, `lib/host-secret.ts:8`. Plus a
     tenth not in that count: `scripts/tasks-archive.sh`'s own `# ponytail: filename fallback…`
     comment.
-- **Files**: the eight files above, `app/api/documents/route.ts`, `scripts/tasks-archive.sh`,
+- **Files**: the files listed above, plus `app/api/documents/route.ts`, `scripts/tasks-archive.sh`,
   `tsconfig.json`.
 - **Reuse**: the `simple:` convention `docs/conventions.md` already defines (`#69`) — this
   milestone executes the rename, doesn't invent the name.
