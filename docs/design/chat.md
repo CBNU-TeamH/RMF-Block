@@ -2,6 +2,10 @@
 
 - **Status**: Agreed. Built through file attachments; link attachments and the file panel
   are still out of scope — see below.
+- **Owns**: `lib/chat/`, `lib/files/` (the upload/serving mechanism — see "Module structure"
+  below; reused by the PDF block in `docs/design/document-editing.md`, not re-explained there),
+  `app/(workspace)/chat-message.tsx`, `app/(workspace)/chat-panel.tsx`,
+  `app/(workspace)/chat-window.tsx`, `app/api/chat/`, `app/api/files/`.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(b) (Chat API group); [`docs/design/api.md`](api.md) §5 (Version A vs Version B); [`docs/SRS-ko.md`](../SRS-ko.md) FR-060, SIR006
 
 ## Scope
