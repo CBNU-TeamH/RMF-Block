@@ -103,6 +103,18 @@ zero new dead-link findings from any of the new links added (`docs/conventions.m
 `tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`), same 7 pre-existing findings as on
 `main`.
 
+**Scope extended by one file, deliberately**: `skills/README.md` carried two sentences that
+Phase 1's own merges had turned false — the `code-review` row still said the two rule-reading
+agents "have no project rulebook to check against" (`docs/conventions.md` landed in #69), and the
+"run the free checks first" section still said of `pnpm comments`/`pnpm verify:docs` that
+"**neither script exists yet; do not add them to this list before they do**" (both shipped in
+#71). The second one is this task's problem specifically, not merely a pre-existing staleness:
+the PR-template line added here sits directly under a pointer telling the reader that
+`skills/README.md` says "what each one is, and in which order," and that file's order line
+omitted both commands and forbade adding them. Wiring the template without fixing that would have
+shipped a live contradiction. Fixed both, and corrected the `verify:docs` description while there
+— it lists "archive backlog," which #65 sketched but Track C never built.
+
 Also worth noting: while confirming the Turbopack/pre-push push block was purely environmental
 (same recurring Windows-only native-binding gap this whole Phase hit repeatedly, unrelated to
 this task's doc-only changes), wrote up the distinction between that failure mode and a
