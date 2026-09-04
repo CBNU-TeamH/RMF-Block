@@ -1,6 +1,8 @@
 # System Architecture & Component Interfaces
 
 - **Status**: Baseline — component boundaries and interfaces only.
+- **Owns**: none — §0 below says why: this document fixes boundaries, not any module's internal
+  rationale, so it makes no source-path claim for the ownership checker to track.
 - **Related**: [`docs/SRS-ko.md`](../SRS-ko.md) §2.1, §3.2 (인터페이스 요구사항); [`docs/adr/002-persistence-on-yorkie-mongo.md`](../adr/002-persistence-on-yorkie-mongo.md) (supersedes [ADR-001](../adr/001-realtime-sync.md) on persistence)
 
 ## 0. Scope

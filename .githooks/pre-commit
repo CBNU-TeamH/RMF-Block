@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Staged-file lint + comment budget. Target: under a couple of seconds — this
+# runs on every commit, so it stays cheap on purpose. Full verification
+# (test + build) is pre-push's job, not this one's.
+#
+# Calls node_modules/.bin/ directly rather than going through `pnpm`: a git
+# hook doesn't always inherit the same PATH an interactive shell has (some
+# GUI git clients and some sandboxed shells run hooks with a reduced one —
+# found while testing this, not assumed), and the local binary is guaranteed
+# to exist once `pnpm install` has already run, which it must have for the
+# repo to work at all.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+staged_ts=()
+while IFS= read -r -d '' file; do
+  staged_ts+=("$file")
+done < <(git diff --cached --name-only -z --diff-filter=ACMR -- '*.ts' '*.tsx')
+
+if [ ${#staged_ts[@]} -gt 0 ]; then
+  node_modules/.bin/eslint --no-warn-ignored -- "${staged_ts[@]}"
+fi
+
+node scripts/comment-budget.mjs --staged
