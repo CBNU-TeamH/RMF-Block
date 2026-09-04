@@ -14,7 +14,7 @@ export const DEFAULT_MEMBERS_PATH = path.resolve(".data/members.json");
  * permanent bearer token on the host's filesystem, and `docs/design/api.md`
  * already makes restarting the container the revoke path.
  *
- * ponytail: synchronous on purpose. `lib/chat/chat-repository.ts` serializes its
+ * simple: synchronous on purpose. `lib/chat/chat-repository.ts` serializes its
  * writes through a promise chain because it is async and two appends can
  * interleave; sync writes on Node's single thread cannot, so that machinery has
  * nothing to do here. It costs a blocked event loop for the length of one small

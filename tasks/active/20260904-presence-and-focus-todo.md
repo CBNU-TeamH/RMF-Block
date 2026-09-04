@@ -68,13 +68,14 @@ for work this size.
 
 ## Acceptance
 
-- [ ] `docs/design/presence-and-focus.md` exists with an `**Owns**:` line listing only paths that
+- [x] `docs/design/presence-and-focus.md` exists with an `**Owns**:` line listing only paths that
       exist.
-- [ ] `grep -rn "ponytail:" app lib scripts` is empty.
-- [ ] `grep -rn "tasks/active/2026" lib app` and the unpathed "this task's todo" phrasing return
+- [x] `grep -rn "ponytail:" app lib scripts` is empty. 10 markers renamed to `simple:` (nine in
+      source, one in `scripts/tasks-archive.sh`).
+- [x] `grep -rn "tasks/active/2026" lib app` and the unpathed "this task's todo" phrasing return
       nothing for the six identified spots.
-- [ ] A comment is left on `#37` noting the marker rename.
-- [ ] `bash scripts/tasks-index.sh` is idempotent.
+- [x] A comment is left on `#37` noting the marker rename.
+- [x] `bash scripts/tasks-index.sh` is idempotent.
 
 ## Cross-cutting
 
@@ -88,4 +89,17 @@ for work this size.
 
 ## Review
 
-Filled in at the end.
+Shipped both milestones as planned. Three things worth noting:
+
+- **`app/api/documents/route.ts`'s dangling pointer went to an inline restatement, not
+  `document-editing.md`.** That doc doesn't cover why documents are seeded on first editor-open
+  rather than at creation, and adding it there would have been scope creep into a file this task
+  wasn't otherwise touching. Restated the one sentence inline instead — surgical, matches
+  `AGENTS.md` §3 principle 3.
+- **The `lib/documents/documents.ts` rationale mentioned in this task's original cross-cutting
+  note never came up** — that file wasn't actually in milestone 1's read list, only
+  `app/api/documents/route.ts`'s one comment was in scope, and that got the inline-restatement
+  treatment above instead of moving anything into `document-editing.md`.
+- The `tsconfig.json` and `presence-and-focus.md` links into `docs/conventions.md` are confirmed
+  correct against `#69`'s content but **will not resolve until `#69` merges** — checked again
+  right before this PR is marked ready, per the plan.

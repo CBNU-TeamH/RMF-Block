@@ -11,7 +11,7 @@ type FocusFollowState = {
   /** The member id this browser is following, or `null`. Purely local UI
    * state — never published. Only *who is presenting* is shared workspace
    * presence (`lib/presence/types.ts`); who is following whom is nobody
-   * else's business, per this task's todo, milestone 3. */
+   * else's business — see `docs/design/presence-and-focus.md`. */
   followingId: string | null;
   follow: (memberId: string) => void;
   unfollow: () => void;

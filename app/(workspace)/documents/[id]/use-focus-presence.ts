@@ -8,7 +8,7 @@ import type { WorkspacePresence } from "@/lib/presence/types";
 /**
  * How often a presenter's anchor may go out over presence, at most.
  *
- * ponytail: a plain interval, no easing or adaptive cadence. 10 a second is
+ * simple: a plain interval, no easing or adaptive cadence. 10 a second is
  * well under what a follower can perceive as lag — their side scrolls
  * smoothly between anchors anyway — and it is 6x fewer writes than the
  * display's frame rate. Lower it if following ever reads as steppy.

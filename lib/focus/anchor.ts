@@ -19,10 +19,9 @@ export type BlockBox = {
 /**
  * What travels between presenter and follower: the block whose range
  * contains the viewport's top edge, and how far into that block. A block id
- * plus a fraction, not a pixel — see
- * `tasks/active/20260901-focus-following-todo.md`, "The decision: what
- * travels is an anchor, not a scroll position", for why a raw `scrollTop`
- * is not a shared coordinate between two browsers.
+ * plus a fraction, not a pixel — see `docs/design/presence-and-focus.md`,
+ * "What travels is an anchor, not a scroll position", for why a raw
+ * `scrollTop` is not a shared coordinate between two browsers.
  */
 export type FocusAnchor = {
   blockId: BlockId;
@@ -30,7 +29,7 @@ export type FocusAnchor = {
   ratio: number;
 };
 
-// ponytail: quantized to 1% of the block's height on the way out, so that
+// simple: quantized to 1% of the block's height on the way out, so that
 // the presenter's "has the anchor actually moved?" check in `editor.tsx` can
 // ever match — against a raw float it never did, since a fraction changes on
 // every scrolled pixel. This bounds nothing on its own: a scroll crosses

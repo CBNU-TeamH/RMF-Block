@@ -59,7 +59,7 @@ for slug in "${slugs[@]}"; do
     }
   }' "$todo")
   if [ -z "$created" ]; then
-    # ponytail: filename fallback assumes the YYYYMMDD- prefix the convention requires.
+    # simple: filename fallback assumes the YYYYMMDD- prefix the convention requires.
     created="${slug:0:4}/${slug:4:2}"
     echo "warning: $todo has no '**Created**:' line, using filename → $created" >&2
   fi

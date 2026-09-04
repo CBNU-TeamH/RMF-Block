@@ -8,7 +8,7 @@ import { getHostSecret, isHostSecret } from "@/lib/host-secret";
  * gets it out of the address bar before the host ever shares their screen
  * (UC-030; `docs/design/api.md`, Authentication model).
  *
- * ponytail: the cookie *is* the secret, so a container restart invalidates every
+ * simple: the cookie *is* the secret, so a container restart invalidates every
  * host session for free — the revoke path api.md already specifies. Becomes
  * `POST /api/auth/host` returning a real session token once sessions exist.
  */

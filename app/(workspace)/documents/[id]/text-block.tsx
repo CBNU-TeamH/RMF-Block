@@ -334,7 +334,7 @@ export function TextBlockView({
         if (event.key === "ArrowUp") {
           const el = event.currentTarget;
           const pos = el.selectionStart ?? 0;
-          // ponytail: logical \n boundaries only, not visual/wrapped lines —
+          // simple: logical \n boundaries only, not visual/wrapped lines —
           // arrow-up from a wrapped middle line of a long single-paragraph
           // block jumps a whole block instead of one visual line up. Real
           // fix needs layout measurement; blocks are short enough in
