@@ -178,6 +178,22 @@ so "hits the identical constraint, for the identical reason" would be describing
 repo no longer uses. Drop that paragraph; keep only the production-side reasoning, which doesn't
 change (`server/index.mts` still runs directly under `node` regardless of what runs the tests).
 
+## Why `next.config.ts` picks a different `distDir` for `pnpm dev`
+
+`dev` sets `NODE_ENV=development` explicitly, `start` sets `production`, and `build` sets
+neither — a bare `next build` forces production mode internally regardless of the shell's
+`NODE_ENV`. So `distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next"` lands
+in `.next` for both `next build` and `pnpm start`, matching the Dockerfile's
+`COPY --from=build /app/.next`, and only in `.next-dev` for `pnpm dev`.
+
+**Don't "fix" the unset case to match `server/index.mts`'s own `dev` flag
+(`NODE_ENV !== "production"`).** The two look inconsistent — unset `NODE_ENV` reads as
+production here but as dev in that flag — but changing this condition to match would break the
+one thing it has to get right: the Dockerfile's `build` stage runs `pnpm build` with `NODE_ENV`
+unset, and the copy step afterward only looks in `.next`. The inconsistency is real but
+unreachable — nothing invokes `node server/index.mts` directly with `NODE_ENV` unset; `dev` and
+`start` both set it, and the container sets it via `ENV`.
+
 ## Verifying a Tailwind class before trusting it
 
 Before using a Tailwind class that's new to this project — a numeric step or color no existing

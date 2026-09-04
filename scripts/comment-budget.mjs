@@ -45,13 +45,7 @@ function resolveMergeBase() {
 // parse strings or template literals — this is the same measure used to size
 // the problem throughout this whole effort (see docs/conventions.md), not a
 // new metric.
-function ratioFor(path) {
-  let source;
-  try {
-    source = readFileSync(path, "utf8");
-  } catch {
-    return null; // deleted in this diff — nothing to measure
-  }
+function ratioFromSource(source) {
   let code = 0;
   let comment = 0;
   let inBlock = false;
@@ -76,13 +70,41 @@ function ratioFor(path) {
   return total === 0 ? null : comment / total;
 }
 
-export function run({ strict = false, base = resolveMergeBase() } = {}) {
+// Working-tree content — what `HEAD` already has, plus any committed-but-not-
+// pushed history the diff below walks past. Used when comparing base..HEAD.
+function ratioForCommitted(path) {
+  let source;
+  try {
+    source = readFileSync(path, "utf8");
+  } catch {
+    return null; // deleted in this diff — nothing to measure
+  }
+  return ratioFromSource(source);
+}
+
+// The *staged* version of a file — `git show :path` reads the index, not the
+// working tree. Needed for pre-commit: at that point the change being
+// measured has not reached HEAD yet, so diffing base..HEAD would miss it
+// entirely and silently check a stale, already-committed diff instead.
+function ratioForStaged(path) {
+  let source;
+  try {
+    source = git(["show", `:${path}`]);
+  } catch {
+    return null; // deleted in the index — nothing to measure
+  }
+  return ratioFromSource(source);
+}
+
+export function run({ strict = false, staged = false, base = resolveMergeBase() } = {}) {
   if (!base) {
     return { base: null, over: [], strict, failed: false };
   }
-  const changed = git(["diff", "--name-only", "--diff-filter=ACMR", base, "HEAD", "--", "*.ts", "*.tsx"])
-    .split("\n")
-    .filter(Boolean);
+  const diffArgs = staged
+    ? ["diff", "--name-only", "--diff-filter=ACMR", "--cached", base, "--", "*.ts", "*.tsx"]
+    : ["diff", "--name-only", "--diff-filter=ACMR", base, "HEAD", "--", "*.ts", "*.tsx"];
+  const changed = git(diffArgs).split("\n").filter(Boolean);
+  const ratioFor = staged ? ratioForStaged : ratioForCommitted;
 
   const over = [];
   for (const path of changed) {
@@ -95,7 +117,8 @@ export function run({ strict = false, base = resolveMergeBase() } = {}) {
 
 function main() {
   const strict = process.argv.includes("--strict");
-  const { base, over, failed } = run({ strict });
+  const staged = process.argv.includes("--staged");
+  const { base, over, failed } = run({ strict, staged });
 
   if (base === null) {
     console.log("No merge base found (upstream/main, origin/main, main all unavailable) — skipping.");

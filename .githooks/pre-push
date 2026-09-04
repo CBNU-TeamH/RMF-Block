@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Full verification before it leaves this machine. Measured on CI run
+# 33711356605: lint 4.8s, test 2.5s, build ~10s — cheap enough to run here
+# every time rather than finding out on the PR.
+#
+# `node --test` directly (package.json's own "test" script) and
+# node_modules/.bin/next for the same PATH reason pre-commit avoids `pnpm` —
+# see that file's comment.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+node --test
+node_modules/.bin/next build
