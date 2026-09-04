@@ -8,21 +8,22 @@
 
 ### 1. Fix the dangling shorthand
 
-- **What**: `AGENTS.md`'s doc-routing table (§4) reads `` [`tasks/`](tasks/) (`active/`, `archive/`) `` —
-  the backtick-quoted `active/` and `archive/` are bare shorthand that `scripts/verify-docs.mjs`'s
+- **What**: `AGENTS.md`'s doc-routing table (§4) links `tasks/` and, in the parenthetical after it,
+  shorthand-quotes `active/` and `archive/`. Those two are bare shorthand that `scripts/verify-docs.mjs`'s
   dead-link checker resolves from the repo root (this project's own convention for backtick-quoted
   prose paths), where no such top-level directories exist. Spell them out as `tasks/active/` and
   `tasks/archive/` so the line is unambiguous to both a human reader and the checker.
 - **Files**: `AGENTS.md`.
 - **Reuse**: nothing to reuse — single-line prose edit.
-- **Done**: `node scripts/verify-docs.mjs` shows one fewer dead-link finding than on `main` (9 → 8),
-  and the removed one is this line.
+- **Done**: `node scripts/verify-docs.mjs` shows two fewer dead-link findings than on `main`
+  (9 → 7) — the `active/` and `archive/` shorthand each counted as its own finding.
 
 ## Acceptance
 
-- [ ] `AGENTS.md`'s doc-routing row reads `tasks/active/`, `tasks/archive/` instead of `active/`, `archive/`.
-- [ ] `node scripts/verify-docs.mjs` dead-link count drops from 9 to 8, with this line's finding gone.
-- [ ] No other line in `AGENTS.md` changed.
+- [x] `AGENTS.md`'s doc-routing row reads `tasks/active/`, `tasks/archive/` instead of `active/`, `archive/`.
+- [x] `node scripts/verify-docs.mjs` dead-link count drops from 9 to 7 (not 8 — both shorthand
+      spans on that one line counted as separate findings), with this line's findings gone.
+- [x] No other line in `AGENTS.md` changed.
 
 ## Cross-cutting
 
@@ -34,4 +35,12 @@ correctness fix rather than judgment-call content.
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+Shipped exactly as planned: one line in `AGENTS.md` spelling out `tasks/active/` and
+`tasks/archive/` instead of the bare `active/`/`archive/` shorthand. Verified by temporarily
+borrowing `scripts/verify-docs.mjs` from the not-yet-merged `chore/verify-scripts` branch (this
+branch doesn't have it yet, being cut from `main`) — dead-link count went from 9 to 7, not 9 to 8
+as the plan assumed, because both shorthand spans on that one source line counted as separate
+findings. Also caught and fixed a self-inflicted instance of the same bug Track C's lessons
+already named: this task's own todo doc quoted the broken line using the exact
+`` [`x`](y) `` markdown-link syntax to describe it, which the checker read as a real link and
+flagged. Rewrote it as plain prose instead of literal link syntax.

@@ -59,7 +59,7 @@ Which document to open for which job.
 | --- | --- |
 | Requirements · module design · code conventions · test strategy · ADRs · UI wireframes ([`docs/ui/`](docs/ui/)) | [`docs/`](docs/) |
 | Lint / format config | [`eslint.config.mjs`](eslint.config.mjs) |
-| Open work and its status | [`tasks/`](tasks/) (`active/`, `archive/`) |
+| Open work and its status | [`tasks/`](tasks/) (`tasks/active/`, `tasks/archive/`) |
 | The overall plan | [`ROADMAP.md`](ROADMAP.md) |
 | Skills for Claude Code | [`skills/`](skills/) — pointer files; suggest one to the user, don't run it unprompted |
 | How to run the app (Docker, LAN setup) | [`README.md`](README.md) |
