@@ -1,8 +1,9 @@
 # Code Conventions
 
 - **Status**: Baseline — five forbidden shapes, the comment rule, and two named constraints.
-- **Related**: [`AGENTS.md`](../AGENTS.md) §3 (the four principles this document makes checkable);
-  installed via the `code-review` and `code-simplifier` plugins in [`skills/README.md`](../skills/README.md).
+- **Related**: [`AGENTS.md`](../AGENTS.md) §3 principles 2 and 3 (simplicity first, surgical
+  changes), which this document makes checkable; installed via the `code-review` and
+  `code-simplifier` plugins in [`skills/README.md`](../skills/README.md).
 
 ## Scope
 
@@ -158,8 +159,11 @@ by name instead of re-deriving why the simple version was chosen.
 not through Next's bundler. It imports `lib/auth/session-cookie.ts` with the `.ts` extension
 included, and Node's native type-stripping resolves import specifiers literally — it does not
 add extensions the way a bundler does. That's why `allowImportingTsExtensions` is on in
-`tsconfig.json`, and why any module reachable from `server/index.mts` has to be imported the same
-way.
+`tsconfig.json`, and why every **relative** import reachable from `server/index.mts` has to carry
+its source file's own extension (`.ts` for `session-cookie.ts`, `.mts` for `./ws-hub.mts` — not
+always literally `.ts`). This does not extend to package specifiers (`next`) or Node built-ins
+(`node:http`), which resolve through their own mechanisms and take no extension at all — the rule
+is about relative TypeScript imports specifically, not imports in general.
 
 `node --test` (`*.test.mts`) hits the identical constraint, for the identical reason — it's the
 same runtime, doing the same literal resolution. It is not, however, the *cause*: a comment that
@@ -177,7 +181,14 @@ change (`server/index.mts` still runs directly under `node` regardless of what r
 ## Verifying a Tailwind class before trusting it
 
 Before using a Tailwind class that's new to this project — a numeric step or color no existing
-file uses yet — grep the compiled `.next/dev/static/chunks/*.css` for the literal class name.
+file uses yet — grep the compiled `.next/dev/static/chunks/*.css` for it. **Search for the
+generated selector, not the raw class name**: Tailwind backslash-escapes any character a CSS
+identifier can't contain, so `size-3.5` compiles to `.size-3\.5`, and a plain literal search for
+`size-3.5` will not match that — the escape sits exactly where the search string expects a plain
+`.`. The same applies to arbitrary-value classes with `[`, `]`, `#`, or `/`. Either search with
+the backslash already in place (`size-3\.5`), or search for the substring on either side of the
+special character and confirm the rest by eye.
+
 Three separate silent failures in one milestone (`border-sky`, `rounded-sm`/`opacity-70`,
 `size-3.5`) had this exact shape: the class simply didn't compile, with no error, and the fix
 each time was the same — swap to a value already proven elsewhere in the project. The underlying
