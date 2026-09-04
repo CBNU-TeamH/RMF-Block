@@ -38,7 +38,7 @@ We adopt [Spec-Driven Development](https://github.com/github/spec-kit) **as a me
 
 The overall plan lives in [`ROADMAP.md`](ROADMAP.md).
 
-**Run and verify**: changes to server startup, auth, or networking are verified with `docker compose up --build`, not `pnpm dev` — a container behaves differently from the dev server, and that gap has already produced real bugs (`tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`).
+**Run and verify**: changes to server startup, auth, or networking are verified against the container, not `pnpm dev` — a container behaves differently from the dev server, and that gap has already produced real bugs (`tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`). Use `pnpm docker:up`, which fills in `HOST_LAN_IP` before `docker compose up --build`; bare Compose skips that and can print a join address no guest can reach ([`README.md`](README.md)).
 
 **Delegating work**: hand repo-wide fact-finding (where is X defined, which files reference Y) to a search/explore-style sub-agent when your tool has one — Claude Code's `Explore` agent is the concrete case this repo has used. Small, localized edits are done directly. Judgement calls — what a thing should do, which trade-off wins — are never delegated; only whoever is actually deciding stays accountable for the decision.
 

@@ -2,8 +2,10 @@
 
 **Created**: 2026-09-04
 **Issue**: #65 (Phase 1, Track D — depends on Track A/B/C, all merged: #69, #70, #71, #72)
-**Design**: none — this task edits `AGENTS.md` and `.github/pull_request_template.md` only,
-pointing them at doc/script deliverables Tracks A–C already shipped.
+**Design**: none — this task edits `AGENTS.md`, `.github/pull_request_template.md`, and
+`skills/README.md`, pointing them at doc/script deliverables Tracks A–C already shipped. (The
+first two were the planned scope; `skills/README.md` was added during the work — see Review for
+why the PR-template edit made it this task's problem rather than a follow-up's.)
 
 ## Milestones
 
@@ -66,9 +68,12 @@ pointing them at doc/script deliverables Tracks A–C already shipped.
 
 - [x] `AGENTS.md` diff is additive only — no unrelated line changed.
 - [x] §2 references `pnpm verify:docs` and folds the promotion review into step 5, not a new row.
-- [x] "Run and verify" wording present with the exact drafted text — as a bold-lead-in bullet
-      inside §2 rather than a new H2 section (see Review: kept the diff surgical, avoided
-      renumbering every section from §3 on for one sentence).
+- [x] "Run and verify" wording present — as a bold-lead-in bullet inside §2 rather than a new H2
+      section (see Review: kept the diff surgical, avoided renumbering every section from §3 on
+      for one sentence). **Not the drafted text verbatim**: the draft named `docker compose up
+      --build`, which skips `scripts/detect-host-ip.sh` and so can print an unreachable join
+      address. Names `pnpm docker:up` instead, which `README.md` documents as the real entry
+      point, and keeps the draft's actual point — the contrast with `pnpm dev`.
 - [x] §4 points "code conventions" at `docs/conventions.md`; "test strategy" states the #66 gap
       explicitly rather than pointing at a file that doesn't exist.
 - [x] §7 has a fourth TODO item for the 2026-09-23 promotion date.
@@ -114,6 +119,17 @@ the PR-template line added here sits directly under a pointer telling the reader
 omitted both commands and forbade adding them. Wiring the template without fixing that would have
 shipped a live contradiction. Fixed both, and corrected the `verify:docs` description while there
 — it lists "archive backlog," which #65 sketched but Track C never built.
+
+**CodeRabbit review, three findings, all three valid and all three self-inflicted by this PR:**
+(1) the "Run and verify" bullet named `docker compose up --build`, the by-hand fallback, where
+`README.md` documents `pnpm docker:up` as the entry point that fills in `HOST_LAN_IP` first —
+following the drafted wording verbatim would have shipped a command that prints a join address
+guests can't reach; (2) the `skills/README.md` order line this PR rewrote asked for
+`pnpm verify:docs` **clean**, which is unreachable — the check exits non-zero on a dead link and
+seven are a deliberately-kept baseline, so the sentence set a bar nothing can clear; (3) this
+doc's own header still declared a two-file scope after the work extended to three. Verified each
+against `scripts/detect-host-ip.sh`, `README.md`, and `verify-docs.mjs`'s exit-code path before
+acting, then fixed all three.
 
 Also worth noting: while confirming the Turbopack/pre-push push block was purely environmental
 (same recurring Windows-only native-binding gap this whole Phase hit repeatedly, unrelated to

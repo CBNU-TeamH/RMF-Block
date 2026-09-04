@@ -57,8 +57,14 @@ not from any single command.
 should catch: a review that spends a findings slot on a lint-level nit is paying model tokens for
 something a script already knows, and costs the reader attention on top.
 
-So the order is: **`pnpm verify:fast` and `pnpm comments` / `pnpm verify:docs` clean → then
-`/simplify` → then `/code-review low`**.
+So the order is: **`pnpm verify:fast` clean, `pnpm comments` / `pnpm verify:docs` showing nothing
+new → then `/simplify` → then `/code-review low`**.
+
+"Nothing new" rather than "clean" for the second pair, because `verify:docs` exits non-zero on a
+dead link and **seven of those are a known baseline** — one illustrative import specifier quoted
+verbatim from real source in `docs/conventions.md`, and six past-tense mentions of since-removed
+files in `docs/HOST-GUEST-ENTRY-ko.md`. Both were examined and deliberately left (#71); the check
+is useful as a diff against that baseline, not as a gate that can ever read green.
 
 #65 widened that first step, and both halves of it shipped in #71: `pnpm comments` (the comment
 budget) and `pnpm verify:docs` (doc ownership, task-index freshness, dead links), plus a
