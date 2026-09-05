@@ -14,13 +14,10 @@ import {
 import { rosterFrom } from "@/lib/presence/roster";
 import { WORKSPACE_DOC_KEY, type WorkspacePresence } from "@/lib/presence/types";
 
-/**
- * `client` is the workspace's one Yorkie connection, `null` until it has
- * activated. The block editor attaches its content document through this
- * same client rather than opening a second one — a second client is a second
- * connection per browser, and one built without `fetchToken` below would
- * quietly reopen the hole PR #50 closed (no `authTokenInjector` at all).
- */
+/** The workspace's one Yorkie connection, `null` until activated. The editor
+ *  attaches its content document through this same client — a second one would
+ *  be a second connection, and without `fetchToken` would reopen the hole #50
+ *  closed. */
 export type PresenceState = {
   status: "connecting" | "active" | "failed";
   members: Array<WorkspacePresence>;
@@ -53,14 +50,9 @@ export function useWorkspacePresence(): PresenceState {
   return useContext(PresenceContext);
 }
 
-/**
- * What the browser shows Yorkie's auth webhook.
- *
- * The SDK re-calls this whenever the webhook refuses, so expiry needs no timer.
- * The session cookie rides along on its own — the fetch is same-origin and the
- * cookie is `httpOnly` so this code never sees it. A failure returns an empty
- * string; why, and what that surfaces as: the design doc.
- */
+/** What the browser shows Yorkie's auth webhook. The SDK re-calls it on every
+ *  refusal, so expiry needs no timer; the `httpOnly` cookie rides along on its
+ *  own. Why a failure returns an empty string: the design doc. */
 async function fetchToken(): Promise<string> {
   try {
     const response = await fetch("/api/auth/yorkie-token");
@@ -73,15 +65,9 @@ async function fetchToken(): Promise<string> {
   }
 }
 
-/**
- * Owns the browser's single Yorkie connection and hands the roster down
- * (FR-020-06/07).
- *
- * Why attaching *is* being present, why this is a provider, why identity comes
- * in as three strings, and why the address is read off the page's own URL:
- * `docs/design/presence-and-focus.md`, "The one connection, and what it is
- * told".
- */
+/** Owns the browser's single Yorkie connection and hands the roster down
+ *  (FR-020-06/07). Why attaching *is* being present, and why this is a provider:
+ *  `docs/design/presence-and-focus.md`, "The one connection". */
 export function PresenceProvider({
   memberId,
   nickname,
@@ -142,16 +128,9 @@ export function PresenceProvider({
       await client.attach(doc, { initialPresence: { id: memberId, nickname, colorTag } });
       if (cancelled) return;
 
-      // Subscribed before the first read so an arrival between the two is not
-      // missed. `others` covers all three of watched, unwatched, and a peer
-      // changing their own presence. It does not cover this browser's own —
-      // Yorkie routes a client's own presence changes through a separate
-      // `my-presence` channel, so without subscribing to that too, this
-      // browser's own `setPresenting` (`FocusShare`'s share/end buttons) would
-      // publish correctly for everyone else and never update `members` here,
-      // leaving its own header stuck showing the share as never having
-      // started. Found by testing the presenter's own button, not by reading
-      // the SDK first.
+      // Two subscriptions, both before the first read — `others` does not carry
+      // this browser's own presence changes. Why:
+      // `docs/design/presence-and-focus.md`, "Two subscriptions, not one".
       unsubscribeOthers = doc.subscribe("others", readRoster);
       unsubscribeMine = doc.subscribe("my-presence", readRoster);
       setStatus("active");

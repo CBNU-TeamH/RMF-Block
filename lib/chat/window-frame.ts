@@ -1,10 +1,6 @@
-/**
- * Where the floating chat window sits, as arithmetic rather than a component.
- *
- * The viewport is an argument, not a read of `window`, so every rule here is
- * checkable without a browser — a window that lands off-screen cannot be
- * dragged back, and only shows up at a size nobody tried.
- */
+/** Where the floating chat window sits, as arithmetic rather than a component.
+ *  The viewport is an argument, not a read of `window`, so every rule is
+ *  checkable without a browser — an off-screen window cannot be dragged back. */
 
 /** A ninth of the viewport by area — a third of each side. */
 const DEFAULT_SCALE = 1 / 3;
@@ -13,25 +9,16 @@ const DEFAULT_SCALE = 1 / 3;
 export const MIN_WIDTH = 260;
 export const MIN_HEIGHT = 220;
 
-/**
- * Height of the launcher bar, and the only edge the window does not reach.
- *
- * The floor applies at every x, not just where the button is: a limit that
- * moved with the window would feel like snagging on nothing. Every other edge
- * is flush.
- */
+/** The launcher bar's height, and the only edge the window does not reach. It
+ *  applies at every x — a limit that moved would feel like snagging on nothing. */
 export const BAR_HEIGHT = 40;
 
 export type Frame = { x: number; y: number; width: number; height: number };
 export type Viewport = { width: number; height: number };
 
-/**
- * What a pointer drag on the window's chrome does.
- *
- * The resize kinds name the edge being pulled, the way a window manager does,
- * because which edge is moving decides which one has to stay still. There are
- * three: the top edge is the title bar and moves the window instead.
- */
+/** What a pointer drag on the chrome does. The resize kinds name the edge being
+ *  pulled, because that decides which edge stays still. Three, not four — the
+ *  top edge is the title bar and moves the window instead. */
 export type GestureKind = "move" | "left" | "right" | "bottom";
 
 /** `value` held between two bounds, tolerating a `hi` below `lo`. */
@@ -54,11 +41,9 @@ export function defaultFrame(viewport: Viewport): Frame {
   );
 }
 
-/**
- * Pulls a frame back inside the viewport. Size before position — where a window
- * fits depends on how big it is. A viewport below the minimum size is not an
- * error: the floor wins and the window overflows rather than collapsing.
- */
+/** Pulls a frame back inside the viewport, size before position — where it fits
+ *  depends on how big it is. Below the minimum size the floor wins and the
+ *  window overflows rather than collapsing. */
 export function clamp(frame: Frame, viewport: Viewport): Frame {
   // The bar's strip is not part of the space a window may occupy, so it comes
   // off the height before anything else is decided.
@@ -75,13 +60,9 @@ export function clamp(frame: Frame, viewport: Viewport): Frame {
   };
 }
 
-/**
- * The frame a drag produces from the pointer's movement.
- *
- * The moving edge is clamped as a *position*, never the width as a size:
- * clamping the width — the obvious way — slides the whole window right once it
- * can get no narrower, instead of stopping the edge being dragged.
- */
+/** The frame a drag produces. The moving edge is clamped as a **position**,
+ *  never the width as a size — clamping the width slides the whole window right
+ *  once it can get no narrower, instead of stopping the edge. */
 export function applyGesture(
   kind: GestureKind,
   start: Frame,
@@ -110,13 +91,9 @@ export function applyGesture(
   }
 }
 
-/**
- * A frame read back from storage, or null for anything that is not one.
- *
- * `localStorage` holds whatever was last written to that key, which is not
- * necessarily a frame: another version of this app, a person with devtools, a
- * half-finished write. A shape check here is what keeps `NaN` out of a `style`.
- */
+/** A frame read back from storage, or null. `localStorage` holds whatever was
+ *  last written to that key — another version of this app, devtools, a
+ *  half-finished write — and this check keeps `NaN` out of a `style`. */
 export function parseFrame(raw: string | null): Frame | null {
   if (!raw) return null;
 

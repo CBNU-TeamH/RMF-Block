@@ -49,6 +49,19 @@ The extension is `presenting`: set while a member is sharing their view, cleared
 sending it — `undefined` does not survive that round trip, so a field meant to signal "no longer
 sharing" has to use a value the wire format can actually carry.
 
+## Two subscriptions, not one
+
+`others` covers watched, unwatched, and a peer changing their own presence. It does **not** cover
+this browser's own — Yorkie routes a client's own presence changes through a separate
+`'my-presence'` channel. Subscribing to `others` alone means `setPresenting` (the share and end
+buttons in `FocusShare`) publishes correctly for everyone else and never updates the local
+`members`, leaving the presenter's own header stuck showing the share as never having started.
+
+Found by testing the presenter's own button, not by reading the SDK first.
+
+Both subscriptions are opened **before** the first read, so an arrival between the two is not
+missed.
+
 ## The roster collapses clients into members
 
 Yorkie counts **clients**, and one member can hold several at once — two browser tabs, or the

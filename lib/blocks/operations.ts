@@ -3,18 +3,11 @@ import type { JSONArray, Text } from "@yorkie-js/sdk";
 import type { StoredBlock, StoredContent } from "./document.ts";
 import type { BlockId, HeadingLevel, ListStyle } from "./types.ts";
 
-/**
- * Every change the editor can make to a document's blocks (FR-022-01~04).
- *
- * **Each function runs inside a `doc.update()` callback** and takes the live
- * `root.blocks` array; none opens a transaction of its own, because a caller
- * usually needs several to land together — a split is an insert and two text
- * edits, and half a split is worse than none.
- *
- * Two rules hold throughout: a block is named by its `id`, never its index, and
- * `set` never touches text while `edit` never touches anything else. Why, and
- * the measurements behind both: `docs/design/document-editing.md`.
- */
+/** Every change the editor can make to a document's blocks (FR-022-01~04).
+ *  **Each runs inside a `doc.update()` callback** and opens no transaction of
+ *  its own — a split is an insert and two text edits, and half a split is worse
+ *  than none. A block is named by `id`, never index; `set` never touches text.
+ *  Why both, and the measurements: `docs/design/document-editing.md`. */
 
 /** The live array as Yorkie hands it over inside `doc.update()`. */
 export type BlockArray = JSONArray<StoredBlock>;
@@ -97,14 +90,9 @@ export function moveBlockAfter(
   blocks.moveAfter(elementOf(blocks, afterId).getID(), target);
 }
 
-/**
- * The one way text changes (FR-022-02). `from`/`to` are character offsets in the
- * block's current text and `value` replaces what they span, so an insert is a
- * zero-width range and a delete is an empty value.
- *
- * Offsets are safe here in a way block indices are not: `yorkie.Text` resolves
- * them against its own nodes at edit time and sends a position, not a number.
- */
+/** The one way text changes (FR-022-02) — an insert is a zero-width range, a
+ *  delete an empty value. Offsets are safe where block indices are not:
+ *  `yorkie.Text` resolves them to a position at edit time, not a number. */
 export function editBlockText(
   blocks: BlockArray,
   blockId: BlockId,
@@ -134,14 +122,9 @@ export type TypeFields =
 /** Every field any text-bearing type can own. What is not taken on is dropped. */
 const OWNED_FIELDS = ["level", "style", "depth", "checked"] as const;
 
-/**
- * Changes a block's type in place (FR-022-02) — what a markdown marker and the
- * `/` menu both do.
- *
- * In place rather than delete-then-create, and clearing the outgoing type's
- * fields in the same update rather than sweeping them later: both are argued in
- * `docs/design/document-editing.md`.
- */
+/** Changes a block's type in place (FR-022-02) — what a markdown marker and the
+ *  `/` menu both do. Why in place, and why the outgoing fields clear in the same
+ *  update: `docs/design/document-editing.md`. */
 export function changeBlockType(
   blocks: BlockArray,
   blockId: BlockId,

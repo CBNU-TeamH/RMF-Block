@@ -65,6 +65,30 @@ told to ask would accept any client that can reach port 8080, which is the failu
 claimed on another device, the displaced session is revoked server-side and this component is
 what notices and leaves the workspace, rather than leaving a dead tab showing stale content.
 
+### What the session registry decides
+
+The password check is deliberately **not** in `lib/auth/session-registry.ts`. It runs only after
+the caller has accepted the password, so nothing in it can leak whether a guess was close, and the
+takeover rules stay testable without an HTTP request.
+
+**It is bounded.** Every distinct nickname adds a member that is never removed, so without a
+ceiling a guest who knows the password could spend the process's memory one join at a time. SRS
+§2.4 sizes a workspace at 8 people; `MAX_MEMBERS` leaves room for nicknames changing their mind
+through a session and still bounds the damage.
+
+**A failed write rolls back only for a new member.** The two cases are not the same failure. A
+returning member is already on disk, so a failed write costs only a fresher `lastJoinedAt` — the
+state this app ran in before members persisted at all. A brand-new member was never durable, and
+every mutation belongs to that one call (they cannot have displaced anyone, so there is nothing to
+put back); leaving those in place would strand a session nobody holds, and the nickname would read
+as taken until the process restarted.
+
+**Detecting a takeover reads `memberBySession`, not `sessionByMemberId`.** The latter keeps the
+newest id forever and would call anyone who ever joined "live". Only the session map still
+resolving an id means live — which is exactly what a takeover deletes. The registry cannot tell
+one person's second device from two people picking the same name, so the route asks rather than
+guessing.
+
 ## 1. REST — client ↔ rmf-block-server
 
 `host` in the Auth column means host-only; FR-011-07 requires the server to reject these from anyone else.

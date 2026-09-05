@@ -10,22 +10,13 @@ import {
   type WorkspaceMember,
 } from "./types.ts";
 
-/**
- * Who is in the workspace, and which session belongs to whom (FR-020-04/08).
- *
- * The password check is not here. This registry runs only after the caller has
- * already accepted the password, so nothing in it can leak whether a guess was
- * close — and the takeover rules stay testable without an HTTP request.
- */
+/** Who is in the workspace, and which session belongs to whom (FR-020-04/08).
+ *  The password check is deliberately elsewhere — why, and the three decisions
+ *  this makes: `docs/design/api.md`, "What the session registry decides". */
 
 const NICKNAME_MAX_LENGTH = 20;
 
-/**
- * Every distinct nickname adds a member that is never removed, so without a
- * ceiling a guest who knows the password could spend the process's memory one
- * join at a time. SRS §2.4 sizes a workspace at 8 people; this leaves room for
- * nicknames changing their mind through a session and still bounds the damage.
- */
+/** The ceiling that bounds memory (SRS §2.4 sizes a workspace at 8). */
 const MAX_MEMBERS = 64;
 
 // Enough to tell eight people apart at a glance, which is the workspace size
@@ -47,11 +38,8 @@ export class SessionRegistry {
   private readonly sessionByMemberId = new Map<string, string>();
   private readonly lastJoinedAt = new Map<string, string>();
 
-  /**
-   * Where members are kept between runs, or undefined for a registry that
-   * forgets — which is what the unit tests want, and what makes persistence a
-   * thing this class *can* do rather than a thing it always does.
-   */
+  /** Where members are kept between runs, or undefined for one that forgets —
+   *  which is what makes persistence optional rather than assumed. */
   private readonly storePath: string | undefined;
 
   constructor(storePath?: string) {
@@ -80,12 +68,9 @@ export class SessionRegistry {
     if (this.storePath) writeMembers(this.storePath, this.members());
   }
 
-  /**
-   * FR-020-08: a nickname already in the workspace re-enters as that same
-   * member, and the newest connection becomes the live one. Signing in from a
-   * phone while a laptop is still signed in is therefore not an error — the
-   * laptop simply stops being the active device.
-   */
+  /** FR-020-08: a known nickname re-enters as that member and the newest
+   *  connection becomes the live one — a phone signing in past a laptop is not
+   *  an error. */
   join(rawNickname: string | undefined): JoinResult {
     const nickname = rawNickname?.trim() ?? "";
 
@@ -128,14 +113,8 @@ export class SessionRegistry {
     try {
       this.persist();
     } catch (error) {
-      // The two cases are not the same failure. A returning member is already
-      // on disk, so a failed write costs only a fresher `lastJoinedAt` — the
-      // state this app ran in before members persisted at all.
-      //
-      // A brand-new member was never durable, and every mutation above belongs
-      // to this call (they cannot have displaced anyone, so there is nothing to
-      // put back). Leaving those in place would strand a session nobody holds:
-      // the nickname would read as taken until the process restarted.
+      // Rollback for a new member only — the two cases are not the same failure
+      // (`docs/design/api.md`).
       console.error("could not write members.json", error);
       if (!existing) {
         this.membersByNickname.delete(nickname);
@@ -151,16 +130,8 @@ export class SessionRegistry {
     return { member, sessionId, revokedSessionId };
   }
 
-  /**
-   * Whether joining under this nickname would throw someone out (FR-020-08).
-   *
-   * The registry cannot tell one person's second device from two people picking
-   * the same name, so the route asks rather than guessing.
-   *
-   * `sessionByMemberId` alone would not do: it keeps the newest id forever and
-   * would call anyone who ever joined "live". Only `memberBySession` still
-   * resolving it means live, which is exactly what a takeover deletes.
-   */
+  /** Whether joining under this nickname would throw someone out (FR-020-08).
+   *  Why it reads `memberBySession`: `docs/design/api.md`. */
   hasLiveSession(rawNickname: string | undefined): boolean {
     const member = this.membersByNickname.get(rawNickname?.trim() ?? "");
     if (!member) return false;
@@ -186,11 +157,9 @@ export class SessionRegistry {
   }
 }
 
-// Cached on `globalThis` for the same reason as `server/ws-hub.mts`: this module
-// is loaded twice in one process — once through Next's bundled module graph and
-// once by Node's native loader — and two private registries would mean a session
-// issued on one side never resolving on the other. Both loads read the same
-// file, so whichever constructs first wins and the other reuses it.
+// On `globalThis` like `server/ws-hub.mts`: this module is loaded twice in one
+// process, and two registries would mean a session issued on one side never
+// resolving on the other.
 const cache = globalThis as { __sessionRegistry?: SessionRegistry };
 
 export const sessionRegistry = (cache.__sessionRegistry ??= new SessionRegistry(DEFAULT_MEMBERS_PATH));

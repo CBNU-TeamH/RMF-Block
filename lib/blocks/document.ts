@@ -7,23 +7,13 @@ import type {
   ListStyle,
 } from "./types.ts";
 
-/**
- * The bridge between what Yorkie holds and what the app reads.
- *
- * `types.ts` describes a block as the UI wants it: a union narrowed by `type`,
- * where a heading certainly has a `level`. Storage cannot promise that, and this
- * file is where the difference is dealt with rather than assumed away.
- */
+/** The bridge between what Yorkie holds and what the app reads. `types.ts`
+ *  promises a heading has a `level`; storage cannot, and this is where the
+ *  difference is dealt with rather than assumed away. */
 
-/**
- * A block as it actually sits in the document.
- *
- * **Every field beyond `id` and `type` is optional**, and that is not laziness:
- * two clients converting one block at once leave the loser's fields behind, and
- * nothing guarantees a heading arrived with its `level`. Yorkie is also on the
- * LAN with nothing validating writes, so a block can hold anything. Why the
- * litter is left rather than swept: `docs/design/document-editing.md`.
- */
+/** A block as it actually sits in the document. **Every field beyond `id` and
+ *  `type` is optional** — a losing conversion leaves its fields behind, and the
+ *  LAN validates nothing. Why the litter stays: `docs/design/document-editing.md`. */
 export type StoredBlock = {
   id: string;
   type: BlockType;
@@ -50,11 +40,8 @@ export type BlockDocumentRoot = {
   blocks: Array<StoredBlock>;
 };
 
-/**
- * A heading that lost its `level` to a race still has to render as something,
- * and the largest is the one a person most likely meant — it is what a bare
- * "make this a heading" produces.
- */
+/** What a heading that lost its `level` to a race renders as — the same as a
+ *  bare "make this a heading". */
 const FALLBACK_HEADING_LEVEL: HeadingLevel = 1;
 
 /** Same reasoning: an unordered list is the plainer of the two. */
@@ -63,15 +50,10 @@ const FALLBACK_LIST_STYLE: ListStyle = "unordered";
 const textOf = (content: StoredContent | undefined): string =>
   content?.text?.toString() ?? "";
 
-/**
- * Turns the document's blocks into the strict shape the UI reads — the only
- * place a missing field is decided about.
- *
- * Falls back rather than throwing: one racing pair of conversions should cost a
- * heading its level, not cost the reader the whole document. A block whose
- * `type` is not one of the twelve is dropped — it stays in the document and
- * reappears for a build that knows the type.
- */
+/** The strict shape the UI reads — the only place a missing field is decided
+ *  about. Falls back rather than throwing: a racing conversion should cost a
+ *  heading its level, not cost the reader the document. An unknown `type` is
+ *  dropped from the read, not from the document. */
 export function readBlocks(blocks: Array<StoredBlock | null>): Array<Block> {
   const result: Array<Block> = [];
 
@@ -83,12 +65,9 @@ export function readBlocks(blocks: Array<StoredBlock | null>): Array<Block> {
   return result;
 }
 
-/**
- * `null` is dropped like any other malformed entry, not treated as a crash.
- * Yorkie's `JSONArray` accepts `null` as a plain element — nothing here writes
- * one, but the LAN can (`docs/design/api.md` §2) — and destructuring it before
- * this check threw before `readBlocks`'s per-block resilience ever applied.
- */
+/** `null` is dropped like any other malformed entry. `JSONArray` accepts it as
+ *  an element and the LAN can write one (`docs/design/api.md` §2); destructuring
+ *  first threw before the per-block resilience ever applied. */
 function readBlock(stored: StoredBlock | null): Block | null {
   if (!stored) return null;
 
@@ -182,20 +161,10 @@ function readBlock(stored: StoredBlock | null): Block | null {
   }
 }
 
-/**
- * The reverse of `readBlock`: what a `create.ts` factory's output has to become
- * before `operations.ts` will touch it.
- *
- * A block's text turns into a live, empty `yorkie.Text` here, never the plain
- * string a `Block` carries — assigning the string itself would be exactly the
- * mistake this file's own top comment warns against, and the one `create.ts`
- * avoids by returning empty text and leaving the first `edit()` to the caller.
- * `toStoredBlock` only creates the CRDT; filling it is `editBlockText`'s job.
- *
- * Exhaustive over all twelve types, not just the seven `create.ts` can build
- * today, so a renderer added for the other five (`docs/design/document-editing.md`)
- * finds this already able to store what it creates.
- */
+/** The reverse of `readBlock`. Text becomes a live, empty `yorkie.Text`, never
+ *  the plain string a `Block` carries — this only creates the CRDT, and filling
+ *  it is `editBlockText`'s job. Exhaustive over all twelve types, not the seven
+ *  `create.ts` builds today, so a renderer for the other five finds this ready. */
 export function toStoredBlock(block: Block): StoredBlock {
   switch (block.type) {
     case "text":
