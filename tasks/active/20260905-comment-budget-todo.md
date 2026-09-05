@@ -64,6 +64,33 @@ them. `conventions.md` names both as its worked examples:
 Gate criteria this touches: **1** (ratio), **4** (the promotion loop). Criteria 2, 3, 5 and 6 are
 observations to record while doing the work, not things this task produces.
 
+## Why 25% is not reachable, and where that is written down
+
+Recorded in [`docs/conventions.md`](../../docs/conventions.md), "The comment budget is a ratio,
+and a ratio has a floor", with the four-file table below — so the next person meets the reasoning
+in the rulebook rather than rediscovering it here.
+
+A 25% budget on *N* code lines allows *N/3* comment lines. JSDoc spends two of those on `/**` and
+` */` before a word is written, plus one per blank ` * ` separator, so three exported symbols cost
+six to nine lines in delimiters alone.
+
+| file | code | comments | delimiters | ratio | 25% allows |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `lib/presence/types.ts` | 15 | 23 | 12 | 60.5% | 5 |
+| `lib/files/serving.ts` | 28 | 36 | 16 | 56.3% | 9 |
+| `lib/blocks/types.ts` | 79 | 35 | 20 | 30.7% | 26 |
+| `editor.tsx` | 492 | 253 | 40 | 34.0% | 164 |
+
+The first row is the proof. That file must keep the Yorkie key charset and the
+`JSON.stringify`/`undefined` constraint — both kind 1, and `conventions.md` uses *this file* to
+illustrate both — plus three requirement tags. Seven lines of prose against a budget of five.
+**Passing would mean deleting a rule the rulebook says to keep.**
+
+The last row is the control. `editor.tsx` holds 213 lines of comment prose to that file's 11 and
+scores better, because 492 lines of code can afford them. The ratio measures file size at least
+as much as it measures over-commenting — which is why the long-block count (1,533 → 703) is the
+number this task actually moved.
+
 ## Review
 
 **Milestone 1 shipped; milestone 2 turned into the finding below.**

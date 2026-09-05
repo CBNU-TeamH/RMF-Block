@@ -152,18 +152,43 @@ naming them meant every trim re-argued whether they were allowed.
 
 ### The comment budget is a ratio, and a ratio has a floor
 
-`scripts/comment-budget.mjs` flags a file whose comments exceed 25% of its lines. On a small
-declaration file that threshold cannot be met, and trying to meet it deletes the wrong things.
+`scripts/comment-budget.mjs` flags a file whose comments exceed 25% of its lines. **On a small
+file that threshold cannot be met**, and trying to meet it deletes exactly what this section
+above says must stay.
 
-`lib/presence/types.ts` is the worked case. After removing everything the design doc already
-said, it holds 15 lines of code — a 25% budget of five comment lines — while kinds 1 and 2 alone
-account for seven, before a single `/**` delimiter. It sits at 60.5% and is correct there.
+The arithmetic is the whole argument. A 25% budget on a file of *N* code lines allows *N/3*
+comment lines. JSDoc spends two of those on `/**` and ` */` before a word is written, and a
+blank ` * ` between paragraphs costs another. So a file with three exported symbols pays six to
+nine lines in delimiters alone.
 
-So: **the budget routes, it does not adjudicate.** Over-budget means "look at whether the
-rationale outgrew the code", and on a file this size the honest answer can be no. What actually
-tracks the problem is the size of the *blocks* — a comment of eight lines or more is nearly
-always design rationale, and 1,533 of this repo's 2,595 comment lines are in such blocks. Read
-the ratio with the file's size in hand.
+Four files from this repo, after every sentence their design doc already carried was deleted:
+
+| file | code | comments | of which delimiters | ratio | 25% would allow |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `lib/presence/types.ts` | 15 | 23 | 12 | **60.5%** | 5 |
+| `lib/files/serving.ts` | 28 | 36 | 16 | **56.3%** | 9 |
+| `lib/blocks/types.ts` | 79 | 35 | 20 | **30.7%** | 26 |
+| `editor.tsx` | 492 | 253 | 40 | **34.0%** | 164 |
+
+Read the first row against what the rules protect. `lib/presence/types.ts` must carry the Yorkie
+key charset and the `JSON.stringify`/`undefined` constraint — both kind 1, both named in this
+document as its worked examples — plus `FR-020-06/07`, `FR-020-08` and `UC-011`. That is seven
+lines of prose before a single delimiter, against a budget of five. **The file cannot pass
+without deleting a rule this document says to keep.** It sits at 60.5% and is correct there.
+
+Now read the last row. `editor.tsx` carries far more comment *content* — 213 lines of prose
+against that file's 11 — and passes closer to the threshold, because 492 lines of code can
+afford it. The ratio is measuring file size at least as much as it measures over-commenting.
+
+So: **the budget routes, it does not adjudicate.** Over budget means "look at whether the
+rationale outgrew the code", and on a small file the honest answer is often no. What actually
+tracks the problem is the size of the *blocks*: a comment of eight lines or more is nearly always
+design rationale that belongs in `docs/`. Trimming this repo took its comment lines from 2,595 to
+1,896 while taking those long blocks from 1,533 to 703 — the second number is the one that moved
+for the right reason.
+
+When a file is over budget and every remaining comment is one of the five kinds above, say so in
+the PR and leave it. That is a passing result, not a deferred one.
 
 ### The `simple:` marker
 
