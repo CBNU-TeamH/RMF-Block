@@ -31,28 +31,11 @@ export type PresenceState = {
    * presenter/follower logic) can pick its own row out of `members` without
    * a second prop threaded down just for that. */
   memberId: string;
-  /**
-   * Whether THIS browser is presenting. Local state, set synchronously by
-   * `setPresenting` below — not derived from reading this browser's own row
-   * back out of `members`. That row is real (subscribing to `'my-presence'`
-   * is a correct, separate fix, see this component's own note below) but it
-   * echoes through the same `doc.update()` this browser just made, which
-   * means using it here would make `members` change on every one of this
-   * browser's own presence publishes — exactly the loop that made the
-   * presenter's scroll-publish effect in `editor.tsx` tear down and rebuild
-   * its scroll listener on every scroll while presenting. `followingId` in
-   * `focus-follow-provider.tsx` already made this call for "who am I
-   * following"; "am I presenting" is the same kind of fact.
-   */
+  /** Whether THIS browser is presenting — local state, deliberately not read
+   *  back out of `members`. Why: `docs/design/presence-and-focus.md`. */
   isPresenting: boolean;
-  /**
-   * Publishes (or, with `null`, clears) this browser's own `presenting`
-   * anchor on the workspace presence document — see `WorkspacePresence` in
-   * `lib/presence/types.ts` for why `null` and not `undefined` ends a share.
-   * A no-op before the document has attached, same as `client` being `null`
-   * before `status` is `"active"`: a caller racing ahead of attach should not
-   * crash the app, it should just have nothing to publish yet.
-   */
+  /** Publishes this browser's `presenting` anchor, or clears it with `null`
+   *  (see `WorkspacePresence` for why not `undefined`). A no-op before attach. */
   setPresenting: (presenting: WorkspacePresence["presenting"]) => void;
 };
 
@@ -73,17 +56,10 @@ export function useWorkspacePresence(): PresenceState {
 /**
  * What the browser shows Yorkie's auth webhook.
  *
- * The SDK calls this once before connecting and again every time the webhook
- * refuses, handing over the refusal's own `reason` — so expiry needs no timer
- * here, and a token that outlived its session is replaced by asking for another.
- *
- * The session cookie rides along on its own; this fetch is same-origin, and the
- * cookie is `httpOnly` precisely so that this code never sees it.
- *
- * A failure returns an empty token rather than throwing. Yorkie refuses an empty
- * one, which surfaces as this component's `failed` state — a workspace that says
- * it is disconnected. Throwing instead would reject inside the SDK's own retry
- * path, where nothing here can render it.
+ * The SDK re-calls this whenever the webhook refuses, so expiry needs no timer.
+ * The session cookie rides along on its own — the fetch is same-origin and the
+ * cookie is `httpOnly` so this code never sees it. A failure returns an empty
+ * string; why, and what that surfaces as: the design doc.
  */
 async function fetchToken(): Promise<string> {
   try {
@@ -101,28 +77,10 @@ async function fetchToken(): Promise<string> {
  * Owns the browser's single Yorkie connection and hands the roster down
  * (FR-020-06/07).
  *
- * Attaching to the workspace document *is* the act of being present: Yorkie
- * publishes `DocWatched` to the other clients on attach and `DocUnwatched` when
- * the watch stream ends, whether that was a clean detach, a closed tab, or Wi-Fi
- * dropping. Nothing here polls, and nothing here has to notice a disconnect.
- *
- * It is a provider rather than a component that renders the roster itself
- * because two things need the same list — the top bar's stack and the Members
- * screen — and two components each opening a `yorkie.Client` would mean two
- * connections per browser. Living in the workspace layout also keeps the
- * connection up across navigations inside the group: a per-page component would
- * detach and re-attach on every move, and everyone else would watch you leave
- * and rejoin.
- *
- * Identity arrives as three strings rather than one member object on purpose:
- * a fresh object every render would give the effect a new dependency every
- * render, and it would tear down and rebuild the Yorkie connection each time.
- *
- * The address comes from the page's own URL, never from the server. Whatever
- * host someone typed to reach the app is one they can reach; being handed a
- * different one is what broke this on the desktop, where a page at
- * `localhost:3000` was told to fetch the LAN address and every browser refused
- * to cross out of the loopback address space.
+ * Why attaching *is* being present, why this is a provider, why identity comes
+ * in as three strings, and why the address is read off the page's own URL:
+ * `docs/design/presence-and-focus.md`, "The one connection, and what it is
+ * told".
  */
 export function PresenceProvider({
   memberId,

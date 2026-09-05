@@ -74,25 +74,12 @@ function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
 }
 
 /**
- * Attaches `documentId` through the workspace's one Yorkie client
- * (`presence-provider.tsx`) and renders its blocks (FR-022-02, FR-022-09).
+ * Renders one document's blocks and owns every edit made to them
+ * (FR-022-01~04, FR-022-09).
  *
- * A brand-new document arrives with no `blocks` at all — `POST /api/documents`
- * never touches Yorkie, on purpose, so creating one never needs a
- * server-side Yorkie client. Seeding `root.blocks = [text]` happens here
- * instead, the first time anyone opens it, matching UC-021's "생성된 문서의
- * 편집기를 사용자 편집 화면에 표시한다".
- *
- * One `doc.subscribe()` for the whole document, not one per block: a text
- * edit's path is positional (`$.blocks.<i>.content.text`), not by block id
- * (`document-editing.md`, "Subscribing to remote changes"), so the block a
- * path names is resolved fresh from the current array on every event instead
- * of being fixed at subscribe time.
- *
- * Milestone 2 only edits text within whatever blocks already exist — nothing
- * yet creates, deletes or moves one, so the block list itself is read once
- * after seeding and never recomputed. Milestone 3 is what makes that list
- * change.
+ * Attaching, seeding and subscribing are `useBlockDocument`'s; following a
+ * presenter is `useFocusPresence`'s. What is left here is the block list, the
+ * handlers that change it, and the rows.
  */
 export function DocumentEditor({ documentId }: { documentId: string }) {
   const { client, members, isPresenting, setPresenting } = useWorkspacePresence();
@@ -151,15 +138,10 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     if (!pending) return;
 
     const el = elementsRef.current.get(pending.blockId);
-    // Not registered — refs attach during React's commit, strictly before
-    // any effect (child or parent) runs in that commit, so a block that
-    // mounted this same render is already here. If it is not, the block
-    // this request named is already gone (a second, faster edit removed it
-    // first) — drop the request rather than guess where focus should land.
-    // Cleared either way, and that matters: leaving it pending would let the
-    // next unrelated `setBlocks` (a peer's remote change, or
-    // `ensureTrailingEmptyBlock`) run this effect again and yank the caret
-    // out of whatever block the person had since started typing in.
+    // Refs attach during commit, before any effect runs, so a block that
+    // mounted this render is already here; if it is not, it is already gone.
+    // Cleared either way — a pending request would fire on the next unrelated
+    // `setBlocks` and yank the caret out of whatever is being typed in.
     pendingFocusRef.current = null;
     if (!el) return;
     el.focus();
@@ -190,15 +172,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   });
 
   /**
-   * A block's *live* text by id, read straight off the document rather than
-   * `blocks` state — that state's `text` field is a snapshot from whenever
-   * it was last recomputed, and per-block textareas patch the DOM directly
-   * without ever writing back into it, so it goes stale the moment anyone
-   * types. Plain `for...of`, not `.find`: every existing read of a live
-   * array in this codebase goes through iteration proven to work at
-   * runtime (`operations.ts`'s own `elementOf` warns `JSONArray<T>`'s
-   * `Array<T>` typing is a compile-time claim only — `unshift` type-checks
-   * and throws) rather than an untried method.
+   * A block read live off the document, never from `blocks` state — that
+   * state's `text` is a snapshot and goes stale the moment anyone types.
+   *
+   * `for...of`, not `.find`: `JSONArray<T>`'s `Array<T>` typing is a
+   * compile-time claim only, so only iteration is known to work at runtime.
    */
   function liveBlockOf(root: BlockDocumentRoot, blockId: BlockId): StoredBlock | null {
     for (const stored of root.blocks) {
@@ -212,28 +190,13 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   }
 
   /**
-   * Runs one mutation against the live document and republishes the block
-   * list. Every local edit in this component goes through here.
+   * Runs one mutation against the live document and republishes the block list.
+   * Every local edit goes through here, and `setBlocks` happens nowhere else.
    *
-   * Returns whether the edit landed, so a caller with follow-up work — moving
-   * the caret, appending the trailing block — can tell. `false` means one of
-   * two things, and neither is an error to report:
-   *
-   * - **No document.** The editor is not attached (yet, or any more).
-   * - **`BlockNotFoundError`.** A peer removed the block this edit named
-   *   before it got here — their merge or delete, most likely. That operation
-   *   is the one that stands; there is nothing left on this replica to fix, and
-   *   nothing sensible to tell the person who typed. This is the reason the
-   *   error is swallowed rather than surfaced, and it is written here once
-   *   instead of at each of the six call sites that used to repeat it.
-   *
-   * Two mutations deliberately cannot raise it and are no less safe for going
-   * through the same door: `ensureTrailingEmptyBlock` only pushes, and the
-   * upload's insert re-checks its anchor inside the update.
-   *
-   * `setBlocks` runs only on success and only here: the subscribe callback
-   * reacts to `remote-change` alone, so a local structural change has no other
-   * route to the rendered list.
+   * `false` means the edit did not land, which is never an error to report: no
+   * document attached, or a peer removed the block first — their operation is
+   * the one that stands. Callers with follow-up work (a caret to move, a
+   * trailing block to append) check it.
    */
   const applyEdit = (
     mutate: (root: BlockDocumentRoot, blocks: BlockArray) => void,
@@ -253,20 +216,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   };
 
   /**
-   * Keeps one empty text block always at the end of the document, so
-   * starting a new paragraph never means clicking into whatever block a
-   * peer happens to be actively typing in first — that was the only way in
-   * before this, since nothing else was ever empty to click into.
+   * Keeps one empty text block at the end, so starting a paragraph never means
+   * clicking into a block someone else is typing in.
    *
-   * Checked after every local text commit. Idempotent — a no-op the moment
-   * the invariant already holds — so calling it on every keystroke costs one
-   * cheap read rather than risking a loop: appending a genuinely empty block
-   * always satisfies the very next check.
-   *
-   * Local-only on purpose: each client enforces this only against its own
-   * edits, and the resulting append reaches every other client through the
-   * ordinary `add` op the subscribe callback above already recomputes
-   * `blocks` for — nothing here needs to run again on a remote edit.
+   * Idempotent, so running it on every text commit costs one read. Enforced
+   * locally only — the append reaches peers as an ordinary `add`.
    */
   const ensureTrailingEmptyBlock = (): BlockId | null => {
     const doc = docRef.current;
@@ -286,18 +240,8 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
   /**
    * A click on the empty space under the document puts the caret at the end of
-   * it, the way clicking under any other page of text does.
-   *
-   * Without this the only way in was to hit one of the block rows exactly, and
-   * the trailing empty block is a single line of text at the top of a mostly
-   * empty page — a small target above a large expanse that looked clickable and
-   * was not.
-   *
-   * Usually there is already an empty text block to land in: `ensureTrailingEmptyBlock`
-   * runs after every text commit and keeps one there. When there is not — the
-   * document ends in a PDF, say, because it was opened without this browser
-   * having edited it yet — one is made, which is the same answer, just a block
-   * later.
+   * it. Usually a trailing empty block is already there to land in; when the
+   * document ends in something that cannot hold a caret, one is made.
    */
   const focusEndOfDocument = () => {
     const last = blocks?.[blocks.length - 1];
@@ -326,18 +270,10 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   });
 
   /**
-   * A markdown marker just finished (`"# "` and friends — `text-block.tsx`
-   * only ever calls this once the block's *entire* text matches one).
-   * Clears the marker and converts the type in the same update, matching
-   * `changeBlockType`'s own contract: it keeps the block's `id` and its
-   * live `yorkie.Text`, so whatever a peer is concurrently typing into this
-   * block survives the conversion rather than being lost to a rebuild.
-   *
-   * Wrapped for `BlockNotFoundError` for the same reason split/merge are —
-   * a block a peer already removed can't be converted, and there is nothing
-   * left to fix on this replica once that happens.
-   */
-  const handleMarkdownShortcut = (blockId: BlockId, shortcut: MarkdownShortcut) => {
+   * A markdown marker just finished (`"# "` and friends), so clear it and
+   * convert in the same update — `changeBlockType` keeps the block's id and its
+   * live text, so a peer typing in it survives the conversion.
+   */  const handleMarkdownShortcut = (blockId: BlockId, shortcut: MarkdownShortcut) => {
     applyEdit((root, blocks) => {
       const current = liveTextOf(root, blockId);
       editBlockText(blocks, blockId, 0, current.length, "");
@@ -390,26 +326,13 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   };
 
   /**
-   * Enter (FR-022-01). Trims `blockId` to `[0, cursorPosition)` and seeds a
-   * new block right after it with the tail — the same three-primitive
-   * composition `operations.test.mts`'s "splits a block into two" already
-   * proves, not a new named function (the task's own "reuse... as they
-   * stand"). Reads the *live* text, never the DOM's cached value: a
-   * concurrent remote edit past `cursorPosition` would otherwise be
-   * silently dropped or misplaced.
+   * Enter (FR-022-01): trim this block at the caret, insert the tail after it.
    *
-   * The new block continues the original's type for list/checklist/quote
-   * (`continuationBlock`) — a running list stays a list until you leave it —
-   * and pressing Enter on an *empty* list/checklist/quote item exits back to
-   * plain text instead of splitting at all, the standard way to stop one
-   * with no block-type menu to do it from otherwise.
-   *
-   * `BlockNotFoundError` means a peer already removed this block (their
-   * merge, most likely) before this split reached it — nothing left to
-   * split, so this replica does nothing further and lets the other
-   * replica's operation stand.
-   */
-  const handleSplit = (blockId: BlockId, cursorPosition: number) => {
+   * Reads the *live* text, never the DOM's — a concurrent remote edit past the
+   * caret would otherwise be dropped or misplaced. The new block continues a
+   * list/checklist/quote, and Enter on an empty one of those exits to plain
+   * text instead of splitting.
+   */  const handleSplit = (blockId: BlockId, cursorPosition: number) => {
     if (!blocks) return;
 
     const original = blocks.find((block) => block.id === blockId);
@@ -451,28 +374,18 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   };
 
   /**
-   * Backspace at the very start of a block (FR-022-03). Appends this
-   * block's live text onto the end of the *previous* block's, then removes
-   * this one. No previous block (this is the document's first) is a no-op.
-   *
-   * The previous block's id comes from `blocks` state's order — reliable
-   * for order, unlike its `text` (see `liveTextOf`) — so both blocks' actual
-   * content is still read live, inside the same update that mutates them.
-   */
-  const handleMergeWithPrevious = (blockId: BlockId) => {
+   * Backspace at offset 0 (FR-022-03): append this block's text to the previous
+   * block's, then remove this one. Order comes from `blocks` state, which is
+   * reliable for order; the text itself is read live.
+   */  const handleMergeWithPrevious = (blockId: BlockId) => {
     if (!blocks) return;
 
     const previousId = idBeforeInOrder(order, blockId);
     if (previousId === null) return;
 
-    // A non-text-bearing previous block (divider, or any of the file/link
-    // types nothing in this UI can create yet) has no `content.text` to
-    // append into — `editBlockText` would throw a plain `Error`, not
-    // `BlockNotFoundError`, and crash out of this handler uncaught. Such a
-    // block can still arrive from another client on the LAN
-    // (`document.ts`'s own documented no-auth threat model), so this is a
-    // real case, not a hypothetical one. Treated the same as "no previous
-    // block": nothing sensible to merge into, so do nothing.
+    // A previous block with no text to append into — a divider, or a file or
+    // link block from another client — would make `editBlockText` throw a plain
+    // `Error` this handler does not catch. Treated as "no previous block".
     const previousBlock = blocks.find((block) => block.id === previousId);
     if (!previousBlock || !isTextBearing(previousBlock)) return;
 
@@ -505,24 +418,14 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   };
 
   /**
-   * ArrowUp/ArrowDown from a block's first/last line. Focuses the target
-   * directly — `elementsRef.current.get(id)?.focus()` — rather than going
-   * through `focusBlock`/`pendingFocusRef`: that mechanism is only ever
-   * consumed by the effect above because split/merge always call
-   * `setBlocks` right after, giving the effect a reason to run. Navigation
-   * never touches the block list, so a request placed through it would sit
-   * unconsumed until some unrelated later edit happened to fire that
-   * effect. The target here is always already mounted (unlike split's
-   * brand-new block), so there is no "wait for it to render" problem the
-   * ref+effect indirection is actually needed for.
+   * ArrowUp/ArrowDown across blocks. Focuses the target directly rather than
+   * through `focusBlock`: that request is only consumed when `setBlocks` runs,
+   * and navigation changes no blocks.
    *
-   * `column` is offset within the *source* line the caret was on; landing
-   * it in the target means clamping against that target's *matching* edge
-   * line, not its whole text — a multi-line block (Shift+Enter makes this
-   * real, not hypothetical) would otherwise land the caret on the wrong
-   * line entirely.
-   */
-  const handleNavigateUp = (blockId: BlockId, column: number) => {
+   * `column` is an offset within the caret's *source* line, so it is clamped
+   * against the target's matching edge line — a multi-line block would
+   * otherwise land the caret on the wrong one.
+   */  const handleNavigateUp = (blockId: BlockId, column: number) => {
     const doc = docRef.current;
     if (!doc || !blocks) return;
 
@@ -584,18 +487,13 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     Array.from(event.dataTransfer.files ?? []);
 
   /**
-   * Reorder (FR-022-04) — native HTML5 drag-and-drop, the dragged block's
-   * id carried as the browser's own transfer data rather than component
-   * state, since `dragstart` and `drop` can fire on different renders.
+   * Reorder (FR-022-04). The dragged id rides the browser's transfer data, not
+   * component state, because `dragstart` and `drop` can fire on different
+   * renders. Where it lands is `dropDestination`'s answer — the same one the
+   * insertion line is drawn from, so the two cannot disagree.
    *
-   * Where the block lands is `dropDestination`'s call, not this function's —
-   * the same call the insertion line is drawn from, so the line and the drop
-   * can never disagree about whether a position is real.
-   *
-   * `forcedBefore` is for callers that are not the target block itself: the
-   * footer under the document drops at the end, and deriving "before or
-   * after?" from *its* rect would answer about the footer, not about the
-   * block.
+   * `forcedBefore` is for the footer, which is not a block and so cannot answer
+   * "before or after?" from its own rect.
    */
   const handleDrop = (
     event: React.DragEvent<HTMLDivElement>,
@@ -647,15 +545,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   const lastBlockId = order[order.length - 1] ?? null;
 
   /**
-   * One block's body, chosen by its **surface** rather than by its type
-   * (`lib/blocks/registry.ts`). Four cases instead of a ternary chain that
-   * grew a branch per type, and — the point of the exercise — a thirteenth
-   * type cannot reach here without `BLOCK_KINDS` gaining an entry first, which
-   * is a compile error until someone writes one.
+   * One block's body, chosen by its surface (`lib/blocks/registry.ts`) so a new
+   * type cannot reach here without the table gaining an entry first.
    *
-   * `isTextBearing` rather than `surface === "text"` for the first branch: the
-   * two agree by construction (`Kind`'s own type enforces it), but only the
-   * guard narrows `Block` down to something with a `.text` for `TextBlockView`.
+   * `isTextBearing` rather than `surface === "text"`: the two agree by
+   * construction, but only the guard narrows `Block` to something with `.text`.
    */
   const rowFor = (block: Block, index: number) => {
     if (isTextBearing(block)) {
@@ -744,14 +638,10 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   };
 
   /**
-   * Draw the insertion line — but only where a drop would actually land the
-   * block somewhere, which is `dropDestination`'s answer, the very one
-   * `handleDrop` acts on. A line over a position the drop declines is the
-   * whole complaint: it says "here" and releasing does nothing.
-   *
-   * A file drag has no `draggedId`, and for it every position is a real
-   * insertion point — a new block goes in wherever the pointer is — so it
-   * always draws.
+   * Draws the insertion line only where a drop would actually land — the same
+   * `dropDestination` answer `handleDrop` acts on, so the line never promises a
+   * position the release declines. A file drag has no `draggedId` and every
+   * position is real for it.
    */
   const showIndicator = (targetId: BlockId, before: boolean) => {
     const next =
@@ -773,20 +663,14 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     <div
       ref={scrollContainerRef}
       data-focus-scroll
-      // `relative` so this container — not some further-out ancestor —
-      // becomes each block's `offsetParent`: `lib/focus/dom.ts`'s
-      // `readBoxes` reads `offsetTop` and needs it in this element's own
-      // coordinate space, the same one `scrollTop` is measured in.
+      // `relative` makes this each block's `offsetParent`, which is the
+      // coordinate space `lib/focus/dom.ts` reads `offsetTop` in.
       //
-      // `-ml-4 pl-4` is one thing, not two: it bleeds the container 16px left
-      // into `<main>`'s `px-8` and gives that width straight back as padding,
-      // so the blocks stay exactly where they were while the box that clips
-      // them grows to cover the drag handle at `-left-4`. Needed because
-      // `overflow-y-auto` clips *both* axes — per CSS, a non-`visible`
-      // overflow on one axis computes the other's `visible` to `auto` — and
-      // the handle sits outside the block's own left edge. Delete either half
-      // and the handle silently disappears again: it starts at `opacity-0`,
-      // so nothing errors, it just never shows on hover.
+      // `-ml-4 pl-4` is one thing, not two, and both halves are load-bearing:
+      // per CSS a non-`visible` overflow on one axis computes the other to
+      // `auto`, so `overflow-y-auto` clips horizontally too and would cut off
+      // the drag handle at `-left-4`. Delete either half and the handle stops
+      // appearing on hover, silently — it starts at `opacity-0`.
       className="relative -ml-4 flex min-h-0 flex-1 flex-col overflow-y-auto pl-4"
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes("Files")) {

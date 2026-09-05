@@ -1,14 +1,11 @@
 import type { BlockId } from "@/lib/blocks/types";
 
 /**
- * One block's vertical extent inside the scroll container's own coordinate
- * space — e.g. `offsetTop`/`offsetHeight` read off the DOM, but this type
- * itself has no DOM dependency so it can be constructed by hand in tests.
+ * One block's vertical extent in the scroll container's coordinate space. No
+ * DOM dependency, so tests build these by hand.
  *
- * `boxes` arrays passed to the functions below are assumed ordered
- * top-to-bottom by `top` — the same order the blocks render in — but not
- * assumed contiguous: a margin can leave a gap between one block's
- * `top + height` and the next block's `top`.
+ * `boxes` are assumed ordered top-to-bottom but **not** contiguous — a margin
+ * leaves a gap between one block's bottom and the next block's top.
  */
 export type BlockBox = {
   id: BlockId;
@@ -40,18 +37,12 @@ const clampRatio = (ratio: number): number =>
   Math.round(Math.min(Math.max(ratio, 0), 1) * 100) / 100;
 
 /**
- * Finds the block the viewport's top edge sits in, as a `{ blockId, ratio }`
- * pair.
+ * The block the viewport's top edge sits in, as `{ blockId, ratio }`.
  *
- * One pass down `boxes`, in render order, is enough for every case the task
- * doc calls out: `scrollTop` before a box's own `top` is *always* either
- * before the very first box, or past the previous box's bottom (nothing
- * else can be true, since we would have returned already if `scrollTop`
- * were still inside an earlier box) — so both "before the first block" and
- * "in a gap" collapse into the same branch, and both resolve to the block
- * below with `ratio: 0`. That is the decided behavior for a gap: the
- * reader's eye is moving down the page, so rounding up would show content
- * the presenter has already passed.
+ * One pass suffices: `scrollTop` before a box's `top` can only mean "before the
+ * first box" or "in a gap", since an earlier box containing it would already
+ * have returned. Both resolve to the block *below* at `ratio: 0` — rounding up
+ * would show content the presenter has already scrolled past.
  */
 export function anchorAt(
   boxes: Array<BlockBox>,
@@ -79,12 +70,8 @@ export function anchorAt(
 }
 
 /**
- * The inverse of `anchorAt`: where to scroll to show a given anchor.
- *
- * Returns `null` when `anchor.blockId` is not in `boxes` — the block was
- * deleted while the presenter was on it, or moved out for any other reason.
- * The caller's contract for `null` is to hold the current scroll position
- * rather than jump anywhere, since there is no longer a target to jump to.
+ * The inverse of `anchorAt`. `null` means the anchor's block is gone, and the
+ * caller's contract is to hold position rather than jump anywhere.
  */
 export function scrollTopFor(
   boxes: Array<BlockBox>,

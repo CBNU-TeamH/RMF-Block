@@ -16,19 +16,12 @@ import type { WorkspacePresence } from "@/lib/presence/types";
 const PUBLISH_MS = 100;
 
 /**
- * The two halves of focus following (UC-030) as they apply to *this* editor:
- * publishing where the presenter is looking, and moving the view to where the
- * followed presenter is looking.
+ * Focus following (UC-030) as it applies to *this* editor: publish where the
+ * presenter is looking, and move the view to where a followed one is.
  *
- * Lifted out of `editor.tsx` unchanged. It belongs apart because it reads
- * nothing the rest of that component owns — a container, a document id and a
- * "have the blocks loaded" flag go in, and nothing comes out. The decisions it
- * makes are already pure and tested in `lib/focus/`; only the two effects that
- * drive them lived in the component.
- *
- * Cross-document following — bringing a follower who is looking at a different
- * document — is `focus-follow-provider.tsx`'s job, not this one's: it has to
- * work when no editor is mounted at all.
+ * The decisions are pure and tested in `lib/focus/`; only the two effects that
+ * drive them are here. Bringing a follower across to a *different* document is
+ * `focus-follow-provider.tsx`'s, since it must work with no editor mounted.
  */
 export function useFocusPresence({
   documentId,
@@ -81,18 +74,10 @@ export function useFocusPresence({
   const followedBlockId = followed?.blockId ?? null;
   const followedRatio = followed?.ratio ?? null;
 
-  // Presenter side (FR-030-07): while this browser is presenting, publish
-  // this scroller's anchor as it moves. `isPresenting` is `presence-provider
-  // .tsx`'s own local state, set synchronously by `setPresenting` — not read
-  // back off `members` (this browser's own row echoed through Yorkie's
-  // `'my-presence'` channel), because every publish below would then change
-  // `members` and re-run this very effect: tear down the scroll listener,
-  // publish once up front again, re-attach — churn that can drop a native
-  // `scroll` event landing in the gap. See presence-provider.tsx's
-  // `isPresenting` doc comment.
-  //
-  // Throttled to one publish per `PUBLISH_MS`, trailing edge included, and
-  // skipped when the anchor has not actually changed.
+  // Presenter side (FR-030-07): publish this scroller's anchor as it moves,
+  // throttled to one per `PUBLISH_MS` with the trailing edge, and skipped when
+  // the anchor has not changed. `isPresenting` is local state on purpose —
+  // reading it back off `members` would re-run this effect on every publish.
   useEffect(() => {
     if (!isPresenting) {
       lastPublishedAnchorRef.current = null;
@@ -120,17 +105,11 @@ export function useFocusPresence({
       setPresenting({ documentId, blockId: anchor.blockId, ratio: anchor.ratio });
     };
 
-    // A wall-clock bound, not `requestAnimationFrame`: rAF bounds this to the
-    // display's refresh rate, which is not a network cadence. Blocks are
-    // short, so a scroll moves the anchor onto a *different block* every
-    // couple of frames — the "has it changed?" check above passes almost
-    // every time and ~60 presence writes a second go out, each one landing on
-    // every follower as a re-render and a restarted smooth scroll.
-    //
-    // A pending timer is left alone rather than pushed back: it reads
-    // `scrollTop` live when it fires, so it always publishes the newest
-    // position, and it is the trailing edge — the last scroll of a gesture
-    // schedules it, so the final resting position is never left unpublished.
+    // Wall clock, not `requestAnimationFrame`: rAF bounds this to the display's
+    // refresh rate, which is not a network cadence — blocks are short enough
+    // that the anchor changes every couple of frames, so ~60 presence writes a
+    // second would go out. A pending timer is left alone rather than pushed
+    // back: it reads `scrollTop` when it fires, so it is the trailing edge.
     const onScroll = () => {
       if (timer !== null) return;
       timer = setTimeout(publish, Math.max(0, PUBLISH_MS - (Date.now() - publishedAt)));
@@ -156,17 +135,10 @@ export function useFocusPresence({
     // `readBoxes` measures the live DOM at publish time.
   }, [isPresenting, documentId, setPresenting, blocksLoaded, containerRef]);
 
-  // Follower side (FR-030-05/07): once joined (`followingId` set by
-  // `FocusShare`) and looking at the same document the presenter is in
-  // (cross-document navigation is `focus-follow-provider.tsx`'s job, not
-  // this component's — it has to run even when no editor is mounted at
-  // all), scroll to match every time the presenter's anchor changes.
-  //
-  // `blocks` is a dependency too, not just the presenter's own anchor:
-  // a third person inserting blocks above the presenter moves every
-  // `BlockBox`'s `top` without the anchor's `blockId`/`ratio` changing at
-  // all, and only recomputing `scrollTopFor` against fresh boxes keeps the
-  // follower on the same content through that (see the acceptance list).
+  // Follower side (FR-030-05/07): scroll to match whenever the followed
+  // anchor changes. `blocks` is a dependency too — a third person inserting
+  // above the presenter moves every box's `top` without the anchor changing,
+  // and only recomputing against fresh boxes keeps the follower on the content.
   useEffect(() => {
     // Nothing to follow right now — not following anyone, the presenter has
     // no anchor yet, or they are in a different document. Forget the last

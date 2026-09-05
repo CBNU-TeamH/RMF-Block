@@ -59,6 +59,35 @@ one host per container, so the two id spaces can't collide. The color is a neutr
 not look like any of the eight rotating guest tags, and to stay legible on both light and dark
 paper, which rules out the obvious near-black.
 
+## The one connection, and what it is told
+
+**Attaching to the workspace document *is* being present.** Yorkie publishes `DocWatched` to the
+other clients when a client attaches and `DocUnwatched` when the watch stream ends — a clean
+detach, a closed tab, or Wi-Fi dropping, all the same. Nothing polls and nothing has to notice a
+disconnect, which is the half of liveness a hand-rolled heartbeat gets wrong.
+
+That connection is owned by a provider rather than by whichever component draws the roster. Two
+components each opening a `yorkie.Client` would be two connections per browser, and a per-page
+component would detach and re-attach on every navigation inside the workspace — everyone else
+would watch that person leave and rejoin. Identity reaches it as three strings rather than one
+member object, because a fresh object each render would rebuild the connection each render.
+
+**The Yorkie address comes from the page's own URL, never from the server.** Whatever host someone
+typed to reach the app is by definition one they can reach. Handing every client the LAN address
+instead is what broke this on desktop: a page opened at `localhost:3000` was told to fetch
+`192.168.x.x:8080`, and Chrome, Brave and Firefox all refused to leave the loopback address space
+— while a phone, already on the LAN address, connected fine.
+
+**A token fetch that fails returns an empty string rather than throwing.** Yorkie refuses an empty
+token, which surfaces as the workspace saying it is disconnected. Throwing instead would reject
+inside the SDK's own retry path, where no component can render it.
+
+**"Am I presenting" is local state, not read back from the roster.** This browser's own row does
+come back through Yorkie's `'my-presence'` channel, but reading it there would make `members`
+change on every one of this browser's own publishes — which is exactly what made the presenter's
+scroll-publish effect tear down and rebuild its scroll listener on every scroll while presenting.
+`followingId` is local for the same reason.
+
 ## Focus: what travels is an anchor, not a scroll position
 
 `FocusAnchor` is `{ blockId, ratio }` — the block whose range contains the viewport's top edge,
