@@ -7,7 +7,7 @@
 - **The 25% budget is arithmetically unreachable for a small declaration file, and
   `lib/presence/types.ts` is one.** After deleting every sentence the design doc already
   carries, the file is 15 code lines and 23 comment lines — **60.5%**. Twelve of those 23
-  are `/**`, ` */` and blank ` *` separators, not prose. Hitting 25% against 15 code lines
+  are `/**`, `*/` and blank `*` separators, not prose. Hitting 25% against 15 code lines
   means a comment budget of **five lines**, and the content `docs/conventions.md` itself says
   must stay — the Yorkie key charset, the `JSON.stringify`/`undefined` constraint, three
   requirement tags — is seven lines before a single delimiter. The threshold cannot be met

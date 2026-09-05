@@ -28,8 +28,10 @@ export function isInlineType(type: string): boolean {
 /**
  * Headers every file response carries.
  *
- * `nosniff` is not optional: the stored type is whatever the uploading client
- * claimed, and this is what stops the browser re-deciding it from the bytes.
+ * `nosniff` is not optional: a chat upload's stored type is whatever the
+ * uploading client claimed (a document upload's is server-verified instead —
+ * `docs/design/api.md`), and this is what stops the browser re-deciding
+ * either one from the bytes.
  *
  * `private` because these responses cross a LAN that may have caches of its own
  * in front of them, and a file belongs to one workspace.

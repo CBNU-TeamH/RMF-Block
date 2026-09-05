@@ -15,13 +15,18 @@ import { randomUUID } from "node:crypto";
  * An hour. Expiry costs the person nothing — measured against SDK 0.7.13, a
  * refused token makes `authTokenInjector` fire again and the operation retries
  * through. Not shorter because refreshing needs this server, and a browser
- * rides out an app restart only while its current token lasts.
+ * that reloads the page rides that out on its still-valid token, as long as
+ * this server process itself has not restarted — a server restart clears
+ * `sessionByToken` outright, TTL or not.
  */
 const TOKEN_TTL_MS = 60 * 60 * 1000;
 
 /** The host has no guest session, so their token stands for the bootstrap
- *  secret under this prefix — and the webhook re-checks that secret rather than
- *  trusting the token, so a restart invalidates the host's tokens too. */
+ *  secret under this prefix — not re-checked against it, since only the
+ *  token route writes this registry and it already matched that secret
+ *  before issuing (`app/api/internal/yorkie/auth/route.ts`). A restart clears
+ *  both the secret and this registry together, which is what invalidates the
+ *  host's tokens too. */
 export const HOST_SESSION_PREFIX = "host:";
 
 export class YorkieTokenRegistry {

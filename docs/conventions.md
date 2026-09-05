@@ -157,8 +157,8 @@ file that threshold cannot be met**, and trying to meet it deletes exactly what 
 above says must stay.
 
 The arithmetic is the whole argument. A 25% budget on a file of *N* code lines allows *N/3*
-comment lines. JSDoc spends two of those on `/**` and ` */` before a word is written, and a
-blank ` * ` between paragraphs costs another. So a file with three exported symbols pays six to
+comment lines. JSDoc spends two of those on `/**` and `*/` before a word is written, and a
+blank `*` between paragraphs costs another. So a file with three exported symbols pays six to
 nine lines in delimiters alone.
 
 Four files from this repo, after every sentence their design doc already carried was deleted:
@@ -183,8 +183,8 @@ afford it. The ratio is measuring file size at least as much as it measures over
 So: **the budget routes, it does not adjudicate.** Over budget means "look at whether the
 rationale outgrew the code", and on a small file the honest answer is often no. What actually
 tracks the problem is the size of the *blocks*: a comment of eight lines or more is nearly always
-design rationale that belongs in `docs/`. Trimming this repo took its comment lines from 2,595 to
-1,896 while taking those long blocks from 1,533 to 703 — the second number is the one that moved
+design rationale that belongs in `docs/`. Trimming this repo took its comment lines from 2,196 to
+1,554 while taking those long blocks from 1,533 to 703 — the second number is the one that moved
 for the right reason.
 
 When a file is over budget and every remaining comment is one of the five kinds above, say so in

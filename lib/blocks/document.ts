@@ -133,10 +133,11 @@ function readBlock(stored: StoredBlock | null): Block | null {
     case "divider":
       return { id, type: "divider" };
 
-    // `file`, `image` and the two link types cannot be created here yet, so any
-    // that turn up came from elsewhere. Read anyway rather than dropped: a
-    // document that renders half its blocks is worse than one that renders a
-    // file block with a blank name.
+    // `file`, `image` and the two link types have no creator yet — only `pdf`
+    // does (`lib/blocks/create.ts`) — so any of the other four that turn up
+    // came from elsewhere. Read anyway rather than dropped: a document that
+    // renders half its blocks is worse than one that renders a file block
+    // with a blank name.
     case "file":
       return {
         id,

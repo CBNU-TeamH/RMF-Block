@@ -72,11 +72,15 @@ component would detach and re-attach on every navigation inside the workspace �
 would watch that person leave and rejoin. Identity reaches it as three strings rather than one
 member object, because a fresh object each render would rebuild the connection each render.
 
-**The Yorkie address comes from the page's own URL, never from the server.** Whatever host someone
-typed to reach the app is by definition one they can reach. Handing every client the LAN address
-instead is what broke this on desktop: a page opened at `localhost:3000` was told to fetch
-`192.168.x.x:8080`, and Chrome, Brave and Firefox all refused to leave the loopback address space
-— while a phone, already on the LAN address, connected fine.
+**The Yorkie address defaults to the page's own URL, not a server-computed one.** Whatever host
+someone typed to reach the app is by definition one they can reach. Handing every client the LAN
+address instead is what broke this on desktop: a page opened at `localhost:3000` was told to
+fetch `192.168.x.x:8080`, and Chrome, Brave and Firefox all refused to leave the loopback address
+space — while a phone, already on the LAN address, connected fine.
+
+The one escape from that default is `YORKIE_PUBLIC_ADDR`, for a Yorkie that genuinely runs on a
+different machine than this app — a case the page's own URL cannot answer, so an explicit
+override is the only option.
 
 **A token fetch that fails returns an empty string rather than throwing.** Yorkie refuses an empty
 token, which surfaces as the workspace saying it is disconnected. Throwing instead would reject

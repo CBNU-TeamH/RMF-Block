@@ -1,8 +1,9 @@
 # Bring the comment budget down, starting with `lib/presence/types.ts`
 
 **Created**: 2026-09-05
-**Issue**: #65 — this closes the first of Phase 1's six gate criteria ("comment ratio of files
-touched by those tasks is at or below 25%").
+**Issue**: #65 — this addresses the first of Phase 1's six gate criteria ("comment ratio of files
+touched by those tasks is at or below 25%"); see the Review section for why "addresses" and
+not "closes" — the literal threshold is not met on every file, deliberately.
 **Design**: no new doc. The destinations already exist — that is the point of this task.
 [`docs/conventions.md`](../../docs/conventions.md) is the rule being applied;
 [`docs/design/`](../../docs/design/) is where the rationale goes.
@@ -21,9 +22,12 @@ word, needs no judgement. It is the right place to fix the method before applyin
 
 ## The rule being applied
 
-`docs/conventions.md`: **could a reader derive this from the code?** Three kinds survive —
-an external constraint the code cannot express, a one-line requirement tag, a `simple:` marker.
-Everything else belongs in `docs/design/`.
+`docs/conventions.md`: **could a reader derive this from the code?** At the time this task
+started, three kinds survived — an external constraint the code cannot express, a one-line
+requirement tag, a `simple:` marker. This task's own trims needed two more it could not yet cite
+— a cross-reference to the design doc a rationale moved to, and a one-line statement of what an
+exported symbol is — and promoted both into `conventions.md` along the way (see the Review
+section). Everything else belongs in `docs/design/`.
 
 Two lines in this file are the *first* kind and stay, even though the design doc also carries
 them. `conventions.md` names both as its worked examples:
@@ -71,7 +75,7 @@ and a ratio has a floor", with the four-file table below — so the next person 
 in the rulebook rather than rediscovering it here.
 
 A 25% budget on *N* code lines allows *N/3* comment lines. JSDoc spends two of those on `/**` and
-` */` before a word is written, plus one per blank ` * ` separator, so three exported symbols cost
+`*/` before a word is written, plus one per blank `*` separator, so three exported symbols cost
 six to nine lines in delimiters alone.
 
 | file | code | comments | delimiters | ratio | 25% allows |
