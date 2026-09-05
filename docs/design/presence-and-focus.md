@@ -156,6 +156,58 @@ this reason.
 `focus-follow-provider.tsx`, so the pathname-to-document-id parsing can be tested as a pure unit
 without needing to render the client component around it.
 
+## What the two focus effects may depend on
+
+The presenter effect and the follower effect sit next to each other and have **opposite**
+dependency rules. Both were arrived at by measurement, and both look like mistakes until the
+reason is written down.
+
+**The presenter effect must not depend on `blocks`.** It depends on `blocksLoaded`, a boolean that
+flips once. The scroll container does not exist while `blocks` is still `null`, so the effect
+needs one more chance when loading finishes — but `blocks` is a fresh array on every recompute,
+and depending on it tore the scroll listener down and rebuilt it continuously. A native `scroll`
+event landing in that gap is dropped, which is exactly what made following work sometimes and not
+others. Nothing in the effect reads `blocks` anyway: `readBoxes` measures the live DOM at publish
+time.
+
+**The follower effect must depend on `blocks`.** A third person inserting blocks above the
+presenter moves every box's `top` without the anchor's own `blockId` or `ratio` changing at all.
+Only recomputing against fresh boxes keeps the follower on the same content through that, and it
+is in the acceptance list.
+
+For the same reason the follower's effects depend on the anchor **pulled apart into primitives**,
+not on `members` — `rosterFrom` rebuilds that array on every presence event, and an anchor that
+has not moved should not re-run anything.
+
+`isPresenting` is local state rather than read back off `members`, or the presenter effect would
+re-run on every publish.
+
+### Wall clock, not `requestAnimationFrame`
+
+rAF bounds publishing to the display's refresh rate, which is not a network cadence — blocks are
+short enough that the anchor changes every couple of frames, so roughly sixty presence writes a
+second would go out. A pending timer is left alone rather than pushed back: it reads `scrollTop`
+when it fires, which makes it the trailing edge.
+
+The anchor is published **once up front**, not only on the next scroll. Otherwise starting a share
+— or presenting into a freshly opened document — would leave the previous anchor standing until
+this browser happened to scroll.
+
+When there is nothing to follow, the last commanded position is **forgotten** along with it. It
+exists only to stop the same target being re-issued, and holding it across a pause would swallow
+the first scroll after rejoining a presenter who never moved.
+
+## Tearing down mid-flight is what #32 was
+
+`deactivate()` is a no-op on a client that is still activating, so a cleanup that runs mid-flight
+returns immediately while the chain behind it goes on to attach and start a watch stream. That
+leaves the browser present in everyone else's roster with nothing pointing at it.
+
+Two guards follow: the cleanup returns immediately if `activate()` has not settled, and teardown
+runs only once setup has. `detach` on the client releases **every** document it holds, including
+any content document the block editor attached through it, which is what tells the other browsers
+to drop this member.
+
 ## The follower must not re-issue a scroll target
 
 `scrollTo({ behavior: "smooth" })` **aborts an in-flight smooth scroll and restarts its easing

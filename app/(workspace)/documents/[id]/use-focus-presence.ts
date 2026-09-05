@@ -36,23 +36,14 @@ export function useFocusPresence({
   isPresenting: boolean;
   setPresenting: (anchor: { documentId: string; blockId: string; ratio: number } | null) => void;
 }) {
-  // The last `FocusAnchor` this browser published while presenting. Not
-  // `blocks` state — it exists purely to satisfy "only publish when the
-  // anchor actually changed" without recomputing what was last sent from
-  // presence itself.
+  // The last anchor published, so an unchanged one is not sent again.
   const lastPublishedAnchorRef = useRef<FocusAnchor | null>(null);
-  // The last target this browser *commanded*, so an unchanged one is never
-  // re-issued — and not `scrollTop`, which reads where the animation is rather
-  // than where it was sent. Why re-issuing breaks following:
-  // `docs/design/presence-and-focus.md`.
+  // The last target *commanded* — not `scrollTop`, which reads where the
+  // animation is. Why re-issuing breaks following: `presence-and-focus.md`.
   const lastScrolledToRef = useRef<number | null>(null);
 
-  // The followed member's anchor, pulled apart into primitives. The effects
-  // below depend on these rather than on `members`, which `rosterFrom`
-  // rebuilds on every presence event: an anchor that has not moved should not
-  // re-run anything. Same lesson `presence-provider.tsx`'s header already
-  // records for its own connection effect ("a fresh object every render would
-  // give the effect a new dependency every render").
+  // Primitives, not `members` — `rosterFrom` rebuilds that on every presence
+  // event (`presence-and-focus.md`, "What the two focus effects may depend on").
   const followed = followingId
     ? (members.find((m) => m.id === followingId)?.presenting ?? null)
     : null;
@@ -61,9 +52,7 @@ export function useFocusPresence({
   const followedRatio = followed?.ratio ?? null;
 
   // Presenter side (FR-030-07): publish this scroller's anchor as it moves,
-  // throttled to one per `PUBLISH_MS` with the trailing edge, and skipped when
-  // the anchor has not changed. `isPresenting` is local state on purpose —
-  // reading it back off `members` would re-run this effect on every publish.
+  // throttled to one per `PUBLISH_MS`, trailing edge.
   useEffect(() => {
     if (!isPresenting) {
       lastPublishedAnchorRef.current = null;
@@ -91,19 +80,13 @@ export function useFocusPresence({
       setPresenting({ documentId, blockId: anchor.blockId, ratio: anchor.ratio });
     };
 
-    // Wall clock, not `requestAnimationFrame`: rAF bounds this to the display's
-    // refresh rate, which is not a network cadence — blocks are short enough
-    // that the anchor changes every couple of frames, so ~60 presence writes a
-    // second would go out. A pending timer is left alone rather than pushed
-    // back: it reads `scrollTop` when it fires, so it is the trailing edge.
+    // Wall clock, not `requestAnimationFrame` (`presence-and-focus.md`).
     const onScroll = () => {
       if (timer !== null) return;
       timer = setTimeout(publish, Math.max(0, PUBLISH_MS - (Date.now() - publishedAt)));
     };
 
-    // Published once up front too, not only on the next scroll — otherwise
-    // starting a share (or presenting into a freshly opened document) would
-    // leave the previous anchor standing until this browser's next scroll.
+    // Once up front, not only on the next scroll (`presence-and-focus.md`).
     onScroll();
 
     container.addEventListener("scroll", onScroll);
@@ -111,26 +94,16 @@ export function useFocusPresence({
       container.removeEventListener("scroll", onScroll);
       if (timer !== null) clearTimeout(timer);
     };
-    // `blocksLoaded`, a boolean that flips once — never `blocks` itself.
-    // The container does not exist while `blocks` is still `null`, so this
-    // effect needs one more chance once loading finishes; but `blocks` is a
-    // fresh array on every recompute, and depending on it tore the scroll
-    // listener down and rebuilt it continuously. A native `scroll` event
-    // landing in that gap is dropped, which is what made following work
-    // sometimes and not others. Nothing in here reads `blocks` anyway —
-    // `readBoxes` measures the live DOM at publish time.
+    // `blocksLoaded`, never `blocks` itself — depending on the array rebuilt
+    // this listener continuously and dropped scroll events. See
+    // `presence-and-focus.md`, "What the two focus effects may depend on".
   }, [isPresenting, documentId, setPresenting, blocksLoaded, containerRef]);
 
-  // Follower side (FR-030-05/07): scroll to match whenever the followed
-  // anchor changes. `blocks` is a dependency too — a third person inserting
-  // above the presenter moves every box's `top` without the anchor changing,
-  // and only recomputing against fresh boxes keeps the follower on the content.
+  // Follower side (FR-030-05/07): scroll to match whenever the followed anchor
+  // changes.
   useEffect(() => {
-    // Nothing to follow right now — not following anyone, the presenter has
-    // no anchor yet, or they are in a different document. Forget the last
-    // commanded position along with it: it exists only to stop the *same*
-    // target being re-issued, and holding it across a pause would swallow
-    // the first scroll after rejoining a presenter who never moved.
+    // Nothing to follow. The last commanded position is forgotten with it
+    // (`presence-and-focus.md`).
     if (
       !followingId ||
       followedBlockId === null ||
@@ -154,9 +127,8 @@ export function useFocusPresence({
     // rather than jump anywhere, per `scrollTopFor`'s own documented contract.
     if (top === null) return;
 
-    // Never re-issue a target already commanded: see `lastScrolledToRef`.
-    // A pixel of slack because `top` is a float off live layout and a block's
-    // height can wobble by sub-pixels between recomputes.
+    // A pixel of slack: `top` is a float off live layout and a block's height
+    // can wobble by sub-pixels between recomputes.
     const last = lastScrolledToRef.current;
     if (last !== null && Math.abs(top - last) <= 1) {
       return;
@@ -164,11 +136,8 @@ export function useFocusPresence({
 
     lastScrolledToRef.current = top;
     container.scrollTo({ top, behavior: "smooth" });
-    // `blocks` stays a dependency on purpose, unlike the presenter effect
-    // above: a third person inserting blocks above the presenter moves every
-    // box's `top` without the anchor's own `blockId`/`ratio` changing at all,
-    // and only recomputing against fresh boxes keeps the follower on the same
-    // content through that (it is in the acceptance list).
+    // `blocks` stays a dependency here, unlike the presenter effect above —
+    // the asymmetry is argued in `presence-and-focus.md`.
   }, [
     followingId,
     followedDocumentId,

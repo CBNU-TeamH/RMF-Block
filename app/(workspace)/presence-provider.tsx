@@ -23,10 +23,8 @@ export type PresenceState = {
   members: Array<WorkspacePresence>;
   /** Non-null exactly when `status` is `"active"`; callers check this, not status. */
   client: Client | null;
-  /** This browser's own id — a prop on `PresenceProvider` already, exposed
-   * here too so a consumer that only has the context (`editor.tsx`'s
-   * presenter/follower logic) can pick its own row out of `members` without
-   * a second prop threaded down just for that. */
+  /** This browser's own id, exposed on the context so a consumer can pick its
+   *  own row out of `members` without a second prop threaded down. */
   memberId: string;
   /** Whether THIS browser is presenting — local state, deliberately not read
    *  back out of `members`. Why: `docs/design/presence-and-focus.md`. */
@@ -87,9 +85,7 @@ export function PresenceProvider({
   const [members, setMembers] = useState<Array<WorkspacePresence>>([]);
   const [client, setClient] = useState<Client | null>(null);
   const [isPresenting, setIsPresenting] = useState(false);
-  // A ref, not state: the document itself is never rendered, only used from
-  // inside `setPresenting` below, so putting it in state would just be an
-  // extra render on every attach for nothing render-related.
+  // A ref, not state: never rendered, only read inside `setPresenting`.
   const docRef = useRef<Document<Record<string, never>, WorkspacePresence> | null>(null);
 
   useEffect(() => {
@@ -102,27 +98,21 @@ export function PresenceProvider({
     const doc = new yorkie.Document<Record<string, never>, WorkspacePresence>(
       WORKSPACE_DOC_KEY,
     );
-    // Stashed for `setPresenting` below, which runs outside this closure —
-    // set as soon as `doc` exists rather than only after attach, since
-    // `setPresenting` already no-ops on a `null` ref and does not need a
-    // second "is it attached" check to stay safe.
+    // Stashed for `setPresenting`, which runs outside this closure. Set as soon
+    // as `doc` exists — `setPresenting` already no-ops on a `null` ref.
     docRef.current = doc;
 
     let cancelled = false;
     let unsubscribeOthers: (() => void) | undefined;
     let unsubscribeMine: (() => void) | undefined;
 
-    // Yorkie counts clients; the list shows people. `rosterFrom` is where the
-    // two are reconciled, and it lives in `lib/` so that rule is tested without
-    // a browser.
+    // Yorkie counts clients; the list shows people (`presence-and-focus.md`).
     const readRoster = () => setMembers(rosterFrom(doc.getPresences()));
 
     const setup = (async () => {
       await client.activate();
-      // #32: cleanup during activate() returns immediately, because deactivate()
-      // is a no-op on a client that is still Deactivated. Without this guard the
-      // chain would go on to attach, start a watch stream, and leave this
-      // browser present in everyone else's roster with nothing pointing at it.
+      // #32 — why a mid-flight cleanup needs this guard:
+      // `presence-and-focus.md`, "Tearing down mid-flight is what #32 was".
       if (cancelled) return;
 
       await client.attach(doc, { initialPresence: { id: memberId, nickname, colorTag } });
@@ -140,29 +130,20 @@ export function PresenceProvider({
       if (cancelled) return;
       setStatus("failed");
       setClient(null);
-      // simple: the address and the reason go to the console until someone
-      // asks for a real error surface. A 44px top bar has room for a state, not
-      // for a stack trace, and this is the one place a guest can be told
-      // anything at all about it.
+      // simple: address and reason to the console. A 44px top bar has room for
+      // a state, not a stack trace.
       console.error(`Yorkie is not reachable at ${address}`, error);
-      // simple: failed is terminal — the only way back is a reload. A quiet
-      // retry with a backoff would fit here and is tracked as issue #37; it is
-      // left out for now because nothing else in the app reconnects either, and
-      // one component doing it alone would be the odd one out.
+      // simple: failed is terminal, the only way back a reload. A retry with
+      // backoff is #37; nothing else in the app reconnects either.
     });
 
     return () => {
       cancelled = true;
-      // Tear down only once setup has settled. Doing it mid-flight is what left
-      // a client attached with nothing pointing at it (#32) — `deactivate()` is
-      // a no-op while the client is still activating, so the chain went on to
-      // attach behind the cleanup's back.
+      // Tear down only once setup has settled (#32, `presence-and-focus.md`).
       void setup.finally(() => {
         unsubscribeOthers?.();
         unsubscribeMine?.();
-        // Detaches every document this client holds, which is what tells the
-        // other browsers to drop this member — including any content document
-        // the block editor attached through it.
+        // Detaches every document this client holds, including the editor's.
         client.deactivate().catch(() => undefined);
       });
       // Nothing after this effect re-runs should still be able to publish
