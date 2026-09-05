@@ -1,9 +1,14 @@
 # API Design — Endpoint Catalog
 
 - **Status**: Draft. Endpoints only — no request/response schemas yet. Shipped so far: `/api/auth/host` (as a simplified interim `GET` + query param, not the `POST` below — see `app/api/auth/host/route.ts`), `/api/workspace/join`, `/api/chat`, `/api/chat/files`, `/api/documents/:id/files` (PDFs only, see below), `/api/files/:id/preview`, `/api/files/:id/download`, plus two endpoints this catalogue does not list because they are not client-facing: `/api/auth/yorkie-token` (issues a per-session token) and `/api/internal/yorkie/auth` (the webhook Yorkie itself calls). Every other row below is target design, not yet built.
-- **Owns**: `lib/auth/` — the "Authentication model" section below is where its shape (bootstrap
-  secret, session tokens, restart-is-the-revoke-path) is explained; nothing else in `docs/design/`
-  covers it.
+- **Owns**: `lib/auth/`, `lib/workspace-config.ts`, `lib/yorkie-admin.ts`,
+  `app/api/auth/host/route.ts`, `app/api/auth/yorkie-token/route.ts`,
+  `app/api/internal/yorkie/auth/route.ts`, `app/api/workspace/join/route.ts`,
+  `app/session-watch.tsx` — the "Authentication model" section below is where their shape
+  (bootstrap secret, session tokens, restart-is-the-revoke-path, the webhook that makes Yorkie
+  ask at all) is explained; nothing else in `docs/design/` covers them. The route handlers are
+  the endpoints §1 already tabulates, so this doc owning them keeps the contract and its
+  implementation described in one place.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(b); [`docs/adr/002-persistence-on-yorkie-mongo.md`](../adr/002-persistence-on-yorkie-mongo.md); [`docs/SRS-ko.md`](../SRS-ko.md) §3.2, §3.3
 
 ## Scope
@@ -37,6 +42,53 @@ Rotation bounds how long a leaked token stays replayable. It does **not** protec
 
 There is no separate "revoke all sessions" endpoint. The host runs the container directly, so restarting it is the revoke path: a fresh bootstrap secret is printed to stdout and every existing session token is invalidated. Adding a dedicated revoke action would duplicate that and overlap with the per-guest kick (`DELETE /api/workspace/members/:userId`, not yet built).
 
+Tokens live in memory, like the sessions they point at. A bearer token written to the host's disk
+outlives the reason it was issued, and restarting the container is this project's documented
+revoke path — a token that survived the restart would defeat it.
+[`#47`](https://github.com/CBNU-TeamH/RMF-Block/issues/47) weighs that against a signed token the
+webhook could verify with no table at all.
+
+### The pieces around it
+
+Three files carry parts of this model that no endpoint row shows.
+
+`lib/workspace-config.ts` reads the workspace name and access password the host sets before
+starting the server (FR-020-02). It is configuration, not state: the password is never written to
+`.data/`, and changing it means restarting with a different value.
+
+`lib/yorkie-admin.ts` registers this server's auth webhook with Yorkie at startup
+(NFR-SEC-002/005). It is what makes §2's webhook actually get called — a Yorkie that was never
+told to ask would accept any client that can reach port 8080, which is the failure
+`instrumentation.ts` refuses to boot past.
+
+`app/session-watch.tsx` is the client half of FR-020-08's one-device rule: when a nickname is
+claimed on another device, the displaced session is revoked server-side and this component is
+what notices and leaves the workspace, rather than leaving a dead tab showing stale content.
+
+### What the session registry decides
+
+The password check is deliberately **not** in `lib/auth/session-registry.ts`. It runs only after
+the caller has accepted the password, so nothing in it can leak whether a guess was close, and the
+takeover rules stay testable without an HTTP request.
+
+**It is bounded.** Every distinct nickname adds a member that is never removed, so without a
+ceiling a guest who knows the password could spend the process's memory one join at a time. SRS
+§2.4 sizes a workspace at 8 people; `MAX_MEMBERS` leaves room for nicknames changing their mind
+through a session and still bounds the damage.
+
+**A failed write rolls back only for a new member.** The two cases are not the same failure. A
+returning member is already on disk, so a failed write costs only a fresher `lastJoinedAt` — the
+state this app ran in before members persisted at all. A brand-new member was never durable, and
+every mutation belongs to that one call (they cannot have displaced anyone, so there is nothing to
+put back); leaving those in place would strand a session nobody holds, and the nickname would read
+as taken until the process restarted.
+
+**Detecting a takeover reads `memberBySession`, not `sessionByMemberId`.** The latter keeps the
+newest id forever and would call anyone who ever joined "live". Only the session map still
+resolving an id means live — which is exactly what a takeover deletes. The registry cannot tell
+one person's second device from two people picking the same name, so the route asks rather than
+guessing.
+
 ## 1. REST — client ↔ rmf-block-server
 
 `host` in the Auth column means host-only; FR-011-07 requires the server to reject these from anyone else.
@@ -63,6 +115,8 @@ There is no separate "revoke all sessions" endpoint. The host runs the container
 | `POST` | `/api/workspace/join` | Guest join — nickname + workspace password; issues a session token | — | FR-020-01~05, FR-020-08 |
 | `PATCH` | `/api/workspace/password` | Change the access password; existing sessions stay valid | host | FR-011-04~07 |
 | `DELETE` | `/api/workspace/members/:userId` | Kick a guest and close their connection | host | FR-011-01~03, FR-011-07 |
+
+`lastJoinedAt` is deliberately **not** on `WorkspaceMember`, only on the stored record (`StoredMember`). `WorkspaceMember` is also the presence payload every browser publishes to every other (`lib/presence/types.ts`), so a field added there is broadcast to the whole workspace — and when someone last signed in is nobody else's business. The host reads it on the Members screen as 최근 접속, server-side.
 
 `GET /api/workspace`'s members are **who belongs to this workspace**, not who is online — the
 persistent record `.data/` keeps so a kick (`DELETE …/members/:userId`) and a restore have something
@@ -105,6 +159,8 @@ filename on disk, never the uploaded name** — a name is attacker-controlled an
 valid string. One store is shared with document files (FR-022-13/14) when those land, with an
 `origin` field recording which; FR-050-06 and FR-061-01 are queries over it.
 
+File responses are `Cache-Control: private`. They cross a LAN that may have caches of its own in front of them, and a file belongs to one workspace — `private` keeps a shared cache from holding one and serving it on.
+
 #### Why preview and download are two endpoints
 
 Hosting user bytes on the app's own origin has one serious failure mode: **a file the browser
@@ -130,8 +186,17 @@ needs a list — and the list is literals rather than `startsWith("image/")` **b
 `application/pdf` is on that list so the PDF block can hold an `<iframe>` of it
 (FR-080-01~03) — every browser in `docs/SRS-ko.md` §4.2 has its own PDF viewer, which is why
 this needs no PDF library. A PDF's own scripting runs inside that viewer, not in this origin,
-which is the difference from SVG. And nothing reaches the list on a claim alone: the document
-upload endpoint stores `application/pdf` only for bytes that start with `%PDF-`.
+which is the difference from SVG. The declared `Content-Type` is what routes a response to that
+viewer during serving; `nosniff` below is what stops the browser re-deciding that type from the
+bytes, not what does the routing itself. A file that is *not* a PDF, served under a declared
+`application/pdf`, still does not become one: the viewer opens for it anyway and fails to parse,
+showing an error rather than falling through to the HTML parser.
+
+That declared type is only trustworthy where something checked it. For a **document** upload the
+endpoint stores `application/pdf` solely for bytes that start with `%PDF-`, so the label there is
+server-verified. A **chat** attachment carries no such check — its type is whatever the
+uploader's browser claimed (`docs/design/chat.md`'s message shape) — so this guarantee does not extend to
+every file `preview`/`download` serve, only to the ones a document upload produced.
 
 **Both responses carry `X-Content-Type-Options: nosniff`**, which is the other half. The stored
 type is whatever the uploading client claimed, so an HTML file can be uploaded *as* `image/png`
@@ -140,7 +205,9 @@ PNG, fails, and shows a broken image instead of a page. The list stops the serve
 dangerous type; `nosniff` stops the browser overriding a safe one.
 
 `filename*=UTF-8''…` is percent-encoded with CR/LF stripped, so a crafted name cannot inject a
-header. This rule is [wafflebase](https://github.com/wafflebase/wafflebase)'s
+header. It is sent **alone**, without an ASCII `filename=` beside it: every browser
+`docs/SRS-ko.md` §4.2 supports reads `filename*`, and a second copy of the name would be a second
+thing to escape correctly. This rule is [wafflebase](https://github.com/wafflebase/wafflebase)'s
 `generic-file-upload.md`, which hit the problem first.
 
 ### Chat
@@ -180,11 +247,44 @@ the session is resolved separately. Refusals answer `401` with `{ allowed: false
 pairs status with body and accepts only `200`+allowed, `401`+refused, `403`+refused, reading
 anything else as a malfunction rather than a refusal.
 
+Anything outside those three combinations — a `200` carrying `allowed: false` included — becomes `ErrInvalidJSONResponse` on Yorkie's side (`server/rpc/auth/webhook.go`), a malfunction rather than a refusal. `401` is chosen over `403` because both refusals here are about identity rather than permission, and because it is the branch Yorkie does **not** cache: a refusal is re-asked rather than pinned for the cache TTL.
+
+The endpoint is deliberately unsigned. Anything on the LAN can call it, and all a caller can learn is whether a token it already holds is valid.
+
+**The app registers the webhook with Yorkie itself, at startup, and refuses to run if it cannot.**
+The webhook URL is a Yorkie **project** field, not a server flag — `cmd/yorkie/server.go` exposes
+only the cache size and TTL — so something has to call the Admin API after Yorkie is up. Leaving
+that to the host would make `docker compose up` two steps and, worse, would make *an unguarded
+Yorkie* the state you get by forgetting the second one.
+
+The Admin API is connect-protocol over HTTP/JSON, so this needs no client library (the JS SDK
+ships none): log in for a token, then update the project. The URL is written from where **Yorkie**
+stands, not where a browser does — inside compose that is the app's service name, since
+`localhost` would be Yorkie's own container.
+
+`ActivateClient` is the operation that matters most: refusing it stops a client before it reaches
+any document at all, and the rest are defence in depth. Method names come from
+`api/types/auth_webhook.go` — it is `WatchDocument`, singular, and an unknown name fails the
+update rather than being ignored.
+
 **The token-refresh question this section used to leave open is answered**: against the pinned
 `@yorkie-js/sdk@0.7.13`, the SDK calls `authTokenInjector` again whenever the webhook refuses and
 passes the refusal's own `reason` as its argument, then retries with what it gets back. So expiry
 needs no timer on either side, and `reason` is a channel rather than a log line — `"token expired"`
 means fetch another, `"session revoked"` means another will not help.
+
+**A session that already holds a live token gets that one back**, rather than a freshly minted
+one. This is what bounds the registry. `authTokenInjector` runs on *every* refusal, so a session
+whose requests keep being refused — a clock skew, a webhook fault — would fetch in a loop, and
+minting per call would leave an entry behind each time, for an hour. `SessionRegistry` bounds the
+same shape with an explicit `MAX_MEMBERS` ceiling; here the bound falls out for free, because
+there is no reason for one session to hold two tokens. Expired entries are pruned at issue time
+for the same reason — issuing is the only moment the map grows, so a timer would be a second
+thing to keep alive for no gain.
+
+Two tabs therefore share a token, which is correct: the token authorizes a *session*, and both
+tabs are that session. Handing back a token with minutes left on it is fine too, since the SDK
+asks for a replacement the moment the webhook refuses one.
 
 One thing worth knowing wherever revocation is being reasoned about: **Yorkie caches an auth
 decision for ten seconds by default** (`--auth-webhook-cache-auth-ttl`). A guest removed through

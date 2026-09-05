@@ -1,9 +1,6 @@
-/**
- * Runs once per server instance, before the first request is served. This is
- * where the host learns two things they cannot get anywhere else: the bootstrap
- * secret that proves they are the host, and the address guests type in
- * (FR-010-03, HIR001 — "서버 실행 상태 및 접속 주소를 호스트 화면에 표시").
- */
+/** Runs once per server instance, before the first request. Where the host
+ *  learns the bootstrap secret and the address guests type (FR-010-03, HIR001).
+ *  How this refuses to run: `docs/design/architecture.md` §3. */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
@@ -16,42 +13,25 @@ export async function register() {
   // joined, and the host should find that out here rather than from a guest.
   assertWorkspaceConfigured();
 
-  // Yorkie only asks about a client's token if this server has told it to, and
-  // that setting lives on the project rather than on Yorkie's command line — so
-  // it has to be written after Yorkie is up, which means from here.
+  // Yorkie only asks about tokens if told to, and that is a project setting —
+  // so it must be written after Yorkie is up (`docs/design/api.md` §2).
   const rpcAddr = process.env.YORKIE_ADMIN_ADDR ?? "http://localhost:8080";
-  // The default is what Yorkie needs to reach *us*, and `localhost` is the one
-  // answer that is always wrong: inside Yorkie's container it means Yorkie.
-  // Development runs the app natively against a containerized Yorkie, so the
-  // default is the address that reaches back out of it. Compose overrides this
-  // with the service name, and a native Yorkie would want plain localhost.
-  //
-  // Docker Desktop resolves `host.docker.internal` on its own; plain Docker
-  // Engine on Linux needs `--add-host=host.docker.internal:host-gateway`.
+  // What Yorkie needs to reach *us*, where `localhost` is always wrong — inside
+  // Yorkie's container it means Yorkie. The default reaches back out of a
+  // containerized Yorkie; compose overrides it with the service name.
+  // Docker Engine on Linux needs `--add-host=host.docker.internal:host-gateway`.
   const webhookUrl =
     process.env.YORKIE_AUTH_WEBHOOK_URL ??
     `http://host.docker.internal:${process.env.PORT ?? "3000"}/api/internal/yorkie/auth`;
 
   try {
     await registerAuthWebhook(rpcAddr, webhookUrl);
-    // Printed because success here is otherwise invisible, and because Yorkie
-    // stores this URL without ever testing it. An address Yorkie cannot reach
-    // registers exactly like one it can, and only shows up later as clients
-    // failing with `verify access: send webhook` — which reads like a Yorkie
-    // fault rather than a wrong address. Seeing it at startup is the difference.
+    // Printed because Yorkie stores this URL without testing it (architecture.md).
     console.log(`  Auth:  Yorkie will ask ${webhookUrl}`);
   } catch (error) {
-    // In production this is fatal. An unguarded Yorkie is reachable by anything
-    // on the LAN, and a workspace that runs anyway would be one nobody knows is
-    // open — the failure has to be the loud kind.
-    //
-    // `process.exit` rather than `throw`, which was the first attempt and does
-    // not work: Next installs its own `unhandledRejection` listener, so a throw
-    // from here is logged and swallowed, `app.prepare()` never rejects, and the
-    // process lives on without ever listening. Measured — it sat there for
-    // forty-five seconds. In a container that is the worst outcome available:
-    // Docker sees a running service, `restart` never fires, and compose reports
-    // no failure, so the workspace looks up while serving nothing.
+    // Fatal in production, and `process.exit` rather than `throw` — Next
+    // swallows the throw and the process lives on without listening. Measured;
+    // see `docs/design/architecture.md` §3, "Startup".
     if (process.env.NODE_ENV === "production") {
       console.error(
         `\n  ✗ Could not register the Yorkie auth webhook at ${rpcAddr}.\n` +
@@ -61,9 +41,8 @@ export async function register() {
       process.exit(1);
     }
 
-    // In development it is not, because Yorkie is often simply not running and
-    // most work does not need it. It still has to be impossible to miss: this
-    // is the one state where the app looks fine and is not protecting anything.
+    // Not fatal in development, but loud — the one state where the app looks
+    // fine and is protecting nothing.
     console.warn(
       `\n  ⚠ Yorkie auth webhook NOT registered (${rpcAddr}).\n` +
         `    Yorkie will accept any client, with or without a session.\n` +

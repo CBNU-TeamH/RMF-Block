@@ -11,21 +11,9 @@ import {
 } from "@/lib/blocks/text-surface";
 import type { Block, BlockId } from "@/lib/blocks/types";
 
-/**
- * One document's blocks, and the Yorkie attachment behind them.
- *
- * Lifted out of `editor.tsx` whole, without a behaviour change, because it is
- * the part of that file least connected to the rest of it: it needs a client
- * and a document id, and it hands back a block list. Everything difficult in
- * here — the Strict-Mode teardown chaining, the op-path filtering, the seeding
- * race — is difficult on its own terms and is easier to hold in the head at
- * five fields wide than buried between a drag handler and a file upload.
- *
- * `setBlocks` is returned rather than kept private: a *local* edit is applied
- * to the document directly by the caller (`applyEdit` in `editor.tsx`), and the
- * subscription below deliberately reacts to `remote-change` only, so the caller
- * is the one that has to republish the list afterwards.
- */
+/** One document's blocks and the Yorkie attachment behind them. `setBlocks` is
+ *  returned because the subscription reacts to `remote-change` only — a local
+ *  edit is the caller's to apply and republish. */
 export function useBlockDocument(client: Client | null, documentId: string) {
   const [blocks, setBlocks] = useState<Array<Block> | null>(null);
   const [failed, setFailed] = useState(false);
@@ -35,16 +23,9 @@ export function useBlockDocument(client: Client | null, documentId: string) {
   // edits below and by the editor's own split/merge through `patchBlockText`.
   const handlersRef = useRef(new Map<BlockId, (patch: TextPatch) => void>());
 
-  // Chains one run's full teardown (unsubscribe + detach) in front of the
-  // next run's attach(). React's Strict Mode double-invokes this effect on
-  // mount (dev only) — mount → cleanup → mount, synchronously — which would
-  // otherwise fire two attach()es back to back for the same document key
-  // from the same client. Measured: the second one fails with a misleading
-  // "client not found", because Yorkie's server-side TryAttaching filters on
-  // the document not already being Attached for this client, and a cancelled
-  // run whose attach() succeeded anyway was never detached — same shape as
-  // `#32` in presence-provider.tsx, one layer deeper (the content document,
-  // not the workspace one).
+  // Chains one run's teardown in front of the next run's attach(), for React's
+  // Strict Mode double-invoke — why, and the `#32` it shares a shape with:
+  // `docs/design/document-editing.md`, "Attaching under React's Strict Mode".
   const teardownRef = useRef<Promise<void>>(Promise.resolve());
 
   // `useCallback` so the identity really is stable for a block's lifetime,
@@ -71,11 +52,8 @@ export function useBlockDocument(client: Client | null, documentId: string) {
     let attached = false;
     let unsubscribe: (() => void) | undefined;
 
-    // React runs cleanup(N) before effect(N+1) even in Strict Mode's
-    // synchronous double-invoke, so whatever `teardownRef.current` holds here
-    // is exactly the previous run's full teardown — attach() below waits for
-    // it, so it never reaches the server while that run's document is still
-    // marked Attached.
+    // cleanup(N) runs before effect(N+1), so this holds the previous run's full
+    // teardown and attach() below waits for it.
     const readyToAttach = teardownRef.current;
 
     const setup = (async () => {
@@ -86,12 +64,8 @@ export function useBlockDocument(client: Client | null, documentId: string) {
       attached = true;
       if (cancelled) return;
 
-      // Two people opening the same brand-new document at once could both
-      // see it empty and both seed it — last-write-wins on `blocks` as a
-      // whole, so one seed's block would replace the other's outright. The
-      // same category of race `changeBlockType` already accepts for a
-      // conversion two people make at once; worth measuring properly
-      // (`#42`) if it ever turns out to matter at this app's scale.
+      // Two peers can both seed an empty document — a known `#42`-material race
+      // (`docs/design/document-editing.md`).
       doc.update((root: BlockDocumentRoot) => {
         if (!root.blocks || root.blocks.length === 0) {
           root.blocks = [toStoredBlock(createText())];
@@ -104,12 +78,8 @@ export function useBlockDocument(client: Client | null, documentId: string) {
       unsubscribe = doc.subscribe((event) => {
         if (event.type !== "remote-change") return;
 
-        // Recomputed at most once per event, not once per matching op — a
-        // markdown-shortcut conversion alone already produces two ("set" on
-        // the block's `type`, "set" on its `content"), and a multi-block
-        // paste or reorder could add more. Recomputing `blocks` is an O(n)
-        // read of the whole array, so this only costs it once per batch
-        // instead of once per op inside one.
+        // Once per event, not per op — one conversion already produces two
+        // (`docs/design/document-editing.md`).
         let needsRecompute = false;
 
         for (const op of event.value.operations) {
@@ -124,13 +94,9 @@ export function useBlockDocument(client: Client | null, documentId: string) {
               continue;
             }
 
-            // No handler yet: the block's row exists in the document but has
-            // not mounted here, so the textarea that would take this patch does
-            // not exist. Dropping the op would leave that block permanently
-            // showing the text it had at mount — a peer creating a block and
-            // typing into it does exactly this within a frame or two. Fall back
-            // to rebuilding the list, which remounts the row with the text the
-            // document holds *now* (issue #59).
+            // No handler yet — the row exists in the document but has not
+            // mounted. Rebuild rather than drop the op (#59); the reasoning is
+            // in document-editing.md.
             needsRecompute = true;
             continue;
           }
@@ -168,20 +134,9 @@ export function useBlockDocument(client: Client | null, documentId: string) {
     };
   }, [client, documentId]);
 
-  /**
-   * Apply a patch to one block's textarea without it having come from the
-   * network — the editor's own split and merge rewrite a block's text on the
-   * person's behalf, and the textarea is uncontrolled, so nothing else would
-   * ever tell it (issue #59).
-   *
-   * Routed through the same handler a remote edit uses, on purpose: that is
-   * what keeps the block's diff baseline (`lastSyncedRef` in `text-block.tsx`)
-   * in step. Writing `el.value` from outside would fix the display and leave
-   * the next keystroke diffing against a string the document does not have.
-   *
-   * A missing handler means the block has no mounted textarea, which for these
-   * two callers cannot happen — they patch a block they are editing.
-   */
+  /** Patches a textarea with an edit that did not come from the network — a
+   *  split or merge (#59). Deliberately the same handler a remote edit uses;
+   *  why that matters: `docs/design/document-editing.md`. */
   const patchBlockText = useCallback((blockId: BlockId, patch: TextPatch) => {
     handlersRef.current.get(blockId)?.(patch);
   }, []);

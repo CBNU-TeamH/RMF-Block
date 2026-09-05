@@ -122,7 +122,21 @@ const BACKTICK_PATH =
 // is a broken reference — checking either would mean resolving into a
 // vendored dependency's version-specific internals, a different question
 // from "is our own doc reference broken."
-const EXCLUDED_PREFIXES = [".data/", "packages/"];
+//
+// The three `yorkie/` prefixes are paths into Yorkie's own Go server, cited by
+// `api.md` where a contract is only knowable from that source — which status
+// codes the auth webhook accepts, which flags the server exposes, the spelling
+// of a method name. They are the same case as `packages/`: a reference into a
+// dependency, quoted so a reader can go and check it, not a file this repo
+// has. `server/` is deliberately not excluded on its own, since this repo has
+// one.
+const EXCLUDED_PREFIXES = [
+  ".data/",
+  "packages/",
+  "server/rpc/",
+  "cmd/yorkie/",
+  "api/types/",
+];
 
 // AGENTS.md's own workflow table, and this repo's task-naming convention,
 // both use YYYY/MM/DD-shaped placeholders in prose — not a path anyone

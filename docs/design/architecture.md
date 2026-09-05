@@ -96,9 +96,31 @@ What crosses this boundary is version history only, through Yorkie's revision AP
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 
-Chat history is read and written as whole JSON files on the host filesystem — `lib/chat/chat-repository.ts` is the reference implementation of the pattern, including serializing concurrent writes through one promise chain. Member records follow the same pattern in `lib/auth/member-repository.ts`, synchronously rather than through a promise chain — sync writes on one thread cannot interleave, so there is nothing for the queue to serialize. Sessions stay in memory on purpose: a session id on disk would be a permanent bearer token. Workspace metadata is still to come.
+Chat history is read and written as whole JSON files on the host filesystem — `lib/chat/chat-repository.ts` is the reference implementation of the pattern, including serializing concurrent writes through one promise chain. Three more stores follow the same pattern synchronously rather than through a promise chain — `lib/auth/member-repository.ts`, `lib/documents/documents.ts` and `lib/files/file-repository.ts`. **A read-modify-write with no `await` in it cannot be interleaved by a second call on Node's single thread, so there is nothing for a queue to serialize.** The queue in `chat-repository.ts` earns its place only because its appends are `async`: an `await` mid-sequence is a point where a second call can land between the read and the write, and the second write would drop the first. Choosing sync is therefore choosing to *not need* the queue, and any of these three growing an `await` inside its read-modify-write needs the promise chain back. The document catalogue in `lib/documents/documents.ts` is separate from Yorkie for a reason the code cannot show: **Yorkie cannot list documents.** `attach` takes a key the caller already holds, and a Yorkie document never learns its own name, owner or created time — so a workspace that could only ask Yorkie would have no way to render a tree. The catalogue holds that metadata and Yorkie holds the content; a document's `id` is the join between them, which is why it doubles as the Yorkie key and why renaming (UC-023) changes only the catalogue. Writes go through a temp file and a `rename`, because `writeFileSync` truncates before it writes and a crash mid-write would otherwise leave a half-written store; `rename` within one filesystem is atomic, so a concurrent reader sees the whole old file or the whole new one. Sessions stay in memory on purpose: a session id on disk would be a permanent bearer token. Workspace metadata is still to come.
 
 This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`. Both are now named volumes — `mongo-data` for Yorkie's store, `app-data` for `.data/` — so a container recreation leaves either intact and only `docker compose down -v` clears them (#22).
+
+### Startup: how the app refuses to run
+
+`instrumentation.ts` registers Yorkie's auth webhook before the first request is served. **In
+production a failure there is fatal**, because an unguarded Yorkie is reachable by anything on the
+LAN and a workspace that ran anyway would be one nobody knows is open.
+
+It exits with `process.exit`, not `throw`. Throwing was the first attempt and does not work: Next
+installs its own `unhandledRejection` listener, so a throw from here is logged and swallowed,
+`app.prepare()` never rejects, and the process lives on without ever listening — measured at
+forty-five seconds of sitting there. In a container that is the worst outcome available, because
+Docker sees a running service, `restart` never fires, and compose reports no failure while the
+workspace looks up and serves nothing.
+
+In development it is not fatal — Yorkie is often simply not running and most work does not need
+it — but it is printed loudly, because this is the one state where the app looks fine and is
+protecting nothing.
+
+The successful registration is printed too. Yorkie stores the webhook URL without ever testing it,
+so an address it cannot reach registers exactly like one it can and surfaces only later as clients
+failing with `verify access: send webhook` — which reads like a Yorkie fault rather than a wrong
+address.
 
 ## 4. Decided vs. deferred
 

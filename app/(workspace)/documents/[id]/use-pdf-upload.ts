@@ -5,19 +5,9 @@ import { toStoredBlock, type BlockDocumentRoot, type StoredBlock } from "@/lib/b
 import { appendBlock, insertBlockAfter, type BlockArray } from "@/lib/blocks/operations";
 import type { BlockId } from "@/lib/blocks/types";
 
-/**
- * Putting PDFs into a document: the request, its in-flight state, and the
- * block that follows a successful one (FR-022-13, FR-022-14).
- *
- * Separate from `editor.tsx` because it is the one piece of that component
- * whose work is mostly *not* the document — a fetch, an error string and a
- * spinner — and it reaches the document through the single `applyEdit` seam
- * rather than through anything else the editor owns.
- *
- * `liveBlockOf` is passed in rather than reimplemented: reading the live array
- * has a rule (iterate, never `.find` — see the note on it in `editor.tsx`) that
- * should have exactly one implementation.
- */
+/** Putting PDFs into a document (FR-022-13, FR-022-14). `liveBlockOf` is injected
+ *  rather than reimplemented — reading the live array has a rule that should have
+ *  one implementation. */
 export function usePdfUpload({
   documentId,
   applyEdit,
@@ -32,34 +22,17 @@ export function usePdfUpload({
    *  nowhere to click to start the next paragraph. */
   ensureTrailingEmptyBlock: () => void;
 }) {
-  // Uploads in flight, and the last one that failed. Both are about the
-  // *request*, not the document: a PDF block only ever exists once its bytes
-  // are stored, so there is no optimistic block to reconcile and nothing here
-  // reaches Yorkie.
-  //
-  // A count rather than a flag, because a second drop while the first upload is
-  // still running is a perfectly ordinary thing to do — and with a flag the
-  // first one to finish would clear the indicator while the other was still
-  // going.
+  // About the *request*, not the document — a PDF block exists only once its
+  // bytes are stored, so nothing here reaches Yorkie. A count, not a flag: with
+  // a flag the first of two concurrent drops to finish clears the indicator.
   const [uploadsInFlight, setUploadsInFlight] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const uploading = uploadsInFlight > 0;
 
-  /**
-   * Uploads dropped or picked PDFs and puts a block for each one into the
-   * document (FR-022-13, FR-022-14).
-   *
-   * **The upload finishes before the block exists.** The alternative — a
-   * placeholder block that fills in when the bytes land — would mean every
-   * other client on the LAN seeing a block pointing at a `fileId` the server
-   * has not issued yet, and a failed upload leaving one behind permanently.
-   * The cost is that a large file shows nothing but the "올리는 중" line for a
-   * few seconds, which is the honest state of affairs.
-   *
-   * Several files at once are uploaded in order, each anchored after the last,
-   * so three PDFs dropped together land in the order they were dropped rather
-   * than in whatever order their requests happened to finish.
-   */
+  /** **The upload finishes before the block exists** — a placeholder would show
+   *  peers a block pointing at a `fileId` the server has not issued, and a failed
+   *  upload would leave one for good. Several files upload in order, each
+   *  anchored after the last, so they land in the order they were dropped. */
   const uploadPdfs = async (files: Array<File>, afterId: BlockId | null) => {
     setUploadError(null);
     setUploadsInFlight((n) => n + 1);

@@ -14,45 +14,23 @@ import {
 import { rosterFrom } from "@/lib/presence/roster";
 import { WORKSPACE_DOC_KEY, type WorkspacePresence } from "@/lib/presence/types";
 
-/**
- * `client` is the workspace's one Yorkie connection, `null` until it has
- * activated. The block editor attaches its content document through this
- * same client rather than opening a second one — a second client is a second
- * connection per browser, and one built without `fetchToken` below would
- * quietly reopen the hole PR #50 closed (no `authTokenInjector` at all).
- */
+/** The workspace's one Yorkie connection, `null` until activated. The editor
+ *  attaches its content document through this same client — a second one would
+ *  be a second connection, and without `fetchToken` would reopen the hole #50
+ *  closed. */
 export type PresenceState = {
   status: "connecting" | "active" | "failed";
   members: Array<WorkspacePresence>;
   /** Non-null exactly when `status` is `"active"`; callers check this, not status. */
   client: Client | null;
-  /** This browser's own id — a prop on `PresenceProvider` already, exposed
-   * here too so a consumer that only has the context (`editor.tsx`'s
-   * presenter/follower logic) can pick its own row out of `members` without
-   * a second prop threaded down just for that. */
+  /** This browser's own id, exposed on the context so a consumer can pick its
+   *  own row out of `members` without a second prop threaded down. */
   memberId: string;
-  /**
-   * Whether THIS browser is presenting. Local state, set synchronously by
-   * `setPresenting` below — not derived from reading this browser's own row
-   * back out of `members`. That row is real (subscribing to `'my-presence'`
-   * is a correct, separate fix, see this component's own note below) but it
-   * echoes through the same `doc.update()` this browser just made, which
-   * means using it here would make `members` change on every one of this
-   * browser's own presence publishes — exactly the loop that made the
-   * presenter's scroll-publish effect in `editor.tsx` tear down and rebuild
-   * its scroll listener on every scroll while presenting. `followingId` in
-   * `focus-follow-provider.tsx` already made this call for "who am I
-   * following"; "am I presenting" is the same kind of fact.
-   */
+  /** Whether THIS browser is presenting — local state, deliberately not read
+   *  back out of `members`. Why: `docs/design/presence-and-focus.md`. */
   isPresenting: boolean;
-  /**
-   * Publishes (or, with `null`, clears) this browser's own `presenting`
-   * anchor on the workspace presence document — see `WorkspacePresence` in
-   * `lib/presence/types.ts` for why `null` and not `undefined` ends a share.
-   * A no-op before the document has attached, same as `client` being `null`
-   * before `status` is `"active"`: a caller racing ahead of attach should not
-   * crash the app, it should just have nothing to publish yet.
-   */
+  /** Publishes this browser's `presenting` anchor, or clears it with `null`
+   *  (see `WorkspacePresence` for why not `undefined`). A no-op before attach. */
   setPresenting: (presenting: WorkspacePresence["presenting"]) => void;
 };
 
@@ -70,21 +48,9 @@ export function useWorkspacePresence(): PresenceState {
   return useContext(PresenceContext);
 }
 
-/**
- * What the browser shows Yorkie's auth webhook.
- *
- * The SDK calls this once before connecting and again every time the webhook
- * refuses, handing over the refusal's own `reason` — so expiry needs no timer
- * here, and a token that outlived its session is replaced by asking for another.
- *
- * The session cookie rides along on its own; this fetch is same-origin, and the
- * cookie is `httpOnly` precisely so that this code never sees it.
- *
- * A failure returns an empty token rather than throwing. Yorkie refuses an empty
- * one, which surfaces as this component's `failed` state — a workspace that says
- * it is disconnected. Throwing instead would reject inside the SDK's own retry
- * path, where nothing here can render it.
- */
+/** What the browser shows Yorkie's auth webhook. The SDK re-calls it on every
+ *  refusal, so expiry needs no timer; the `httpOnly` cookie rides along on its
+ *  own. Why a failure returns an empty string: the design doc. */
 async function fetchToken(): Promise<string> {
   try {
     const response = await fetch("/api/auth/yorkie-token");
@@ -97,33 +63,9 @@ async function fetchToken(): Promise<string> {
   }
 }
 
-/**
- * Owns the browser's single Yorkie connection and hands the roster down
- * (FR-020-06/07).
- *
- * Attaching to the workspace document *is* the act of being present: Yorkie
- * publishes `DocWatched` to the other clients on attach and `DocUnwatched` when
- * the watch stream ends, whether that was a clean detach, a closed tab, or Wi-Fi
- * dropping. Nothing here polls, and nothing here has to notice a disconnect.
- *
- * It is a provider rather than a component that renders the roster itself
- * because two things need the same list — the top bar's stack and the Members
- * screen — and two components each opening a `yorkie.Client` would mean two
- * connections per browser. Living in the workspace layout also keeps the
- * connection up across navigations inside the group: a per-page component would
- * detach and re-attach on every move, and everyone else would watch you leave
- * and rejoin.
- *
- * Identity arrives as three strings rather than one member object on purpose:
- * a fresh object every render would give the effect a new dependency every
- * render, and it would tear down and rebuild the Yorkie connection each time.
- *
- * The address comes from the page's own URL, never from the server. Whatever
- * host someone typed to reach the app is one they can reach; being handed a
- * different one is what broke this on the desktop, where a page at
- * `localhost:3000` was told to fetch the LAN address and every browser refused
- * to cross out of the loopback address space.
- */
+/** Owns the browser's single Yorkie connection and hands the roster down
+ *  (FR-020-06/07). Why attaching *is* being present, and why this is a provider:
+ *  `docs/design/presence-and-focus.md`, "The one connection". */
 export function PresenceProvider({
   memberId,
   nickname,
@@ -143,9 +85,7 @@ export function PresenceProvider({
   const [members, setMembers] = useState<Array<WorkspacePresence>>([]);
   const [client, setClient] = useState<Client | null>(null);
   const [isPresenting, setIsPresenting] = useState(false);
-  // A ref, not state: the document itself is never rendered, only used from
-  // inside `setPresenting` below, so putting it in state would just be an
-  // extra render on every attach for nothing render-related.
+  // A ref, not state: never rendered, only read inside `setPresenting`.
   const docRef = useRef<Document<Record<string, never>, WorkspacePresence> | null>(null);
 
   useEffect(() => {
@@ -158,42 +98,29 @@ export function PresenceProvider({
     const doc = new yorkie.Document<Record<string, never>, WorkspacePresence>(
       WORKSPACE_DOC_KEY,
     );
-    // Stashed for `setPresenting` below, which runs outside this closure —
-    // set as soon as `doc` exists rather than only after attach, since
-    // `setPresenting` already no-ops on a `null` ref and does not need a
-    // second "is it attached" check to stay safe.
+    // Stashed for `setPresenting`, which runs outside this closure. Set as soon
+    // as `doc` exists — `setPresenting` already no-ops on a `null` ref.
     docRef.current = doc;
 
     let cancelled = false;
     let unsubscribeOthers: (() => void) | undefined;
     let unsubscribeMine: (() => void) | undefined;
 
-    // Yorkie counts clients; the list shows people. `rosterFrom` is where the
-    // two are reconciled, and it lives in `lib/` so that rule is tested without
-    // a browser.
+    // Yorkie counts clients; the list shows people (`presence-and-focus.md`).
     const readRoster = () => setMembers(rosterFrom(doc.getPresences()));
 
     const setup = (async () => {
       await client.activate();
-      // #32: cleanup during activate() returns immediately, because deactivate()
-      // is a no-op on a client that is still Deactivated. Without this guard the
-      // chain would go on to attach, start a watch stream, and leave this
-      // browser present in everyone else's roster with nothing pointing at it.
+      // #32 — why a mid-flight cleanup needs this guard:
+      // `presence-and-focus.md`, "Tearing down mid-flight is what #32 was".
       if (cancelled) return;
 
       await client.attach(doc, { initialPresence: { id: memberId, nickname, colorTag } });
       if (cancelled) return;
 
-      // Subscribed before the first read so an arrival between the two is not
-      // missed. `others` covers all three of watched, unwatched, and a peer
-      // changing their own presence. It does not cover this browser's own —
-      // Yorkie routes a client's own presence changes through a separate
-      // `my-presence` channel, so without subscribing to that too, this
-      // browser's own `setPresenting` (`FocusShare`'s share/end buttons) would
-      // publish correctly for everyone else and never update `members` here,
-      // leaving its own header stuck showing the share as never having
-      // started. Found by testing the presenter's own button, not by reading
-      // the SDK first.
+      // Two subscriptions, both before the first read — `others` does not carry
+      // this browser's own presence changes. Why:
+      // `docs/design/presence-and-focus.md`, "Two subscriptions, not one".
       unsubscribeOthers = doc.subscribe("others", readRoster);
       unsubscribeMine = doc.subscribe("my-presence", readRoster);
       setStatus("active");
@@ -203,29 +130,20 @@ export function PresenceProvider({
       if (cancelled) return;
       setStatus("failed");
       setClient(null);
-      // simple: the address and the reason go to the console until someone
-      // asks for a real error surface. A 44px top bar has room for a state, not
-      // for a stack trace, and this is the one place a guest can be told
-      // anything at all about it.
+      // simple: address and reason to the console. A 44px top bar has room for
+      // a state, not a stack trace.
       console.error(`Yorkie is not reachable at ${address}`, error);
-      // simple: failed is terminal — the only way back is a reload. A quiet
-      // retry with a backoff would fit here and is tracked as issue #37; it is
-      // left out for now because nothing else in the app reconnects either, and
-      // one component doing it alone would be the odd one out.
+      // simple: failed is terminal, the only way back a reload. A retry with
+      // backoff is #37; nothing else in the app reconnects either.
     });
 
     return () => {
       cancelled = true;
-      // Tear down only once setup has settled. Doing it mid-flight is what left
-      // a client attached with nothing pointing at it (#32) — `deactivate()` is
-      // a no-op while the client is still activating, so the chain went on to
-      // attach behind the cleanup's back.
+      // Tear down only once setup has settled (#32, `presence-and-focus.md`).
       void setup.finally(() => {
         unsubscribeOthers?.();
         unsubscribeMine?.();
-        // Detaches every document this client holds, which is what tells the
-        // other browsers to drop this member — including any content document
-        // the block editor attached through it.
+        // Detaches every document this client holds, including the editor's.
         client.deactivate().catch(() => undefined);
       });
       // Nothing after this effect re-runs should still be able to publish

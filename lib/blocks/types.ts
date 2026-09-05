@@ -1,77 +1,37 @@
-/**
- * The twelve block types from `docs/SRS-ko.md` §4.1, as the app reads them.
- *
- * **This is a view model, not the storage shape.** What Yorkie holds is
- * described in `docs/design/document-editing.md`: `root.blocks` is a Yorkie
- * Array, and a block's text is a `yorkie.Text` — a CRDT, not a string. These
- * types are what that becomes once it has been read for rendering.
- *
- * The split matters in one direction only. Reading is a plain conversion and
- * costs nothing worth counting. **Writing must never go back through these
- * types.** Assigning a whole new string over a `yorkie.Text` would throw away
- * the character-level merge that makes two people editing one block work at
- * all — the later write would simply erase the earlier one. Edits go through
- * Yorkie's own API, which is why the operations that perform them live apart
- * from this file rather than taking a `Block` and putting it back.
- */
+/** The twelve block types of `docs/SRS-ko.md` §4.1, as the app *reads* them.
+ *  **Read-only.** A block's text is a `yorkie.Text`; assigning a string over one
+ *  erases what a peer typed instead of merging, so writes go through
+ *  `operations.ts`. Stored shapes: `docs/design/document-editing.md`. */
 
 /** A uuid, stable for the block's whole life and independent of its position. */
 export type BlockId = string;
 
-/**
- * SRS §4.1 defines the 제목 블록 as H1~H3, so three is the whole range rather
- * than a starting point. Named because it is the one place to change if the
- * team ever agrees to widen it — which would be an SRS amendment first
- * (`AGENTS.md` §5), not a code change.
- */
+/** H1~H3 is the whole range SRS §4.1 defines, not a starting point — widening
+ *  it is an SRS amendment first (`AGENTS.md` §5). */
 export type HeadingLevel = 1 | 2 | 3;
 
 export type ListStyle = "ordered" | "unordered";
 
-/**
- * Every block carries these. `type` is what narrows the union, so a block is
- * never read for a field its kind does not have.
- */
+/** What every block carries; `type` is what narrows the union. */
 type BlockBase = {
   id: BlockId;
 };
 
-/**
- * Text-bearing blocks expose `text` directly rather than the `content` wrapper
- * the stored schema uses. Storage keeps that wrapper on all six — the
- * `yorkie.Text` always lives at `blocks[i].content.text`, with the type's own
- * fields as primitives beside it — so that changing a block's type never has to
- * move the text. Yorkie replaces a CRDT rather than re-parenting it, silently,
- * so a conversion that moved the text would delete it; see
- * `docs/design/document-editing.md`, "Every text-bearing block wraps its text".
- *
- * Reading is where the wrapper stops being useful. `block.content.text` says
- * nothing `block.text` does not, and flattening it means a renderer reaching for
- * the words does not first have to know which kind of block it is holding.
- */
-
-/** Storage: `content = { text }`. */
+/** The six text-bearing types flatten storage's `content.text` to `text` — the
+ *  doc's "Every text-bearing block wraps its text" says why storage keeps it. */
 export type TextBlock = BlockBase & {
   type: "text";
   text: string;
 };
 
-/** Storage: `content = { level, text }` — `level` is a plain LWW primitive. */
 export type HeadingBlock = BlockBase & {
   type: "heading";
   level: HeadingLevel;
   text: string;
 };
 
-/**
- * One list *item* is one block, not one block per list. That keeps occupancy
- * (FR-022-06), move and delete working the same way they do everywhere else.
- * Consecutive blocks of the same `style` render as one visual list, and an
- * ordered list's numbers are computed at render time from position — never
- * stored, or every insert would renumber everything after it.
- *
- * Storage: `content = { style, depth, text }`.
- */
+/** One list *item* is one block, which is what keeps occupancy (FR-022-06),
+ *  move and delete uniform across every type. */
 export type ListBlock = BlockBase & {
   type: "list";
   style: ListStyle;
@@ -80,35 +40,19 @@ export type ListBlock = BlockBase & {
   text: string;
 };
 
-/**
- * One task per block, same reasoning as the list block. No `depth`: SRS §4.1
- * 체크리스트 블록 does not ask for nesting the way the list block does.
- *
- * Storage: `content = { checked, text }`.
- */
+/** One task per block. No `depth` — SRS §4.1 체크리스트 블록 asks for no nesting. */
 export type ChecklistBlock = BlockBase & {
   type: "checklist";
   checked: boolean;
   text: string;
 };
 
-/**
- * Styling comes from `type` alone, which also makes text ↔ quote the cheapest
- * conversion there is — nothing but `type` changes.
- *
- * Storage: `content = { text }`.
- */
 export type QuoteBlock = BlockBase & {
   type: "quote";
   text: string;
 };
 
-/**
- * No `language` field: SRS asks for "소스코드 또는 고정 폭 텍스트", not
- * syntax highlighting. Fixed-width is a render concern.
- *
- * Storage: `content = { text }`.
- */
+/** No `language` field: SRS §4.1 asks for 고정 폭 텍스트, not highlighting (#46). */
 export type CodeBlock = BlockBase & {
   type: "code";
   text: string;
@@ -119,26 +63,12 @@ export type DividerBlock = BlockBase & {
   type: "divider";
 };
 
-/**
- * The four file-backed and link blocks below cannot be created yet: the File
- * API (FR-022-13/14) and the document tree (UC-021/023) are the things that
- * would hand them a `fileId` or a `documentId`, and neither exists. They are
- * typed anyway so a renderer that meets one is forced to handle it, and so the
- * union matches the finalized schema rather than a subset of it.
- */
+/** Of the five below only `pdf` can be created today — `file` and `image` wait
+ *  on FR-022-14's other legs, the link types on the document tree. All five stay
+ *  typed, so `BLOCK_KINDS` and every renderer must handle them. */
 
-/**
- * File bytes never enter the Yorkie document — only a reference plus the
- * metadata needed to render the block immediately, cached at upload time so
- * other clients need no File API round-trip (NFR-PER-002). Files have no rename
- * in the SRS, so the cache cannot go stale.
- *
- * `fileType` is free-form: FR-022-13 allows uploading any file, while
- * FR-022-14 only singles out image/PDF/Word/PPT/Excel for special handling. A
- * closed enum would leave anything else unrepresentable.
- *
- * Storage: `content = { fileId, fileName, fileType, size }`.
- */
+/** A reference plus display metadata cached at upload (NFR-PER-002); the bytes
+ *  stay out of Yorkie. `fileType` is free-form on purpose (FR-022-13). */
 export type FileBlock = BlockBase & {
   type: "file";
   fileId: string;
@@ -148,12 +78,6 @@ export type FileBlock = BlockBase & {
   size: number;
 };
 
-/**
- * Same pattern as the file block, minus `fileType` — the block `type` already
- * says it. No width, height, alt text or caption: the SRS asks for none.
- *
- * Storage: `content = { fileId, fileName, size }`.
- */
 export type ImageBlock = BlockBase & {
   type: "image";
   fileId: string;
@@ -161,7 +85,6 @@ export type ImageBlock = BlockBase & {
   size: number;
 };
 
-/** Identical shape to the image block. Storage: `content = { fileId, fileName, size }`. */
 export type PdfBlock = BlockBase & {
   type: "pdf";
   fileId: string;
@@ -169,26 +92,14 @@ export type PdfBlock = BlockBase & {
   size: number;
 };
 
-/**
- * No cached title, unlike the file blocks: documents can be renamed and moved
- * (UC-023), so a cached one would go stale — and every client already keeps the
- * document list loaded, so resolving the id costs nothing.
- *
- * Storage: `content = { documentId }`.
- */
+/** No cached title — a document can be renamed (UC-023). */
 export type DocLinkBlock = BlockBase & {
   type: "doc-link";
   documentId: string;
 };
 
-/**
- * The 문서 ID + 블록 위치 pair the SRS uses wherever a block is referenced
- * (UC-050, UC-060, UC-070). `blockId` is the target's stable id, never its array
- * position. No cached preview of the target: block content changes more often
- * than anything else here, so that cache would go stale fastest of all.
- *
- * Storage: `content = { documentId, blockId }`.
- */
+/** The 문서 ID + 블록 위치 pair (UC-050, UC-060, UC-070). `blockId` is the
+ *  target's stable id, never its array position. */
 export type BlockLinkBlock = BlockBase & {
   type: "block-link";
   documentId: string;

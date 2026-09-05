@@ -49,6 +49,34 @@ The extension is `presenting`: set while a member is sharing their view, cleared
 sending it — `undefined` does not survive that round trip, so a field meant to signal "no longer
 sharing" has to use a value the wire format can actually carry.
 
+## Two subscriptions, not one
+
+`others` covers watched, unwatched, and a peer changing their own presence. It does **not** cover
+this browser's own — Yorkie routes a client's own presence changes through a separate
+`'my-presence'` channel. Subscribing to `others` alone means `setPresenting` (the share and end
+buttons in `FocusShare`) publishes correctly for everyone else and never updates the local
+`members`, leaving the presenter's own header stuck showing the share as never having started.
+
+Found by testing the presenter's own button, not by reading the SDK first.
+
+Both subscriptions are opened **before** the first read, so an arrival between the two is not
+missed.
+
+## The roster collapses clients into members
+
+Yorkie counts **clients**, and one member can hold several at once — two browser tabs, or the
+moment during a takeover (FR-020-08) when the displaced device has not finished detaching.
+Measured against a real server, a member with two tabs open appears twice in `getPresences()`, so
+`lib/presence/roster.ts` folding them by `id` is what the roster is *for*, not a precaution.
+
+It drops any presence without an `id` rather than rendering it. `undefined` as a `Map` key would
+collapse every such entry into one blank row, and this is not hypothetical: Yorkie runs with no
+auth webhook today (`api.md` §2), so a client can attach with a presence shape of its own.
+
+The function is kept out of the component so it can be tested without a browser or a running
+Yorkie, and takes the shape `doc.getPresences()` returns so the caller can hand its result
+straight over.
+
 ## The host has no session
 
 The host proves themselves with the bootstrap secret (`lib/host-secret.ts`) and never fills in a
@@ -58,6 +86,39 @@ this exact list). It uses a fixed id, `"host"`, where guests get a fresh `random
 one host per container, so the two id spaces can't collide. The color is a neutral gray chosen to
 not look like any of the eight rotating guest tags, and to stay legible on both light and dark
 paper, which rules out the obvious near-black.
+
+## The one connection, and what it is told
+
+**Attaching to the workspace document *is* being present.** Yorkie publishes `DocWatched` to the
+other clients when a client attaches and `DocUnwatched` when the watch stream ends — a clean
+detach, a closed tab, or Wi-Fi dropping, all the same. Nothing polls and nothing has to notice a
+disconnect, which is the half of liveness a hand-rolled heartbeat gets wrong.
+
+That connection is owned by a provider rather than by whichever component draws the roster. Two
+components each opening a `yorkie.Client` would be two connections per browser, and a per-page
+component would detach and re-attach on every navigation inside the workspace — everyone else
+would watch that person leave and rejoin. Identity reaches it as three strings rather than one
+member object, because a fresh object each render would rebuild the connection each render.
+
+**The Yorkie address defaults to the page's own URL, not a server-computed one.** Whatever host
+someone typed to reach the app is by definition one they can reach. Handing every client the LAN
+address instead is what broke this on desktop: a page opened at `localhost:3000` was told to
+fetch `192.168.x.x:8080`, and Chrome, Brave and Firefox all refused to leave the loopback address
+space — while a phone, already on the LAN address, connected fine.
+
+The one escape from that default is `YORKIE_PUBLIC_ADDR`, for a Yorkie that genuinely runs on a
+different machine than this app — a case the page's own URL cannot answer, so an explicit
+override is the only option.
+
+**A token fetch that fails returns an empty string rather than throwing.** Yorkie refuses an empty
+token, which surfaces as the workspace saying it is disconnected. Throwing instead would reject
+inside the SDK's own retry path, where no component can render it.
+
+**"Am I presenting" is local state, not read back from the roster.** This browser's own row does
+come back through Yorkie's `'my-presence'` channel, but reading it there would make `members`
+change on every one of this browser's own publishes — which is exactly what made the presenter's
+scroll-publish effect tear down and rebuild its scroll listener on every scroll while presenting.
+`followingId` is local for the same reason.
 
 ## Focus: what travels is an anchor, not a scroll position
 
@@ -94,6 +155,72 @@ this reason.
 `documentIdFromPathname` (`lib/focus/pathname.ts`) is kept as a plain function, split out of
 `focus-follow-provider.tsx`, so the pathname-to-document-id parsing can be tested as a pure unit
 without needing to render the client component around it.
+
+## What the two focus effects may depend on
+
+The presenter effect and the follower effect sit next to each other and have **opposite**
+dependency rules. Both were arrived at by measurement, and both look like mistakes until the
+reason is written down.
+
+**The presenter effect must not depend on `blocks`.** It depends on `blocksLoaded`, a boolean that
+flips once. The scroll container does not exist while `blocks` is still `null`, so the effect
+needs one more chance when loading finishes — but `blocks` is a fresh array on every recompute,
+and depending on it tore the scroll listener down and rebuilt it continuously. A native `scroll`
+event landing in that gap is dropped, which is exactly what made following work sometimes and not
+others. Nothing in the effect reads `blocks` anyway: `readBoxes` measures the live DOM at publish
+time.
+
+**The follower effect must depend on `blocks`.** A third person inserting blocks above the
+presenter moves every box's `top` without the anchor's own `blockId` or `ratio` changing at all.
+Only recomputing against fresh boxes keeps the follower on the same content through that, and it
+is in the acceptance list.
+
+For the same reason the follower's effects depend on the anchor **pulled apart into primitives**,
+not on `members` — `rosterFrom` rebuilds that array on every presence event, and an anchor that
+has not moved should not re-run anything.
+
+`isPresenting` is local state rather than read back off `members`, or the presenter effect would
+re-run on every publish.
+
+### Wall clock, not `requestAnimationFrame`
+
+rAF bounds publishing to the display's refresh rate, which is not a network cadence — blocks are
+short enough that the anchor changes every couple of frames, so roughly sixty presence writes a
+second would go out. A pending timer is left alone rather than pushed back: it reads `scrollTop`
+when it fires, which makes it the trailing edge.
+
+The anchor is published **once up front**, not only on the next scroll. Otherwise starting a share
+— or presenting into a freshly opened document — would leave the previous anchor standing until
+this browser happened to scroll.
+
+When there is nothing to follow, the last commanded position is **forgotten** along with it. It
+exists only to stop the same target being re-issued, and holding it across a pause would swallow
+the first scroll after rejoining a presenter who never moved.
+
+## Tearing down mid-flight is what #32 was
+
+`deactivate()` is a no-op on a client that is still activating, so a cleanup that runs mid-flight
+returns immediately while the chain behind it goes on to attach and start a watch stream. That
+leaves the browser present in everyone else's roster with nothing pointing at it.
+
+Two guards follow: the cleanup returns immediately if `activate()` has not settled, and teardown
+runs only once setup has. `detach` on the client releases **every** document it holds, including
+any content document the block editor attached through it, which is what tells the other browsers
+to drop this member.
+
+## The follower must not re-issue a scroll target
+
+`scrollTo({ behavior: "smooth" })` **aborts an in-flight smooth scroll and restarts its easing
+curve from wherever it had reached.** Re-issuing the same target faster than the animation
+completes therefore leaves the follower creeping and never arriving — measured, and it reads as
+"it just doesn't follow" while the effect fires correctly every time.
+
+So the follower remembers the last target it *commanded* and skips an unchanged one. That memory
+cannot be `scrollTop`: that reads where the animation currently *is*, not where it was told to go.
+
+The publish side is rate-limited to ten anchors a second — `simple:` a plain interval, no easing
+or adaptive cadence. That is well under what a follower perceives as lag, since their side scrolls
+smoothly between anchors anyway, and it is six times fewer writes than the display's frame rate.
 
 ## Why focus following is its own provider, not folded into presence
 

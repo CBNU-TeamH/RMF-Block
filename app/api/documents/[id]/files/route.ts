@@ -5,22 +5,10 @@ import { readDocuments } from "@/lib/documents/documents";
 import { fileRepository } from "@/lib/files/file-repository";
 import { looksLikePdf, readUpload } from "@/lib/files/upload";
 
-/**
- * Uploads a file to embed in a document as a file block (FR-022-13, FR-022-14).
- *
- * Bytes never enter the Yorkie document — the block carries a `fileId` and the
- * display metadata it needs to draw itself, and that is all
- * (`docs/design/document-editing.md` §8~10). So the upload is its own request,
- * and the client puts the id it gets back onto the block it then creates. An
- * upload nobody references is a stray file, which is recoverable; a block
- * pointing at bytes that were never stored is not.
- *
- * **PDFs only, today.** FR-022-14 dispatches five kinds into three block types
- * and this build renders one of them, so accepting the rest would mean storing
- * bytes that no block can display. Refusing early is the honest half of a
- * half-built feature — the image and generic-file legs land with their own
- * renderers.
- */
+/** Uploads a file to embed as a file block (FR-022-13, FR-022-14). Its own
+ *  request because bytes never enter the Yorkie document — a stray upload is
+ *  recoverable, a block pointing at bytes nobody stored is not. **PDFs only
+ *  today**: the other legs of FR-022-14 have no renderer. */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
