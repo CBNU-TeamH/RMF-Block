@@ -13,19 +13,12 @@ const DEFAULT_ROOT = path.resolve(".data/files");
 const INDEX_FILE = "index.json";
 
 /**
- * Bytes on disk, metadata in JSON, under `.data/` like every other piece of
- * app-owned state (ADR-002).
+ * Bytes at `.data/files/<id>`, metadata in `.data/files/index.json` — under
+ * `.data/` like every other piece of app-owned state (ADR-002).
  *
- * ```
- * .data/files/<id>          the bytes
- * .data/files/index.json    the metadata for all of them
- * ```
- *
- * **A file is stored under its id, never under the name it was uploaded with.**
- * That name is chosen by whoever uploaded it, and `../../` is a perfectly valid
- * string to put in one. Ids come from `randomUUID()`, whose output is hex and
- * dashes, so a path built from one cannot leave this directory — the property
- * is structural rather than something a check has to catch.
+ * **Stored under the id, never the uploaded name.** A name is attacker-chosen
+ * and `../../` is a valid one; a `randomUUID()` is hex and dashes, so a path
+ * built from one structurally cannot leave this directory.
  */
 export class FileRepository {
   // Two concurrent uploads would otherwise both read the index, both write it

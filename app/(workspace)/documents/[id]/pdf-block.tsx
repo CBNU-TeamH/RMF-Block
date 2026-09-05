@@ -5,23 +5,15 @@ import { useEffect, useRef, useState } from "react";
 import type { PdfBlock } from "@/lib/blocks/types";
 
 /**
- * A PDF block, and the in-app viewer it opens (FR-022-14's PDF leg, UC-080).
+ * A PDF block and the in-app viewer it opens (FR-022-14's PDF leg, UC-080).
  *
- * **The browser renders the PDF, not a library.** Every browser
- * `docs/SRS-ko.md` §4.2 supports — Chrome/Edge 145+, Firefox 148+, Safari 26+ —
- * ships a PDF viewer with paging, zoom, search and print already, and reaching
- * it costs one `<iframe>`. Adding `pdfjs-dist` to reimplement those in a canvas
- * would be a multi-megabyte dependency and a worker asset, which is the
- * "unrequested abstraction" `AGENTS.md` §3.2 rules out.
+ * **The browser renders the PDF, not a library** — every browser
+ * `docs/SRS-ko.md` §4.2 supports ships a viewer with paging, zoom, search and
+ * print, and one `<iframe>` reaches it. Why serving it inline is safe:
+ * `lib/files/serving.ts`.
  *
- * The source is `/api/files/:id/preview`, the one endpoint allowed to name a
- * real content type. Why that is safe for a PDF is argued where the rule lives,
- * in `lib/files/serving.ts`, not here.
- *
- * **Prototype styling.** `docs/ui/` has no artboard for a file block, so this
- * borrows the shell's vocabulary the way `chat-message.tsx` does — the
- * `ink`/`paper`/`sky` tokens and a 1px `border-ink` edge — rather than
- * inventing one. Meant to be replaced once there is a design.
+ * Styling is a prototype — `docs/ui/` has no artboard for a file block, so this
+ * borrows the shell's tokens rather than inventing a look.
  */
 
 /** Restated from `chat-message.tsx` rather than shared: six lines, two callers,
@@ -53,15 +45,11 @@ export function PdfBlockView({
   const download = `/api/files/${block.fileId}/download`;
 
   /**
-   * A real `<dialog>` opened with `showModal()`, for the reasons `join-form.tsx`
-   * already writes down: it is the only way to get the backdrop, the focus trap
-   * and the inertness of everything behind it, none of which has a declarative
-   * equivalent. Esc comes with it (FR-080-04) — the browser's own dismissal,
-   * arriving here as `onClose` below, rather than a key handler of ours.
+   * A real `<dialog>` with `showModal()` — the only way to get the backdrop,
+   * the focus trap and Esc (FR-080-04), which arrives as `onClose`.
    *
-   * One caveat worth knowing: most of this dialog is the browser's PDF viewer,
-   * a document of its own. Once focus is inside it, Esc is that viewer's to
-   * interpret, which is why the 닫기 button exists rather than being decoration.
+   * Most of it is the browser's PDF viewer, a document of its own: once focus
+   * is inside, Esc is that viewer's to interpret, so 닫기 is not decoration.
    */
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -72,15 +60,12 @@ export function PdfBlockView({
   }, [expanded]);
 
   /**
-   * A block whose file this store has never seen: the id came from another
-   * client (the document is writable by anything on the LAN — `document.ts`),
-   * or the block was copied from a workspace that had it. The frame would
-   * otherwise show the preview endpoint's JSON 404, which is worse than saying
-   * so.
+   * A block whose file this store has never seen — an id from another client,
+   * or a block copied out of a workspace that had it. Without this the frame
+   * would render the preview endpoint's JSON 404.
    *
-   * `HEAD`, so the answer arrives without the bytes crossing the network — the
-   * frame below fetches those itself. Checked once per mount: the case this
-   * exists for never resolves on its own, so there is nothing to retry for.
+   * `HEAD`, so no bytes cross the network, and once per mount: the case this
+   * exists for never resolves on its own.
    */
   useEffect(() => {
     let cancelled = false;

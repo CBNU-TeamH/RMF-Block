@@ -6,17 +6,11 @@ import { appendBlock, insertBlockAfter, type BlockArray } from "@/lib/blocks/ope
 import type { BlockId } from "@/lib/blocks/types";
 
 /**
- * Putting PDFs into a document: the request, its in-flight state, and the
- * block that follows a successful one (FR-022-13, FR-022-14).
+ * Putting PDFs into a document: the request, its in-flight state, and the block
+ * that follows a successful one (FR-022-13, FR-022-14).
  *
- * Separate from `editor.tsx` because it is the one piece of that component
- * whose work is mostly *not* the document — a fetch, an error string and a
- * spinner — and it reaches the document through the single `applyEdit` seam
- * rather than through anything else the editor owns.
- *
- * `liveBlockOf` is passed in rather than reimplemented: reading the live array
- * has a rule (iterate, never `.find` — see the note on it in `editor.tsx`) that
- * should have exactly one implementation.
+ * `liveBlockOf` is injected rather than reimplemented — reading the live array
+ * has a rule (iterate, never `.find`) that should have one implementation.
  */
 export function usePdfUpload({
   documentId,
@@ -46,19 +40,14 @@ export function usePdfUpload({
   const uploading = uploadsInFlight > 0;
 
   /**
-   * Uploads dropped or picked PDFs and puts a block for each one into the
-   * document (FR-022-13, FR-022-14).
+   * Uploads dropped or picked PDFs and puts a block after each one.
    *
-   * **The upload finishes before the block exists.** The alternative — a
-   * placeholder block that fills in when the bytes land — would mean every
-   * other client on the LAN seeing a block pointing at a `fileId` the server
-   * has not issued yet, and a failed upload leaving one behind permanently.
-   * The cost is that a large file shows nothing but the "올리는 중" line for a
-   * few seconds, which is the honest state of affairs.
+   * **The upload finishes before the block exists** — a placeholder would mean
+   * peers seeing a block that points at a `fileId` the server has not issued,
+   * and a failed upload leaving one behind for good.
    *
-   * Several files at once are uploaded in order, each anchored after the last,
-   * so three PDFs dropped together land in the order they were dropped rather
-   * than in whatever order their requests happened to finish.
+   * Several files upload in order, each anchored after the last, so they land
+   * in the order they were dropped rather than the order their requests finish.
    */
   const uploadPdfs = async (files: Array<File>, afterId: BlockId | null) => {
     setUploadError(null);

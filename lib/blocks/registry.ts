@@ -2,21 +2,13 @@ import { createChecklist, createList, createQuote, createText } from "./create.t
 import type { Block, BlockType } from "./types.ts";
 
 /**
- * One table saying what each of the twelve block types *is*, so that adding a
+ * One table saying what each of the twelve block types *is*, so adding a
  * thirteenth cannot be half-done.
  *
- * The problem this exists for was measured rather than guessed. Before it, a
- * new entry in the `Block` union produced exactly **one** compile error — in
- * `document.ts`'s `toStoredBlock` — while five other places carried on
- * compiling and then did the wrong thing at runtime: `readBlock` silently
- * *dropped* the block from the document, and three helpers in `editor.tsx`
- * fell back to plain text. `docs/design/document-editing.md` describes twelve
- * types as a settled schema; the code enforced one of them.
- *
- * The fix is the shape, not the content. A `Record` keyed by a union is
- * exhaustive — leave a key out and it does not compile — where a `switch` with
- * a `default` is not. `document.ts` already relied on that for `toStoredBlock`;
- * this puts everything else on the same footing.
+ * **The shape is the point.** A `Record` keyed by a union is exhaustive — leave
+ * a key out and it does not compile — where a `switch` with a `default` is not.
+ * Measured before this existed: a new union member produced one compile error
+ * and five silent runtime fallbacks, one of which dropped the block entirely.
  */
 
 /**

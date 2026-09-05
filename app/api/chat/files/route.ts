@@ -7,17 +7,12 @@ import { readUpload } from "@/lib/files/upload";
 /**
  * Uploads a file so a chat message can carry it (FR-060-02).
  *
- * Bytes are their own request rather than part of `POST /api/chat`, because
- * bytes cannot ride a CRDT — `docs/design/api.md` §1 marks this path as one of
- * the two that survive a move to chat version B for exactly that reason.
+ * Its own request because bytes cannot ride a CRDT, and metadata-only in
+ * response so an unreferenced upload is a stray file rather than a half-sent
+ * message (`docs/design/api.md` §1).
  *
- * The response is metadata only. The client puts the `fileId` on the message it
- * then sends, so an upload that is never referenced is a stray file rather than
- * a half-sent message.
- *
- * Every check on the request itself is `lib/files/upload.ts`'s, shared with the
- * document upload endpoint. This one accepts any file type: chat attachments
- * are not dispatched into typed blocks the way FR-022-14's are.
+ * Accepts any file type — chat attachments are not dispatched into typed blocks
+ * the way FR-022-14's are. Request checks are `lib/files/upload.ts`'s.
  */
 export async function POST(request: NextRequest) {
   const member = await currentMember();

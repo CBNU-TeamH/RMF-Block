@@ -8,25 +8,20 @@ export const DEFAULT_DOCUMENTS_PATH = path.resolve(".data/documents/documents.js
 export class DocumentValidationError extends Error {}
 
 /**
- * A document as the workspace knows it. Yorkie holds the *content*; this is the
- * catalogue, and the two are split because Yorkie has no way to list documents —
- * its client exposes `attach`, which needs a key you already hold, and it never
- * learns a document's name, owner or created time.
+ * The catalogue; Yorkie holds the content. Split because Yorkie cannot list
+ * documents — `attach` needs a key you already hold, and it never learns a
+ * name, owner or created time.
  *
- * `id` is also the Yorkie document key, with no prefix: a Yorkie key may only
- * contain `a-z A-Z 0-9 - . _ ~`, which rules out a `:`-delimited scheme
- * (`docs/design/api.md` §2).
+ * `id` doubles as the Yorkie document key, and a Yorkie key may only contain
+ * `a-z A-Z 0-9 - . _ ~` — which rules out any `:`-delimited scheme.
  */
 export type WorkspaceDocument = {
   id: string;
   name: string;
   /**
-   * Who made it — a record, not a permission. The SRS gives documents no
-   * ownership and no per-document rights: FR-022-06 and SIR003 both say
-   * occupancy "does not block another user from editing", so everyone may edit
-   * everything. What UC-021 does distinguish is the 생성자, whose screen the
-   * editor opens on, and this is that. Calling it `ownerId` implied a right
-   * nobody has.
+   * Who made it — a record, not a permission. FR-022-06 and SIR003 both say
+   * occupancy does not block anyone from editing, so `ownerId` would name a
+   * right nobody has; UC-021's 생성자 is what this actually is.
    */
   createdBy: string;
   createdAt: string;
@@ -82,13 +77,11 @@ function uniqueName(name: string, existing: Array<WorkspaceDocument>): string {
 }
 
 /**
- * UC-021's 기본 흐름. `id` comes from `randomUUID()` rather than following the
- * name, because it doubles as the Yorkie document key (`WorkspaceDocument`'s
- * own note above) and a name can be renamed out from under a fixed key later
- * (UC-023) — a UUID never has to change to stay true.
+ * UC-021's 기본 흐름. `id` is a `randomUUID()` rather than derived from the
+ * name, because it doubles as the Yorkie key and a name can be renamed
+ * (UC-023) while a key cannot.
  *
- * Sub-document creation (UC-021 E1a) is not here: nothing in `WorkspaceDocument`
- * models a parent yet, and that arrives with the document tree (UC-023).
+ * Sub-documents (UC-021 E1a) are not here — nothing models a parent yet.
  */
 export function createDocument(
   rawName: string | undefined,

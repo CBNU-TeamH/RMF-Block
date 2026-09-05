@@ -4,19 +4,17 @@ import { sessionRegistry } from "@/lib/auth/session-registry";
 import { HOST_SESSION_PREFIX, yorkieTokenRegistry } from "@/lib/auth/yorkie-token";
 
 /**
- * Yorkie's auth webhook (`docs/design/api.md` §2). Yorkie calls this before
- * letting a client act, and refuses the operation when the answer is no — so
- * this is what finally closes the hole that made port 8080 open to the LAN.
+ * Yorkie's auth webhook (`docs/design/api.md` §2) — what closes the hole that
+ * left port 8080 open to the LAN.
  *
- * The contract is Yorkie's, not ours: `{ token, method, attributes }` in,
- * `{ allowed, reason }` out. A refusal's `reason` is not just a log line —
- * measured against 0.7.13, the SDK passes it to the client's
- * `authTokenInjector` — so the two refusals below are worded for whoever reads
- * them there. "expired" means fetch another; "revoked" means the session itself
- * is gone and another token will not help.
+ * The contract is Yorkie's: `{ token, method, attributes }` in,
+ * `{ allowed, reason }` out. A refusal's `reason` reaches the client — measured
+ * against 0.7.13, the SDK hands it to `authTokenInjector` — so the two below
+ * are worded for that reader: "expired" means fetch another, "revoked" means
+ * another will not help.
  *
- * Deliberately unsigned. Anything on the LAN can call this, and all it can learn
- * is whether a token it already holds is valid — see the task doc's Cut list.
+ * Deliberately unsigned: anything on the LAN can call it, and all it can learn
+ * is whether a token it already holds is valid.
  */
 export async function POST(request: NextRequest) {
   let body: { token?: unknown };
@@ -59,17 +57,14 @@ export async function POST(request: NextRequest) {
 const allow = () => NextResponse.json({ allowed: true, reason: "" });
 
 /**
- * **401, not 200.** Yorkie pairs the status with the body and accepts only three
- * combinations (`server/rpc/auth/webhook.go`, `handleWebhookResponse`): `200` +
- * allowed, `403` + refused, `401` + refused. Anything else — including a `200`
- * carrying `allowed: false` — falls through to its `default` branch and becomes
- * `ErrInvalidJSONResponse`, which is a *malfunction* rather than a refusal.
+ * **401, not 200.** Yorkie pairs status with body and accepts only three
+ * combinations (`server/rpc/auth/webhook.go`): 200+allowed, 403+refused,
+ * 401+refused. Anything else — a 200 carrying `allowed: false` included —
+ * becomes `ErrInvalidJSONResponse`, a malfunction rather than a refusal.
  *
- * 401 over 403 because both refusals here are about identity, not permission:
- * the caller has not shown a token this server issued, or the session behind it
- * is gone. There is nothing they are being denied *access to* — there is nobody
- * asking yet. It also happens to be the branch Yorkie does not cache, so a
- * refusal is re-asked every time instead of being pinned for the cache TTL.
+ * 401 over 403 because both refusals here are about identity, not permission —
+ * and it is the branch Yorkie does not cache, so a refusal is re-asked rather
+ * than pinned for the cache TTL.
  */
 const deny = (reason: string) =>
   NextResponse.json({ allowed: false, reason }, { status: 401 });

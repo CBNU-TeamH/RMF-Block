@@ -6,14 +6,9 @@
  */
 
 /**
- * The id currently right before `targetId` in `order`, or `null` if
- * `targetId` is first (or absent). This is "what comes before this id right
- * now" — the one thing an ordered id list is reliable for, unlike a
- * block's `text`, which per-block textareas never write back into `blocks`
- * state (`editor.tsx`'s own comment on `liveTextOf`). Used both by merge
- * (the "previous block" a Backspace joins into) and, later, by reorder
- * ("insert before target" resolves to `moveBlockAfter`'s `afterId` this
- * way) — both are the same question about order.
+ * The id right before `targetId`, or `null` if it is first or absent — order is
+ * the one thing `blocks` state is reliable for. Merge's "previous block" and
+ * reorder's "insert before target" are the same question.
  */
 export function idBeforeInOrder(order: Array<string>, targetId: string): string | null {
   const index = order.indexOf(targetId);
@@ -42,16 +37,13 @@ export function dropsBeforeTarget(clientY: number, rectTop: number, rectHeight: 
 }
 
 /**
- * Where a drop on `targetId` puts `draggedId` — or `null` when it puts it
- * nowhere: dropped onto itself, or into the slot it already occupies (either
- * side of the neighbour it is already next to). The result is
- * `moveBlockAfter`'s `afterId`, wrapped so that a legitimate `null` ("insert
- * at the front") stays distinguishable from "no move at all".
+ * Where a drop on `targetId` puts `draggedId`, or `null` when it puts it
+ * nowhere — onto itself, or into the slot it already occupies. Wrapped so a
+ * legitimate `null` ("insert at the front") stays distinct from "no move".
  *
- * One rule, two callers, on purpose: `editor.tsx` draws its insertion line
- * only where this returns a destination and moves the block only where this
- * returns a destination. Split across two places they drifted, and the line
- * promised drops that silently did nothing.
+ * One rule, two callers on purpose: the insertion line is drawn only where this
+ * returns a destination. Split in two they drifted, and the line promised drops
+ * that did nothing.
  */
 export function dropDestination(
   order: Array<string>,

@@ -17,33 +17,20 @@ import { ChatPanel } from "./chat-panel";
 /**
  * The chat window and the bar that opens it.
  *
- * A floating window rather than a rail down the side of the shell: the
- * workspace screen is for the documents, and chat is something you pull up
- * beside them and push out of the way again. It drags and resizes for the same
- * reason — where it wants to sit depends on what is underneath it.
+ * A floating window, not a rail: the workspace screen is for the documents, and
+ * where chat wants to sit depends on what is under it. Driven like a desktop
+ * window — the title bar moves it, the other three borders resize it.
  *
- * It is driven like a desktop window: the title bar moves it, and its left,
- * right and bottom borders resize it. There is no top border to pull, because
- * that edge is the title bar.
- *
- * All the arithmetic — the default ninth-of-the-viewport placement, the minimum
- * size, staying reachable — is in `lib/chat/window-frame.ts` so it can be
- * checked without a browser. This file is the pointer plumbing and the markup.
- *
- * **Prototype.** No artboard covers this; it borrows the shell's tokens the way
- * the panel inside it does.
+ * The arithmetic lives in `lib/chat/window-frame.ts` so it can be checked
+ * without a browser; this file is pointer plumbing and markup, styled from the
+ * shell's tokens because no artboard covers it.
  */
 
 /**
- * Where the window was left. Persisted so closing and reopening brings it back
- * as it was rather than snapping to the default — the placement is a decision
- * the person made, and making them make it again every time is the annoyance
- * this remembers away.
+ * Where the window was left, so reopening does not snap it back to the default.
  *
- * `localStorage` because that is exactly what this is: one viewer's
- * convenience, on one device, worth nothing to anyone else. It can throw or
- * come back empty — a private window, cleared data — and the default is a
- * perfectly good answer when it does.
+ * `localStorage` because that is what this is — one viewer's convenience on one
+ * device. It can throw or come back empty, and the default answers fine.
  */
 const STORAGE_KEY = "rmf-chat-window";
 

@@ -128,21 +128,14 @@ export class SessionRegistry {
     try {
       this.persist();
     } catch (error) {
-      // The two cases are not the same failure.
-      //
-      // A returning member is already on disk, so all a failed write loses is a
-      // fresher `lastJoinedAt`. Letting the join through degrades to exactly how
-      // this worked before members persisted at all, which is a state the app
-      // has already run in. Swallowing it is the lesser harm.
+      // The two cases are not the same failure. A returning member is already
+      // on disk, so a failed write costs only a fresher `lastJoinedAt` — the
+      // state this app ran in before members persisted at all.
       //
       // A brand-new member was never durable, and every mutation above belongs
-      // to this call — a member with no previous session cannot have displaced
-      // anyone, so `revokedSessionId` is always null here and there is no other
-      // device's session to put back. That makes the rollback total, and leaving
-      // the mutations in place instead would strand a session nobody holds:
-      // `hasLiveSession()` would say the nickname is taken, the guest would meet
-      // a 409 telling them to displace a device that does not exist, and the
-      // name would stay locked until the process restarted.
+      // to this call (they cannot have displaced anyone, so there is nothing to
+      // put back). Leaving those in place would strand a session nobody holds:
+      // the nickname would read as taken until the process restarted.
       console.error("could not write members.json", error);
       if (!existing) {
         this.membersByNickname.delete(nickname);
@@ -159,17 +152,14 @@ export class SessionRegistry {
   }
 
   /**
-   * Whether joining under this nickname would throw someone out.
+   * Whether joining under this nickname would throw someone out (FR-020-08).
    *
-   * True means a session for that member is still valid, so `join()` would
-   * revoke it (FR-020-08) — which is right for one person's second device and
-   * wrong for two people who happened to pick the same name. The registry
-   * cannot tell those apart, so the route asks the guest instead of guessing.
+   * The registry cannot tell one person's second device from two people picking
+   * the same name, so the route asks rather than guessing.
    *
-   * `sessionByMemberId` alone is not the answer: it keeps the newest session id
-   * forever, so it would say "live" for anyone who ever joined. A session is
-   * live only while `memberBySession` still resolves it, which is exactly what
-   * a takeover deletes.
+   * `sessionByMemberId` alone would not do: it keeps the newest id forever and
+   * would call anyone who ever joined "live". Only `memberBySession` still
+   * resolving it means live, which is exactly what a takeover deletes.
    */
   hasLiveSession(rawNickname: string | undefined): boolean {
     const member = this.membersByNickname.get(rawNickname?.trim() ?? "");

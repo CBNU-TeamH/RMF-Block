@@ -28,17 +28,12 @@ export function useFocusFollow(): FocusFollowState {
 }
 
 /**
- * Colocated with `PresenceProvider` rather than folded into it: this is a
- * second, unrelated piece of state (who *I* am following) that only
- * happens to want the same roster to check itself against, not a shared
- * concern with "who is present."
+ * Beside `PresenceProvider`, not folded into it — "who *I* follow" is separate
+ * state that merely checks itself against the same roster.
  *
- * Also owns the one side effect that has to run no matter which page is
- * showing — crossing to the presenter's document on join (FR-030-05).
- * `editor.tsx` only ever mounts while already on a `/documents/[id]` page,
- * so if that step lived there instead, clicking 참여하기 from the document
- * list — no editor mounted at all — would set `followingId` and nothing
- * would ever act on it.
+ * It also owns the one effect that must run whatever page is showing: crossing
+ * to the presenter's document on join (FR-030-05). In `editor.tsx` that step
+ * would never fire for someone pressing 참여하기 from the document list.
  */
 export function FocusFollowProvider({ children }: { children: React.ReactNode }) {
   const { members } = useWorkspacePresence();
@@ -46,18 +41,13 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
 
-  // FR-030-11, and the same rule for a presenter who simply clicked 종료
-  // themselves: once the followed member is gone, or has stopped presenting,
-  // there is nothing left to follow. Settled during render rather than from
-  // an effect — neither ending fires an event of its own to react to
-  // (presence just stops carrying `presenting`, or stops carrying the member
-  // at all), and the roster we would be synchronizing against is already in
-  // hand this render, so an effect would only re-render a second time to
-  // reach the same answer. This is React's "adjusting state during render".
+  // FR-030-11, and a presenter who simply clicked 종료: once the followed
+  // member is gone or has stopped presenting there is nothing to follow.
+  // Settled during render — neither ending fires an event, and the roster is
+  // already in hand, so an effect would only re-render to the same answer.
   //
-  // The follow is *forgotten*, not merely derived away: leaving the raw id
-  // standing would let the same presenter's *next* share pull every browser
-  // that once followed them straight back in, with no 참여하기 pressed.
+  // *Forgotten*, not merely derived away: a standing id would pull every
+  // browser that once followed them into that presenter's next share.
   const target = rawFollowingId ? members.find((m) => m.id === rawFollowingId) : undefined;
   if (rawFollowingId && !target?.presenting) setRawFollowingId(null);
   const followingId = target?.presenting ? rawFollowingId : null;

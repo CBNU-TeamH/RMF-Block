@@ -25,17 +25,12 @@ const HEADING_CLASS: Record<HeadingLevel, string> = {
 };
 
 /**
- * What this block renders as beyond plain text — everything here is styling
- * only. The list bullet/number and the checklist's own checkbox render in
- * `editor.tsx` instead, as fixed siblings of this component rather than
- * something *inside* it that appears and disappears by variant — this
- * component's own returned root has to stay a bare `<textarea>` in every
- * variant, never conditionally wrapped in a `<div>`, or converting a block's
- * type changes this component's root element and React remounts it (a fresh
- * DOM node, focus lost — measured: converting to a list or checklist dropped
- * the cursor and made the block unclickable until reclicked). Every variant
- * still edits through the one `<textarea>`; `document-editing.md`'s "text ↔
- * quote... nothing but `type` changes" is what makes that true here too.
+ * What this block renders as beyond plain text — styling only.
+ *
+ * **This component's root stays a bare `<textarea>` in every variant**, never
+ * conditionally wrapped: a wrapper changes the root element across a type
+ * conversion and React remounts it, which drops the caret (measured). That is
+ * why the bullet, number and checkbox render in `editor.tsx` as fixed siblings.
  */
 export type BlockVariant =
   | { type: "text" }
@@ -63,15 +58,13 @@ function textareaClass(variant: BlockVariant): string {
 }
 
 /**
- * One text block's editing surface — `document-editing.md`'s "Editing
- * surface" decision, as code. An uncontrolled `<textarea>`, patched only on
- * the changed range, with remote edits held back while an IME composition is
- * in progress and flushed once it ends.
+ * One text block's editing surface (`document-editing.md`, "Editing surface"):
+ * an uncontrolled `<textarea>`, patched on the changed range only, with remote
+ * edits held back during an IME composition and flushed when it ends.
  *
- * Deliberately never re-reads `initialText` after mounting. A controlled
- * `value={text}` re-rendered from a remote edit is exactly the binding Step 0
- * measured corrupting text under concurrent editing — this component's own
- * state (the DOM node's `.value`) is the only source of truth once it exists.
+ * **Never re-reads `initialText` after mounting.** A controlled `value` driven
+ * by remote edits is the binding measured to corrupt text under concurrent
+ * editing; the DOM node's own `.value` is the source of truth once it exists.
  */
 export function TextBlockView({
   blockId,

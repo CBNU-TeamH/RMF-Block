@@ -1,28 +1,19 @@
 /**
- * Shared contract between `app/api/chat/route.ts` (the caller) and `ChatService`
- * (`chat-service.ts`), and between `ChatService` and its two collaborators — a
- * `ChatRepository` for persistence and a `ChatBroadcaster` for realtime fan-out
- * (FR-060-01/04/05/07, `docs/design/api.md` §5 Version A).
+ * The contract between the chat route, `ChatService` and its two collaborators
+ * (FR-060-01/04/05/07, `docs/design/chat.md`).
  *
- * Both collaborators are interfaces, not concrete classes, so `ChatService` never
- * imports `chat-repository.ts` or `ws-hub.mts` directly — swapping the JSON-file
- * store for something else, or reusing the broadcaster for a feature other than
- * chat, doesn't touch this file or `ChatService`.
+ * Both collaborators are interfaces, so `ChatService` imports neither the JSON
+ * store nor the WS hub and either can be swapped without touching it.
  */
 
 /**
- * A file travelling with a message (FR-060-02).
+ * A file travelling with a message (FR-060-02) — deliberately the same four
+ * fields as `FileBlock`, since an attached file and an embedded one are one
+ * thing seen from two places.
  *
- * **The same four fields as `FileBlock`** in `lib/blocks/types.ts`. A file
- * attached to a message and a file embedded in a document are the same thing
- * seen from two places, and FR-060-03's document and block links are the next
- * attachment kind — sharing the vocabulary now is what lets them join as a
- * sibling rather than a special case.
- *
- * Copied onto the message rather than looked up by `fileId` when rendering, for
- * the reason `document-editing.md` gives the file block: a name and a size the
- * client already has is a chat history that draws without a round-trip per
- * message. Files have no rename in the SRS, so the copy cannot go stale.
+ * Copied onto the message rather than resolved by `fileId` at render time, so
+ * history draws without a round trip per message. Files have no rename in the
+ * SRS, so the copy cannot go stale.
  */
 export type ChatAttachment = {
   fileId: string;

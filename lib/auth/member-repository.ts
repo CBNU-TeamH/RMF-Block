@@ -7,20 +7,15 @@ export const DEFAULT_MEMBERS_PATH = path.resolve(".data/members.json");
 
 /**
  * The workspace's members on disk, so a nickname keeps its id and colour tag
- * across a restart — FR-020-08 promises the tag stays yours, and until now that
- * only held for the life of one process.
+ * across a restart (FR-020-08).
  *
- * Sessions are deliberately not here. A session id in a file would be a
- * permanent bearer token on the host's filesystem, and `docs/design/api.md`
- * already makes restarting the container the revoke path.
+ * Sessions are deliberately not here — a session id in a file is a permanent
+ * bearer token, and restarting the container is the revoke path (`api.md`).
  *
- * simple: synchronous on purpose. `lib/chat/chat-repository.ts` serializes its
- * writes through a promise chain because it is async and two appends can
- * interleave; sync writes on Node's single thread cannot, so that machinery has
- * nothing to do here. It costs a blocked event loop for the length of one small
- * write, once per join, for a workspace SRS §2.4 sizes at eight people. Make it
- * async — and bring the queue back with it — if this ever holds enough members
- * for the write to be felt.
+ * simple: synchronous writes. Sync on Node's single thread cannot interleave,
+ * so `chat-repository.ts`'s promise queue has nothing to do here. It blocks the
+ * loop for one small write per join, at eight people. Make it async — with the
+ * queue — if that ever becomes enough members to feel.
  */
 export function readMembers(storePath: string): Array<StoredMember> {
   try {

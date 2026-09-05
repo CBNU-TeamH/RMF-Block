@@ -12,19 +12,12 @@ import {
 import type { Block, BlockId } from "@/lib/blocks/types";
 
 /**
- * One document's blocks, and the Yorkie attachment behind them.
+ * One document's blocks, and the Yorkie attachment behind them: a client and a
+ * document id in, a block list out.
  *
- * Lifted out of `editor.tsx` whole, without a behaviour change, because it is
- * the part of that file least connected to the rest of it: it needs a client
- * and a document id, and it hands back a block list. Everything difficult in
- * here — the Strict-Mode teardown chaining, the op-path filtering, the seeding
- * race — is difficult on its own terms and is easier to hold in the head at
- * five fields wide than buried between a drag handler and a file upload.
- *
- * `setBlocks` is returned rather than kept private: a *local* edit is applied
- * to the document directly by the caller (`applyEdit` in `editor.tsx`), and the
- * subscription below deliberately reacts to `remote-change` only, so the caller
- * is the one that has to republish the list afterwards.
+ * `setBlocks` is returned rather than kept private because the subscription
+ * below reacts to `remote-change` only — a local edit is applied by the caller,
+ * so the caller republishes the list.
  */
 export function useBlockDocument(client: Client | null, documentId: string) {
   const [blocks, setBlocks] = useState<Array<Block> | null>(null);
@@ -169,18 +162,13 @@ export function useBlockDocument(client: Client | null, documentId: string) {
   }, [client, documentId]);
 
   /**
-   * Apply a patch to one block's textarea without it having come from the
-   * network — the editor's own split and merge rewrite a block's text on the
-   * person's behalf, and the textarea is uncontrolled, so nothing else would
-   * ever tell it (issue #59).
+   * Patch one block's textarea with an edit that did not come from the network
+   * — a split or merge rewrites text on the person's behalf, and the textarea
+   * is uncontrolled, so nothing else would tell it (#59).
    *
-   * Routed through the same handler a remote edit uses, on purpose: that is
-   * what keeps the block's diff baseline (`lastSyncedRef` in `text-block.tsx`)
-   * in step. Writing `el.value` from outside would fix the display and leave
-   * the next keystroke diffing against a string the document does not have.
-   *
-   * A missing handler means the block has no mounted textarea, which for these
-   * two callers cannot happen — they patch a block they are editing.
+   * Deliberately the same handler a remote edit uses: that is what keeps the
+   * block's diff baseline in step. Writing `el.value` from outside would fix
+   * the display and leave the next keystroke diffing against the wrong string.
    */
   const patchBlockText = useCallback((blockId: BlockId, patch: TextPatch) => {
     handlersRef.current.get(blockId)?.(patch);

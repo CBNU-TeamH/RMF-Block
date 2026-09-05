@@ -3,14 +3,11 @@ import type { TypeFields } from "./operations.ts";
 /**
  * The `/` menu — UC-022's own way in ("사용자 1이 '/'로 파일 블록을 선택하거나").
  *
- * Until this existed, the only way to change a block's type was a markdown
- * marker, and the markers cover six of the twelve types. A divider had no way
- * into a document at all: no marker, no menu, nothing. That is what this fixes
- * as much as the convenience.
+ * Markdown markers reach six of the twelve types and a divider had no way into
+ * a document at all, which this fixes as much as the convenience does.
  *
- * The list and the matching live here, apart from React, for the reason every
- * other decision in `lib/blocks/` does: they are the part worth testing, and a
- * `<textarea>` is not needed to test them.
+ * The list and the matching live apart from React because they are the part
+ * worth testing, and testing them needs no `<textarea>`.
  */
 
 /** What picking an item does. The editor owns the doing; this only names it. */
