@@ -4,17 +4,11 @@ import { useEffect, useRef, useState } from "react";
 
 import type { PdfBlock } from "@/lib/blocks/types";
 
-/**
- * A PDF block and the in-app viewer it opens (FR-022-14's PDF leg, UC-080).
- *
- * **The browser renders the PDF, not a library** — every browser
- * `docs/SRS-ko.md` §4.2 supports ships a viewer with paging, zoom, search and
- * print, and one `<iframe>` reaches it. Why serving it inline is safe:
- * `lib/files/serving.ts`.
- *
- * Styling is a prototype — `docs/ui/` has no artboard for a file block, so this
- * borrows the shell's tokens rather than inventing a look.
- */
+/** A PDF block and the in-app viewer it opens (FR-022-14's PDF leg, UC-080).
+ *  **The browser renders it, not a library** — every browser `docs/SRS-ko.md`
+ *  §4.2 supports ships a viewer with paging, zoom, search and print, and one
+ *  `<iframe>` reaches it. Styling is a prototype: `docs/ui/` has no artboard for
+ *  a file block, so this borrows the shell's tokens. */
 
 /** Restated from `chat-message.tsx` rather than shared: six lines, two callers,
  *  and no behaviour rides on the two agreeing. */
@@ -44,13 +38,9 @@ export function PdfBlockView({
   const preview = `/api/files/${block.fileId}/preview`;
   const download = `/api/files/${block.fileId}/download`;
 
-  /**
-   * A real `<dialog>` with `showModal()` — the only way to get the backdrop,
-   * the focus trap and Esc (FR-080-04), which arrives as `onClose`.
-   *
-   * Most of it is the browser's PDF viewer, a document of its own: once focus
-   * is inside, Esc is that viewer's to interpret, so 닫기 is not decoration.
-   */
+  /** A real `<dialog>` with `showModal()` — the only way to get the backdrop, the
+   *  focus trap and Esc (FR-080-04). Once focus is inside the viewer, Esc is that
+   *  document's to interpret, so 닫기 is not decoration. */
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -59,14 +49,9 @@ export function PdfBlockView({
     if (!expanded && dialog.open) dialog.close();
   }, [expanded]);
 
-  /**
-   * A block whose file this store has never seen — an id from another client,
-   * or a block copied out of a workspace that had it. Without this the frame
-   * would render the preview endpoint's JSON 404.
-   *
-   * `HEAD`, so no bytes cross the network, and once per mount: the case this
-   * exists for never resolves on its own.
-   */
+  /** A block whose file this store has never seen, which would otherwise render
+   *  the preview endpoint's JSON 404 in the frame. `HEAD`, so no bytes cross,
+   *  and once per mount — this case never resolves on its own. */
   useEffect(() => {
     let cancelled = false;
 

@@ -251,6 +251,22 @@ Anything outside those three combinations — a `200` carrying `allowed: false` 
 
 The endpoint is deliberately unsigned. Anything on the LAN can call it, and all a caller can learn is whether a token it already holds is valid.
 
+**The app registers the webhook with Yorkie itself, at startup, and refuses to run if it cannot.**
+The webhook URL is a Yorkie **project** field, not a server flag — `cmd/yorkie/server.go` exposes
+only the cache size and TTL — so something has to call the Admin API after Yorkie is up. Leaving
+that to the host would make `docker compose up` two steps and, worse, would make *an unguarded
+Yorkie* the state you get by forgetting the second one.
+
+The Admin API is connect-protocol over HTTP/JSON, so this needs no client library (the JS SDK
+ships none): log in for a token, then update the project. The URL is written from where **Yorkie**
+stands, not where a browser does — inside compose that is the app's service name, since
+`localhost` would be Yorkie's own container.
+
+`ActivateClient` is the operation that matters most: refusing it stops a client before it reaches
+any document at all, and the rest are defence in depth. Method names come from
+`api/types/auth_webhook.go` — it is `WatchDocument`, singular, and an unknown name fails the
+update rather than being ignored.
+
 **The token-refresh question this section used to leave open is answered**: against the pinned
 `@yorkie-js/sdk@0.7.13`, the SDK calls `authTokenInjector` again whenever the webhook refuses and
 passes the refusal's own `reason` as its argument, then retries with what it gets back. So expiry

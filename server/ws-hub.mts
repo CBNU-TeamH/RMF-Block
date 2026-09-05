@@ -2,27 +2,18 @@ import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocketServer, type WebSocket } from 'ws';
 
-/**
- * Generic WebSocket connection registry + broadcaster — not chat-specific.
- * `ChatService` only depends on this through the `ChatBroadcaster` interface
- * (`lib/chat/types.ts`); this file never imports anything chat-related, so a
- * future feature can reuse it the same way (NFR-MAI-001). Presence did not:
- * it rides Yorkie's own document attach, so the only thing on this socket
- * besides chat is `session:revoked`.
+/** Generic WebSocket registry and broadcaster — nothing chat-specific is
+ *  imported here, so a future feature can reuse it through `ChatBroadcaster`
+ *  (NFR-MAI-001). Presence did not: it rides Yorkie's own attach, so the only
+ *  other thing on this socket is `session:revoked`.
  *
- * Connections may carry a session id, which is what makes FR-020-08's takeover
- * visible: when the same nickname signs in from another device, `revoke()`
- * closes the sockets the displaced session still holds. Connections without one
- * keep working exactly as before — chat never had to authenticate and still
- * does not.
+ *  A connection may carry a session id, which is what makes FR-020-08's takeover
+ *  visible — `revoke()` closes the sockets a displaced session still holds.
+ *  Connections without one keep working; chat never authenticated.
  *
- * Cached on `globalThis`, same reason as `lib/host-secret.ts`: this module
- * gets loaded twice in one process — once by `server/index.mts` (Node's
- * native loader, no bundler) and once through Next's own bundled module
- * graph when `lib/chat/chat-service.ts` imports it. Without the cache, those
- * two loads would each hold a private connection registry, and a broadcast
- * from one side would never reach connections the other side registered.
- */
+ *  On `globalThis` like `lib/host-secret.ts`: loaded twice in one process, and
+ *  two private registries would mean a broadcast from one side never reaching
+ *  the other's connections. */
 
 /** Close code for a socket the server dropped on purpose. 4000-4999 is the
  * range reserved for application use, so it cannot collide with a protocol code. */

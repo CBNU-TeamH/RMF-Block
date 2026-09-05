@@ -1,17 +1,6 @@
-/**
- * Registers this server's auth webhook with Yorkie (NFR-SEC-002/005).
- *
- * The webhook URL is a **project** field, not a server flag — `cmd/yorkie/server.go`
- * exposes only the cache size and TTL — so something has to call Yorkie's Admin
- * API after it is up. Leaving that to the host would make `docker compose up`
- * two steps and, worse, make an unguarded Yorkie the state you get by
- * forgetting the second. So the app does it to itself at startup, and refuses
- * to run if it cannot.
- *
- * The Admin API is connect-protocol, which speaks HTTP/JSON, so this needs no
- * client library — the JS SDK ships none. Two calls: log in for a token, then
- * update the project.
- */
+/** Registers this server's auth webhook with Yorkie at startup (NFR-SEC-002/005),
+ *  and refuses to run if it cannot. Why the app does this to itself, and why
+ *  connect-protocol needs no client library: `docs/design/api.md` §2. */
 
 /** Yorkie's built-in administrator (`server/config.go`). */
 const ADMIN_USER = "admin";
@@ -23,13 +12,8 @@ const ADMIN_PASSWORD = "admin";
  */
 const DEFAULT_PROJECT_ID = "000000000000000000000000";
 
-/**
- * Which operations Yorkie should ask about. `ActivateClient` is the one that
- * matters most: refusing it stops a client before it reaches any document at
- * all, so the rest are defence in depth against a client that somehow got past
- * it. Names come from `api/types/auth_webhook.go` — it is `WatchDocument`
- * singular, and an unknown name fails the update rather than being ignored.
- */
+/** Which operations Yorkie should ask about (`docs/design/api.md` §2). Names come
+ *  from `api/types/auth_webhook.go`; an unknown one fails the update. */
 const GUARDED_METHODS = [
   "ActivateClient",
   "AttachDocument",
@@ -62,23 +46,15 @@ async function call(rpcAddr: string, method: string, body: unknown, token?: stri
   return response.json();
 }
 
-/**
- * Points the default project at `webhookUrl` and names the methods to guard.
- *
- * `webhookUrl` is reached **by Yorkie**, not by a browser, so it has to be
- * written from where Yorkie stands: inside compose that is the app's service
- * name, not `localhost`, which would be Yorkie's own container.
- */
+/** Points the default project at `webhookUrl` — which is reached **by Yorkie**,
+ *  so it is written from where Yorkie stands (`docs/design/api.md` §2). */
 export async function registerAuthWebhook(
   rpcAddr: string,
   webhookUrl: string,
   { attempts = 30, delayMs = 1000 } = {},
 ): Promise<void> {
-  // Under compose this should never loop: the `yorkie` service has a healthcheck
-  // and this one waits on `service_healthy`, so Yorkie is answering before the
-  // app runs at all. The retry is for everywhere else — `pnpm dev` against a
-  // Yorkie started by hand has nothing sequencing the two, and a developer
-  // starting both at once should not have to restart the app.
+  // Never loops under compose (`service_healthy` gates it). The retry is for
+  // `pnpm dev` against a hand-started Yorkie, where nothing sequences the two.
   for (let attempt = 1; ; attempt += 1) {
     try {
       return await attemptRegister(rpcAddr, webhookUrl);

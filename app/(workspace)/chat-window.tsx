@@ -14,24 +14,14 @@ import {
 
 import { ChatPanel } from "./chat-panel";
 
-/**
- * The chat window and the bar that opens it.
- *
- * A floating window, not a rail: the workspace screen is for the documents, and
- * where chat wants to sit depends on what is under it. Driven like a desktop
- * window — the title bar moves it, the other three borders resize it.
- *
- * The arithmetic lives in `lib/chat/window-frame.ts` so it can be checked
- * without a browser; this file is pointer plumbing and markup, styled from the
- * shell's tokens because no artboard covers it.
- */
+/** The chat window and the bar that opens it. A floating window, not a rail —
+ *  where chat wants to sit depends on what is under it. The title bar moves it,
+ *  the other three borders resize it; the arithmetic is in
+ *  `lib/chat/window-frame.ts` so it checks without a browser. */
 
-/**
- * Where the window was left, so reopening does not snap it back to the default.
- *
- * `localStorage` because that is what this is — one viewer's convenience on one
- * device. It can throw or come back empty, and the default answers fine.
- */
+/** Where the window was left. `localStorage` because that is what this is — one
+ *  viewer's convenience on one device, and the default answers fine when it
+ *  throws or comes back empty. */
 const STORAGE_KEY = "rmf-chat-window";
 
 const viewport = () => ({ width: window.innerWidth, height: window.innerHeight });
@@ -60,13 +50,9 @@ type Gesture = {
   start: Frame;
 };
 
-/**
- * The three borders that resize the window.
- *
- * Invisible, and found by the cursor changing over them, exactly as a desktop
- * window's borders are. They are wider than the 1px they sit on because a
- * border you have to hit precisely is a border you miss.
- */
+/** The three resize borders. Invisible and found by the cursor changing, like a
+ *  desktop window's — and wider than the 1px they sit on, because a border you
+ *  have to hit precisely is a border you miss. */
 const BORDERS: Array<{ kind: GestureKind; className: string }> = [
   { kind: "left", className: "top-8 bottom-0 left-0 w-1.5 cursor-ew-resize" },
   { kind: "right", className: "top-8 right-0 bottom-0 w-1.5 cursor-ew-resize" },
@@ -157,11 +143,9 @@ export function ChatWindow({ me }: { me: string }) {
             <span className="flex-1" />
             <button
               type="button"
-              // The button sits inside the header, so its pointerdown would
-              // bubble into `begin("move")` and start a drag. Release without
-              // moving and the click still closes; twitch first and the window
-              // has been moved and the new frame saved, by a control that is
-              // not for moving it.
+              // Inside the header, so pointerdown would bubble into
+              // `begin("move")` — a twitch would move and save the window from a
+              // control that is not for moving it.
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => setOpen(false)}
               aria-label="채팅 닫기"

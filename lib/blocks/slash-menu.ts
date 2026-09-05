@@ -1,14 +1,8 @@
 import type { TypeFields } from "./operations.ts";
 
-/**
- * The `/` menu — UC-022's own way in ("사용자 1이 '/'로 파일 블록을 선택하거나").
- *
- * Markdown markers reach six of the twelve types and a divider had no way into
- * a document at all, which this fixes as much as the convenience does.
- *
- * The list and the matching live apart from React because they are the part
- * worth testing, and testing them needs no `<textarea>`.
- */
+/** The `/` menu — UC-022's own way in ("사용자 1이 '/'로 파일 블록을 선택하거나").
+ *  Markdown markers reach only six of the twelve types and a divider had no way
+ *  in at all. Apart from React because this is the part worth testing. */
 
 /** What picking an item does. The editor owns the doing; this only names it. */
 export type SlashAction =
@@ -24,20 +18,13 @@ export type SlashItem = {
   id: string;
   label: string;
   hint: string;
-  /**
-   * What typing matches this item, beyond its label. Both scripts on purpose:
-   * someone reaching for a heading types `제목` or `h1` or `heading` depending
-   * on which keyboard layout they are in the middle of using.
-   */
+  /** What matches beyond the label. Both scripts on purpose — a person reaching
+   *  for a heading types `제목` or `h1` depending on the layout they are in. */
   keywords: Array<string>;
   action: SlashAction;
 };
 
-/**
- * Every item, in menu order — the order a document is usually built in rather
- * than alphabetical: paragraph, headings, the three list kinds, then the two
- * that are not text, then the file.
- */
+/** Every item, in the order a document is usually built rather than alphabetical. */
 export const SLASH_ITEMS: Array<SlashItem> = [
   {
     id: "text",
@@ -118,18 +105,10 @@ export const SLASH_ITEMS: Array<SlashItem> = [
   },
 ];
 
-/**
- * The query a block's text is asking the menu, or `null` when it is not asking.
- *
- * The slash has to be the block's **first** character. Mid-text `/` is left
- * alone deliberately: a URL, a date and a fraction all contain one, and this
- * project's existing conversion trigger (`detectMarkdownShortcut`) already
- * matches on the whole of a block's text rather than on a position within it.
- * Same rule, so there is one thing to remember rather than two.
- *
- * A space ends it. `/` followed by a word is a search; `/ ` is someone typing
- * a sentence that happens to start with a slash, and they should be left to it.
- */
+/** The query a block's text is asking the menu, or `null`. The slash must be the
+ *  **first** character — a URL, a date and a fraction all contain one, and
+ *  `detectMarkdownShortcut` already matches on whole text rather than position,
+ *  so this is the same rule rather than a second one. A space ends it. */
 export function detectSlashQuery(text: string): string | null {
   if (!text.startsWith("/")) return null;
 
@@ -139,13 +118,9 @@ export function detectSlashQuery(text: string): string | null {
   return query;
 }
 
-/**
- * The items a query matches, in menu order.
- *
- * Substring, not fuzzy, and case-insensitive: with eleven items the ranking a
- * fuzzy matcher buys is invisible, while its surprises are not. An empty query
- * matches everything, which is what makes a bare `/` show the whole menu.
- */
+/** Substring, not fuzzy: with eleven items a fuzzy matcher's ranking is
+ *  invisible and its surprises are not. Empty matches everything, which is what
+ *  makes a bare `/` show the whole menu. */
 export function slashMenuItems(query: string): Array<SlashItem> {
   const needle = query.trim().toLowerCase();
   if (needle === "") return SLASH_ITEMS;

@@ -1,49 +1,33 @@
 import type { BlockId } from "@/lib/blocks/types";
 
-/**
- * One block's vertical extent in the scroll container's coordinate space. No
- * DOM dependency, so tests build these by hand.
- *
- * `boxes` are assumed ordered top-to-bottom but **not** contiguous — a margin
- * leaves a gap between one block's bottom and the next block's top.
- */
+/** One block's vertical extent in the scroll container's space, DOM-free so
+ *  tests build them by hand. Ordered top-to-bottom but **not** contiguous — a
+ *  margin leaves a gap between one block's bottom and the next block's top. */
 export type BlockBox = {
   id: BlockId;
   top: number;
   height: number;
 };
 
-/**
- * What travels between presenter and follower: the block whose range
- * contains the viewport's top edge, and how far into that block. A block id
- * plus a fraction, not a pixel — see `docs/design/presence-and-focus.md`,
- * "What travels is an anchor, not a scroll position", for why a raw
- * `scrollTop` is not a shared coordinate between two browsers.
- */
+/** What travels between presenter and follower — a block id plus a fraction,
+ *  never a pixel. Why: `docs/design/presence-and-focus.md`, "What travels is an
+ *  anchor, not a scroll position". */
 export type FocusAnchor = {
   blockId: BlockId;
   /** 0 at the block's own top, approaching 1 at its bottom. */
   ratio: number;
 };
 
-// simple: quantized to 1% of the block's height on the way out, so that
-// the presenter's "has the anchor actually moved?" check in `editor.tsx` can
-// ever match — against a raw float it never did, since a fraction changes on
-// every scrolled pixel. This bounds nothing on its own: a scroll crosses
-// whole short blocks in a frame or two, so the cadence is `PUBLISH_MS`'s job,
-// not this. 1% of a block is far below what a follower can see; drop the
-// rounding if a block ever gets tall enough for 1% to read as a jump.
+// simple: quantized to 1% of the block's height, so the presenter's "has it
+// moved?" check can ever match — against a raw float it never did. Bounds
+// nothing on its own; the cadence is `PUBLISH_MS`'s job.
 const clampRatio = (ratio: number): number =>
   Math.round(Math.min(Math.max(ratio, 0), 1) * 100) / 100;
 
-/**
- * The block the viewport's top edge sits in, as `{ blockId, ratio }`.
- *
- * One pass suffices: `scrollTop` before a box's `top` can only mean "before the
- * first box" or "in a gap", since an earlier box containing it would already
- * have returned. Both resolve to the block *below* at `ratio: 0` — rounding up
- * would show content the presenter has already scrolled past.
- */
+/** The block the viewport's top edge sits in. One pass suffices: a `scrollTop`
+ *  before a box's `top` means "before the first" or "in a gap", and both resolve
+ *  to the block *below* at `ratio: 0` — rounding up would show content the
+ *  presenter has already scrolled past. */
 export function anchorAt(
   boxes: Array<BlockBox>,
   scrollTop: number,
