@@ -92,6 +92,8 @@ what notices and leaves the workspace, rather than leaving a dead tab showing st
 | `PATCH` | `/api/workspace/password` | Change the access password; existing sessions stay valid | host | FR-011-04~07 |
 | `DELETE` | `/api/workspace/members/:userId` | Kick a guest and close their connection | host | FR-011-01~03, FR-011-07 |
 
+`lastJoinedAt` is deliberately **not** on `WorkspaceMember`, only on the stored record (`StoredMember`). `WorkspaceMember` is also the presence payload every browser publishes to every other (`lib/presence/types.ts`), so a field added there is broadcast to the whole workspace — and when someone last signed in is nobody else's business. The host reads it on the Members screen as 최근 접속, server-side.
+
 `GET /api/workspace`'s members are **who belongs to this workspace**, not who is online — the
 persistent record `.data/` keeps so a kick (`DELETE …/members/:userId`) and a restore have something
 to act on. The live 접속자 목록 that FR-020-06 also asks for is a different thing with a different

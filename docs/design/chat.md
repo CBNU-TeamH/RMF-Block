@@ -152,6 +152,24 @@ Two rules are worth stating because the obvious implementation gets them wrong:
   Clamping the width instead makes the window slide sideways once it can get no narrower, and
   the border runs away from the pointer.
 
+## What the server decides, and what it refuses to be told
+
+Two fields on `SendChatMessageInput` are resolved by the route from the session and **never taken
+from the request body**.
+
+`sender` comes from `currentMember()`. It is non-optional because there is no longer a path where
+it could be missing: the route answers 401 before reaching the service. A client that could name
+its own sender could post as anyone.
+
+`attachment` is looked up in the file store by id. A client that could supply its own `fileName`,
+`fileType` and `size` could describe a file as something it is not — and the description, not the
+file, is what every other browser renders.
+
+The attachment is **copied onto the message** rather than resolved by `fileId` at render time, so
+history draws without a round trip per message. The copy cannot go stale because the SRS gives
+files no rename. Its four fields are deliberately the same as `FileBlock`'s: an attached file and
+an embedded one are one thing seen from two places.
+
 ## Isolation
 
 Existing files keep their current logic untouched. The only touch-points are mechanical

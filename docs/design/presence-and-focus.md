@@ -49,6 +49,21 @@ The extension is `presenting`: set while a member is sharing their view, cleared
 sending it — `undefined` does not survive that round trip, so a field meant to signal "no longer
 sharing" has to use a value the wire format can actually carry.
 
+## The roster collapses clients into members
+
+Yorkie counts **clients**, and one member can hold several at once — two browser tabs, or the
+moment during a takeover (FR-020-08) when the displaced device has not finished detaching.
+Measured against a real server, a member with two tabs open appears twice in `getPresences()`, so
+`lib/presence/roster.ts` folding them by `id` is what the roster is *for*, not a precaution.
+
+It drops any presence without an `id` rather than rendering it. `undefined` as a `Map` key would
+collapse every such entry into one blank row, and this is not hypothetical: Yorkie runs with no
+auth webhook today (`api.md` §2), so a client can attach with a presence shape of its own.
+
+The function is kept out of the component so it can be tested without a browser or a running
+Yorkie, and takes the shape `doc.getPresences()` returns so the caller can hand its result
+straight over.
+
 ## The host has no session
 
 The host proves themselves with the bootstrap secret (`lib/host-secret.ts`) and never fills in a

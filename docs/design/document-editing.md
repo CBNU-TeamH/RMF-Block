@@ -457,6 +457,49 @@ a whole string over the field. `lib/blocks/types.ts` already says why — a `Blo
 is read-only shape, and assigning it back would erase whatever a peer typed at that moment instead
 of merging with it.
 
+## The registry is one table, and the table's shape is the argument
+
+`lib/blocks/registry.ts` holds one entry per block type. The reason it is a `Record` keyed by the
+`BlockType` union rather than a `switch` with a `default` is exhaustiveness: **leave a key out and
+it does not compile.** This was measured before the table existed — adding a member to the union
+produced *one* compile error and *five* silent runtime fallbacks, one of which dropped the block
+from the document entirely. A `default` branch turns "we forgot this type" into a value.
+
+### Four surfaces, not twelve types
+
+Renderers branch on a **surface**, not on a type: `text` (edited through one `<textarea>`),
+`embed` (a file rendered in place, bytes behind a `fileId`), `link` (a pointer at another document
+or block), and `none` (the divider). Twelve types collapse into four ways of behaving, and a
+renderer written against the surface keeps working when a type is added to a surface it already
+handles.
+
+The `surface` field is constrained against the union rather than free-form: a type carrying `text`
+**must** be declared `"text"`, and one that does not **cannot** be. That constraint is what makes
+`isTextBearing` a sound type guard whose runtime answer comes from the table — without it the
+guard would be a promise the table could quietly break.
+
+`continuation` says what pressing Enter at the end of a block leaves behind. Omitted means a plain
+text block, which is right for everything except the three types that "run": a list stays a list
+until you leave it.
+
+## Reordering: what a drop means
+
+`lib/blocks/reorder.ts` keeps the order questions apart from the DOM, the same way
+`text-surface.ts` keeps IME and diff maths apart from the `<textarea>` — so both are testable
+without a browser. Order is the one thing the `blocks` state array is reliable for.
+
+A drop is compared against the target block's **vertical midpoint**, not its top edge: a drop
+anywhere in the bottom half of a block means "after this one".
+
+`dropDestination` returns `{ afterId }` or `null`, and the wrapper matters — a legitimate `null`
+("insert at the front") has to stay distinct from "this drop moves nothing". Three cases move
+nothing: dropping a block on itself, dropping it after itself, and dropping it into the slot it
+already occupies.
+
+**One rule, two callers, on purpose.** The insertion line is drawn only where `dropDestination`
+returns a destination. When the line and the drop each decided for themselves, they drifted, and
+the line promised drops that did nothing.
+
 ## Open questions
 
 - ~~Concurrent-move convergence on the pinned SDK version.~~ Closed by

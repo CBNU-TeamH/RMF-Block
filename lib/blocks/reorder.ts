@@ -1,50 +1,30 @@
-/**
- * Pure helpers for "what comes before what" in the block list's current
- * order — kept apart from the DOM (`editor.tsx`'s drag-and-drop, once that
- * lands) the same way `text-surface.ts` keeps IME/diff math apart from the
- * `<textarea>`, tested without a browser.
- */
+/** Order questions, kept apart from the DOM so they test without a browser.
+ *  What a drop means: `docs/design/document-editing.md`. */
 
-/**
- * The id right before `targetId`, or `null` if it is first or absent — order is
- * the one thing `blocks` state is reliable for. Merge's "previous block" and
- * reorder's "insert before target" are the same question.
- */
+/** The id right before `targetId`, or `null` if it is first or absent. */
 export function idBeforeInOrder(order: Array<string>, targetId: string): string | null {
   const index = order.indexOf(targetId);
   if (index <= 0) return null;
   return order[index - 1] ?? null;
 }
 
-/**
- * The id currently right after `targetId` in `order`, or `null` if
- * `targetId` is last (or absent). Mirrors `idBeforeInOrder` — used by
- * arrow-key navigation's ArrowDown to find the next block to focus.
- */
+/** The mirror of `idBeforeInOrder`; ArrowDown's next block to focus. */
 export function idAfterInOrder(order: Array<string>, targetId: string): string | null {
   const index = order.indexOf(targetId);
   if (index === -1 || index === order.length - 1) return null;
   return order[index + 1] ?? null;
 }
 
-/**
- * Whether a drop at `clientY` lands before `target` (vs. after) — compared
- * against the target's own vertical midpoint, not its top edge, so a drop
- * anywhere in the bottom half of a block means "after this one."
- */
+/** Whether a drop at `clientY` lands before the target — its midpoint, not its
+ *  top edge. */
 export function dropsBeforeTarget(clientY: number, rectTop: number, rectHeight: number): boolean {
   return clientY < rectTop + rectHeight / 2;
 }
 
-/**
- * Where a drop on `targetId` puts `draggedId`, or `null` when it puts it
- * nowhere — onto itself, or into the slot it already occupies. Wrapped so a
- * legitimate `null` ("insert at the front") stays distinct from "no move".
- *
- * One rule, two callers on purpose: the insertion line is drawn only where this
- * returns a destination. Split in two they drifted, and the line promised drops
- * that did nothing.
- */
+/** Where a drop puts `draggedId`, or `null` for a drop that moves nothing. The
+ *  wrapper keeps a legitimate `null` ("insert at the front") distinct from that.
+ *  The insertion line must be drawn from this same call — why:
+ *  `docs/design/document-editing.md`. */
 export function dropDestination(
   order: Array<string>,
   draggedId: string,

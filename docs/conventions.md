@@ -150,45 +150,72 @@ Kinds 4 and 5 were promoted here from `20260905-comment-budget-lessons.md`: both
 use — #70 established the cross-reference when it moved this rationale out — and the rulebook not
 naming them meant every trim re-argued whether they were allowed.
 
-### The comment budget is a ratio, and a ratio has a floor
+### Write the comment in as few lines as it takes
 
-`scripts/comment-budget.mjs` flags a file whose comments exceed 25% of its lines. **On a small
-file that threshold cannot be met**, and trying to meet it deletes exactly what this section
-above says must stay.
+Format is not content. A JSDoc block whose prose is one sentence is written on one line:
 
-The arithmetic is the whole argument. A 25% budget on a file of *N* code lines allows *N/3*
-comment lines. JSDoc spends two of those on `/**` and `*/` before a word is written, and a
-blank `*` between paragraphs costs another. So a file with three exported symbols pays six to
-nine lines in delimiters alone.
+```ts
+/** UC-021 E4a. */
+```
 
-Four files from this repo, after every sentence their design doc already carried was deleted:
+not
 
-| file | code | comments | of which delimiters | ratio | 25% would allow |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `lib/presence/types.ts` | 15 | 23 | 12 | **60.5%** | 5 |
-| `lib/files/serving.ts` | 28 | 36 | 16 | **56.3%** | 9 |
-| `lib/blocks/types.ts` | 79 | 35 | 20 | **30.7%** | 26 |
-| `editor.tsx` | 492 | 253 | 40 | **34.0%** | 164 |
+```ts
+/**
+ * UC-021's E4a: a name already in use gets a disambiguating suffix rather
+ * than being refused — the SRS asks for "겹치지 않는 식별자", not an error.
+ */
+```
 
-Read the first row against what the rules protect. `lib/presence/types.ts` must carry the Yorkie
-key charset and the `JSON.stringify`/`undefined` constraint — both kind 1, both named in this
-document as its worked examples — plus `FR-020-06/07`, `FR-020-08` and `UC-011`. That is seven
-lines of prose before a single delimiter, against a budget of five. **The file cannot pass
-without deleting a rule this document says to keep.** It sits at 60.5% and is correct there.
+Both point at the same rule. The second spends four lines restating a sentence already in
+`docs/SRS-ko.md` under **E4a**, which the tag alone reaches. **When a requirement tag or a
+design-doc reference already leads the reader to the rule, prose repeating it is not
+documentation — it is a second copy, free to go stale on its own.**
 
-Now read the last row. `editor.tsx` carries far more comment *content* — 213 lines of prose
-against that file's 11 — and passes closer to the threshold, because 492 lines of code can
-afford it. The ratio is measuring file size at least as much as it measures over-commenting.
+Two rules follow:
+
+- **A block whose prose fits on one line is written on one line**, `/** … */`. `/**` and `*/`
+  holding their own lines is a formatting choice, not a requirement — this repo already has 66
+  single-line blocks. Measured across the codebase, that choice alone costs **334 lines**, and
+  reflowing without deleting a word of prose recovers **531**.
+- **A tag can be a complete comment.** `/** UC-021 E4a. */` is finished. Add prose only for what
+  the referenced document does *not* say — an implementation constraint the SRS could not know
+  about.
+
+### The comment budget is a ratio, and a ratio has a floor — a low one
+
+`scripts/comment-budget.mjs` flags a file whose comments exceed 25% of its lines. That threshold
+is reachable for most files and genuinely unreachable for a few. The difference is worth stating
+precisely, because an earlier version of this section got it wrong and the error is instructive.
+
+The arithmetic is real: a 25% budget on *N* code lines allows *N/3* comment lines, and a small
+file with several exported symbols has very little room. What that does **not** justify is the
+delimiter cost. The earlier version argued the budget was unreachable because *"JSDoc spends two
+of those lines on `/**` and `*/` before a word is written."* The single-line form spends none.
+Every measurement in that version was taken with a formatting choice baked in and reported as
+arithmetic — `lib/presence/types.ts` was cited at 60.5% when its content, compactly written,
+sits near 40%.
+
+The real floor is content, not punctuation. A 15-line file that must carry two external
+constraints and three requirement tags has a floor of eight to ten comment lines however it is
+formatted — over a 5-line budget, and correct there.
 
 So: **the budget routes, it does not adjudicate.** Over budget means "look at whether the
-rationale outgrew the code", and on a small file the honest answer is often no. What actually
-tracks the problem is the size of the *blocks*: a comment of eight lines or more is nearly always
-design rationale that belongs in `docs/`. Trimming this repo took its comment lines from 2,196 to
-1,554 while taking those long blocks from 1,533 to 703 — the second number is the one that moved
-for the right reason.
+rationale outgrew the code." Before concluding it did not, check in this order:
 
-When a file is over budget and every remaining comment is one of the five kinds above, say so in
-the PR and leave it. That is a passing result, not a deferred one.
+1. **Is the prose restating a document the comment already cites?** Cut it to the citation.
+2. **Is a multi-line block carrying one sentence?** Reflow it to one line.
+3. **Is this design rationale at all?** Then it belongs in `docs/design/`, and the code keeps
+   kind 4's one-line pointer.
+
+Only a file that survives all three and is still over budget is honestly over budget. Say so in
+the PR and leave it — that is a passing result, not a deferred one.
+
+What tracks the problem better than the ratio is the size of the *blocks*: a comment of eight
+lines or more is nearly always design rationale that belongs in `docs/`. One caution, learned the
+hard way: an audit that lists only blocks of eight lines and up will never show you the three- and
+four-line comments inside function bodies, and this repo has more lines in those than in the long
+blocks it was built to find.
 
 ### The `simple:` marker
 
