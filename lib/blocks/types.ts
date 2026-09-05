@@ -1,13 +1,7 @@
-/**
- * The twelve block types of `docs/SRS-ko.md` §4.1, as the app *reads* them.
- *
- * **Read-only shape.** A block's text is a `yorkie.Text` in storage; assigning
- * a string back over one erases whatever a peer typed instead of merging with
- * it, so writes go through `operations.ts`, never through a `Block`.
- *
- * Each type's stored shape and the reasoning behind it:
- * `docs/design/document-editing.md`, "Block types".
- */
+/** The twelve block types of `docs/SRS-ko.md` §4.1, as the app *reads* them.
+ *  **Read-only.** A block's text is a `yorkie.Text`; assigning a string over one
+ *  erases what a peer typed instead of merging, so writes go through
+ *  `operations.ts`. Stored shapes: `docs/design/document-editing.md`. */
 
 /** A uuid, stable for the block's whole life and independent of its position. */
 export type BlockId = string;
@@ -69,12 +63,9 @@ export type DividerBlock = BlockBase & {
   type: "divider";
 };
 
-/**
- * Of the five below, only `pdf` can be created today. `file` and `image` wait on
- * the other two legs of FR-022-14; the two link types wait on the document tree
- * (UC-021/023) that would give them a `documentId`. All five stay typed, so
- * `BLOCK_KINDS` and every renderer are forced to handle them.
- */
+/** Of the five below only `pdf` can be created today — `file` and `image` wait
+ *  on FR-022-14's other legs, the link types on the document tree. All five stay
+ *  typed, so `BLOCK_KINDS` and every renderer must handle them. */
 
 /** A reference plus display metadata cached at upload (NFR-PER-002); the bytes
  *  stay out of Yorkie. `fileType` is free-form on purpose (FR-022-13). */

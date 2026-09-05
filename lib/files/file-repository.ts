@@ -12,14 +12,10 @@ import {
 const DEFAULT_ROOT = path.resolve(".data/files");
 const INDEX_FILE = "index.json";
 
-/**
- * Bytes at `.data/files/<id>`, metadata in `.data/files/index.json` — under
- * `.data/` like every other piece of app-owned state (ADR-002).
- *
- * **Stored under the id, never the uploaded name.** A name is attacker-chosen
- * and `../../` is a valid one; a `randomUUID()` is hex and dashes, so a path
- * built from one structurally cannot leave this directory.
- */
+/** Bytes at `.data/files/<id>`, metadata in `.data/files/index.json`, under
+ *  `.data/` like every other piece of app-owned state (ADR-002). **Stored under
+ *  the id, never the uploaded name** — `../../` is a valid name, and a
+ *  `randomUUID()` path structurally cannot leave this directory. */
 export class FileRepository {
   // Two concurrent uploads would otherwise both read the index, both write it
   // back, and the second would drop the first — the same read-modify-write race
@@ -65,13 +61,8 @@ export class FileRepository {
     return (await this.list()).find((file) => file.id === id) ?? null;
   }
 
-  /**
-   * The bytes, or null when no such file was ever stored.
-   *
-   * The id is checked against the shape this store issues *before* it is used
-   * to build a path. Ids reach here straight from a URL, and a check that
-   * happens first is worth more than one that happens after the read.
-   */
+  /** The bytes, or null. The id is checked against the shape this store issues
+   *  **before** it builds a path — ids reach here straight from a URL. */
   async read(id: string): Promise<Buffer | null> {
     assertIssuableId(id);
 
@@ -118,12 +109,7 @@ export class FileRepository {
     }
   }
 
-  /**
-   * Write-then-rename. `writeFile` truncates before writing, so a reader can
-   * see a half-written file and a crash in that window leaves a corrupt one.
-   * `rename` on the same filesystem is atomic — a reader sees the old complete
-   * file or the new one, never something in between.
-   */
+  /** Write-then-rename, for the atomicity argued in `architecture.md` §(d). */
   private async writeAtomically(target: string, bytes: Buffer): Promise<void> {
     const temporary = `${target}.tmp`;
     await writeFile(temporary, bytes);

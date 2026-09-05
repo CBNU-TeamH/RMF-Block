@@ -5,18 +5,11 @@ import type { StoredMember } from "./types.ts";
 
 export const DEFAULT_MEMBERS_PATH = path.resolve(".data/members.json");
 
-/**
- * The workspace's members on disk, so a nickname keeps its id and colour tag
- * across a restart (FR-020-08).
+/** The workspace's members on disk, so a nickname keeps its id and colour tag
+ *  across a restart (FR-020-08). Sessions are deliberately not here (`api.md`).
  *
- * Sessions are deliberately not here — a session id in a file is a permanent
- * bearer token, and restarting the container is the revoke path (`api.md`).
- *
- * simple: synchronous writes. Sync on Node's single thread cannot interleave,
- * so `chat-repository.ts`'s promise queue has nothing to do here. It blocks the
- * loop for one small write per join, at eight people. Make it async — with the
- * queue — if that ever becomes enough members to feel.
- */
+ *  simple: synchronous writes (`architecture.md` §(d)). One small write per join
+ *  at eight people; make it async, with the queue, if that ever grows. */
 export function readMembers(storePath: string): Array<StoredMember> {
   try {
     return JSON.parse(readFileSync(storePath, "utf8"));

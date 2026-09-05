@@ -12,25 +12,14 @@ import type {
   TextBlock,
 } from "./types.ts";
 
-/**
- * New blocks of the eight types this project can create today; the other four
- * have nothing to build one from (see `types.ts`).
- *
- * **No factory takes initial text**, and that is not an omission. A block's
- * text is a `yorkie.Text`, whose only correct write is `edit()` — so a caller
- * creates the block, then edits it. A factory taking a string would invite
- * treating text as a value handed over whole, which is what costs the
- * character-level merge.
- */
+/** New blocks of the eight types this project can create today. **No factory
+ *  takes initial text** — a block's text is a `yorkie.Text` whose only correct
+ *  write is `edit()`, and a factory taking a string would invite treating text
+ *  as a value handed over whole, which costs the character-level merge. */
 
-/**
- * **Not `crypto.randomUUID()`**: it is a secure-context API and guests reach
- * this app over plain HTTP at `http://<LAN-IP>:3000`, where it is `undefined`.
- * Only the host, on `localhost`, would get one. `getRandomValues` has no gate.
- *
- * RFC 4122 v4 layout: the version in the high nibble of byte 6, the variant in
- * the top bits of byte 8.
- */
+/** **Not `crypto.randomUUID()`** — a secure-context API, and guests reach this
+ *  app over plain HTTP at `http://<LAN-IP>:3000` where it is `undefined`.
+ *  `getRandomValues` has no such gate. RFC 4122 v4 layout. */
 export function newBlockId(): BlockId {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
