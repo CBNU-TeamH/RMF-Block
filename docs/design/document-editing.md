@@ -500,6 +500,45 @@ already occupies.
 returns a destination. When the line and the drop each decided for themselves, they drifted, and
 the line promised drops that did nothing.
 
+## Rules the editor component holds to
+
+**Every mutation reads live, never from `blocks` state.** That state's `text` is a snapshot taken
+at the last render and goes stale the moment anyone types — locally or remotely. A split that
+trimmed the snapshot would drop a concurrent remote edit past the caret; a checkbox that toggled
+the snapshot would flip from a value that is no longer there. So `editor.tsx` reads the block out
+of the live document inside the same `doc.update()` that writes it.
+
+Reading it means `for...of` over `blocks.elements()`, not `.find`. `JSONArray<T>`'s `Array<T>`
+typing is a compile-time claim about a proxy; only iteration is known to work at runtime.
+
+**One mutation path.** Every local edit goes through one helper that runs the mutation and
+republishes the list, and `setBlocks` happens nowhere else. It returns `false` when the edit did
+not land — no document attached, or a peer removed the block first. That is never an error to
+report: the peer's operation is the one that stands. Callers with follow-up work (a caret to move,
+a trailing block to append) check the result.
+
+**One empty text block is kept at the end,** so starting a new paragraph never means clicking into
+a block someone else is typing in. It is idempotent, so running it after every text commit costs
+one read, and it is enforced locally only — the append reaches peers as an ordinary add.
+
+### Three places a drag can land
+
+Reordering (FR-022-04) carries the dragged id in the browser's transfer data rather than in
+component state, because `dragstart` and `drop` can fire on different renders. Where it lands is
+`dropDestination`'s answer, which is also what the insertion line is drawn from, so the two cannot
+disagree.
+
+| zone | what it means | why it must claim the drop |
+| --- | --- | --- |
+| a block | before or after it, by midpoint | the ordinary case |
+| the footer | at the very end | it is not a block, so it cannot answer "before or after?" from its own rect and passes `forcedBefore` |
+| the padding beside the blocks | nothing | a block drag that reaches the container passed every block without being claimed; without `preventDefault` the browser shows "no drop", and the line is cleared rather than left promising a landing spot the release would decline |
+
+The empty space *under* the document is the footer's `flex-1` region — which is exactly where a
+block is dragged when the intent is "put it at the end". Before it claimed the drop, the browser
+refused it while the line stayed drawn over the last block crossed. File drags are left to bubble
+to the container, which already appends them.
+
 ## Open questions
 
 **Unmeasured: how Yorkie reports a whole-array seed.** A peer seeding a brand-new document assigns
