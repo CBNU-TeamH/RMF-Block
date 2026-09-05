@@ -5,16 +5,10 @@ import { readDocuments } from "@/lib/documents/documents";
 import { fileRepository } from "@/lib/files/file-repository";
 import { looksLikePdf, readUpload } from "@/lib/files/upload";
 
-/**
- * Uploads a file to embed as a file block (FR-022-13, FR-022-14).
- *
- * Its own request because bytes never enter the Yorkie document; the client
- * puts the returned id on the block it then creates. A stray upload is
- * recoverable, a block pointing at bytes nobody stored is not.
- *
- * **PDFs only today** — the other two legs of FR-022-14 have no renderer, and
- * storing bytes no block can display is worse than a refusal.
- */
+/** Uploads a file to embed as a file block (FR-022-13, FR-022-14). Its own
+ *  request because bytes never enter the Yorkie document — a stray upload is
+ *  recoverable, a block pointing at bytes nobody stored is not. **PDFs only
+ *  today**: the other legs of FR-022-14 have no renderer. */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
