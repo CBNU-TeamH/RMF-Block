@@ -502,6 +502,12 @@ the line promised drops that did nothing.
 
 ## Open questions
 
+**Unmeasured: how Yorkie reports a whole-array seed.** A peer seeding a brand-new document assigns
+all of `root.blocks` at once, and whether the SDK reports that as an operation on `$.blocks` or as
+a set on `$` has never been checked. `touchesBlockList` in `lib/blocks/text-surface.ts` accepts the
+former; if it is the latter, the seed is not drawn until something else happens — a race
+[#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42) usually hides.
+
 - ~~Concurrent-move convergence on the pinned SDK version.~~ Closed by
   [Verification](#verification-2026-08-27) item 2, with two follow-up cases named
   there that were not covered.

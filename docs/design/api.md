@@ -135,6 +135,8 @@ filename on disk, never the uploaded name** — a name is attacker-controlled an
 valid string. One store is shared with document files (FR-022-13/14) when those land, with an
 `origin` field recording which; FR-050-06 and FR-061-01 are queries over it.
 
+File responses are `Cache-Control: private`. They cross a LAN that may have caches of its own in front of them, and a file belongs to one workspace — `private` keeps a shared cache from holding one and serving it on.
+
 #### Why preview and download are two endpoints
 
 Hosting user bytes on the app's own origin has one serious failure mode: **a file the browser
@@ -221,11 +223,28 @@ the session is resolved separately. Refusals answer `401` with `{ allowed: false
 pairs status with body and accepts only `200`+allowed, `401`+refused, `403`+refused, reading
 anything else as a malfunction rather than a refusal.
 
+Anything outside those three combinations — a `200` carrying `allowed: false` included — becomes `ErrInvalidJSONResponse` on Yorkie's side (`server/rpc/auth/webhook.go`), a malfunction rather than a refusal. `401` is chosen over `403` because both refusals here are about identity rather than permission, and because it is the branch Yorkie does **not** cache: a refusal is re-asked rather than pinned for the cache TTL.
+
+The endpoint is deliberately unsigned. Anything on the LAN can call it, and all a caller can learn is whether a token it already holds is valid.
+
 **The token-refresh question this section used to leave open is answered**: against the pinned
 `@yorkie-js/sdk@0.7.13`, the SDK calls `authTokenInjector` again whenever the webhook refuses and
 passes the refusal's own `reason` as its argument, then retries with what it gets back. So expiry
 needs no timer on either side, and `reason` is a channel rather than a log line — `"token expired"`
 means fetch another, `"session revoked"` means another will not help.
+
+**A session that already holds a live token gets that one back**, rather than a freshly minted
+one. This is what bounds the registry. `authTokenInjector` runs on *every* refusal, so a session
+whose requests keep being refused — a clock skew, a webhook fault — would fetch in a loop, and
+minting per call would leave an entry behind each time, for an hour. `SessionRegistry` bounds the
+same shape with an explicit `MAX_MEMBERS` ceiling; here the bound falls out for free, because
+there is no reason for one session to hold two tokens. Expired entries are pruned at issue time
+for the same reason — issuing is the only moment the map grows, so a timer would be a second
+thing to keep alive for no gain.
+
+Two tabs therefore share a token, which is correct: the token authorizes a *session*, and both
+tabs are that session. Handing back a token with minutes left on it is fine too, since the SDK
+asks for a replacement the moment the webhook refuses one.
 
 One thing worth knowing wherever revocation is being reasoned about: **Yorkie caches an auth
 decision for ten seconds by default** (`--auth-webhook-cache-auth-ttl`). A guest removed through
