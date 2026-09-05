@@ -42,6 +42,12 @@ Rotation bounds how long a leaked token stays replayable. It does **not** protec
 
 There is no separate "revoke all sessions" endpoint. The host runs the container directly, so restarting it is the revoke path: a fresh bootstrap secret is printed to stdout and every existing session token is invalidated. Adding a dedicated revoke action would duplicate that and overlap with the per-guest kick (`DELETE /api/workspace/members/:userId`, not yet built).
 
+Tokens live in memory, like the sessions they point at. A bearer token written to the host's disk
+outlives the reason it was issued, and restarting the container is this project's documented
+revoke path — a token that survived the restart would defeat it.
+[`#47`](https://github.com/CBNU-TeamH/RMF-Block/issues/47) weighs that against a signed token the
+webhook could verify with no table at all.
+
 ### The pieces around it
 
 Three files carry parts of this model that no endpoint row shows.

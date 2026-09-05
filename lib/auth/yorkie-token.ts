@@ -3,49 +3,25 @@ import { randomUUID } from "node:crypto";
 /**
  * Short-lived tokens the browser hands to Yorkie (NFR-SEC-002/005).
  *
- * Yorkie asks this server whether a token may act, through the auth webhook, so
- * a client that cannot show one never gets past `ActivateClient` — which is the
- * hole `docs/design/api.md` §2 names: port 8080 is on the LAN, and the session
- * cookie only ever gated the Next.js routes.
+ * **This is deliberately not the session.** The session cookie is `httpOnly`,
+ * so page scripts cannot pass it to `authTokenInjector` even though they must
+ * pass something; this is that something — narrower and short-lived.
  *
- * **This is not the session, and that is the point.** The session cookie is
- * `httpOnly` on purpose — a token in reach of page scripts is a token that can
- * be read off a shared screen (UC-030) — so client JS cannot pass it to
- * `authTokenInjector` even though it needs to pass *something*. This is that
- * something: narrower, because all it authorizes is Yorkie, and short-lived, so
- * a copy of it is worth less than a copy of the session it came from.
- *
- * A token points at a session rather than at a member, so revocation needs no
- * code here: the caller resolves the session afterwards, and a session displaced
- * by another device (FR-020-08) or lost to a restart takes its tokens with it.
- *
- * In memory, like the sessions it points at. A bearer token on the host's disk
- * outlives the reason it was issued. Issue #47 weighs this against a signed
- * token that the webhook could verify without a table.
+ * Why the webhook needs it at all, what a token points at, and why these stay
+ * in memory: `docs/design/api.md`, "Authentication model".
  */
 
 /**
- * An hour. The lifetime only decides how often the browser fetches a new one,
- * because the SDK asks for a replacement whenever the webhook refuses — measured
- * against 0.7.13, `authTokenInjector` is called again with the refusal's reason
- * and the retried operation goes through. So the cost of a short life is not
- * felt by the person using it; what it does buy is a smaller window in which a
- * leaked token is worth anything.
- *
- * Not shorter, because refreshing means reaching this server: an app-server
- * restart is invisible to an editing browser only while its current token
- * lasts. An hour keeps that window wide enough to ride out a restart and narrow
- * enough that a token found later is almost certainly dead.
+ * An hour. Expiry costs the person nothing — measured against SDK 0.7.13, a
+ * refused token makes `authTokenInjector` fire again and the operation retries
+ * through. Not shorter because refreshing needs this server, and a browser
+ * rides out an app restart only while its current token lasts.
  */
 const TOKEN_TTL_MS = 60 * 60 * 1000;
 
-/**
- * The host holds no guest session — identity comes from having started the
- * container, not from the join form — so their token stands for the bootstrap
- * secret instead, under this prefix. The webhook re-checks the secret rather
- * than trusting the token alone, which is what makes a container restart
- * invalidate the host's tokens the same way it invalidates everyone's sessions.
- */
+/** The host has no guest session, so their token stands for the bootstrap
+ *  secret under this prefix — and the webhook re-checks that secret rather than
+ *  trusting the token, so a restart invalidates the host's tokens too. */
 export const HOST_SESSION_PREFIX = "host:";
 
 export class YorkieTokenRegistry {
@@ -54,10 +30,7 @@ export class YorkieTokenRegistry {
     { sessionId: string; expiresAt: number }
   >();
 
-  /**
-   * `now` is injectable so expiry is testable without waiting an hour. Nothing
-   * in production passes it.
-   */
+  /** `now` is injectable so expiry is testable; nothing in production passes it. */
   issue(sessionId: string, now = Date.now()): string {
     // Expired entries are cleared here rather than on a timer: issuing is the
     // only moment the map grows, so it is the only moment it needs pruning, and

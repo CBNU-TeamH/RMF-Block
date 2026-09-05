@@ -13,33 +13,23 @@ import type {
 } from "./types.ts";
 
 /**
- * New blocks of the eight types this project can currently create.
+ * New blocks of the eight types this project can create today; the other four
+ * have nothing to build one from (see `types.ts`).
  *
- * The other four — file, image and the two link blocks — have no factory
- * because there is nothing to build one from: they need a `fileId` from an
- * upload this build refuses (only PDFs are accepted, see
- * `app/api/documents/[id]/files/route.ts`) or a `documentId` from a document
- * tree that does not exist (UC-021/023). They stay typed in `types.ts` so a
- * renderer must still handle them.
- *
- * **No factory takes initial text.** That is not an omission to fill in later.
- * A block's text is a `yorkie.Text`, and the only correct way to put characters
- * in one is `edit()` — so the caller creates the block, then edits it. Letting a
- * factory take a string would invite the caller to think of text as a value they
- * can hand over whole, which is the habit that costs the character-level merge
- * (see the note at the top of `types.ts`). Splitting a block on Enter is the
- * case that will want this most, and it wants it as an edit too.
+ * **No factory takes initial text**, and that is not an omission. A block's
+ * text is a `yorkie.Text`, whose only correct write is `edit()` — so a caller
+ * creates the block, then edits it. A factory taking a string would invite
+ * treating text as a value handed over whole, which is what costs the
+ * character-level merge.
  */
 
 /**
- * `crypto.randomUUID()` is not available here, and the reason is specific to
- * this project: it is a secure-context API, and guests reach the workspace over
- * plain HTTP at `http://<LAN-IP>:3000`. Only the host, on `localhost`, would get
- * a working `randomUUID` — every guest would find it `undefined` and every block
- * they created would fail. `getRandomValues` carries no such gate.
+ * **Not `crypto.randomUUID()`**: it is a secure-context API and guests reach
+ * this app over plain HTTP at `http://<LAN-IP>:3000`, where it is `undefined`.
+ * Only the host, on `localhost`, would get one. `getRandomValues` has no gate.
  *
- * The layout is RFC 4122 version 4: sixteen random bytes, with the version in
- * the high nibble of byte 6 and the variant in the top bits of byte 8.
+ * RFC 4122 v4 layout: the version in the high nibble of byte 6, the variant in
+ * the top bits of byte 8.
  */
 export function newBlockId(): BlockId {
   const bytes = new Uint8Array(16);
@@ -63,24 +53,14 @@ export function createText(): TextBlock {
   return { id: newBlockId(), type: "text", text: "" };
 }
 
-/**
- * `level` is required rather than defaulted. It is the one thing the person
- * chose — they picked "제목 2", not "a heading" — so every caller already knows
- * it, and a default would only ever be wrong silently.
- */
+/** `level` is required: it is the one thing the person picked, so a default
+ *  would only ever be silently wrong. */
 export function createHeading(level: HeadingLevel): HeadingBlock {
   return { id: newBlockId(), type: "heading", level, text: "" };
 }
 
-/**
- * `style` is required for the same reason as a heading's level: ordered and
- * unordered are two different things to pick, not one thing with a default.
- *
- * `depth` is defaulted because it is not a choice at all — a list item starts at
- * the top level unless something already knows better. What knows better is the
- * editor: pressing Enter inside a nested item should continue at that item's
- * depth, and that is the caller's business, not this function's.
- */
+/** `style` is required for the same reason a heading's `level` is. `depth` is
+ *  not a choice — only the editor knows when a new item continues a nested one. */
 export function createList(style: ListStyle, depth = 0): ListBlock {
   return { id: newBlockId(), type: "list", style, depth, text: "" };
 }
@@ -102,19 +82,9 @@ export function createDivider(): DividerBlock {
   return { id: newBlockId(), type: "divider" };
 }
 
-/**
- * The first factory that takes arguments beyond a style choice, and every one
- * of them comes from an upload that already happened: `POST
- * /api/documents/:id/files` returns the id, and the name and size are echoed
- * back with it. Nothing here validates them, because there is nowhere better to
- * check — a `fileId` is only meaningful to the server, which is where it came
- * from.
- *
- * The name and size are *cached* into the block on purpose rather than looked
- * up per render: the block has to draw immediately on every other client
- * (NFR-PER-002), and files have no rename in the SRS, so the copy cannot go
- * stale (`docs/design/document-editing.md` §8~10).
- */
+/** Every argument comes back from `POST /api/documents/:id/files`, so nothing
+ *  here validates them. Name and size are cached into the block deliberately —
+ *  see the doc's file-block section. */
 export function createPdf(file: {
   fileId: string;
   fileName: string;
