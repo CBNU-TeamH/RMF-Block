@@ -152,8 +152,11 @@ needs a list — and the list is literals rather than `startsWith("image/")` **b
 `application/pdf` is on that list so the PDF block can hold an `<iframe>` of it
 (FR-080-01~03) — every browser in `docs/SRS-ko.md` §4.2 has its own PDF viewer, which is why
 this needs no PDF library. A PDF's own scripting runs inside that viewer, not in this origin,
-which is the difference from SVG. And nothing reaches the list on a claim alone: the document
-upload endpoint stores `application/pdf` only for bytes that start with `%PDF-`.
+which is the difference from SVG. A file that is *not* a PDF, served under that type, does not
+become one either: `nosniff` sends it to the PDF viewer, where it fails to parse and shows an
+error, rather than to the HTML parser. And nothing reaches the list on a claim alone in the first
+place: the document upload endpoint stores `application/pdf` only for bytes that start with
+`%PDF-`.
 
 **Both responses carry `X-Content-Type-Options: nosniff`**, which is the other half. The stored
 type is whatever the uploading client claimed, so an HTML file can be uploaded *as* `image/png`

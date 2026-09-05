@@ -44,6 +44,13 @@
 - **Grep across line wraps or it will lie to you.** Two verification passes reported a sentence
   missing from the design doc when it was present and merely wrapped. `tr '\n' ' '` first.
 
+- **Verify with a script that normalises markdown, not with grep.** Backticks, `**bold**` and
+  line wrapping made shell greps report a sentence missing from a design doc four separate times
+  when it was present. The reliable form: pull the deleted lines out of `git diff`, rejoin them
+  into sentences, strip `` ` ``/`*`/`_`, collapse whitespace, and look for a run of five or more
+  consecutive words in any doc. Everything it flags still needs a human read — most flags are
+  sentences that were kept in rewritten form — but it does not miss.
+
 ## Worth extracting
 
 - **Measure long-block lines, not a ratio.** The audit that opened this task counted comment
@@ -57,6 +64,11 @@
   statement of what an exported symbol is) are now in `docs/conventions.md`, along with a section
   on reading the ratio with the file's size in hand. This is gate criterion 4 of #65: the first
   time in seven months a "Worth extracting" item reached the rulebook.
+- **A "moved rationale" checker belongs in `scripts/`.** The one written for this task
+  (reconstruct deleted comment sentences from a diff, normalise, search `docs/`) found two real
+  gaps in three files and would have found them in any comment-trimming PR. It is the natural
+  companion to `comment-budget.mjs`: the budget says a file is over, this says whether it is safe
+  to bring it under.
 - **`verify-doc-ownership.mjs` cannot see `lib/*.ts`.** It walks `lib/` at subdirectory
   granularity, so five top-level files are neither owned nor reported as holes. Two of them were
   genuinely unowned and were only found through the comment audit.

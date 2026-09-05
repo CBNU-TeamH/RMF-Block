@@ -116,6 +116,27 @@ the browser viewer's Save button) and stayed. The third is a rejected alternativ
 into `api.md` before the comment was deleted. Verifying before deleting is not a formality — it
 changed the answer three times in one file.
 
+### Third file, and a verification method that finally works
+
+`lib/blocks/types.ts`: **59% → 31%**, comments 114 → 35 lines. The bulk of it was one shape
+repeated twelve times — a `Storage: content = { … }` line per block type, against a design doc
+that carries all twelve as fenced code blocks. Counted before deleting: `content = {` appears
+**12 times** in `document-editing.md`.
+
+**The keyword greps used on the first two files were unreliable** — backticks, bold and line
+wraps produced false "missing" reports every time. Replaced with a script that reconstructs the
+deleted sentences from the diff, strips markdown punctuation, and searches every doc for a
+distinctive word run. Run against the first two files it reported 22 of 35 confirmed; going
+through the 13 by hand, twelve were sentences that had been *kept* in rewritten form or matched
+under different wording, and **one was a real gap** — that a non-PDF served as `application/pdf`
+reaches the PDF viewer and errors rather than the HTML parser. Added to `api.md`.
+
+The same pass on this file found **one more real gap**: the doc explains why *storage* keeps the
+`content.text` wrapper but never why the *read* model drops it. That sentence is now in
+`document-editing.md`.
+
+Two real gaps in three files. The check is not a formality.
+
 ### What the next 47 files need first
 
 The audit behind this task (comment ratio × owning design doc, all 57 files over 30 lines):

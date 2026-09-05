@@ -32,6 +32,11 @@ All six text-bearing types put the `yorkie.Text` at the same path —
 `blocks[i].content.text` — with their own fields as primitives beside it. For
 text, quote and code that wrapper holds nothing else, and it is still there.
 
+**Reading flattens it back.** The `Block` types in `lib/blocks/types.ts` expose `text` directly,
+not `content.text`, because a renderer reaching for the words should not first have to know which
+kind of block it is holding. The wrapper exists for the write path's benefit, not the read path's,
+so the read model drops it.
+
 **The reason is block type conversion**, which this schema originally made
 impossible to do without losing the text. Typing `- ` at the start of a
 paragraph turns it into a list item; so does picking a type from a menu, or
