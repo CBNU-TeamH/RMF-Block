@@ -6,24 +6,14 @@ import type { BlockId, HeadingLevel, ListStyle } from "./types.ts";
 /**
  * Every change the editor can make to a document's blocks (FR-022-01~04).
  *
- * Each function runs **inside** a `doc.update()` callback and takes the live
- * `root.blocks` array. They do not open their own transaction, because the
- * caller often needs several of them to land together — splitting a block is an
- * insert and two text edits, and a half-applied split is a worse document than
- * an unsplit one.
+ * **Each function runs inside a `doc.update()` callback** and takes the live
+ * `root.blocks` array; none opens a transaction of its own, because a caller
+ * usually needs several to land together — a split is an insert and two text
+ * edits, and half a split is worse than none.
  *
- * Two rules run through all of it, both of them measured rather than assumed
- * (`notes/yorkie-block-model/`):
- *
- * 1. **Blocks are named by id, never by index.** An index is a fact about one
- *    replica at one moment; a peer inserting above you shifts it. Yorkie's own
- *    operations carry `TimeTicket`s for the same reason and never send an
- *    index at all.
- * 2. **`set` and `edit` never mix.** Primitives (`type`, `level`, `style`,
- *    `depth`, `checked`) are assigned and resolve last-write-wins; text is
- *    edited through `yorkie.Text` and merges character by character. Assigning
- *    a string over a `Text` would erase a peer's keystrokes instead of merging
- *    them.
+ * Two rules hold throughout: a block is named by its `id`, never its index, and
+ * `set` never touches text while `edit` never touches anything else. Why, and
+ * the measurements behind both: `docs/design/document-editing.md`.
  */
 
 /** The live array as Yorkie hands it over inside `doc.update()`. */
@@ -35,18 +25,12 @@ export class BlockNotFoundError extends Error {
   }
 }
 
-/**
- * Yorkie addresses elements by `TimeTicket`, and we address them by our own
- * `id`. This is the only place the two meet.
- *
- * The scan is linear, and stays linear on purpose: a document people actually
- * read is not long enough for that to matter, and an id→ticket index would be a
- * second thing to keep true across every remote change.
- */
+/** Yorkie addresses elements by `TimeTicket` and we address them by `id`; this
+ *  is the only place the two meet. The scan stays linear on purpose — an
+ *  id→ticket index would be a second thing to keep true on every remote change. */
 function elementOf(blocks: BlockArray, blockId: BlockId) {
   for (const element of blocks.elements()) {
-    // `element` is the wrapped block: readable as a block, and carrying the
-    // `getID()` Yorkie needs.
+    // The wrapped block: readable as one, and carrying the `getID()` Yorkie needs.
     if ((element as unknown as StoredBlock).id === blockId) return element;
   }
 
@@ -63,11 +47,8 @@ function contentOf(blocks: BlockArray, blockId: BlockId): StoredContent {
   return block.content;
 }
 
-/**
- * Puts `block` directly after `afterId`, or at the very start when that is
- * `null` — which is what "add a block above this one" means for the first block
- * in the document.
- */
+/** Puts `block` after `afterId`, or at the very start when that is `null` —
+ *  which is what "add a block above this one" means for the first block. */
 export function insertBlockAfter(
   blocks: BlockArray,
   afterId: BlockId | null,
@@ -98,18 +79,9 @@ export function removeBlock(blocks: BlockArray, blockId: BlockId): void {
   blocks.deleteByID(elementOf(blocks, blockId).getID());
 }
 
-/**
- * Moves a block after `afterId`, or to the front when that is `null`.
- *
- * The block keeps its identity: Yorkie's array separates an element from the
- * position it occupies, so a move rewrites the position and leaves the element —
- * and the `yorkie.Text` inside it — untouched. Measured: a peer typing into the
- * block while it moves keeps their characters.
- *
- * Two people moving the same block at once resolve last-write-wins on its
- * position. One of them sees their move undone, which is the honest outcome —
- * a block cannot be in two places.
- */
+/** Moves a block after `afterId`, or to the front when that is `null`. The block
+ *  keeps its identity and its text through the move — see the document-editing
+ *  doc's Verification items 2 and 3 for what was measured. */
 export function moveBlockAfter(
   blocks: BlockArray,
   afterId: BlockId | null,
@@ -126,13 +98,12 @@ export function moveBlockAfter(
 }
 
 /**
- * The one way text changes (FR-022-02). `from`/`to` are character offsets in
- * the block's current text, and `value` replaces what they span — so an insert
- * is a zero-width range and a delete is an empty value.
+ * The one way text changes (FR-022-02). `from`/`to` are character offsets in the
+ * block's current text and `value` replaces what they span, so an insert is a
+ * zero-width range and a delete is an empty value.
  *
  * Offsets are safe here in a way block indices are not: `yorkie.Text` resolves
- * them against its own nodes at the moment of the edit and carries a position,
- * not a number, in the operation it sends.
+ * them against its own nodes at edit time and sends a position, not a number.
  */
 export function editBlockText(
   blocks: BlockArray,
@@ -150,7 +121,6 @@ export function editBlockText(
   text.edit(from, to, value);
 }
 
-/** The primitives a block type owns, minus the text every one of them keeps. */
 /** The fields a conversion takes on, by target type. Exported because the `/`
  *  menu's items name one of these (`lib/blocks/slash-menu.ts`). */
 export type TypeFields =
@@ -165,21 +135,12 @@ export type TypeFields =
 const OWNED_FIELDS = ["level", "style", "depth", "checked"] as const;
 
 /**
- * Changes a block's type in place — what typing `- ` at the start of a paragraph
- * does, and what the block menu does.
+ * Changes a block's type in place (FR-022-02) — what a markdown marker and the
+ * `/` menu both do.
  *
- * In place, and not delete-then-create, for two reasons. The block keeps its
- * `id`, so occupancy (FR-022-06) and any block-link pointing at it still
- * resolve. And it keeps its `yorkie.Text`, so a peer typing in it at that moment
- * keeps what they typed — a rebuild loses it, measured.
- *
- * The fields the outgoing type owned are deleted in the same call. Two people
- * converting one block at once leave the loser's fields behind — `type` is a
- * single LWW primitive and converges, but the fields around it were separate
- * writes and all survive. Clearing here means that litter never outlives the
- * next conversion, and it rides a write the person already asked for rather
- * than a sweep that would race real edits of its own
- * (`docs/design/document-editing.md`).
+ * In place rather than delete-then-create, and clearing the outgoing type's
+ * fields in the same update rather than sweeping them later: both are argued in
+ * `docs/design/document-editing.md`.
  */
 export function changeBlockType(
   blocks: BlockArray,

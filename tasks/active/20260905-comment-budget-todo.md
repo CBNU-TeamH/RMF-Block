@@ -137,6 +137,26 @@ The same pass on this file found **one more real gap**: the doc explains why *st
 
 Two real gaps in three files. The check is not a formality.
 
+### Files four and five, and the case that reversed the assumption
+
+`lib/blocks/operations.ts`: **47% → 33%.** This one nearly went wrong. It has the same owning doc
+as the schema file, so the assumption going in was that its rationale was equally covered — and
+the write-side rule it carries, **a block is named by `id`, never by index**, turned out to be
+nowhere in `document-editing.md`. The doc explains that hazard carefully for *subscription paths*
+(`$.blocks.0.…` names whatever sits there now) and never once for the operations API. Trimming
+first would have deleted the only statement of it.
+
+So the doc gained an **"Operations name a block by `id`, never by index"** section — including why
+the id→ticket resolution stays a linear scan, which is an S-2 argument (a second index would be a
+second structure to keep true) — and the comment became a pointer.
+
+`lib/blocks/document.ts`: **33% → 28%.** The conversion-litter rationale it carried is in the doc
+in full; what stayed is the LAN's lack of write validation and the `never` guard's two-failures
+distinction, neither derivable from the code.
+
+**A second stale comment surfaced**, the same sentence as in `types.ts`: "the five below cannot be
+created yet", false since #54. Fixed in both.
+
 ### What the next 47 files need first
 
 The audit behind this task (comment ratio × owning design doc, all 57 files over 30 lines):

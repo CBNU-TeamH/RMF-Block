@@ -51,6 +51,19 @@
   consecutive words in any doc. Everything it flags still needs a human read — most flags are
   sentences that were kept in rewritten form — but it does not miss.
 
+- **"Same owning doc" does not mean "safe to trim".** `lib/blocks/types.ts` and
+  `lib/blocks/operations.ts` are both owned by `document-editing.md`, and they were opposites:
+  the schema file's rationale was in the doc twelve times over, the operations file's write-side
+  rule — a block is named by `id`, never by index — was nowhere in it. The doc explained the same
+  hazard for *subscription paths* and never for the write API. Ownership says a doc is
+  responsible for a file; it says nothing about whether it has discharged that responsibility.
+
+- **Trimming keeps finding comments that are wrong rather than long.** Two so far, both the same
+  sentence in different files: "the four/five file-backed and link blocks cannot be created yet",
+  false since #54 gave `pdf` a renderer and an upload path. A comment nobody re-reads is a comment
+  nobody notices going stale, which is its own argument for moving rationale to a doc that gets
+  reviewed.
+
 ## Worth extracting
 
 - **Measure long-block lines, not a ratio.** The audit that opened this task counted comment

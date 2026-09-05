@@ -16,20 +16,13 @@ import type {
  */
 
 /**
- * A block as it actually sits in the document. Every field beyond `id` and
- * `type` is optional, and that is not laziness about typing — it is what
- * concurrent editing leaves behind.
+ * A block as it actually sits in the document.
  *
- * Two clients converting the same block at the same moment each write their own
- * type's fields. `type` is one LWW primitive so it converges on one winner, but
- * the fields around it were separate writes and all of them survive: a block can
- * read `heading` while still carrying a `style` from the list conversion that
- * lost. The reverse is possible too — nothing in the CRDT guarantees a heading
- * has a `level`, only our own discipline about writing them together.
- *
- * Nothing validates this on the way in, either. Yorkie is published on the LAN
- * with no auth webhook (`docs/design/api.md` §2 has no implementation), so the
- * document is writable by anything that can reach port 8080.
+ * **Every field beyond `id` and `type` is optional**, and that is not laziness:
+ * two clients converting one block at once leave the loser's fields behind, and
+ * nothing guarantees a heading arrived with its `level`. Yorkie is also on the
+ * LAN with nothing validating writes, so a block can hold anything. Why the
+ * litter is left rather than swept: `docs/design/document-editing.md`.
  */
 export type StoredBlock = {
   id: string;
@@ -71,19 +64,13 @@ const textOf = (content: StoredContent | undefined): string =>
   content?.text?.toString() ?? "";
 
 /**
- * Turns the document's blocks into the strict shape the UI reads.
+ * Turns the document's blocks into the strict shape the UI reads — the only
+ * place a missing field is decided about.
  *
- * This is the only place a missing field is decided about. Falling back rather
- * than throwing is deliberate: the alternative to a heading rendering at the
- * wrong level is the whole document failing to render, and one racing pair of
- * conversions is not worth that. Every fallback is a constant above, named, so
- * the choice is visible rather than buried in a `??`.
- *
- * A block whose `type` is not one of the twelve is dropped. It cannot be drawn —
- * there is no renderer for a type this build has never heard of — and guessing
- * would misrepresent it. Dropping is a real cost, so it is written down here:
- * the block stays in the document and reappears the moment a build that knows
- * the type reads it.
+ * Falls back rather than throwing: one racing pair of conversions should cost a
+ * heading its level, not cost the reader the whole document. A block whose
+ * `type` is not one of the twelve is dropped — it stays in the document and
+ * reappears for a build that knows the type.
  */
 export function readBlocks(blocks: Array<StoredBlock | null>): Array<Block> {
   const result: Array<Block> = [];
@@ -146,10 +133,10 @@ function readBlock(stored: StoredBlock | null): Block | null {
     case "divider":
       return { id, type: "divider" };
 
-    // The five below cannot be created yet, so any that turn up came from
-    // somewhere this build did not write. They are read anyway rather than
-    // dropped: the fields are simple, and a document that renders half its
-    // blocks is worse than one that renders a file block with a blank name.
+    // `file`, `image` and the two link types cannot be created here yet, so any
+    // that turn up came from elsewhere. Read anyway rather than dropped: a
+    // document that renders half its blocks is worse than one that renders a
+    // file block with a blank name.
     case "file":
       return {
         id,
@@ -182,14 +169,10 @@ function readBlock(stored: StoredBlock | null): Block | null {
       };
 
     default: {
-      // Two different failures share this branch, and only one of them is
-      // allowed to be silent. A `type` that is not in the union at all can
-      // arrive at runtime — Yorkie is on the LAN with no schema enforcement
-      // (`docs/design/api.md` §2) — and dropping that block is the documented
-      // behaviour above. A type that *is* in the union but has no `case` is a
-      // different thing entirely: a block this build knows about and forgot to
-      // read. `never` separates them, because it only holds while every member
-      // is handled — add a thirteenth type and this line stops compiling.
+      // Two failures share this branch and only one may be silent: a type from
+      // the LAN that is not in the union at all (drop it), versus one that *is*
+      // and has no `case` (a bug). `never` holds only while every member is
+      // handled, so the second stops compiling while the first still runs.
       const unhandled: never = stored.type;
       void unhandled;
 

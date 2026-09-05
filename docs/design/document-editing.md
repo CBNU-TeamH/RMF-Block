@@ -436,6 +436,19 @@ the array changes shape elsewhere. The editor has to re-derive each block's curr
 walking `path` against the current array — a fixed-path subscription per block, kept for the
 block's whole life, is the one option ruled out by this.
 
+### Operations name a block by `id`, never by index
+
+The same hazard on the write side. Every function in `lib/blocks/operations.ts` takes a `BlockId`
+and resolves it to a Yorkie `TimeTicket` at call time; none of them accepts an array position. An
+index is a fact about one replica at one moment — a peer inserting above you shifts it, and the
+operation lands on the wrong block. Yorkie's own operations carry `TimeTicket`s rather than
+indices for exactly this reason, and `moveAfterByIndex` exists but is not used here.
+
+The resolution is a linear scan of the array, deliberately. A document a person actually reads is
+not long enough for that to cost anything, and an `id`→ticket index would be a second structure to
+keep true across every remote change — the same class of duplicated state that S-2 in
+[`docs/conventions.md`](../conventions.md) forbids.
+
 ### Writes never go through the `Block` view model
 
 Restated because the surface is where it would be easiest to forget: `editBlockText` (or
