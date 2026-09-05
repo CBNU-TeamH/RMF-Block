@@ -100,6 +100,28 @@ Chat history is read and written as whole JSON files on the host filesystem — 
 
 This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`. Both are now named volumes — `mongo-data` for Yorkie's store, `app-data` for `.data/` — so a container recreation leaves either intact and only `docker compose down -v` clears them (#22).
 
+### Startup: how the app refuses to run
+
+`instrumentation.ts` registers Yorkie's auth webhook before the first request is served. **In
+production a failure there is fatal**, because an unguarded Yorkie is reachable by anything on the
+LAN and a workspace that ran anyway would be one nobody knows is open.
+
+It exits with `process.exit`, not `throw`. Throwing was the first attempt and does not work: Next
+installs its own `unhandledRejection` listener, so a throw from here is logged and swallowed,
+`app.prepare()` never rejects, and the process lives on without ever listening — measured at
+forty-five seconds of sitting there. In a container that is the worst outcome available, because
+Docker sees a running service, `restart` never fires, and compose reports no failure while the
+workspace looks up and serves nothing.
+
+In development it is not fatal — Yorkie is often simply not running and most work does not need
+it — but it is printed loudly, because this is the one state where the app looks fine and is
+protecting nothing.
+
+The successful registration is printed too. Yorkie stores the webhook URL without ever testing it,
+so an address it cannot reach registers exactly like one it can and surfaces only later as clients
+failing with `verify access: send webhook` — which reads like a Yorkie fault rather than a wrong
+address.
+
 ## 4. Decided vs. deferred
 
 | Decided here / already fixed | Deferred to module design |
