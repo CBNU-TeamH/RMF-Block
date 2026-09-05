@@ -192,18 +192,31 @@ The arithmetic is real: a 25% budget on *N* code lines allows *N/3* comment line
 file with several exported symbols has very little room. What that does **not** justify is the
 delimiter cost. The earlier version argued the budget was unreachable because *"JSDoc spends two
 of those lines on `/**` and `*/` before a word is written."* The single-line form spends none.
-Every measurement in that version was taken with a formatting choice baked in and reported as
-arithmetic — `lib/presence/types.ts` was cited at 60.5% when its content, compactly written,
-sits near 40%.
+Every ratio it quoted was a formatting choice reported as arithmetic:
 
-The real floor is content, not punctuation. A 15-line file that must carry two external
-constraints and three requirement tags has a floor of eight to ten comment lines however it is
-formatted — over a 5-line budget, and correct there.
+| file | claimed floor | actual, compactly written |
+| --- | ---: | ---: |
+| `lib/presence/types.ts` | 60.5% | **34.8%** |
+| `lib/files/serving.ts` | 56.3% | **30.0%** |
+| `lib/blocks/types.ts` | 30.7% | **24.8%** |
+| `editor.tsx` | 34.0% | **21.9%** |
+
+Across the codebase the same correction took the comment ratio from 40.0% to 23.6% — under the
+budget, with no protected sentence deleted.
+
+**The real floor is content, and it binds on small files only.** Of the 21 files still over
+budget, 17 hold 40 code lines or fewer. `lib/focus/pathname.ts` is the clearest: three code lines,
+a budget of one, and a comment that has to say both what the function returns and why the file
+exists apart from its only caller (Node's test runner cannot import a client component). Two lines
+over, and correct there.
 
 So: **the budget routes, it does not adjudicate.** Over budget means "look at whether the
 rationale outgrew the code." Before concluding it did not, check in this order:
 
-1. **Is the prose restating a document the comment already cites?** Cut it to the citation.
+1. **Is the prose restating a document the comment already cites?** Cut it to the citation. A
+   requirement tag reaches the rule on its own: `/** UC-021 E4a. */` is a complete comment when
+   `SRS-ko.md` carries E4a, and the four-line paraphrase it replaces was a second copy free to go
+   stale.
 2. **Is a multi-line block carrying one sentence?** Reflow it to one line.
 3. **Is this design rationale at all?** Then it belongs in `docs/design/`, and the code keeps
    kind 4's one-line pointer.
@@ -214,8 +227,8 @@ the PR and leave it — that is a passing result, not a deferred one.
 What tracks the problem better than the ratio is the size of the *blocks*: a comment of eight
 lines or more is nearly always design rationale that belongs in `docs/`. One caution, learned the
 hard way: an audit that lists only blocks of eight lines and up will never show you the three- and
-four-line comments inside function bodies, and this repo has more lines in those than in the long
-blocks it was built to find.
+four-line comments inside function bodies, and this repo had more lines in those than the long
+blocks the audit was built to find.
 
 ### The `simple:` marker
 

@@ -68,32 +68,41 @@ them. `conventions.md` names both as its worked examples:
 Gate criteria this touches: **1** (ratio), **4** (the promotion loop). Criteria 2, 3, 5 and 6 are
 observations to record while doing the work, not things this task produces.
 
-## Why 25% is not reachable, and where that is written down
+## Why the first answer to "25% is unreachable" was wrong
 
-Recorded in [`docs/conventions.md`](../../docs/conventions.md), "The comment budget is a ratio,
-and a ratio has a floor", with the four-file table below — so the next person meets the reasoning
-in the rulebook rather than rediscovering it here.
+The first pass concluded the budget had a floor around 55–60% on small files and wrote that into
+`conventions.md`, with a four-row table. The argument was that JSDoc pays two lines for `/**` and
+`*/` before any prose. **The single-line form `/** … */` pays none**, and the repo already had 66
+blocks in that form. Every ratio in that table was a formatting choice reported as arithmetic.
 
-A 25% budget on *N* code lines allows *N/3* comment lines. JSDoc spends two of those on `/**` and
-`*/` before a word is written, plus one per blank `*` separator, so three exported symbols cost
-six to nine lines in delimiters alone.
+Reflowing without deleting a word of prose was worth 531 lines across the codebase, 334 of them
+pure delimiters. Cutting prose that merely restates a cited document — the `UC-021 E4a` case,
+where four lines paraphrased one line of `SRS-ko.md` that the tag already reaches — was worth the
+rest.
 
-| file | code | comments | delimiters | ratio | 25% allows |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `lib/presence/types.ts` | 15 | 23 | 12 | 60.5% | 5 |
-| `lib/files/serving.ts` | 28 | 36 | 16 | 56.3% | 9 |
-| `lib/blocks/types.ts` | 79 | 35 | 20 | 30.7% | 26 |
-| `editor.tsx` | 492 | 253 | 40 | 34.0% | 164 |
+| file | first pass called it | actual |
+| --- | ---: | ---: |
+| `lib/presence/types.ts` | 60.5% floor | **34.8%** |
+| `lib/files/serving.ts` | 56.3% floor | **30.0%** |
+| `lib/blocks/types.ts` | 30.7% | **24.8%** |
+| `editor.tsx` | 34.0% | **21.9%** |
 
-The first row is the proof. That file must keep the Yorkie key charset and the
-`JSON.stringify`/`undefined` constraint — both kind 1, and `conventions.md` uses *this file* to
-illustrate both — plus three requirement tags. Seven lines of prose against a budget of five.
-**Passing would mean deleting a rule the rulebook says to keep.**
+Whole codebase: **40.0% → 23.6%**, comments 2,964 → 1,374.
 
-The last row is the control. `editor.tsx` holds 213 lines of comment prose to that file's 11 and
-scores better, because 492 lines of code can afford them. The ratio measures file size at least
-as much as it measures over-commenting — which is why the long-block count (1,533 → 703) is the
-number this task actually moved.
+### The floor is real, and it is content
+
+21 files remain over budget; **17 hold 40 code lines or fewer**. `lib/focus/pathname.ts` is three
+code lines against a budget of one, and its comment must carry both what the function returns and
+why the file exists apart from its only caller. Those are the honest cases, and
+`conventions.md` now says to declare them in the PR rather than defer them.
+
+### The audit's threshold hid a third of the work
+
+`classify.mjs` counted blocks of **eight lines or more**. Comments of three and four lines inside
+function bodies never entered the worklist — 56 blocks, 188 lines, untouched through the entire
+first pass while 5+ line blocks fell by a third. Those are also the ones a reader actually meets
+scrolling through a function. Any future comment audit should list from three lines up.
+
 
 ## Review
 
