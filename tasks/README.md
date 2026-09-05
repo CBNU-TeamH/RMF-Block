@@ -25,6 +25,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 | Task | Lessons |
 | :--- | :--- |
 | [Verify scripts — ownership, comment budget, hooks, `verify:docs`](active/20260904-verify-scripts-todo.md) | [lessons](active/20260904-verify-scripts-lessons.md) |
+| [Track D — wire Phase 1's rules into AGENTS.md — todo](active/20260904-agents-md-todo.md) | [lessons](active/20260904-agents-md-lessons.md) |
 | [AGENTS.md doc-routing table: spell out tasks/active, tasks/archive — todo](active/20260904-agents-md-tasks-link-todo.md) | [lessons](active/20260904-agents-md-tasks-link-lessons.md) |
 | [Tool alignment — skills/ as an install manifest](active/20260903-skills-manifest-todo.md) | [lessons](active/20260903-skills-manifest-lessons.md) |
 | [The `/` block menu, and the divider it can finally create](active/20260902-slash-menu-todo.md) | [lessons](active/20260902-slash-menu-lessons.md) |

@@ -1,0 +1,139 @@
+# Track D — wire Phase 1's rules into AGENTS.md — todo
+
+**Created**: 2026-09-04
+**Issue**: #65 (Phase 1, Track D — depends on Track A/B/C, all merged: #69, #70, #71, #72)
+**Design**: none — this task edits `AGENTS.md`, `.github/pull_request_template.md`, and
+`skills/README.md`, pointing them at doc/script deliverables Tracks A–C already shipped. (The
+first two were the planned scope; `skills/README.md` was added during the work — see Review for
+why the PR-template edit made it this task's problem rather than a follow-up's.)
+
+## Milestones
+
+### 1. `AGENTS.md` wiring
+
+- **What**:
+  - §2 (SDD workflow table): fold the comment-budget promotion review into step "5. Done," right
+    before `pnpm tasks:archive` — reviewing "Worth extracting" belongs at the same wrap-up moment;
+    a new table row would wrongly read as a hard gate on archiving.
+  - Add `pnpm verify:docs` as a first action ahead of step 0 ("run this before touching
+    anything"), not as a new numbered step.
+  - New **"Run and verify"** section: *"changes to server startup, auth, or networking are
+    verified with `docker compose up --build`, not `pnpm dev`."* — the exact wording drafted in
+    `tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`'s "Worth extracting," open since
+    2026-07-28.
+  - §4 doc-routing: point "code conventions" at `docs/conventions.md`. Do **not** add a
+    `docs/testing.md` pointer for "test strategy" — per #65's own resolved scope correction, note
+    explicitly that it doesn't exist yet and arrives with #66 (Phase 2), so the table states a
+    known gap instead of promising a file.
+  - §3 (coding principles): a pointer to `docs/conventions.md` only — same reasoning, no
+    `testing.md` pointer.
+  - §7 TODO: add a fourth item for the 2026-09-23 `comment-budget` promotion date
+    (`scripts/lib/promotion-date.mjs`), worded like the existing three (names what it's blocked
+    on: zero false positives, tracked in #65's own Gate checklist).
+  - Short sub-agent delegation note: broad repo-wide fact-finding goes to an Explore-style
+    sub-agent, small/localized edits are direct, judgement calls are never delegated — the
+    pattern this whole Phase 1 effort already used. Worded tool-neutral (AGENTS.md's own header
+    promises Claude/Cursor/Copilot parity), naming Claude Code's Explore agent as the concrete
+    example rather than the only case.
+- **Files**: `AGENTS.md`.
+- **Reuse**: `docs/conventions.md`, `scripts/verify-docs.mjs`, `scripts/lib/promotion-date.mjs`
+  (all shipped in #71); the exact "Run and verify" wording already drafted in an archived lessons
+  file; issue #65's own Gate section for what the promotion item should name as its blocker.
+- **Done**: diff-read against the pre-edit file — every existing line not named above is
+  untouched; §7's existing three items still present, only additive.
+
+### 2. PR template (C5b)
+
+- **What**: add `pnpm comments` and `pnpm verify:docs` to the "Before opening this PR" checklist,
+  alongside the existing `pnpm lint`/`test`/`build`, `/simplify`, `/code-review low` lines. Point
+  the author checklist's §3/§5 reference at `docs/conventions.md` too, alongside the existing
+  `AGENTS.md` reference — this is the check that couldn't exist before Track A shipped it.
+- **Files**: `.github/pull_request_template.md`.
+- **Reuse**: the template's own existing structure and phrasing style.
+- **Done**: template still renders as valid markdown; every path it references now exists on
+  `main` (unlike the brief #64-era regression where it pointed at files before they shipped).
+
+### 3. Close the loop on `#65`
+
+- **What**: comment on `#65` recording the two scope corrections filed at Phase 1's start
+  (`scripts/tasks-archive.sh`'s referrer-rewriting was already done in PR #41, before #65 was
+  written; `docs/testing.md` deferred to #66) so the issue reflects what actually shipped —
+  matching the pattern already used for the #64 correction after CodeRabbit's review. Update
+  #65's own tracklist to check off Track D's items once this PR is up.
+- **Files**: none (GitHub only).
+- **Reuse**: the exact pattern from the #64 CodeRabbit-driven correction comment.
+- **Done**: comment posted, checklist updated, links resolve.
+
+## Acceptance
+
+- [x] `AGENTS.md` diff is additive only — no unrelated line changed.
+- [x] §2 references `pnpm verify:docs` and folds the promotion review into step 5, not a new row.
+- [x] "Run and verify" wording present — as a bold-lead-in bullet inside §2 rather than a new H2
+      section (see Review: kept the diff surgical, avoided renumbering every section from §3 on
+      for one sentence). **Not the drafted text verbatim**: the draft named `docker compose up
+      --build`, which skips `scripts/detect-host-ip.sh` and so can print an unreachable join
+      address. Names `pnpm docker:up` instead, which `README.md` documents as the real entry
+      point, and keeps the draft's actual point — the contrast with `pnpm dev`.
+- [x] §4 points "code conventions" at `docs/conventions.md`; "test strategy" states the #66 gap
+      explicitly rather than pointing at a file that doesn't exist.
+- [x] §7 has a fourth TODO item for the 2026-09-23 promotion date.
+- [x] Sub-agent delegation note added, worded tool-neutral.
+- [x] `.github/pull_request_template.md` includes `pnpm comments` and `pnpm verify:docs`, and a
+      `docs/conventions.md` reference.
+- [x] Comment posted on `#65` with the two scope corrections; `#65` checklist updated for Track D.
+- [x] `pnpm verify:docs` run against the final state — no new dead-link findings introduced by
+      this task's own edits (the 7 pre-existing ones are not this task's to fix).
+
+## Cross-cutting
+
+This is Phase 1's last track — once merged, all four tracks (`docs/conventions`,
+`docs/presence-and-focus`, `chore/verify-scripts`, `chore/agents-md`) are on `main`. Phase 1's own
+issue (`#65`) is not fully closed by this merge, though — its Gate section is measured against
+real usage over the next 1–2 tasks, not at Track D's merge time. That measurement is out of this
+task's scope.
+
+## Review
+
+Shipped all three milestones as planned, with one deliberate deviation from the plan's wording:
+the plan called for a "new 'Run and verify' section," but a genuine new `## ` section would have
+meant renumbering §3 through §7 for one sentence's worth of content. Added it as a bold-lead-in
+bullet inside §2 instead — same findability, no disruption to every other section's anchor links
+(several of which are referenced elsewhere in this repo, e.g. `#3-coding-principles` from §2's
+own table). Added a second bullet the same way for the sub-agent delegation note.
+
+`§4`'s doc-routing table split "code conventions" and "test strategy" out of the old catch-all
+`docs/` row into their own rows — the catch-all row (module design, ADRs, UI wireframes) is
+unaffected. Verified with `node scripts/verify-docs.mjs` after every edit, not just at the end —
+zero new dead-link findings from any of the new links added (`docs/conventions.md` ×2,
+`tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`), same 7 pre-existing findings as on
+`main`.
+
+**Scope extended by one file, deliberately**: `skills/README.md` carried two sentences that
+Phase 1's own merges had turned false — the `code-review` row still said the two rule-reading
+agents "have no project rulebook to check against" (`docs/conventions.md` landed in #69), and the
+"run the free checks first" section still said of `pnpm comments`/`pnpm verify:docs` that
+"**neither script exists yet; do not add them to this list before they do**" (both shipped in
+#71). The second one is this task's problem specifically, not merely a pre-existing staleness:
+the PR-template line added here sits directly under a pointer telling the reader that
+`skills/README.md` says "what each one is, and in which order," and that file's order line
+omitted both commands and forbade adding them. Wiring the template without fixing that would have
+shipped a live contradiction. Fixed both, and corrected the `verify:docs` description while there
+— it lists "archive backlog," which #65 sketched but Track C never built.
+
+**CodeRabbit review, three findings, all three valid and all three self-inflicted by this PR:**
+(1) the "Run and verify" bullet named `docker compose up --build`, the by-hand fallback, where
+`README.md` documents `pnpm docker:up` as the entry point that fills in `HOST_LAN_IP` first —
+following the drafted wording verbatim would have shipped a command that prints a join address
+guests can't reach; (2) the `skills/README.md` order line this PR rewrote asked for
+`pnpm verify:docs` **clean**, which is unreachable — the check exits non-zero on a dead link and
+seven are a deliberately-kept baseline, so the sentence set a bar nothing can clear; (3) this
+doc's own header still declared a two-file scope after the work extended to three. Verified each
+against `scripts/detect-host-ip.sh`, `README.md`, and `verify-docs.mjs`'s exit-code path before
+acting, then fixed all three.
+
+Also worth noting: while confirming the Turbopack/pre-push push block was purely environmental
+(same recurring Windows-only native-binding gap this whole Phase hit repeatedly, unrelated to
+this task's doc-only changes), wrote up the distinction between that failure mode and a
+superficially similar Docker+WSL2 HMR issue as a personal study note — deliberately kept outside
+this branch (`TURBOPACK-WINDOWS-NOTES.md`, untracked at the repo root) since it isn't project
+content.

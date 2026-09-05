@@ -31,7 +31,7 @@ through review and one that did not.
 
 | Plugin | Why this repository needs it | When to invoke |
 | --- | --- | --- |
-| **`code-review`** | Launches **five parallel review agents** (see the model note below — they inherit your session's model), and **two of them read our rules** — one checks CLAUDE.md compliance, one checks code-comment compliance. The other three cover obvious bugs, git blame, and previous PRs. Findings are scored 0–100 and anything under 80 is dropped. Once `docs/conventions.md` lands (#65) it becomes the rubric those two agents apply — that is what turns a written rule into a check that runs. **Until then they have no project rulebook to check against**, which is the gap Phase 1 closes. | Before opening a PR, **from a Sonnet session**: `/code-review low` |
+| **`code-review`** | Launches **five parallel review agents** (see the model note below — they inherit your session's model), and **two of them read our rules** — one checks CLAUDE.md compliance, one checks code-comment compliance. The other three cover obvious bugs, git blame, and previous PRs. Findings are scored 0–100 and anything under 80 is dropped. [`docs/conventions.md`](../docs/conventions.md) (#69) is the rubric those two agents apply — that is what turns a written rule into a check that runs. Before it existed they had no project rulebook to check against, which is the gap Phase 1 closed. | Before opening a PR, **from a Sonnet session**: `/code-review low` |
 | **`code-simplifier`** | *"Simplifies and refines code for clarity, consistency, and maintainability **while preserving functionality**."* Those last three words are the failure mode tests cannot see — code that behaves correctly and is shaped wrongly. #40 is the worked example. | While working, **from a Sonnet session**: `/simplify` |
 | **`claude-md-management`** | Two halves. `claude-md-improver` audits the harness against the actual state of the codebase, which is how we catch `AGENTS.md` routing to files that do not exist. `/revise-claude-md` captures what a session learned, which is the execution step our lessons → harness promotion loop has always been missing. | Starting work: audit. Finishing a task: `/revise-claude-md` as the promotion step |
 
@@ -57,11 +57,19 @@ not from any single command.
 should catch: a review that spends a findings slot on a lint-level nit is paying model tokens for
 something a script already knows, and costs the reader attention on top.
 
-So the order is: **`pnpm verify:fast` clean → then `/simplify` → then `/code-review low`**.
+So the order is: **`pnpm verify:fast` clean, `pnpm comments` / `pnpm verify:docs` showing nothing
+new → then `/simplify` → then `/code-review low`**.
 
-#65 widens that first step — it adds `pnpm comments` (the comment budget) and `pnpm verify:docs`
-(index freshness, dead paths, archive backlog), plus a pre-commit hook that runs the staged-file
-part automatically. **Neither script exists yet; do not add them to this list before they do.**
+"Nothing new" rather than "clean" for the second pair, because `verify:docs` exits non-zero on a
+dead link and **seven of those are a known baseline** — one illustrative import specifier quoted
+verbatim from real source in `docs/conventions.md`, and six past-tense mentions of since-removed
+files in `docs/HOST-GUEST-ENTRY-ko.md`. Both were examined and deliberately left (#71); the check
+is useful as a diff against that baseline, not as a gate that can ever read green.
+
+#65 widened that first step, and both halves of it shipped in #71: `pnpm comments` (the comment
+budget) and `pnpm verify:docs` (doc ownership, task-index freshness, dead links), plus a
+pre-commit hook that runs the staged-file part on every commit. The archive-pending list that
+#65 originally sketched for `verify:docs` is not among them — it was not built.
 
 This matters more than it sounds. Our PRs run to a median of 494 changed lines across 12
 files, with the larger ones (#51, #53, #60) between 2,000 and 2,800 lines — for a repository
