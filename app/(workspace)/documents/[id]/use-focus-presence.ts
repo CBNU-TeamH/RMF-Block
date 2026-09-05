@@ -5,24 +5,14 @@ import { readBoxes } from "@/lib/focus/dom";
 import type { Block } from "@/lib/blocks/types";
 import type { WorkspacePresence } from "@/lib/presence/types";
 
-/**
- * How often a presenter's anchor may go out over presence, at most.
- *
- * simple: a plain interval, no easing or adaptive cadence. 10 a second is
- * well under what a follower can perceive as lag — their side scrolls
- * smoothly between anchors anyway — and it is 6x fewer writes than the
- * display's frame rate. Lower it if following ever reads as steppy.
- */
+/** How often a presenter's anchor may go out, at most.
+ *  simple: a plain interval, no easing or adaptive cadence
+ *  (`docs/design/presence-and-focus.md`). Lower it if following reads as steppy. */
 const PUBLISH_MS = 100;
 
-/**
- * Focus following (UC-030) as it applies to *this* editor: publish where the
- * presenter is looking, and move the view to where a followed one is.
- *
- * The decisions are pure and tested in `lib/focus/`; only the two effects that
- * drive them are here. Bringing a follower across to a *different* document is
- * `focus-follow-provider.tsx`'s, since it must work with no editor mounted.
- */
+/** Focus following (UC-030) for *this* editor. The decisions are pure and tested
+ *  in `lib/focus/`; only the two effects driving them are here. Crossing to a
+ *  different document is `focus-follow-provider.tsx`'s, which works unmounted. */
 export function useFocusPresence({
   documentId,
   containerRef,
@@ -51,14 +41,10 @@ export function useFocusPresence({
   // anchor actually changed" without recomputing what was last sent from
   // presence itself.
   const lastPublishedAnchorRef = useRef<FocusAnchor | null>(null);
-  // The last scroll target this browser *commanded* while following, so an
-  // unchanged target is never re-issued. `scrollTo({ behavior: "smooth" })`
-  // aborts an in-flight smooth scroll and restarts its easing curve from
-  // wherever it had reached, so re-issuing the same target faster than the
-  // animation completes leaves the follower creeping and never arriving —
-  // measured as "it just doesn't follow" with the effect firing correctly
-  // every time. Not `scrollTop`: that reads where the animation *is*, not
-  // where it was told to go.
+  // The last target this browser *commanded*, so an unchanged one is never
+  // re-issued — and not `scrollTop`, which reads where the animation is rather
+  // than where it was sent. Why re-issuing breaks following:
+  // `docs/design/presence-and-focus.md`.
   const lastScrolledToRef = useRef<number | null>(null);
 
   // The followed member's anchor, pulled apart into primitives. The effects

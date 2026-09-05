@@ -24,14 +24,10 @@ const HEADING_CLASS: Record<HeadingLevel, string> = {
   3: "text-lg font-semibold",
 };
 
-/**
- * What this block renders as beyond plain text — styling only.
- *
- * **This component's root stays a bare `<textarea>` in every variant**, never
- * conditionally wrapped: a wrapper changes the root element across a type
- * conversion and React remounts it, which drops the caret (measured). That is
- * why the bullet, number and checkbox render in `editor.tsx` as fixed siblings.
- */
+/** Styling only. **The root stays a bare `<textarea>` in every variant** — a
+ *  conditional wrapper changes the root element across a conversion, React
+ *  remounts it and the caret is lost (measured). Hence the bullet, number and
+ *  checkbox are fixed siblings in `editor.tsx`. */
 export type BlockVariant =
   | { type: "text" }
   | { type: "heading"; level: HeadingLevel }
@@ -57,15 +53,10 @@ function textareaClass(variant: BlockVariant): string {
   return TEXTAREA_CLASS_BY_VARIANT[variant.type];
 }
 
-/**
- * One text block's editing surface (`document-editing.md`, "Editing surface"):
- * an uncontrolled `<textarea>`, patched on the changed range only, with remote
- * edits held back during an IME composition and flushed when it ends.
- *
- * **Never re-reads `initialText` after mounting.** A controlled `value` driven
- * by remote edits is the binding measured to corrupt text under concurrent
- * editing; the DOM node's own `.value` is the source of truth once it exists.
- */
+/** One text block's editing surface (`document-editing.md`, "Editing surface").
+ *  **Never re-reads `initialText` after mounting** — a controlled `value` driven
+ *  by remote edits is the binding measured to corrupt text under concurrent
+ *  editing. The DOM node's `.value` is the source of truth once it exists. */
 export function TextBlockView({
   blockId,
   initialText,
@@ -119,11 +110,8 @@ export function TextBlockView({
   onTextCommitted: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // Stable across this block's re-renders (memoized on blockId/registerTextarea,
-  // both fixed for the block's lifetime) — an inline arrow here would make
-  // React re-invoke the ref callback (tearing down and re-adding the Map
-  // entry) on every re-render, since a ref callback's *identity* deciding
-  // whether it reruns, not an effect's dependency list.
+  // A ref callback reruns on identity, not on a dependency list, so an inline
+  // arrow would re-add the Map entry every render.
   const setTextareaRef = useCallback(
     (el: HTMLTextAreaElement | null) => {
       textareaRef.current = el;
@@ -131,13 +119,9 @@ export function TextBlockView({
     },
     [blockId, registerTextarea],
   );
-  /**
-   * The `/` menu's session, as two pieces of state rather than one object:
-   * the query is read off the textarea on every input, and the highlight is
-   * moved by arrow keys. Only a plain text block opens one — the same guard
-   * `onMarkdownShortcut` uses, and for the same reason: `/` inside a code
-   * block is source, and re-triggering inside a heading is noise.
-   */
+  /** The `/` menu's session — query read off the textarea, highlight moved by
+   *  arrow keys. Why only a plain text block opens one:
+   *  `docs/design/document-editing.md`. */
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [highlight, setHighlight] = useState(0);
   const slashItems = slashQuery === null ? [] : slashMenuItems(slashQuery);
@@ -229,12 +213,9 @@ export function TextBlockView({
         editBlockText(root.blocks as BlockArray, blockId, from, to, value);
       });
     } catch (error) {
-      // A peer removed this block mid-keystroke — the same race every
-      // `doc.update` in `editor.tsx` already guards, and the one call site
-      // that was missing it. There is nothing left to write into, and the
-      // baseline deliberately stays where it is: this keystroke never
-      // reached Yorkie, so advancing it would make the *next* diff describe
-      // an edit against text that was never sent.
+      // A peer removed this block mid-keystroke. The baseline deliberately
+      // stays put: this keystroke never reached Yorkie, so advancing it would
+      // make the next diff describe an edit against text that was never sent.
       if (error instanceof BlockNotFoundError) return;
       throw error;
     }
@@ -286,22 +267,15 @@ export function TextBlockView({
         }
 
         if (event.key === "Enter" && !event.shiftKey) {
-          // Shift+Enter is a literal newline within the block — normal
-          // behavior, not intercepted. Both signals checked, not just one:
-          // a composition-confirming Enter's `isComposing` is inconsistent
-          // across browsers, and `composingRef` alone can lag a keydown
-          // that also ends the composition.
+          // Both signals, not one: `isComposing` on a composition-confirming
+          // Enter is inconsistent across browsers, and `composingRef` alone can
+          // lag a keydown that also ends the composition.
           if (composingRef.current || event.nativeEvent.isComposing) return;
 
           if (variant.type === "code") {
-            // Code is source text, not a sequence of blocks — Enter here is
-            // a literal newline (`document-editing.md`: "inside code it is
-            // a newline"), same as Shift+Enter everywhere else, UNLESS the
-            // cursor is already on a blank line at the very end: that means
-            // this is a *second* Enter with nothing typed in between, which
-            // is how you leave a code block with no block-type menu to do
-            // it from otherwise. Only fires at the true end, not on a blank
-            // line in the middle of otherwise real code.
+            // Enter is a newline here; a second Enter on a blank line at the
+            // very end exits. Why, and why only at the end:
+            // `docs/design/document-editing.md`, "Leaving a code block".
             const el = event.currentTarget;
             const pos = el.selectionStart ?? 0;
             const onTrailingBlankLine = pos === el.value.length && el.value.endsWith("\n");
@@ -357,15 +331,8 @@ export function TextBlockView({
         // binding sends one edit per candidate revision, not per character).
         if (composingRef.current) return;
 
-        // Only a plain-text block ever converts — re-checking an
-        // already-converted block would let a code block's own literal
-        // "# " or "- " (legitimate source text) trigger a conversion it
-        // never asked for, and re-typing a marker into an existing heading
-        // has the same problem at a smaller scale.
-        // Same guard as the markdown check below, for the same reason: `/` in a
-        // code block is source text, and a heading does not need converting
-        // again. Recomputed from the text rather than tracked as a session, so
-        // deleting back through the slash closes the menu on its own.
+        // Plain text only — the same guard as the markdown check below, for the
+        // reason both share (`docs/design/document-editing.md`).
         const query = variant.type === "text" ? detectSlashQuery(el.value) : null;
         if (query !== slashQuery) {
           setSlashQuery(query);

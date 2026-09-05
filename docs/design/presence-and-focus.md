@@ -143,6 +143,20 @@ this reason.
 `focus-follow-provider.tsx`, so the pathname-to-document-id parsing can be tested as a pure unit
 without needing to render the client component around it.
 
+## The follower must not re-issue a scroll target
+
+`scrollTo({ behavior: "smooth" })` **aborts an in-flight smooth scroll and restarts its easing
+curve from wherever it had reached.** Re-issuing the same target faster than the animation
+completes therefore leaves the follower creeping and never arriving — measured, and it reads as
+"it just doesn't follow" while the effect fires correctly every time.
+
+So the follower remembers the last target it *commanded* and skips an unchanged one. That memory
+cannot be `scrollTop`: that reads where the animation currently *is*, not where it was told to go.
+
+The publish side is rate-limited to ten anchors a second — `simple:` a plain interval, no easing
+or adaptive cadence. That is well under what a follower perceives as lag, since their side scrolls
+smoothly between anchors anyway, and it is six times fewer writes than the display's frame rate.
+
 ## Why focus following is its own provider, not folded into presence
 
 `FocusFollowProvider` sits beside `PresenceProvider`, not inside it, because *who I am following*

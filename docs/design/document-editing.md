@@ -500,6 +500,50 @@ already occupies.
 returns a destination. When the line and the drop each decided for themselves, they drifted, and
 the line promised drops that did nothing.
 
+## Attaching under React's Strict Mode
+
+Strict Mode double-invokes an effect on mount in development — mount → cleanup → mount,
+**synchronously**. For a Yorkie attachment that means two `attach()` calls back to back for the
+same document key from the same client. Measured: the second fails with a misleading
+`"client not found"`, because Yorkie's server-side `TryAttaching` filters on the document not
+already being Attached for this client, and a cancelled run whose `attach()` succeeded anyway was
+never detached.
+
+The fix is to **chain one run's full teardown (unsubscribe + detach) in front of the next run's
+`attach()`.** React runs cleanup(N) before effect(N+1) even in the synchronous double-invoke, so a
+ref holding the previous run's teardown is exactly what the next attach must await — and the
+attach never reaches the server while the previous run's document is still marked Attached.
+
+Two places do this for the same reason: `use-block-document.ts` for a content document, and
+`presence-provider.tsx` for the workspace one
+([#32](https://github.com/CBNU-TeamH/RMF-Block/issues/32)).
+
+### Seeding a brand-new document is a known race
+
+Two people opening the same empty document at once can both see it empty and both seed it. `blocks`
+is last-write-wins as a whole, so one seed replaces the other outright. This is the same category
+of race a two-person `changeBlockType` already accepts, and is `#42` material if it ever matters at
+this app's scale.
+
+### Routing a remote text edit
+
+A remote edit is applied to one block's textarea rather than by rebuilding the list, because the
+node to patch is known and a rebuild costs the caret. Two details make that safe:
+
+- **The block list is recomputed at most once per event, not once per matching op.** A markdown
+  conversion alone produces two ops (a `set` on `type`, a `set` on `content`), and a multi-block
+  paste or reorder more. Recomputing is an O(n) read of the whole array, so it happens once per
+  batch.
+- **A block with no handler registered yet falls back to a rebuild.** Its row exists in the
+  document but has not mounted, so the textarea that would take the patch does not exist. Dropping
+  the op would leave that block showing its mount-time text forever — a peer creating a block and
+  typing into it does exactly this within a frame or two. The rebuild remounts the row with the
+  text the document holds *now* (#59).
+
+A split or merge is patched through **the same handler a remote edit uses**, deliberately. That is
+what keeps the block's diff baseline in step; writing `el.value` from outside would fix the display
+and leave the next keystroke diffing against the wrong string.
+
 ## Rules the editor component holds to
 
 **Every mutation reads live, never from `blocks` state.** That state's `text` is a snapshot taken
@@ -520,6 +564,19 @@ a trailing block to append) check the result.
 **One empty text block is kept at the end,** so starting a new paragraph never means clicking into
 a block someone else is typing in. It is idempotent, so running it after every text commit costs
 one read, and it is enforced locally only — the append reaches peers as an ordinary add.
+
+### Leaving a code block
+
+Enter inside a code block is a literal newline — code is source text, not a sequence of blocks.
+That leaves no way out, since a code block has no marker to retype and the `/` menu does not open
+inside one. **A second Enter on a blank line at the very end exits it.** The "at the very end"
+half matters: a blank line in the middle of otherwise real code is code, and must stay.
+
+Two guards elsewhere in the same component share one reason. Only a **plain text** block converts
+on a markdown marker, and only a plain text block opens the `/` menu. In a code block both `# `
+and `/` are legitimate source text; in a heading, retyping a marker asks for a conversion that has
+already happened. The `/` menu's query is recomputed from the text rather than tracked as a
+session, so deleting back through the slash closes it on its own.
 
 ### Three places a drag can land
 
