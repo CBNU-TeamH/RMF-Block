@@ -1,9 +1,14 @@
 # API Design — Endpoint Catalog
 
 - **Status**: Draft. Endpoints only — no request/response schemas yet. Shipped so far: `/api/auth/host` (as a simplified interim `GET` + query param, not the `POST` below — see `app/api/auth/host/route.ts`), `/api/workspace/join`, `/api/chat`, `/api/chat/files`, `/api/documents/:id/files` (PDFs only, see below), `/api/files/:id/preview`, `/api/files/:id/download`, plus two endpoints this catalogue does not list because they are not client-facing: `/api/auth/yorkie-token` (issues a per-session token) and `/api/internal/yorkie/auth` (the webhook Yorkie itself calls). Every other row below is target design, not yet built.
-- **Owns**: `lib/auth/` — the "Authentication model" section below is where its shape (bootstrap
-  secret, session tokens, restart-is-the-revoke-path) is explained; nothing else in `docs/design/`
-  covers it.
+- **Owns**: `lib/auth/`, `lib/workspace-config.ts`, `lib/yorkie-admin.ts`,
+  `app/api/auth/host/route.ts`, `app/api/auth/yorkie-token/route.ts`,
+  `app/api/internal/yorkie/auth/route.ts`, `app/api/workspace/join/route.ts`,
+  `app/session-watch.tsx` — the "Authentication model" section below is where their shape
+  (bootstrap secret, session tokens, restart-is-the-revoke-path, the webhook that makes Yorkie
+  ask at all) is explained; nothing else in `docs/design/` covers them. The route handlers are
+  the endpoints §1 already tabulates, so this doc owning them keeps the contract and its
+  implementation described in one place.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(b); [`docs/adr/002-persistence-on-yorkie-mongo.md`](../adr/002-persistence-on-yorkie-mongo.md); [`docs/SRS-ko.md`](../SRS-ko.md) §3.2, §3.3
 
 ## Scope
@@ -36,6 +41,23 @@ Access tokens live 30 minutes; refresh tokens live 7 days. Refresh-token reuse i
 Rotation bounds how long a leaked token stays replayable. It does **not** protect against a token leaking live — most plausibly by appearing in the address bar during screen sharing (UC-030) — so the client strips the token from the URL immediately after handoff and keeps it out of persistent storage. LAN traffic is unencrypted, so rotation narrows the replay window rather than preventing interception.
 
 There is no separate "revoke all sessions" endpoint. The host runs the container directly, so restarting it is the revoke path: a fresh bootstrap secret is printed to stdout and every existing session token is invalidated. Adding a dedicated revoke action would duplicate that and overlap with the per-guest kick (`DELETE /api/workspace/members/:userId`, not yet built).
+
+### The pieces around it
+
+Three files carry parts of this model that no endpoint row shows.
+
+`lib/workspace-config.ts` reads the workspace name and access password the host sets before
+starting the server (FR-020-02). It is configuration, not state: the password is never written to
+`.data/`, and changing it means restarting with a different value.
+
+`lib/yorkie-admin.ts` registers this server's auth webhook with Yorkie at startup
+(NFR-SEC-002/005). It is what makes §2's webhook actually get called — a Yorkie that was never
+told to ask would accept any client that can reach port 8080, which is the failure
+`instrumentation.ts` refuses to boot past.
+
+`app/session-watch.tsx` is the client half of FR-020-08's one-device rule: when a nickname is
+claimed on another device, the displaced session is revoked server-side and this component is
+what notices and leaves the workspace, rather than leaving a dead tab showing stale content.
 
 ## 1. REST — client ↔ rmf-block-server
 
@@ -140,7 +162,9 @@ PNG, fails, and shows a broken image instead of a page. The list stops the serve
 dangerous type; `nosniff` stops the browser overriding a safe one.
 
 `filename*=UTF-8''…` is percent-encoded with CR/LF stripped, so a crafted name cannot inject a
-header. This rule is [wafflebase](https://github.com/wafflebase/wafflebase)'s
+header. It is sent **alone**, without an ASCII `filename=` beside it: every browser
+`docs/SRS-ko.md` §4.2 supports reads `filename*`, and a second copy of the name would be a second
+thing to escape correctly. This rule is [wafflebase](https://github.com/wafflebase/wafflebase)'s
 `generic-file-upload.md`, which hit the problem first.
 
 ### Chat

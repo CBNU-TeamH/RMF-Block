@@ -88,7 +88,35 @@ deleting the Yorkie key charset or the `JSON.stringify` constraint, which are th
 - [x] `pnpm lint`, `pnpm test` (349), `tsc --noEmit`, `pnpm build`.
 - [ ] Under 25% — **see above**; raised as a threshold question rather than met.
 
-### What the next 49 files need first
+### Then: the ownership gap closed, and a second file trimmed
+
+**(b) The seven homeless files now have a home.** Four of them
+(`auth/host`, `auth/yorkie-token`, `internal/yorkie/auth`, `workspace/join` route handlers) were
+already described in `docs/design/api.md` — that doc simply never claimed them in its `Owns`
+line. The other three had no coverage anywhere, so `api.md` gained a short **"The pieces around
+it"** subsection naming what each does (`workspace-config.ts` is configuration, not state;
+`yorkie-admin.ts` is what makes the webhook get called at all; `session-watch.tsx` is the client
+half of FR-020-08's one-device rule) *before* the `Owns` line was widened to eight paths.
+Claiming a path a doc does not describe would make the checker green and the claim false.
+
+Coverage holes: **11 → 6.** The six left are the join screen, the workspace shell and the
+document list — a real gap, but a different task's.
+
+**A blind spot in the checker, found doing this:** `lib/` is walked at module (subdirectory)
+granularity, so the five top-level files — `host-secret.ts`, `lan-address.ts`,
+`workspace-config.ts`, `yorkie-address.ts`, `yorkie-admin.ts` — are invisible to it. Two of them
+were among the seven and were only found because the *comment* audit listed them. Worth fixing in
+`verify-doc-ownership.mjs`.
+
+**(c) `lib/files/serving.ts`: 72% → 56%**, comments 71 → 36 lines. Same method, and it caught
+something the first file did not: **three rationales were in the code and nowhere else.**
+`private` caching, why the filename rides on an inline response, and why `filename*` is sent
+without an ASCII `filename=`. The first two are external facts (a LAN with caches in front of it;
+the browser viewer's Save button) and stayed. The third is a rejected alternative, so it moved
+into `api.md` before the comment was deleted. Verifying before deleting is not a formality — it
+changed the answer three times in one file.
+
+### What the next 47 files need first
 
 The audit behind this task (comment ratio × owning design doc, all 57 files over 30 lines):
 

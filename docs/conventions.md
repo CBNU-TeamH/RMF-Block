@@ -122,7 +122,7 @@ fixing it already exists in the codebase, and says so."*
 
 The test: **could a reader derive this from the code itself?** If yes, the comment is restating
 what's already legible and should go. If no, it's carrying information the code genuinely can't,
-and it earns its place. Three kinds pass:
+and it earns its place. Five kinds pass:
 
 1. **An external constraint the code can't express.** The SDK `JSON.stringify`s every presence
    value before sending it, so `undefined` doesn't survive the round trip — nothing in the type
@@ -131,11 +131,39 @@ and it earns its place. Three kinds pass:
 2. **A one-line requirement tag** — `FR-020-06/07`, `UC-021 step 5`. Traceability, not
    explanation.
 3. **A deliberate-simplicity marker** — see below.
+4. **A cross-reference to the design doc that now owns the rationale.** One line, naming the
+   file and what it answers: *"Why presence rides Yorkie rather than the WS hub:
+   `docs/design/presence-and-focus.md`."* Not the argument, just where the argument lives.
+   Moving rationale out of a file and leaving no trace of where it went makes the next reader
+   re-derive it, or re-write it here.
+5. **A one-line statement of what an exported symbol is**, where the name alone does not carry
+   it. `WORKSPACE_DOC_KEY = "workspace"` does not say it is a document nobody edits, attached to
+   only so members can be counted present. One clause. If it needs two sentences, it is
+   rationale, and rationale goes to `docs/design/`.
 
 Anything else — "why this design is safe," "what alternative was considered and rejected," "the
 history of how this got here" — belongs in `docs/design/`, not in the code. If a file's comments
-have grown past what these three kinds explain, that file's rationale has outgrown the code and
+have grown past what these five kinds explain, that file's rationale has outgrown the code and
 needs a design doc to hold it, not a longer comment.
+
+Kinds 4 and 5 were promoted here from `20260905-comment-budget-lessons.md`: both were already in
+use — #70 established the cross-reference when it moved this rationale out — and the rulebook not
+naming them meant every trim re-argued whether they were allowed.
+
+### The comment budget is a ratio, and a ratio has a floor
+
+`scripts/comment-budget.mjs` flags a file whose comments exceed 25% of its lines. On a small
+declaration file that threshold cannot be met, and trying to meet it deletes the wrong things.
+
+`lib/presence/types.ts` is the worked case. After removing everything the design doc already
+said, it holds 15 lines of code — a 25% budget of five comment lines — while kinds 1 and 2 alone
+account for seven, before a single `/**` delimiter. It sits at 60.5% and is correct there.
+
+So: **the budget routes, it does not adjudicate.** Over-budget means "look at whether the
+rationale outgrew the code", and on a file this size the honest answer can be no. What actually
+tracks the problem is the size of the *blocks* — a comment of eight lines or more is nearly
+always design rationale, and 1,533 of this repo's 2,595 comment lines are in such blocks. Read
+the ratio with the file's size in hand.
 
 ### The `simple:` marker
 

@@ -36,6 +36,14 @@
   75%. Writing the doc and deleting the comments belong in the same change, or the deletion
   never happens.
 
+- **Not every rationale is in the design doc, even when most of it is.** `serving.ts` read as a
+  file whose argument had already been written up in `api.md` — and three of its explanations
+  were not there at all. Grepping the doc for each claim before deleting it caught all three.
+  Skipping that check on a file that "obviously" duplicates its doc is how rationale disappears.
+
+- **Grep across line wraps or it will lie to you.** Two verification passes reported a sentence
+  missing from the design doc when it was present and merely wrapped. `tr '\n' ' '` first.
+
 ## Worth extracting
 
 - **Measure long-block lines, not a ratio.** The audit that opened this task counted comment
@@ -44,6 +52,11 @@
   punish a small file for documenting its exports. Proposal for `comment-budget.mjs`: keep the
   ratio as the headline, add an absolute long-block count, and exempt files under ~40 code
   lines from the ratio alone.
-- **`conventions.md` should name two more kinds that may stay**: a cross-reference to the
-  design doc that now owns the rationale, and a one-line statement of what an exported symbol
-  is. Both are already in use; neither is written down.
+- ~~**`conventions.md` should name two more kinds that may stay**~~ — **promoted 2026-09-05.**
+  Kinds 4 (a cross-reference to the design doc that now owns the rationale) and 5 (a one-line
+  statement of what an exported symbol is) are now in `docs/conventions.md`, along with a section
+  on reading the ratio with the file's size in hand. This is gate criterion 4 of #65: the first
+  time in seven months a "Worth extracting" item reached the rulebook.
+- **`verify-doc-ownership.mjs` cannot see `lib/*.ts`.** It walks `lib/` at subdirectory
+  granularity, so five top-level files are neither owned nor reported as holes. Two of them were
+  genuinely unowned and were only found through the comment audit.
