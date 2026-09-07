@@ -17,9 +17,8 @@ export function usePdfUpload({
   documentId: string;
   applyEdit: (mutate: (root: BlockDocumentRoot, blocks: BlockArray) => void) => boolean;
   liveBlockOf: (root: BlockDocumentRoot, blockId: BlockId) => StoredBlock | null;
-  /** The editor's own document invariant, named plainly rather than hidden
-   *  behind an `onDone` — a PDF appended at the very end would otherwise leave
-   *  nowhere to click to start the next paragraph. */
+  /** Named plainly rather than hidden behind an `onDone` — a PDF at the very end
+   *  would otherwise leave nowhere to click to start the next paragraph. */
   ensureTrailingEmptyBlock: () => void;
 }) {
   // About the *request*, not the document — a PDF block exists only once its
@@ -49,9 +48,8 @@ export function usePdfUpload({
           body: form,
         });
         if (!response.ok) {
-          // The endpoint phrases its own refusals in Korean and they are the
-          // useful part — "PDF만" and "25MB 이하" are what the person has to
-          // act on. A body that is not the JSON we expect falls back.
+          // The endpoint's own Korean refusals are the useful part; a body that
+          // is not the JSON we expect falls back.
           const body = await response.json().catch(() => null);
           throw new Error(body?.error ?? "파일을 올리지 못했습니다.");
         }
@@ -62,17 +60,15 @@ export function usePdfUpload({
         );
 
         const placed = applyEdit((root, array) => {
-          // The anchor can be gone — a peer deleting that block while the
-          // upload was in flight is exactly the window this covers. Appending
-          // is the sensible fallback: the PDF still lands in the document.
+          // A peer can delete the anchor block mid-upload; appending still lands
+          // the PDF in the document.
           if (anchor !== null && !liveBlockOf(root, anchor)) anchor = null;
 
           if (anchor === null) appendBlock(array, block);
           else insertBlockAfter(array, anchor, block);
         });
-        // The document closed mid-upload. The bytes are stored and orphaned,
-        // which UC-050's file manager is the place to deal with; inventing a
-        // block in a document nobody is attached to is not.
+        // Document closed mid-upload: the bytes are orphaned, which is UC-050's
+        // file manager to deal with.
         if (!placed) return;
 
         anchor = block.id;

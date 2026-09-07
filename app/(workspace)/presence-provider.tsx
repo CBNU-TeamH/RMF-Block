@@ -15,9 +15,8 @@ import { rosterFrom } from "@/lib/presence/roster";
 import { WORKSPACE_DOC_KEY, type WorkspacePresence } from "@/lib/presence/types";
 
 /** The workspace's one Yorkie connection, `null` until activated. The editor
- *  attaches its content document through this same client — a second one would
- *  be a second connection, and without `fetchToken` would reopen the hole #50
- *  closed. */
+ *  attaches through this same client — a second one built without `fetchToken`
+ *  would reopen the hole #50 closed. */
 export type PresenceState = {
   status: "connecting" | "active" | "failed";
   members: Array<WorkspacePresence>;

@@ -4,16 +4,10 @@ import { WebSocketServer, type WebSocket } from 'ws';
 
 /** Generic WebSocket registry and broadcaster — nothing chat-specific is
  *  imported here, so a future feature can reuse it through `ChatBroadcaster`
- *  (NFR-MAI-001). Presence did not: it rides Yorkie's own attach, so the only
- *  other thing on this socket is `session:revoked`.
- *
- *  A connection may carry a session id, which is what makes FR-020-08's takeover
- *  visible — `revoke()` closes the sockets a displaced session still holds.
- *  Connections without one keep working; chat never authenticated.
- *
- *  On `globalThis` like `lib/host-secret.ts`: loaded twice in one process, and
- *  two private registries would mean a broadcast from one side never reaching
- *  the other's connections. */
+ *  (NFR-MAI-001). A connection may carry a session id, which is what makes
+ *  FR-020-08's takeover visible; a connection without one still works. On
+ *  `globalThis` like `lib/host-secret.ts`: loaded twice in one process. What
+ *  this layer must do, and what an unauthenticated socket can: `chat.md`. */
 
 /** Close code for a socket the server dropped on purpose. 4000-4999 is the
  * range reserved for application use, so it cannot collide with a protocol code. */
@@ -32,9 +26,8 @@ class WsHub {
   ): void {
     this.server.handleUpgrade(request, socket, head, (ws) => {
       this.connections.set(ws, sessionId);
-      // A protocol error (a malformed frame) or a failed send emits 'error' on
-      // the socket. With no listener, EventEmitter rethrows it and takes the
-      // whole process down — Next included, since this is one process.
+      // Without this listener EventEmitter rethrows and takes the process down
+      // (`docs/design/chat.md`).
       ws.on('error', (error) => {
         console.error('ws connection error', error);
         ws.close();
@@ -52,12 +45,8 @@ class WsHub {
     }
   }
 
-  /**
-   * Tell every socket held by `sessionId` that it has been displaced, then close
-   * it. The message goes first: a client that only saw the close would have to
-   * guess whether it was evicted or the network dropped, and those want
-   * different handling.
-   */
+  /** Tell every socket held by `sessionId` it was displaced, then close it —
+   *  message first (`docs/design/chat.md`). */
   revoke(sessionId: string): void {
     const frame = JSON.stringify({ event: 'session:revoked', payload: null });
 

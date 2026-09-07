@@ -28,10 +28,8 @@ export function useBlockDocument(client: Client | null, documentId: string) {
   // `docs/design/document-editing.md`, "Attaching under React's Strict Mode".
   const teardownRef = useRef<Promise<void>>(Promise.resolve());
 
-  // `useCallback` so the identity really is stable for a block's lifetime,
-  // which is what `text-block.tsx`'s own effect comment already assumes of it.
-  // Nothing observable changes — that effect reads this once, with empty deps —
-  // but the claim is now true rather than true-in-practice.
+  // `useCallback` so the identity really is stable for a block's lifetime, which
+  // is what `text-block.tsx`'s effect already assumes of it.
   const registerRemoteHandler = useCallback(
     (blockId: BlockId, handler: (patch: TextPatch) => void) => {
       handlersRef.current.set(blockId, handler);
@@ -46,9 +44,7 @@ export function useBlockDocument(client: Client | null, documentId: string) {
 
     const doc = new yorkie.Document<BlockDocumentRoot>(documentId);
     let cancelled = false;
-    // Whether THIS run's attach() itself went through — independent of
-    // `cancelled`, and independent of `docRef`, which a cancelled run never
-    // gets to touch.
+    // Whether THIS run's attach() went through — independent of `cancelled`.
     let attached = false;
     let unsubscribe: (() => void) | undefined;
 
@@ -124,9 +120,7 @@ export function useBlockDocument(client: Client | null, documentId: string) {
       const teardown = setup.finally(async () => {
         unsubscribe?.();
         if (docRef.current === doc) docRef.current = null;
-        // Only this run's own successful attach leaves something to
-        // release — a run cancelled before attach() resolved never touched
-        // the server, so detaching it would be a no-op at best.
+        // Only this run's own successful attach left something to release.
         if (attached) await client.detach(doc).catch(() => undefined);
       });
 

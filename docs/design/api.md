@@ -65,6 +65,21 @@ told to ask would accept any client that can reach port 8080, which is the failu
 claimed on another device, the displaced session is revoked server-side and this component is
 what notices and leaves the workspace, rather than leaving a dead tab showing stale content.
 
+### What the join route answers with
+
+A nickname someone is still signed in under comes back as **409**, not a silent takeover. The
+client asks the person and retries with `force: true`. That check runs **after** the password
+check, never before: the 409 is the one response that confirms a nickname is in use, so only
+someone already inside may see it.
+
+A wrong password names *the password* in its message. An unknown nickname is not a failure on this
+route — it becomes a new member — so this branch can only mean one thing, and the older "nickname
+or password" wording pointed at a field that cannot be at fault.
+
+Any other failure still fails the request, but with a body the form can render. Re-throwing handed
+Next its own 500 page, and the join form fell back to `"서버에 연결할 수 없습니다"` — which blames
+the network for a fault that is on the server.
+
 ### What the session registry decides
 
 The password check is deliberately **not** in `lib/auth/session-registry.ts`. It runs only after

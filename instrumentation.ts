@@ -16,10 +16,8 @@ export async function register() {
   // Yorkie only asks about tokens if told to, and that is a project setting —
   // so it must be written after Yorkie is up (`docs/design/api.md` §2).
   const rpcAddr = process.env.YORKIE_ADMIN_ADDR ?? "http://localhost:8080";
-  // What Yorkie needs to reach *us*, where `localhost` is always wrong — inside
-  // Yorkie's container it means Yorkie. The default reaches back out of a
-  // containerized Yorkie; compose overrides it with the service name.
-  // Docker Engine on Linux needs `--add-host=host.docker.internal:host-gateway`.
+  // What Yorkie needs to reach *us* — `localhost` means Yorkie inside its own
+  // container. Docker Engine on Linux needs `--add-host=host.docker.internal:host-gateway`.
   const webhookUrl =
     process.env.YORKIE_AUTH_WEBHOOK_URL ??
     `http://host.docker.internal:${process.env.PORT ?? "3000"}/api/internal/yorkie/auth`;

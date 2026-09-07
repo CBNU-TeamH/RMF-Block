@@ -170,6 +170,18 @@ history draws without a round trip per message. The copy cannot go stale because
 files no rename. Its four fields are deliberately the same as `FileBlock`'s: an attached file and
 an embedded one are one thing seen from two places.
 
+## Two things the socket layer must do
+
+**Every socket needs an `'error'` listener.** A protocol error — a malformed frame — or a failed
+send emits `'error'` on the socket, and with no listener `EventEmitter` rethrows it and takes the
+whole process down. Next included, since this is one process.
+
+**A connection without a session id still works.** Carrying one is what makes a takeover visible — `revoke()` can only close sockets it can attribute — but chat never required authentication and still does not, so an anonymous connection keeps receiving broadcasts. Anything on the LAN can open one; what it cannot do is *post*, since `POST /api/chat` requires a workspace session.
+
+**A revoked socket is told before it is closed.** A client that only saw the close would have to
+guess whether it was evicted or the network dropped, and those want different handling
+(`app/session-watch.tsx` shows the eviction; a dropped network should retry).
+
 ## Isolation
 
 Existing files keep their current logic untouched. The only touch-points are mechanical

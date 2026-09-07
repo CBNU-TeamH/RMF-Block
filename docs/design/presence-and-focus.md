@@ -247,6 +247,8 @@ pull every browser that once followed them back in with no 참여하기 pressed.
 
 ## `FocusShare`'s four states
 
+It lives in the header beside `PresenceStack`, not as a toast: sharing is a state a person is *in*, and a control that shows the current state has to stay on screen rather than announce a transition and leave.
+
 One control, four mutually exclusive states, checked in an order that assumes a member is never
 simultaneously presenting and following: presenting → 종료 my own share; following someone →
 end that follow; someone else presenting and I am not → 참여하기; otherwise → 공유하기.
