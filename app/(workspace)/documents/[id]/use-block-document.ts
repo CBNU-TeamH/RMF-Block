@@ -11,20 +11,24 @@ import {
 } from "@/lib/blocks/text-surface";
 import type { Block, BlockId } from "@/lib/blocks/types";
 import {
-  occupantColorsByBlock,
+  occupantsByBlock,
   OCCUPANCY_HEARTBEAT_MS,
   type BlockPresence,
+  type Occupant,
 } from "@/lib/presence/occupancy";
 
 /** One document's blocks and the Yorkie attachment behind them. `setBlocks` is
  *  returned because the subscription reacts to `remote-change` only — a local
  *  edit is the caller's to apply and republish. */
-export function useBlockDocument(client: Client | null, documentId: string, colorTag: string) {
+export function useBlockDocument(
+  client: Client | null,
+  documentId: string,
+  colorTag: string,
+  nickname: string,
+) {
   const [blocks, setBlocks] = useState<Array<Block> | null>(null);
   const [failed, setFailed] = useState(false);
-  const [occupantColorByBlock, setOccupantColorByBlock] = useState<Map<BlockId, string>>(
-    new Map(),
-  );
+  const [occupantByBlock, setOccupantByBlock] = useState<Map<BlockId, Occupant>>(new Map());
 
   const docRef = useRef<Document<BlockDocumentRoot, BlockPresence> | null>(null);
   // Which block currently has focus, or none — a ref because it drives the
@@ -71,7 +75,7 @@ export function useBlockDocument(client: Client | null, documentId: string, colo
       if (cancelled) return;
 
       await client.attach(doc, {
-        initialPresence: { activeBlockId: null, colorTag, updatedAt: Date.now() },
+        initialPresence: { activeBlockId: null, colorTag, nickname, updatedAt: Date.now() },
       });
       attached = true;
       if (cancelled) return;
@@ -127,7 +131,7 @@ export function useBlockDocument(client: Client | null, documentId: string, colo
       // in. `now` is read at compute time, not stored, so a tick with no new
       // presence event still ages a block out once its heartbeat goes stale.
       const readOccupancy = () =>
-        setOccupantColorByBlock(occupantColorsByBlock(doc.getOthersPresences(), Date.now()));
+        setOccupantByBlock(occupantsByBlock(doc.getOthersPresences(), Date.now()));
       unsubscribeOccupancy = doc.subscribe("others", readOccupancy);
       readOccupancy();
 
@@ -138,7 +142,7 @@ export function useBlockDocument(client: Client | null, documentId: string, colo
         const blockId = focusedBlockIdRef.current;
         if (!blockId) return;
         doc.update((_root, presence) => {
-          presence.set({ activeBlockId: blockId, colorTag, updatedAt: Date.now() });
+          presence.set({ activeBlockId: blockId, colorTag, nickname, updatedAt: Date.now() });
         });
       }, OCCUPANCY_HEARTBEAT_MS);
 
@@ -168,7 +172,7 @@ export function useBlockDocument(client: Client | null, documentId: string, colo
 
       teardownRef.current = teardown;
     };
-  }, [client, documentId, colorTag]);
+  }, [client, documentId, colorTag, nickname]);
 
   /** Reports a block gaining focus, or (`null`) losing it. Losing focus does
    *  not publish anything — the last-focused block's border stays until its
@@ -181,10 +185,10 @@ export function useBlockDocument(client: Client | null, documentId: string, colo
       if (!doc || !blockId) return;
 
       doc.update((_root, presence) => {
-        presence.set({ activeBlockId: blockId, colorTag, updatedAt: Date.now() });
+        presence.set({ activeBlockId: blockId, colorTag, nickname, updatedAt: Date.now() });
       });
     },
-    [colorTag],
+    [colorTag, nickname],
   );
 
   /** Patches a textarea with an edit that did not come from the network — a
@@ -201,7 +205,7 @@ export function useBlockDocument(client: Client | null, documentId: string, colo
     docRef,
     registerRemoteHandler,
     patchBlockText,
-    occupantColorByBlock,
+    occupantByBlock,
     setActiveBlockId,
   };
 }

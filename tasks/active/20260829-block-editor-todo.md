@@ -292,10 +292,23 @@ shortcut.
   this one. Self is excluded from `getOthersPresences()` by the SDK itself, so "only show other
   people's borders" needed no extra filtering. Verified: `node --test lib/presence/occupancy.test.mts`
   (6 cases — empty, single occupant, two different blocks, same-block-first-wins, TTL-expired,
-  TTL-still-fresh); `pnpm lint`, `pnpm test` (349), `tsc --noEmit`, `pnpm build` all pass. Two-browser
-  live verification (each side seeing the other's border, the TTL fade after leaving a block) is the
-  user's own next step, same gap milestone 3's Strict Mode lesson already named for DOM/pointer
-  interaction a script can't exercise.
+  TTL-still-fresh); `pnpm lint`, `pnpm test` (349), `tsc --noEmit`, `pnpm build` all pass.
+
+  **Two-browser live verification, done by the user**: border and TTL fade both confirmed working
+  as designed.
+
+  **Follow-up, same session**: a gutter avatar alongside the border, so occupancy is visible while
+  scrolling past a block rather than only once looking straight at it. `PresenceStack`'s
+  avatar-plus-hover-name markup was pulled into a shared `Avatar` component
+  (`app/(workspace)/presence-avatar.tsx`, its own scoped `group/avatar` so it drops into the block
+  row's existing `group` without fighting the drag handle's `group-hover` for hover state) —
+  `presence-stack.tsx` now calls it too, rather than keeping two copies of the same circle-and-
+  tooltip. `BlockPresence` gained `nickname` alongside `colorTag`, and `occupantColorsByBlock`
+  became `occupantsByBlock`, returning the whole occupant rather than just a color string. The
+  avatar sits in the same `-left-4` gutter the drag handle uses, at `top-6` instead of the handle's
+  `top-0.5` so a block that is both draggable-by-you and occupied-by-someone-else never overlaps
+  the two. Unlike the handle, it's always visible while occupied, not hover-only — the point is
+  noticing someone else mid-scroll.
 
 ### 6. Undo / redo
 

@@ -28,6 +28,7 @@ import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
 
 import { useFocusFollow } from "../../focus-follow-provider";
+import { Avatar } from "../../presence-avatar";
 import { useWorkspacePresence } from "../../presence-provider";
 import { DividerBlockView } from "./divider-block";
 import { PdfBlockView } from "./pdf-block";
@@ -75,9 +76,11 @@ function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
 export function DocumentEditor({ documentId }: { documentId: string }) {
   const { client, members, memberId, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId } = useFocusFollow();
-  // Falls back to a neutral color before the roster carries this browser's own
-  // entry yet — `useBlockDocument`'s attach doesn't wait on it.
-  const colorTag = members.find((member) => member.id === memberId)?.colorTag ?? "#64748b";
+  // Falls back to a neutral color/blank name before the roster carries this
+  // browser's own entry yet — `useBlockDocument`'s attach doesn't wait on it.
+  const me = members.find((member) => member.id === memberId);
+  const colorTag = me?.colorTag ?? "#64748b";
+  const nickname = me?.nickname ?? "";
   const {
     blocks,
     setBlocks,
@@ -85,9 +88,9 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     docRef,
     registerRemoteHandler,
     patchBlockText,
-    occupantColorByBlock,
+    occupantByBlock,
     setActiveBlockId,
-  } = useBlockDocument(client, documentId, colorTag);
+  } = useBlockDocument(client, documentId, colorTag, nickname);
   // Opacity feedback only. Cleared on `dragend` as well as on drop — a drag
   // cancelled outside any block never fires `onDrop`.
   const [draggedId, setDraggedId] = useState<BlockId | null>(null);
@@ -593,7 +596,10 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         void uploadPdfs(files, null);
       }}
     >
-      {blocks.map((block, index) => (
+      {blocks.map((block, index) => {
+        const occupant = occupantByBlock.get(block.id);
+
+        return (
         // `group`/`relative` here, not on the drag handle: the handle needs
         // to be positioned against this block and shown only while this
         // block's own textarea has focus (`group-focus-within`), pure CSS —
@@ -611,13 +617,13 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               // The drop indicator wins outright while dragging over this
               // block — an occupant's box outline and the before/after line
               // would otherwise fight over the same border sides.
-              : occupantColorByBlock.has(block.id)
+              : occupant
                 ? "rounded-md border-2"
                 : ""
           }`}
           style={
-            dropIndicator?.targetId !== block.id && occupantColorByBlock.has(block.id)
-              ? { borderColor: occupantColorByBlock.get(block.id) }
+            dropIndicator?.targetId !== block.id && occupant
+              ? { borderColor: occupant.colorTag }
               : undefined
           }
           onDragOver={(event) => {
@@ -657,9 +663,24 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               <circle cx="7.5" cy="13.5" r="1.5" />
             </svg>
           </span>
+          {/* Always visible, unlike the drag handle above it — the point is
+           * noticing someone else mid-scroll, not only on hover. `top-6`
+           * keeps it clear of the handle's `top-0.5` on a block that is both
+           * draggable-by-you and occupied-by-someone-else at once. */}
+          {occupant ? (
+            <span className="absolute -left-4 top-6">
+              <Avatar
+                colorTag={occupant.colorTag}
+                label={occupant.nickname.slice(0, 1)}
+                name={occupant.nickname}
+                size="size-5"
+              />
+            </span>
+          ) : null}
           {rowFor(block, index)}
         </div>
-      ))}
+        );
+      })}
 
       {/* Below the document rather than above it: this appends, and the
        * button sitting where the new block will appear is less surprising

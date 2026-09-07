@@ -2,24 +2,12 @@
 
 import { useMemo } from "react";
 
+import { Avatar } from "./presence-avatar";
 import { useWorkspacePresence } from "./presence-provider";
 
 /** Four fits the artboard's top bar; past that the stack would push the
  * workspace name out of it. A workspace holds up to 64 members. */
 const MAX_AVATARS = 4;
-
-/**
- * The name under an avatar. Always rendered so assistive technology has it;
- * `opacity` is the only thing hover changes, and `pointer-events-none` keeps it
- * from stealing the hover that reveals it.
- */
-function NameLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="pointer-events-none absolute top-full left-1/2 z-10 mt-1.5 -translate-x-1/2 rounded border border-ink bg-paper px-1.5 py-0.5 font-mono text-[10px] font-medium whitespace-nowrap text-ink opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-      {children}
-    </span>
-  );
-}
 
 /** Who else is here, as the artboard draws it — overlapping circles, newest
  *  folded into a `+N`, the current user first so the one avatar you can identify
@@ -62,24 +50,26 @@ export function PresenceStack({ memberId }: { memberId: string }) {
       </span>
       <ul className="flex items-center">
         {shown.map((member) => (
-          <li
-            key={member.id}
-            style={{ backgroundColor: member.colorTag }}
-            tabIndex={0}
-            className="group relative -ml-1.5 flex size-6 items-center justify-center rounded-full border border-ink text-[11px] font-bold text-ink first:ml-0"
-          >
-            <span aria-hidden>{member.nickname.slice(0, 1)}</span>
-            <NameLabel>
-              {member.nickname}
-              {member.id === memberId ? " (나)" : ""}
-            </NameLabel>
+          <li key={member.id} className="-ml-1.5 first:ml-0">
+            <Avatar
+              colorTag={member.colorTag}
+              label={member.nickname.slice(0, 1)}
+              name={
+                <>
+                  {member.nickname}
+                  {member.id === memberId ? " (나)" : ""}
+                </>
+              }
+            />
           </li>
         ))}
         {hidden.length > 0 ? (
           <li tabIndex={0}
-            className="group relative -ml-1.5 flex size-6 items-center justify-center rounded-full border border-ink bg-paper-2 font-mono text-[10px] font-bold text-ink-soft">
+            className="group/avatar relative -ml-1.5 flex size-6 items-center justify-center rounded-full border border-ink bg-paper-2 font-mono text-[10px] font-bold text-ink-soft">
             <span aria-hidden>+{hidden.length}</span>
-            <NameLabel>{hidden.map((member) => member.nickname).join(", ")}</NameLabel>
+            <span className="pointer-events-none absolute top-full left-1/2 z-10 mt-1.5 -translate-x-1/2 rounded border border-ink bg-paper px-1.5 py-0.5 font-mono text-[10px] font-medium whitespace-nowrap text-ink opacity-0 transition-opacity group-hover/avatar:opacity-100 group-focus-visible/avatar:opacity-100">
+              {hidden.map((member) => member.nickname).join(", ")}
+            </span>
           </li>
         ) : null}
       </ul>
