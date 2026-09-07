@@ -7,6 +7,7 @@ import { detectMarkdownShortcut, type MarkdownShortcut } from "@/lib/blocks/mark
 import {
   detectSlashQuery,
   moveHighlight,
+  scrollTopForHighlight,
   slashMenuItems,
   type SlashAction,
 } from "@/lib/blocks/slash-menu";
@@ -138,6 +139,24 @@ export function TextBlockView({
   // "Open" means there is something to choose. With no matches the menu hides
   // and every key goes back to meaning what it usually means — Enter splits.
   const slashOpen = slashItems.length > 0;
+  const slashListRef = useRef<HTMLUListElement>(null);
+
+  // Keeps the highlighted row on screen: eleven items overflow `max-h-64`, so
+  // arrow keys used to move the highlight somewhere nobody could see. The
+  // `<ul>` is `absolute`, which makes it its rows' `offsetParent`, so
+  // `offsetTop` is already in the coordinate space `scrollTop` is measured in
+  // (the same requirement `lib/focus/dom.ts` documents for block boxes).
+  useEffect(() => {
+    const list = slashListRef.current;
+    const row = list?.children[highlight];
+    if (!list || !(row instanceof HTMLElement)) return;
+
+    const next = scrollTopForHighlight(
+      { scrollTop: list.scrollTop, height: list.clientHeight },
+      { top: row.offsetTop, height: row.offsetHeight },
+    );
+    if (next !== null) list.scrollTop = next;
+  }, [highlight, slashOpen]);
 
   const closeSlash = () => {
     setSlashQuery(null);
@@ -401,6 +420,7 @@ export function TextBlockView({
        * remounts the textarea and drops the caret). */}
       {slashOpen ? (
         <ul
+          ref={slashListRef}
           role="listbox"
           aria-label="블록 종류"
           className="absolute top-full left-6 z-20 mt-1 max-h-64 w-64 overflow-y-auto rounded-md border border-ink bg-paper py-1 shadow-lg"

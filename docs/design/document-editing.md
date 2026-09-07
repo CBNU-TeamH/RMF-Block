@@ -565,6 +565,26 @@ a trailing block to append) check the result.
 a block someone else is typing in. It is idempotent, so running it after every text commit costs
 one read, and it is enforced locally only — the append reaches peers as an ordinary add.
 
+### The `/` menu's highlight has to stay on screen
+
+Eleven items at 48px overflow the menu's `max-h-64` (254px), so six sit below the fold. Arrow keys
+move the highlight through all eleven, which means the highlight can land where nobody can see it —
+the menu looks frozen while it is in fact responding.
+
+The list scrolls to follow, by arithmetic (`scrollTopForHighlight` in `slash-menu.ts`) rather than
+`element.scrollIntoView()`. **`scrollIntoView` walks every scroll ancestor**, and this editor's
+scroll container publishes a focus anchor whenever it moves (FR-030-07) — nudging the page to
+reveal a menu row would send every follower to a position the presenter never looked at. Computing
+the number and assigning `list.scrollTop` touches the menu and nothing else.
+
+The `<ul>` is `absolute`, which makes it its rows' `offsetParent`, so a row's `offsetTop` is already
+in the coordinate space `scrollTop` is measured in — the same requirement `lib/focus/dom.ts`
+documents for block boxes.
+
+One edge the helper handles: a row taller than the viewport cannot be shown whole, so it stops at
+the row's own top rather than scrolling past it. Cutting off a row's first line is the worse half
+to lose.
+
 ### Leaving a code block
 
 Enter inside a code block is a literal newline — code is source text, not a sequence of blocks.

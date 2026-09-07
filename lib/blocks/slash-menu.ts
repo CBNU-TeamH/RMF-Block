@@ -137,3 +137,29 @@ export function moveHighlight(current: number, delta: number, length: number): n
   if (length === 0) return 0;
   return (current + delta + length) % length;
 }
+
+/**
+ * The `scrollTop` the menu needs for its highlighted row to be visible, or
+ * `null` when it already is.
+ *
+ * Arithmetic rather than `element.scrollIntoView()` on purpose. That walks
+ * *every* scroll ancestor, and this editor's scroll container publishes a focus
+ * anchor whenever it moves (FR-030-07) — nudging the page to reveal a menu row
+ * would send every follower somewhere the presenter never looked. Working the
+ * number out here touches the menu and nothing else.
+ */
+export function scrollTopForHighlight(
+  view: { scrollTop: number; height: number },
+  row: { top: number; height: number },
+): number | null {
+  if (row.top < view.scrollTop) return row.top;
+
+  const overshoot = row.top + row.height - (view.scrollTop + view.height);
+  if (overshoot <= 0) return null;
+
+  // Never past the row's own top: a row taller than the viewport cannot be shown
+  // whole, and cutting off its first line is the worse half to lose.
+  const next = Math.min(view.scrollTop + overshoot, row.top);
+
+  return next === view.scrollTop ? null : next;
+}
