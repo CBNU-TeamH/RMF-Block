@@ -35,10 +35,8 @@ export async function POST(
   }
 
   const bytes = Buffer.from(await upload.file.arrayBuffer());
-  // The uploader's claimed MIME type is never consulted. `preview` answers
-  // inline for a stored type in `INLINE_TYPES`, so a type the request chose
-  // would be a way to have HTML served as an image — the stored type has to be
-  // one this server proved from the bytes.
+  // The claimed MIME type is never consulted; the stored type is one this server
+  // proved. Why that matters: `docs/design/api.md` §1.
   const type = looksLikePdf(bytes)
     ? "application/pdf"
     : (detectImageType(bytes) ?? "application/octet-stream");
@@ -53,9 +51,5 @@ export async function POST(
     origin: "document",
   });
 
-  // `octet-stream` is the honest answer for anything unrecognised, and it is
-  // what makes accepting every other type safe: `download` never consults the
-  // stored type, so a file block can hold a `.docx` or an `.svg` without either
-  // ever being rendered (FR-022-13).
   return NextResponse.json(stored, { status: 201 });
 }

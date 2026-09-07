@@ -1,10 +1,7 @@
 import { detectMarkdownShortcut } from "./markdown-shortcuts.ts";
 import type { HeadingLevel, ListStyle } from "./types.ts";
 
-/**
- * One pasted line: the block type it asks for, and the text left after the
- * marker is taken off.
- */
+/** One pasted line: the type it asks for, and the text after the marker. */
 export type PastedLine = {
   fields:
     | { type: "text" }
@@ -16,24 +13,18 @@ export type PastedLine = {
   text: string;
 };
 
-/** `- item` → the marker and the space, so `detectMarkdownShortcut` can read the
- *  marker on its own and the rest becomes the block's text. */
+/** The marker and its space, so the table below can read the marker alone. */
 const MARKER = /^(#{1,3} |\[[ x]?\] |[-*] |\d+\. |> )/;
 
-/**
- * Splits pasted text into the blocks it should become.
- *
- * Returns one entry per line, **never zero** — a caller replacing a block needs
- * something to put there. Why a single line is not a block operation at all,
- * and why the first line reuses the block being pasted into:
- * `docs/design/document-editing.md`, "Pasting more than one line".
- */
+/** Splits pasted text into the blocks it should become — one entry per line,
+ *  **never zero**, since a caller replacing a block needs something to put
+ *  there. The rules: `docs/design/document-editing.md`, "Pasting more than one
+ *  line". */
 export function parsePaste(text: string): Array<PastedLine> {
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
 
-  // A trailing newline is how a copied paragraph ends, not a request for an
-  // empty block after it. Only the last one goes: blank lines *between* lines
-  // are the person's own spacing.
+  // One trailing newline only — blank lines between lines are the person's own
+  // spacing (`document-editing.md`, "Pasting more than one line").
   if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
 
   return lines.map(lineToBlock);
@@ -45,18 +36,16 @@ function lineToBlock(line: string): PastedLine {
 
   const rest = line.slice(marker[1]!.length);
 
-  // A checked box is the one marker only a paste can carry. `[x] ` is not
-  // something anyone types — you type `[] ` and click — so
-  // `detectMarkdownShortcut` does not know it, correctly.
+  // `[x] ` is the one marker only a paste can carry (`document-editing.md`,
+  // "Pasting more than one line").
   if (marker[1]!.startsWith("[")) {
     return { fields: { type: "checklist", checked: marker[1]![1] === "x" }, text: rest };
   }
 
-  // Everything else is handed over exactly as it would have been typed, so one
-  // table decides what a marker means whether it arrives by keystroke or paste.
-  // A checklist shortcut cannot arrive here — every `[`-led marker returned
-  // above — but the table's own type still admits one, and it carries no
-  // `checked`. Falling back to text keeps this total without a cast.
+  // Handed over as it would have been typed, so one table decides what a marker
+  // means either way. A checklist cannot reach here — every `[`-led marker
+  // returned above — but the table's type still admits one with no `checked`,
+  // and falling back keeps this total without a cast.
   const shortcut = detectMarkdownShortcut(marker[1]!);
   if (!shortcut || shortcut.type === "checklist") return { fields: { type: "text" }, text: line };
 

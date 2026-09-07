@@ -111,8 +111,9 @@ export function TextBlockView({
   /** Tab / Shift+Tab on a list block. The caller decides whether the move is
    *  legal (`lib/blocks/indent.ts`) — this only reports the keypress. */
   onIndent: (blockId: BlockId, direction: "in" | "out") => void;
-  /** A paste that carries newlines. Only called for those — a single-line paste
-   *  is left to the textarea's own default, which already lands at the caret. */
+  /** A paste that carries newlines — only those, since a single-line paste is
+   *  left to the textarea's own default (`docs/design/document-editing.md`,
+   *  "Pasting more than one line"). */
   onPasteBlocks: (blockId: BlockId, text: string) => void;
   /** Called after every local text commit — not just here, and not tied to
    * this block's id, since the parent checks the *document's* trailing
@@ -136,7 +137,7 @@ export function TextBlockView({
   );
   /** The `/` menu's session — query read off the textarea, highlight moved by
    *  arrow keys. Why only a plain text block opens one:
-   *  `docs/design/document-editing.md`. */
+   *  `docs/design/document-editing.md`, "Leaving a code block". */
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [highlight, setHighlight] = useState(0);
   const slashItems = slashQuery === null ? [] : slashMenuItems(slashQuery);
@@ -374,7 +375,8 @@ export function TextBlockView({
         if (composingRef.current) return;
 
         // Plain text only — the same guard as the markdown check below, for the
-        // reason both share (`docs/design/document-editing.md`).
+        // reason both share (`docs/design/document-editing.md`, "Leaving a code
+        // block").
         const query = variant.type === "text" ? detectSlashQuery(el.value) : null;
         if (query !== slashQuery) {
           setSlashQuery(query);
@@ -399,9 +401,8 @@ export function TextBlockView({
       }}
       onPaste={(event) => {
         const text = event.clipboardData.getData("text/plain");
-        // Only a newline makes this a block operation. Everything else — the
-        // common paste, mid-word — goes to the textarea's own handling, which
-        // already puts it at the caret and fires `onInput` after.
+        // Only a newline makes this a block operation (`document-editing.md`,
+        // "Pasting more than one line").
         if (!text.includes("\n") && !text.includes("\r")) return;
 
         event.preventDefault();
