@@ -3,20 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { PdfBlock } from "@/lib/blocks/types";
+import { readableSize } from "@/lib/files/size";
 
 /** A PDF block and the in-app viewer it opens (FR-022-14's PDF leg, UC-080).
  *  **The browser renders it, not a library** — every browser `docs/SRS-ko.md`
  *  §4.2 supports ships a viewer with paging, zoom, search and print, and one
  *  `<iframe>` reaches it. Styling is a prototype: `docs/ui/` has no artboard for
  *  a file block, so this borrows the shell's tokens. */
-
-/** Restated from `chat-message.tsx` rather than shared: six lines, two callers,
- *  and no behaviour rides on the two agreeing. */
-function readableSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
 
 export function PdfBlockView({
   block,

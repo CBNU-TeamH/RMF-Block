@@ -74,6 +74,7 @@ export function TextBlockView({
   onSlashSelect,
   onFocusBlock,
   onIndent,
+  onPasteBlocks,
 }: {
   blockId: BlockId;
   initialText: string;
@@ -110,6 +111,9 @@ export function TextBlockView({
   /** Tab / Shift+Tab on a list block. The caller decides whether the move is
    *  legal (`lib/blocks/indent.ts`) — this only reports the keypress. */
   onIndent: (blockId: BlockId, direction: "in" | "out") => void;
+  /** A paste that carries newlines. Only called for those — a single-line paste
+   *  is left to the textarea's own default, which already lands at the caret. */
+  onPasteBlocks: (blockId: BlockId, text: string) => void;
   /** Called after every local text commit — not just here, and not tied to
    * this block's id, since the parent checks the *document's* trailing
    * block, not this one specifically. */
@@ -392,6 +396,16 @@ export function TextBlockView({
 
         commitLocal(el.value);
         onTextCommitted();
+      }}
+      onPaste={(event) => {
+        const text = event.clipboardData.getData("text/plain");
+        // Only a newline makes this a block operation. Everything else — the
+        // common paste, mid-word — goes to the textarea's own handling, which
+        // already puts it at the caret and fires `onInput` after.
+        if (!text.includes("\n") && !text.includes("\r")) return;
+
+        event.preventDefault();
+        onPasteBlocks(blockId, text);
       }}
       onCompositionStart={() => {
         composingRef.current = true;
