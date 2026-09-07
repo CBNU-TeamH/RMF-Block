@@ -8,6 +8,7 @@ import type {
   HeadingLevel,
   ListBlock,
   ListStyle,
+  DocLinkBlock,
   FileBlock,
   ImageBlock,
   PdfBlock,
@@ -93,6 +94,13 @@ export function createImage(file: {
   size: number;
 }): ImageBlock {
   return { id: newBlockId(), type: "image", ...file };
+}
+
+/** SRS §4.1 type 11. Only the id is stored: the target's name is the catalogue's
+ *  to answer and changes under FR-023-01, so caching it here would go stale the
+ *  first time anyone renames — unlike a file block's name, which cannot. */
+export function createDocLink(documentId: string): DocLinkBlock {
+  return { id: newBlockId(), type: "doc-link", documentId };
 }
 
 /** FR-022-13, and the fallback for every type FR-022-14 does not name a viewer

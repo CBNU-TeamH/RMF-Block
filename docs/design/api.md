@@ -65,6 +65,29 @@ told to ask would accept any client that can reach port 8080, which is the failu
 claimed on another device, the displaced session is revoked server-side and this component is
 what notices and leaves the workspace, rather than leaving a dead tab showing stale content.
 
+### The document endpoints
+
+`POST /api/documents` takes an optional `parentId` (UC-021 E1a); absent or `null` is the root.
+`GET` returns the whole catalogue, for a client that needs it after first paint — the `/` menu's
+document picker. The workspace page is a server component and reads the store directly instead.
+
+`PATCH /api/documents/:id` carries **either** a `name` or a `parentId`, never both. They are two
+operations with opposite collision rules — FR-023-02 refuses a name a sibling already holds, while
+a move *suffixes* one — and a request doing both would have to pick which rule applies. Sending
+neither, or both, is a 400.
+
+The asymmetry is deliberate. A suffix on create is the system helping; the same suffix on a rename
+would overrule a name the person just typed, so a rename says no and asks again.
+
+`DELETE /api/documents/:id` removes the document **and its whole subtree in one write**
+(FR-023-06), and answers with every id it removed. A cascade that failed half way would leave
+children whose parent is gone; one write either happened or did not.
+
+A move into the document's own subtree is refused. Nothing in the SRS forbids it, because nobody
+writes down that a document cannot be its own grandparent — but a UI that lets a person drag a
+parent onto its own child produces exactly that, and the loop it makes is unreachable from the
+root: invisible in the tree, and gone from every view that renders one.
+
 ### What the join route answers with
 
 A nickname someone is still signed in under comes back as **409**, not a silent takeover. The
