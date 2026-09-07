@@ -66,12 +66,15 @@
 
 ## Worth extracting
 
-- **Measure long-block lines, not a ratio.** The audit that opened this task counted comment
-  blocks of eight lines or more: 1,533 of 2,595 comment lines across 50 files. That number
-  tracks "rationale that outgrew the code" far better than a percentage, and it does not
-  punish a small file for documenting its exports. Proposal for `comment-budget.mjs`: keep the
-  ratio as the headline, add an absolute long-block count, and exempt files under ~40 code
-  lines from the ratio alone.
+- ~~**Measure long-block lines, not a ratio**~~ — **filed 2026-09-07 as
+  [#75](https://github.com/CBNU-TeamH/RMF-Block/issues/75).** Written as a hunch at the start of
+  this task, and the work then produced the evidence for it. After the full compaction pass the
+  failure rate is a step function at 40 code lines — 82% of files under it fail, 0% above it do —
+  so the ratio is measuring size. Meanwhile long-block lines went 1,763 → 151, and every defect
+  the sweep found (three stale comments, a duplicated guard, a false claim about the auth webhook)
+  sat in a long block while none was pointed at by the ratio. The issue carries the numbers and
+  three options; it has a deadline, because `comment-budget` promotes to a required CI check on
+  2026-09-23.
 - ~~**`conventions.md` should name two more kinds that may stay**~~ — **promoted 2026-09-05.**
   Kinds 4 (a cross-reference to the design doc that now owns the rationale) and 5 (a one-line
   statement of what an exported symbol is) are now in `docs/conventions.md`, along with a section
