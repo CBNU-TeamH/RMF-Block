@@ -4,7 +4,9 @@ import { describe, it } from "node:test";
 import yorkie from "@yorkie-js/sdk";
 
 import type { BlockDocumentRoot, StoredBlock } from "./document.ts";
-import { readBlocks } from "./document.ts";
+import { listDepth, readBlocks } from "./document.ts";
+import { orderedListNumbers } from "./list-numbering.ts";
+import { MAX_LIST_DEPTH } from "./types.ts";
 
 /**
  * `readBlocks` exists for the blocks that are *not* well-formed, so that is
@@ -255,5 +257,59 @@ describe("readBlocks with a null element", () => {
       result.map((block) => block.id),
       ["a", "b"],
     );
+  });
+});
+
+describe("listDepth — a depth from the LAN is not a number we trust", () => {
+  it("keeps a depth inside the range", () => {
+    assert.equal(listDepth(0), 0);
+    assert.equal(listDepth(3), 3);
+    assert.equal(listDepth(MAX_LIST_DEPTH), MAX_LIST_DEPTH);
+  });
+
+  it("clamps above the ceiling rather than trusting the writer", () => {
+    assert.equal(listDepth(MAX_LIST_DEPTH + 1), MAX_LIST_DEPTH);
+    assert.equal(listDepth(1e9), MAX_LIST_DEPTH);
+    // The value that makes `counters.length = depth + 1` throw RangeError.
+    assert.equal(listDepth(4294967295), MAX_LIST_DEPTH);
+  });
+
+  it("floors a negative depth, which would indent backwards", () => {
+    assert.equal(listDepth(-1), 0);
+    assert.equal(listDepth(-1e9), 0);
+  });
+
+  it("takes anything non-finite to 0 — `Math.trunc` alone yields NaN here", () => {
+    assert.equal(listDepth("abc"), 0);
+    assert.equal(listDepth(NaN), 0);
+    assert.equal(listDepth(Infinity), 0);
+    assert.equal(listDepth(-Infinity), 0);
+    assert.equal(listDepth(undefined), 0);
+    assert.equal(listDepth(null), 0);
+    assert.equal(listDepth({}), 0);
+  });
+
+  it("truncates rather than rounding", () => {
+    assert.equal(listDepth(2.9), 2);
+  });
+});
+
+describe("readBlocks — a hostile depth cannot reach the renderer", () => {
+  const listWith = (depth: unknown) => [
+    { id: "a", type: "list" as const, content: { style: "ordered" as const, depth: depth as number } },
+  ];
+
+  it("clamps a depth that would throw RangeError in orderedListNumbers", () => {
+    const [block] = readBlocks(listWith(4294967295));
+    assert.equal((block as { depth: number }).depth, MAX_LIST_DEPTH);
+    // The regression this guards: `counters.length = depth + 1` sized from a
+    // depth nothing had bounded took the whole editor's render down.
+    assert.doesNotThrow(() => orderedListNumbers(readBlocks(listWith(4294967295))));
+  });
+
+  it("survives a depth that is not a number at all", () => {
+    const [block] = readBlocks(listWith("abc"));
+    assert.equal((block as { depth: number }).depth, 0);
+    assert.doesNotThrow(() => orderedListNumbers(readBlocks(listWith("abc"))));
   });
 });

@@ -17,6 +17,7 @@ import {
   removeBlock,
   type BlockArray,
 } from "@/lib/blocks/operations";
+import { indentedDepth, preservingDepth } from "@/lib/blocks/indent";
 import { orderedListNumbers } from "@/lib/blocks/list-numbering";
 import {
   dropDestination,
@@ -69,6 +70,16 @@ function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
       return unhandled;
     }
   }
+}
+
+/** One nesting level, in px. Matches the 24px marker slot beside the text, so an
+ *  indented item's bullet lands where its parent's text starts. */
+const INDENT_STEP = 24;
+
+/** How far a block is pushed in. Only a list nests (SRS §4.1), so everything
+ *  else is flush. */
+function indentOf(block: Block): number {
+  return block.type === "list" ? block.depth * INDENT_STEP : 0;
 }
 
 /** One document's blocks and every edit made to them (FR-022-01~04, FR-022-09).
@@ -248,7 +259,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     applyEdit((root, blocks) => {
       const current = liveTextOf(root, blockId);
       editBlockText(blocks, blockId, 0, current.length, "");
-      changeBlockType(blocks, blockId, shortcut);
+      changeBlockType(blocks, blockId, preservingDepth(shortcut, blockOf(blockId)));
     });
   };
 
@@ -261,6 +272,31 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     });
   };
 
+  /** A block as `blocks` state has it — for the two questions state is reliable
+   *  for: what type a block is, and how deep. Never for its text. */
+  const blockOf = (blockId: BlockId) => blocks?.find((block) => block.id === blockId);
+
+  /** Tab / Shift+Tab on a list item. `indentedDepth` returns `null` for a move
+   *  that is not allowed — the first item in a run, one already at the cap —
+   *  and that is a no-op, not an error: the key simply does nothing there.
+   *
+   *  Read from `blocks` state rather than live, unlike every other edit here.
+   *  The rule is about *order* — which block sits above this one and how deep
+   *  it is — and order is the one thing that state is reliable for. */
+  const handleIndent = (blockId: BlockId, direction: "in" | "out") => {
+    if (!blocks) return;
+
+    const depth = indentedDepth(blocks, blockId, direction);
+    if (depth === null) return;
+
+    const block = blockOf(blockId);
+    if (block?.type !== "list") return;
+
+    applyEdit((_root, arr) =>
+      changeBlockType(arr, blockId, { type: "list", style: block.style, depth }),
+    );
+  };
+
   /** A `/` menu choice (UC-022 기본 흐름 1). `text-block.tsx` has already cleared
    *  the query, so the block is empty and ready to become what was picked. */
   const handleSlashSelect = (blockId: BlockId, action: SlashAction) => {
@@ -268,7 +304,9 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       // The block keeps its id and its `yorkie.Text`, so a peer typing into it
       // through the conversion keeps their characters — `changeBlockType`'s own
       // contract, the same one the markdown shortcuts rely on.
-      applyEdit((_root, blocks) => changeBlockType(blocks, blockId, action.fields));
+      applyEdit((_root, blocks) =>
+        changeBlockType(blocks, blockId, preservingDepth(action.fields, blockOf(blockId))),
+      );
       return;
     }
 
@@ -481,7 +519,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         // position among its siblings never shifts across a type conversion —
         // the thing that was remounting it (and dropping focus) when the marker
         // used to live conditionally inside `TextBlockView` itself.
-        <div className="flex items-start gap-2">
+        // `paddingLeft`, not a Tailwind class: depth is data with a range, and a
+        // class per level would be five names for one arithmetic. The `<div>`
+        // stays the same element at every depth, so nothing remounts and the
+        // caret survives an indent.
+        <div className="flex items-start gap-2" style={{ paddingLeft: indentOf(block) }}>
           <span className="mt-0.5 flex size-6 shrink-0 justify-center text-[14px] text-ink-faint select-none">
             {block.type === "checklist" ? (
               <input
@@ -513,6 +555,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
             onTextCommitted={ensureTrailingEmptyBlock}
             onSlashSelect={handleSlashSelect}
             onFocusBlock={setActiveBlockId}
+            onIndent={handleIndent}
           />
         </div>
       );

@@ -578,6 +578,58 @@ and `/` are legitimate source text; in a heading, retyping a marker asks for a c
 already happened. The `/` menu's query is recomputed from the text rather than tracked as a
 session, so deleting back through the slash closes it on its own.
 
+### Indenting a list item
+
+SRS §4.1 gives 목록 블록 nesting — "항목을 들여쓰기하여 중첩(하위 목록)할 수 있다" — and `depth`
+has carried it in the schema since the block model landed. `Tab` and `Shift+Tab` are what set it,
+and `lib/blocks/indent.ts` holds the rule.
+
+**Indent is capped by the block above, not by the block itself.** The new depth is
+`min(depth + 1, previousListDepth + 1)`, so an item can never end up more than one level deeper
+than the item above it. Without that cap a depth-2 item can sit under a depth-0 one and render as
+a child of nothing. A list item with no list above it therefore cannot indent at all, and a
+non-list block above ends the run — nesting under a paragraph is not something this model can
+express. Outdent has no such rule: a stray nested item must always be able to come back out,
+however it got there, so it is `max(depth - 1, 0)`.
+
+`MAX_LIST_DEPTH` is 5. Past that the text column is narrower than the indent that pushed it, which
+reads as broken rather than nested.
+
+**It is a bound on the model, not on the gesture.** `depth` arrives from storage and from the LAN,
+where nothing validates a write (`api.md` §2), so the ceiling has to hold for values no keypress
+produced. `listDepth()` in `document.ts` is the one normalizer, applied wherever a depth enters:
+`readBlocks`, `changeBlockType`, and `createList`.
+
+Clamping the low end is not enough, and the failure is not cosmetic. `orderedListNumbers` sizes an
+array from the depth — `counters.length = depth + 1` — so `depth: 4294967295` throws
+`RangeError: Invalid array length` and takes the whole editor's render down. A non-numeric value
+does the same, because `Math.trunc` of one is `NaN` and `counters.length = NaN` throws as well.
+`readBlocks` alone closes that path, since every rendered block comes through it; the other two are
+there so the value is never stored in the first place.
+
+**Tab is intercepted only on a list block.** Everywhere else it keeps its default and moves focus.
+Trapping Tab inside every textarea would leave a keyboard user unable to get out of the editor, and
+that trade — one key on one block type — is cheaper than an editor nobody can leave.
+
+Checklist blocks do not nest. SRS §4.1 gives nesting to 목록 only, and `TypeFields` carries `depth`
+only on `list`; extending it is a model change and an SRS question, not an oversight.
+
+Ordered numbering counts each depth separately, so an indented run starts its own `1.` and coming
+back out resumes the outer sequence. A counter is dropped when its level is left, which is what
+makes a second indented run under a different parent start at 1 rather than continue the first.
+
+#### A conversion must not flatten what it did not mention
+
+`changeBlockType` treats `TypeFields` as the whole target state and drops every owned field the
+caller did not name — deliberately, so a conversion cannot leave the previous type's fields behind.
+That is right for `level` and `checked`, and wrong for `depth`: **changing a bullet to a number is
+a style change, not a re-parenting**, and an item three levels in should stay three levels in.
+
+Neither caller can name the depth itself — the `/` menu's items are static and a markdown marker
+carries none — so `preservingDepth` (`lib/blocks/indent.ts`) carries it from the block being
+converted, at both call sites. This was invisible until Tab existed: while `depth` was always 0,
+there was nothing for a conversion to lose.
+
 ### Three places a drag can land
 
 Reordering (FR-022-04) carries the dragged id in the browser's transfer data rather than in

@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [List nesting with Tab, and a placeholder that reveals the `/` menu](active/20260907-list-indent-and-placeholder-todo.md) | [lessons](active/20260907-list-indent-and-placeholder-lessons.md) |
 | [Bring the comment budget down, starting with `lib/presence/types.ts`](active/20260905-comment-budget-todo.md) | [lessons](active/20260905-comment-budget-lessons.md) |
 | [Verify scripts — ownership, comment budget, hooks, `verify:docs`](active/20260904-verify-scripts-todo.md) | [lessons](active/20260904-verify-scripts-lessons.md) |
 | [Track D — wire Phase 1's rules into AGENTS.md — todo](active/20260904-agents-md-todo.md) | [lessons](active/20260904-agents-md-lessons.md) |

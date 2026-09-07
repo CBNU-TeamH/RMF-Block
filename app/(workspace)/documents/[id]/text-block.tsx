@@ -72,6 +72,7 @@ export function TextBlockView({
   onTextCommitted,
   onSlashSelect,
   onFocusBlock,
+  onIndent,
 }: {
   blockId: BlockId;
   initialText: string;
@@ -105,6 +106,9 @@ export function TextBlockView({
    * clamps it against the target block's matching edge line. */
   onNavigateUp: (blockId: BlockId, column: number) => void;
   onNavigateDown: (blockId: BlockId, column: number) => void;
+  /** Tab / Shift+Tab on a list block. The caller decides whether the move is
+   *  legal (`lib/blocks/indent.ts`) — this only reports the keypress. */
+  onIndent: (blockId: BlockId, direction: "in" | "out") => void;
   /** Called after every local text commit — not just here, and not tied to
    * this block's id, since the parent checks the *document's* trailing
    * block, not this one specifically. */
@@ -272,6 +276,15 @@ export function TextBlockView({
           }
         }
 
+        if (event.key === "Tab" && variant.type === "list") {
+          // Intercepted on a list block only. Everywhere else Tab keeps its
+          // default and moves focus — trapping it in every textarea would leave
+          // a keyboard user unable to get out of the editor.
+          event.preventDefault();
+          onIndent(blockId, event.shiftKey ? "out" : "in");
+          return;
+        }
+
         if (event.key === "Enter" && !event.shiftKey) {
           // Both signals, not one: `isComposing` on a composition-confirming
           // Enter is inconsistent across browsers, and `composingRef` alone can
@@ -372,7 +385,12 @@ export function TextBlockView({
       }}
       onFocus={() => onFocusBlock(blockId)}
       onBlur={() => onFocusBlock(null)}
-        className={`min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-1 py-0.5 text-ink outline-none ${textareaClass(variant)}`}
+      // Plain paragraphs only: every other variant's own styling already says
+      // what it is, and a hint on each of them at once is noise. `focus:` so
+      // it marks the one block being typed in rather than every empty one —
+      // the `/` menu shipped in #63 with nothing in the UI naming it.
+      placeholder={variant.type === "text" ? "'/' 를 입력해 명령어 사용" : undefined}
+      className={`min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-1 py-0.5 text-ink outline-none placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
       />
 
       {/* Absolutely positioned against the block row, which is already

@@ -12,6 +12,12 @@ export type HeadingLevel = 1 | 2 | 3;
 
 export type ListStyle = "ordered" | "unordered";
 
+/** How deep a list may nest. A bound on the *model*, not on the Tab gesture:
+ *  `depth` reaches the app from the LAN, where nothing validates a write, so
+ *  every reader needs the same ceiling. Why 5, and how indenting uses it:
+ *  `docs/design/document-editing.md`, "Indenting a list item". */
+export const MAX_LIST_DEPTH = 5;
+
 /** What every block carries; `type` is what narrows the union. */
 type BlockBase = {
   id: BlockId;
