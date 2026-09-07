@@ -41,13 +41,15 @@ export function ImageBlockView({
             * which would need this route allow-listed and would cache bytes a
             * guest may not be entitled to. A plain tag reads the same endpoint
             * every other file block does. `max-h` so one photo cannot push the
-            * rest of the document off the screen. */}
+            * rest of the document off the screen, and left-aligned like every
+            * other block's content — centring left a small image adrift in a
+            * full-width box. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`/api/files/${block.fileId}/preview`}
             alt={name}
             onError={() => setBroken(true)}
-            className="mx-auto block max-h-[420px] rounded-sm"
+            className="block max-h-[420px] rounded-sm"
           />
         </a>
       )}

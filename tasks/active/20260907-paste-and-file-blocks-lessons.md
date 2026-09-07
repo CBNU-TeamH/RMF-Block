@@ -43,6 +43,19 @@ Things that should become a convention, a helper, or a line in `AGENTS.md`.
   on the moment the condition was met rather than drifting. Proposal for `docs/conventions.md`,
   beside the five comment kinds: when a decision holds only under a condition, write the condition.
 
+- ~~**A doc reference should name the section, and something should check it**~~ —
+  **built 2026-09-07 as `scripts/verify-doc-refs.mjs`**, wired into `pnpm verify:docs`.
+  `verify-docs.mjs` catches a dead *path*; nothing caught a live path naming a section that does
+  not exist, which is what a comment becomes when the doc is rewritten around it. Both failures
+  read the same to a person ("go read that") and only one is findable by opening the file. This is
+  what lets kind 4 stay short: a pointer nobody verifies loses the rationale anyway, one rename at
+  a time. 29 references checked; a deliberately broken one fails the run.
+
+  Writing it also turned up that the first version's three findings were all its own bugs — a glob
+  that missed `docs/*.md`, matching only headings when a comment may quote a **bold sentence**, and
+  joining a whole file's comments so that a doc named in one block matched a phrase quoted in
+  another. A checker that cries wolf is the `verify-docs` mistake again.
+
 - **`accept` on a file input is a hint, not a check.** Removing `accept="application/pdf,.pdf"` was
   part of widening uploads, and it is worth writing down that it never enforced anything — a drag
   and drop bypasses it entirely, which is why the byte sniffing is the only real gate.

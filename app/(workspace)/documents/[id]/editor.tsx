@@ -386,7 +386,10 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       case "list":
         return createList(fields.style);
       case "checklist":
-        return createChecklist();
+        // `createChecklist` is always unchecked — "a task that is already done
+        // is not a task anyone adds" — which holds for a new one and not for a
+        // pasted one, where `[x]` is the whole point of writing it.
+        return { ...createChecklist(), checked: fields.checked };
       case "quote":
         return createQuote();
       case "code":
@@ -713,7 +716,8 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           return;
         }
         // The padding strip beside the blocks: nothing to drop onto, so no
-        // `preventDefault` and the line is cleared (document-editing.md).
+        // `preventDefault` and the line is cleared — `document-editing.md`,
+        // "Three places a drag can land".
         setDropIndicator(null);
       }}
       onDrop={(event) => {

@@ -61,19 +61,10 @@ export function looksLikePdf(bytes: Uint8Array): boolean {
   return PDF_MAGIC.every((byte, index) => bytes[index] === byte);
 }
 
-/**
- * The image formats a document block may hold, by the bytes that identify them.
- *
- * **Sniffed, never taken from the request.** `serving.ts` answers `inline` for
- * anything whose *stored* type is in its `INLINE_TYPES`, so a stored type the
- * uploader chose would let an HTML file be saved as `image/png` and then served
- * as one — the hole `docs/design/api.md` §1 names. The magic number is what
- * makes the stored type true.
- *
- * The four here are exactly `INLINE_TYPES`' image half. **SVG is deliberately
- * absent**: it is XML that can carry `<script>`, so it is not safe inline and
- * becomes a file block instead (FR-022-13).
- */
+/** Exactly `serving.ts`'s `INLINE_TYPES` image half, by the bytes that identify
+ *  them. Why sniffed rather than believed, and why SVG is not here:
+ *  `docs/design/api.md` §1, "accepts any file, and decides what it is from the
+ *  bytes". */
 const IMAGE_MAGIC: Array<{ type: string; bytes: Array<number>; at?: number }> = [
   { type: "image/png", bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
   // Every JPEG variant opens SOI + the first marker; what follows differs.
@@ -86,8 +77,8 @@ const IMAGE_MAGIC: Array<{ type: string; bytes: Array<number>; at?: number }> = 
 
 const WEBP_TAG = { bytes: [0x57, 0x45, 0x42, 0x50], at: 8 };
 
-/** The image this file actually is, or `null` for anything else — including an
- *  image format this project does not serve inline. */
+/** The image this file actually is, or `null` — including for an image format
+ *  this project does not serve inline. */
 export function detectImageType(bytes: Uint8Array): string | null {
   const match = IMAGE_MAGIC.find((format) => startsWith(bytes, format.bytes, format.at ?? 0));
   if (!match) return null;
