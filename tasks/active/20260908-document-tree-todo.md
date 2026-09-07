@@ -129,11 +129,17 @@ crash, the same way a file block whose bytes are gone does.
 **Realtime verified with a Node WebSocket client**, which received `document:created`,
 `document:changed` and `document:deleted` for the three operations in order.
 
-**Not verified in a browser**: the client half of realtime — the `setLive` handler applying those
-frames. **Every WebSocket in this Chrome hangs at `readyState=0`**, including `/api/chat/ws`, which
-is shipped code this task did not touch; the same upgrade returns `101` from a Node client and from
-`curl`. So it is this browser instance, not the app. The tree itself *does* render there: `개발`
-with `회의록` indented 18px under it.
+**Realtime verified in the browser too**, on a second look: creating a document through `fetch`
+made the list go 5 → 6 rows with no reload. An earlier round of probes had every socket stuck at
+`readyState=0` — chat's shipped one included — and was reported as "this browser cannot do
+WebSockets". That was wrong: the probes had all landed around a dev-server restart, and the same
+three sockets open in 7–17ms once it is up.
+
+**`/페이지`** was added after the first pass: what was asked for is Notion's gesture — type it and
+a new page exists and you are in it — where this had shipped a picker for documents that already
+exist. Both are useful, so both are in the menu. Verified in the browser: the URL moved to the new
+document, the parent kept a `doc-link` block pointing at it, and the tree drew it indented under
+its parent.
 
 **Corrected from the plan**: the plan said the existing E4a test asserts workspace-wide uniqueness
 and would have to change. It does not — all three of its documents are created at the root, where
