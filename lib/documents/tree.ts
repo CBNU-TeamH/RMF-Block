@@ -21,22 +21,16 @@ export function childrenOf<T extends TreeNode>(
   return documents.filter((document) => (document.parentId ?? null) === parentId);
 }
 
-/**
- * `id` and everything under it, deepest last.
- *
- * Delete uses this: FR-023-06 removes a document's sub-documents with it, and
- * doing that as one list means one write rather than a cascade that can stop
- * half way.
- */
+/** `id` and everything under it. Delete takes this list in one write
+ *  (FR-023-06) — why one write: `docs/design/api.md`, "The document endpoints". */
 export function subtreeIds(
   documents: Array<TreeNode>,
   id: string,
 ): Array<string> {
   const ids = [id];
 
-  // Breadth-first over `ids` as it grows, so a document that is its own
-  // ancestor — which `wouldCycle` refuses to create, but a hand-edited file
-  // could still hold — cannot loop here.
+  // Breadth-first over `ids` as it grows: a hand-edited file can hold a cycle
+  // `wouldCycle` would have refused, and this must not hang on it.
   for (let i = 0; i < ids.length; i += 1) {
     for (const child of childrenOf(documents, ids[i]!)) {
       if (!ids.includes(child.id)) ids.push(child.id);
@@ -46,15 +40,9 @@ export function subtreeIds(
   return ids;
 }
 
-/**
- * Whether moving `id` under `nextParentId` would make a document its own
- * ancestor.
- *
- * Nothing in the SRS forbids it, because nobody writes down that a document
- * cannot be its own grandparent. A UI that lets a person drag a parent onto its
- * own child produces exactly that, and the loop it makes is unreachable from
- * the root — invisible in the tree, and gone from every view that renders one.
- */
+/** Whether moving `id` under `nextParentId` would make a document its own
+ *  ancestor. Why that is refused although no requirement names it:
+ *  `docs/design/api.md`, "The document endpoints". */
 export function wouldCycle(
   documents: Array<TreeNode>,
   id: string,
@@ -69,14 +57,11 @@ export function wouldCycle(
 /**
  * The catalogue as rows to draw, parents before their children.
  *
- * `collapsed` names the documents whose children are hidden; their descendants
- * are left out entirely rather than marked, so a renderer never has to know
- * about collapsing at all.
+ * A collapsed node's descendants are left out entirely rather than marked, so a
+ * renderer never has to know about collapsing.
  *
- * A document whose `parentId` names something that is not here is treated as a
- * root. That is not defensive: FR-023-04 deletes a parent and this reads the
- * file, so a partially written catalogue — or one an older build wrote — would
- * otherwise render nothing at all.
+ * A `parentId` naming something absent is drawn as a root — not defensive: this
+ * reads a file FR-023-04 deletes from, and the alternative is rendering nothing.
  */
 export function treeRows<T extends TreeNode>(
   documents: Array<T>,

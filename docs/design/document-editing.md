@@ -633,6 +633,62 @@ list, since a link to the page you are on is a loop with only a back button out.
 `block-link` (type 12) still has no creator: it needs a way to point at one block inside a
 document, which nothing offers yet.
 
+## Undo is per person, and it is Yorkie's
+
+`Ctrl/Cmd+Z` undoes, `Ctrl/Cmd+Shift+Z` redoes. No FR asks for either; they are here because they
+are the first keys anyone presses.
+
+**The undo stack is per client, and that is what makes this safe.** The SDK guide states it —
+*"History tracks only local changes. Remote changes are applied but not added to undo/redo
+stacks"* — and the source agrees: `pushUndo` is reached only from the local `update()` path,
+immediately after `localChanges.push(change)`, while remote changes arrive through
+`applyChanges(…, OpSource.Remote)` and never touch it. So an undo takes back *this browser's* last
+edit and never a peer's — the only version of undo a shared document can have, and the reason this
+is the SDK's job rather than something built here.
+
+**The array-of-blocks decision is what makes undo available at all.** §"Why an Array of blocks, and
+not one `yorkie.Tree`" chose the array for reasons that had nothing to do with history; the guide
+lists undo/redo as supported for Text, object and array operations and says *"Tree: Undo/Redo
+support is under development"*. The earlier choice paid an unplanned dividend, and a document built
+on `yorkie.Tree` could not have this feature today.
+
+**`undo()` must not be called inside a `doc.update()` callback** — the guide says it throws
+*"Undo is not allowed during an update"*. Nothing here does: the only caller is a keydown handler,
+and `applyEdit` is the only thing that opens an update. Written down because the two would be easy
+to combine later — an "undo this block" button inside an edit, say.
+
+**The redo stack clears once a new change is made after an undo.** Standard, and worth knowing
+before someone reports it: undo, type, and the thing you undid is not coming back.
+
+**An undo publishes `local-change`, not `remote-change`**, with `source: OpSource.UndoRedo`. That
+is the one thing the design had to solve: `use-block-document` subscribed to `remote-change` only,
+on the reasoning that a local edit is the caller's to apply and republish — and an undo has no
+caller to do that. It now takes both, because to that component they are the same thing: a change
+nothing local is already holding the text for. Everything downstream — the op-routing loop,
+`touchesBlockList`, the per-block handler map, the rebuild fallback — was written for remote
+changes and needed no change at all.
+
+**The browser's own undo has to be stopped.** A `<textarea>` keeps its own edit history, and
+`Ctrl+Z` inside a focused one would rewind the DOM while Yorkie kept the text — the desync
+[#59](https://github.com/CBNU-TeamH/RMF-Block/issues/59) was about. The keydown handler calls
+`preventDefault` so the document's history is the only one.
+
+### The floor
+
+**Nothing from before the document was opened may be undone.** Opening an empty document seeds it
+with a first block through `doc.update()`, and undoing that would leave a document with no blocks
+and nowhere to type.
+
+Measured against 0.7.13, the seed's root assignment happens to produce no reverse operation, so the
+stack is empty at that point anyway — but that is an accident of which operation the seed uses, not
+a design. `use-block-document` records the stack depth once the document is ready and refuses to
+undo past it. Borrowed from wafflebase's docs store, which reached the same rule from the other
+side: its own seed *is* reversible, and undoing it "would destroy blocks the cursor still
+references".
+
+The stack is capped at 50 entries (`MaxUndoRedoStackDepth`), so undo is not a journey back to the
+empty document.
+
 ### Pasting more than one line
 
 **A single-line paste is not a block operation.** It goes through the textarea's own default,

@@ -118,6 +118,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     docRef,
     registerRemoteHandler,
     patchBlockText,
+    history,
     occupantByBlock,
     setActiveBlockId,
   } = useBlockDocument(client, documentId, colorTag, nickname);
@@ -726,6 +727,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
             onFocusBlock={setActiveBlockId}
             onIndent={handleIndent}
             onPasteBlocks={handlePaste}
+            onHistory={history}
           />
         </div>
       );

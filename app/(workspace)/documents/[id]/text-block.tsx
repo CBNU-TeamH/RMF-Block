@@ -75,6 +75,7 @@ export function TextBlockView({
   onFocusBlock,
   onIndent,
   onPasteBlocks,
+  onHistory,
 }: {
   blockId: BlockId;
   initialText: string;
@@ -115,6 +116,9 @@ export function TextBlockView({
    *  left to the textarea's own default (`docs/design/document-editing.md`,
    *  "Pasting more than one line"). */
   onPasteBlocks: (blockId: BlockId, text: string) => void;
+  /** Ctrl/Cmd+Z and its shifted form. The document owns the history, not this
+   *  block — an undo can be of an edit made in a different one. */
+  onHistory: (direction: "undo" | "redo") => void;
   /** Called after every local text commit — not just here, and not tied to
    * this block's id, since the parent checks the *document's* trailing
    * block, not this one specifically. */
@@ -298,6 +302,16 @@ export function TextBlockView({
             chooseSlashItem(highlight);
             return;
           }
+        }
+
+        // Before every other key, and before the composition guards below: the
+        // browser's own textarea history would otherwise rewind the DOM while
+        // Yorkie kept the text, which is the desync `#59` was about. Stopping
+        // it here makes the document's history the only one.
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+          event.preventDefault();
+          onHistory(event.shiftKey ? "redo" : "undo");
+          return;
         }
 
         if (event.key === "Tab" && variant.type === "list") {
