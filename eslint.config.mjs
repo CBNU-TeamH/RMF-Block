@@ -9,6 +9,13 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    // The dev server's own output. `next.config.ts` splits distDir so a local
+    // `pnpm build` cannot leave a production `.next` that `pnpm dev` refuses
+    // (conventions.md, "Why next.config.ts picks a different distDir for pnpm
+    // dev") — but eslint-config-next only knows the default name, so lint saw
+    // thousands of errors in generated bundles the moment anyone ran the dev
+    // server. CI never hit it: it builds, and never runs `pnpm dev`.
+    ".next-dev/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
