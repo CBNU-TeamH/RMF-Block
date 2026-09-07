@@ -598,6 +598,26 @@ and `/` are legitimate source text; in a heading, retyping a marker asks for a c
 already happened. The `/` menu's query is recomputed from the text rather than tracked as a
 session, so deleting back through the slash closes it on its own.
 
+### `/페이지` makes a page; `/문서 링크` points at one
+
+Two menu items, because they are two things. `/문서 링크` picks a document that already exists.
+**`/페이지` creates a new one inside this document, links to it, and opens it** — the Notion
+gesture, where a page is somewhere you make on the way rather than something you go and set up
+first.
+
+The new document is a **child of the one it was typed in**. That is what keeps it in the workspace
+tree rather than only in this document's blocks: the tree reads the catalogue, and `parentId` is
+what puts it under the page it came from. Nothing about the tree is special-cased for this — the
+same `POST /api/documents` the workspace home calls, with a parent.
+
+The three steps run in an order that cannot strand any of them: **document, then block, then
+navigate.** A link written before the document existed would point at an id the catalogue does not
+have; a block written after navigating would be written into an editor that has unmounted. Failing
+at the first step leaves nothing behind at all, and the dialog says so.
+
+It asks for a name rather than defaulting to 제목 없음, because nothing in the editor renames a
+document yet — a placeholder name would be one nobody could change from where they are standing.
+
 ### The document link block
 
 SRS §4.1 type 11, created from the `/` menu. **Only the target's id is stored.** A file block
