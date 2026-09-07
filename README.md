@@ -1,5 +1,9 @@
 # RMF-Block
 
+<img width="494" height="323" alt="image" src="https://github.com/user-attachments/assets/d5665375-05d7-4712-93d3-d4afd5536fdc" />
+<img width="488" height="324" alt="image" src="https://github.com/user-attachments/assets/9c04c817-f92d-4f66-91ec-469c0997bfee" />
+
+
 A LAN-based real-time document collaboration system. A **host** runs the system as a Docker container; users on the **same subnet** open a URL in their browser and collaborate in real time.
 
 CBNU Team H capstone project.
