@@ -26,6 +26,7 @@ import {
 } from "@/lib/blocks/reorder";
 import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
+import { HOST_PRESENCE } from "@/lib/presence/types";
 
 import { useFocusFollow } from "../../focus-follow-provider";
 import { Avatar } from "../../presence-avatar";
@@ -78,8 +79,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   const { followingId } = useFocusFollow();
   // Falls back to a neutral color/blank name before the roster carries this
   // browser's own entry yet — `useBlockDocument`'s attach doesn't wait on it.
-  const me = members.find((member) => member.id === memberId);
-  const colorTag = me?.colorTag ?? "#64748b";
+  const me = useMemo(
+    () => members.find((member) => member.id === memberId),
+    [members, memberId],
+  );
+  const colorTag = me?.colorTag ?? HOST_PRESENCE.colorTag;
   const nickname = me?.nickname ?? "";
   const {
     blocks,
@@ -598,6 +602,14 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     >
       {blocks.map((block, index) => {
         const occupant = occupantByBlock.get(block.id);
+        // The drop indicator wins outright while dragging over this block's
+        // border — an occupant's box outline and the before/after line would
+        // otherwise fight over the same border sides. The gutter avatar below
+        // has no such conflict (a different visual channel), so it keeps
+        // using `occupant` directly. One value, read by both the className
+        // and the style below, rather than the same condition written twice
+        // with inverted polarity.
+        const shownOccupant = dropIndicator?.targetId === block.id ? undefined : occupant;
 
         return (
         // `group`/`relative` here, not on the drag handle: the handle needs
@@ -614,18 +626,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               ? dropIndicator.before
                 ? "border-t-2 border-sky-deep"
                 : "border-b-2 border-sky-deep"
-              // The drop indicator wins outright while dragging over this
-              // block — an occupant's box outline and the before/after line
-              // would otherwise fight over the same border sides.
-              : occupant
+              : shownOccupant
                 ? "rounded-md border-2"
                 : ""
           }`}
-          style={
-            dropIndicator?.targetId !== block.id && occupant
-              ? { borderColor: occupant.colorTag }
-              : undefined
-          }
+          style={shownOccupant ? { borderColor: shownOccupant.colorTag } : undefined}
           onDragOver={(event) => {
             event.preventDefault();
             // The container below also listens, to notice the pointer

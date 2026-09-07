@@ -17,7 +17,12 @@ export type BlockPresence = {
 export type Occupant = { colorTag: string; nickname: string };
 
 export const OCCUPANCY_TTL_MS = 30_000;
-export const OCCUPANCY_HEARTBEAT_MS = 10_000;
+/** One timer, in `use-block-document.ts`, does both jobs at this cadence:
+ *  republishes the focused block's `updatedAt`, and re-reads occupancy so a
+ *  block someone left ages out even with no new presence event to trigger it.
+ *  Well under `OCCUPANCY_TTL_MS` so a block never actually goes stale while
+ *  its occupant is still there. */
+export const OCCUPANCY_TICK_MS = 5_000;
 
 /** One occupant per occupied block, for the border and gutter avatar. First
  *  occupant found wins a block (multiple people in one block was never
@@ -39,4 +44,20 @@ export function occupantsByBlock(
   }
 
   return byBlock;
+}
+
+/** Whether a fresh `occupantsByBlock` result changed anything worth a
+ *  re-render — the periodic re-check for TTL expiry recomputes this every
+ *  few seconds regardless of whether anyone's presence actually moved. */
+export function sameOccupants(a: Map<BlockId, Occupant>, b: Map<BlockId, Occupant>): boolean {
+  if (a.size !== b.size) return false;
+
+  for (const [blockId, occupant] of a) {
+    const other = b.get(blockId);
+    if (!other || other.colorTag !== occupant.colorTag || other.nickname !== occupant.nickname) {
+      return false;
+    }
+  }
+
+  return true;
 }

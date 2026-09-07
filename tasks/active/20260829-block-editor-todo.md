@@ -310,6 +310,21 @@ shortcut.
   the two. Unlike the handle, it's always visible while occupied, not hover-only — the point is
   noticing someone else mid-scroll.
 
+  **`/code-review low` and `/simplify` run before opening the PR**, from this Sonnet session:
+  `/code-review low` found nothing across either commit (empty findings, both passes). `/simplify`
+  found four real items, three applied: the drop-indicator-vs-occupant precedence check was
+  written twice (className and inline `style`) with inverted polarity — collapsed into one
+  `shownOccupant` value; the heartbeat and `setActiveBlockId` built an identical presence object —
+  pulled into a shared `publishActiveBlock`; the heartbeat and TTL-recheck were two separate
+  timers doing one conceptual job — merged into one, plus a `sameOccupants` equality check
+  (`occupancy.ts`) so a tick where nothing changed skips the state update and its re-render. A
+  fourth (extending `Avatar` to cover `presence-stack.tsx`'s `+N` badge too) was skipped as scope
+  creep into unrelated existing code for a single small duplication. A fifth suggestion from the
+  same pass — moving `colorTag`/`nickname` into a ref so a change wouldn't retrigger the whole
+  attach effect — was also skipped: grepped for any path that mutates an existing member's
+  nickname/color after join and found none, so the reattach this would prevent cannot currently
+  happen.
+
 ### 6. Undo / redo
 
 - **What**: Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z.

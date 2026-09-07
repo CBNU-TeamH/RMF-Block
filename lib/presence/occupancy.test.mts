@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { occupantsByBlock, OCCUPANCY_TTL_MS, type BlockPresence } from "./occupancy.ts";
+import { occupantsByBlock, sameOccupants, OCCUPANCY_TTL_MS, type BlockPresence } from "./occupancy.ts";
 
 const now = 1_000_000;
 
@@ -56,5 +56,28 @@ describe("occupantsByBlock", () => {
     const justInside = now - OCCUPANCY_TTL_MS;
     const result = occupantsByBlock([other(alice("block-1", justInside))], now);
     assert.deepEqual(result, new Map([["block-1", { colorTag: "#ef4444", nickname: "alice" }]]));
+  });
+});
+
+describe("sameOccupants", () => {
+  it("is true for two empty maps", () => {
+    assert.equal(sameOccupants(new Map(), new Map()), true);
+  });
+
+  it("is true when every block's occupant matches", () => {
+    const a = new Map([["block-1", { colorTag: "#ef4444", nickname: "alice" }]]);
+    const b = new Map([["block-1", { colorTag: "#ef4444", nickname: "alice" }]]);
+    assert.equal(sameOccupants(a, b), true);
+  });
+
+  it("is false when the sizes differ", () => {
+    const a = new Map([["block-1", { colorTag: "#ef4444", nickname: "alice" }]]);
+    assert.equal(sameOccupants(a, new Map()), false);
+  });
+
+  it("is false when the same block's occupant changed", () => {
+    const a = new Map([["block-1", { colorTag: "#ef4444", nickname: "alice" }]]);
+    const b = new Map([["block-1", { colorTag: "#3b82f6", nickname: "bob" }]]);
+    assert.equal(sameOccupants(a, b), false);
   });
 });

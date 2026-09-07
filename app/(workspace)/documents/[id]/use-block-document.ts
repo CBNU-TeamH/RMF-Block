@@ -12,7 +12,8 @@ import {
 import type { Block, BlockId } from "@/lib/blocks/types";
 import {
   occupantsByBlock,
-  OCCUPANCY_HEARTBEAT_MS,
+  sameOccupants,
+  OCCUPANCY_TICK_MS,
   type BlockPresence,
   type Occupant,
 } from "@/lib/presence/occupancy";
@@ -53,6 +54,16 @@ export function useBlockDocument(
     [],
   );
 
+  // Shared by the heartbeat and `setActiveBlockId` — both publish the same
+  // shape, so this is written once rather than twice with a drift risk.
+  const publishActiveBlock = useCallback(
+    (doc: Document<BlockDocumentRoot, BlockPresence>, blockId: BlockId) => {
+      doc.update((_root, presence) => {
+        presence.set({ activeBlockId: blockId, colorTag, nickname, updatedAt: Date.now() });
+      });
+    },
+    [colorTag, nickname],
+  );
 
   useEffect(() => {
     if (!client) return;
@@ -63,7 +74,6 @@ export function useBlockDocument(
     let attached = false;
     let unsubscribe: (() => void) | undefined;
     let unsubscribeOccupancy: (() => void) | undefined;
-    let heartbeat: ReturnType<typeof setInterval> | undefined;
     let tick: ReturnType<typeof setInterval> | undefined;
 
     // cleanup(N) runs before effect(N+1), so this holds the previous run's full
@@ -128,27 +138,29 @@ export function useBlockDocument(
       });
 
       // Occupancy: who else has this document open, and which block they're
-      // in. `now` is read at compute time, not stored, so a tick with no new
-      // presence event still ages a block out once its heartbeat goes stale.
-      const readOccupancy = () =>
-        setOccupantByBlock(occupantsByBlock(doc.getOthersPresences(), Date.now()));
+      // in. `now` is read at compute time, not stored, so re-reading on a
+      // timer (not just on a presence event) is what ages a block out once
+      // its heartbeat goes stale — nothing about the doc changes when an
+      // entry simply goes stale. The equality check skips the state update
+      // (and the re-render it would cause) on every tick where nothing
+      // actually changed, which is most of them.
+      const readOccupancy = () => {
+        const next = occupantsByBlock(doc.getOthersPresences(), Date.now());
+        setOccupantByBlock((prev) => (sameOccupants(prev, next) ? prev : next));
+      };
       unsubscribeOccupancy = doc.subscribe("others", readOccupancy);
       readOccupancy();
 
-      // Refreshes the focused block's `updatedAt` so it doesn't age out while
-      // still actually focused; a no-op once focus moves elsewhere (`onFocus`
-      // clears `focusedBlockIdRef` on blur — see `setActiveBlockId`).
-      heartbeat = setInterval(() => {
+      // One timer for both halves of staying present: refresh the focused
+      // block's `updatedAt` so it doesn't age out while still actually
+      // focused (a no-op once focus moves elsewhere — `onFocus` clears
+      // `focusedBlockIdRef` on blur, see `setActiveBlockId`), and re-check
+      // occupancy for TTL expiry.
+      tick = setInterval(() => {
         const blockId = focusedBlockIdRef.current;
-        if (!blockId) return;
-        doc.update((_root, presence) => {
-          presence.set({ activeBlockId: blockId, colorTag, nickname, updatedAt: Date.now() });
-        });
-      }, OCCUPANCY_HEARTBEAT_MS);
-
-      // Nothing about the doc changes when an entry simply goes stale, so
-      // this is what actually expires a border once its TTL passes.
-      tick = setInterval(readOccupancy, OCCUPANCY_HEARTBEAT_MS / 2);
+        if (blockId) publishActiveBlock(doc, blockId);
+        readOccupancy();
+      }, OCCUPANCY_TICK_MS);
     })().catch((error: unknown) => {
       if (cancelled) return;
       setFailed(true);
@@ -163,7 +175,6 @@ export function useBlockDocument(
       const teardown = setup.finally(async () => {
         unsubscribe?.();
         unsubscribeOccupancy?.();
-        if (heartbeat) clearInterval(heartbeat);
         if (tick) clearInterval(tick);
         if (docRef.current === doc) docRef.current = null;
         // Only this run's own successful attach left something to release.
@@ -172,7 +183,7 @@ export function useBlockDocument(
 
       teardownRef.current = teardown;
     };
-  }, [client, documentId, colorTag, nickname]);
+  }, [client, documentId, colorTag, nickname, publishActiveBlock]);
 
   /** Reports a block gaining focus, or (`null`) losing it. Losing focus does
    *  not publish anything — the last-focused block's border stays until its
@@ -184,11 +195,9 @@ export function useBlockDocument(
       const doc = docRef.current;
       if (!doc || !blockId) return;
 
-      doc.update((_root, presence) => {
-        presence.set({ activeBlockId: blockId, colorTag, nickname, updatedAt: Date.now() });
-      });
+      publishActiveBlock(doc, blockId);
     },
-    [colorTag, nickname],
+    [publishActiveBlock],
   );
 
   /** Patches a textarea with an edit that did not come from the network — a
