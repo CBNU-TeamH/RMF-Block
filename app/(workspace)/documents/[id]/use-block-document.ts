@@ -10,15 +10,31 @@ import {
   type TextPatch,
 } from "@/lib/blocks/text-surface";
 import type { Block, BlockId } from "@/lib/blocks/types";
+import {
+  occupantsByBlock,
+  sameOccupants,
+  OCCUPANCY_TICK_MS,
+  type BlockPresence,
+  type Occupant,
+} from "@/lib/presence/occupancy";
 
 /** One document's blocks and the Yorkie attachment behind them. `setBlocks` is
  *  returned because the subscription reacts to `remote-change` only — a local
  *  edit is the caller's to apply and republish. */
-export function useBlockDocument(client: Client | null, documentId: string) {
+export function useBlockDocument(
+  client: Client | null,
+  documentId: string,
+  colorTag: string,
+  nickname: string,
+) {
   const [blocks, setBlocks] = useState<Array<Block> | null>(null);
   const [failed, setFailed] = useState(false);
+  const [occupantByBlock, setOccupantByBlock] = useState<Map<BlockId, Occupant>>(new Map());
 
-  const docRef = useRef<Document<BlockDocumentRoot> | null>(null);
+  const docRef = useRef<Document<BlockDocumentRoot, BlockPresence> | null>(null);
+  // Which block currently has focus, or none — a ref because it drives the
+  // heartbeat interval, not a render.
+  const focusedBlockIdRef = useRef<BlockId | null>(null);
   // Each mounted text block's "apply this to your textarea". Fed by remote
   // edits below and by the editor's own split/merge through `patchBlockText`.
   const handlersRef = useRef(new Map<BlockId, (patch: TextPatch) => void>());
@@ -38,15 +54,27 @@ export function useBlockDocument(client: Client | null, documentId: string) {
     [],
   );
 
+  // Shared by the heartbeat and `setActiveBlockId` — both publish the same
+  // shape, so this is written once rather than twice with a drift risk.
+  const publishActiveBlock = useCallback(
+    (doc: Document<BlockDocumentRoot, BlockPresence>, blockId: BlockId) => {
+      doc.update((_root, presence) => {
+        presence.set({ activeBlockId: blockId, colorTag, nickname, updatedAt: Date.now() });
+      });
+    },
+    [colorTag, nickname],
+  );
 
   useEffect(() => {
     if (!client) return;
 
-    const doc = new yorkie.Document<BlockDocumentRoot>(documentId);
+    const doc = new yorkie.Document<BlockDocumentRoot, BlockPresence>(documentId);
     let cancelled = false;
     // Whether THIS run's attach() went through — independent of `cancelled`.
     let attached = false;
     let unsubscribe: (() => void) | undefined;
+    let unsubscribeOccupancy: (() => void) | undefined;
+    let tick: ReturnType<typeof setInterval> | undefined;
 
     // cleanup(N) runs before effect(N+1), so this holds the previous run's full
     // teardown and attach() below waits for it.
@@ -56,7 +84,9 @@ export function useBlockDocument(client: Client | null, documentId: string) {
       await readyToAttach;
       if (cancelled) return;
 
-      await client.attach(doc, { initialPresence: {} });
+      await client.attach(doc, {
+        initialPresence: { activeBlockId: null, colorTag, nickname, updatedAt: Date.now() },
+      });
       attached = true;
       if (cancelled) return;
 
@@ -106,6 +136,31 @@ export function useBlockDocument(client: Client | null, documentId: string) {
 
         if (needsRecompute) setBlocks(readBlocks(doc.getRoot().blocks));
       });
+
+      // Occupancy: who else has this document open, and which block they're
+      // in. `now` is read at compute time, not stored, so re-reading on a
+      // timer (not just on a presence event) is what ages a block out once
+      // its heartbeat goes stale — nothing about the doc changes when an
+      // entry simply goes stale. The equality check skips the state update
+      // (and the re-render it would cause) on every tick where nothing
+      // actually changed, which is most of them.
+      const readOccupancy = () => {
+        const next = occupantsByBlock(doc.getOthersPresences(), Date.now());
+        setOccupantByBlock((prev) => (sameOccupants(prev, next) ? prev : next));
+      };
+      unsubscribeOccupancy = doc.subscribe("others", readOccupancy);
+      readOccupancy();
+
+      // One timer for both halves of staying present: refresh the focused
+      // block's `updatedAt` so it doesn't age out while still actually
+      // focused (a no-op once focus moves elsewhere — `onFocus` clears
+      // `focusedBlockIdRef` on blur, see `setActiveBlockId`), and re-check
+      // occupancy for TTL expiry.
+      tick = setInterval(() => {
+        const blockId = focusedBlockIdRef.current;
+        if (blockId) publishActiveBlock(doc, blockId);
+        readOccupancy();
+      }, OCCUPANCY_TICK_MS);
     })().catch((error: unknown) => {
       if (cancelled) return;
       setFailed(true);
@@ -119,6 +174,8 @@ export function useBlockDocument(client: Client | null, documentId: string) {
       // runs, so the next run's `readyToAttach` waits on exactly this.
       const teardown = setup.finally(async () => {
         unsubscribe?.();
+        unsubscribeOccupancy?.();
+        if (tick) clearInterval(tick);
         if (docRef.current === doc) docRef.current = null;
         // Only this run's own successful attach left something to release.
         if (attached) await client.detach(doc).catch(() => undefined);
@@ -126,7 +183,22 @@ export function useBlockDocument(client: Client | null, documentId: string) {
 
       teardownRef.current = teardown;
     };
-  }, [client, documentId]);
+  }, [client, documentId, colorTag, nickname, publishActiveBlock]);
+
+  /** Reports a block gaining focus, or (`null`) losing it. Losing focus does
+   *  not publish anything — the last-focused block's border stays until its
+   *  heartbeat goes stale (`OCCUPANCY_TTL_MS`), rather than vanishing the
+   *  instant someone clicks the sidebar. */
+  const setActiveBlockId = useCallback(
+    (blockId: BlockId | null) => {
+      focusedBlockIdRef.current = blockId;
+      const doc = docRef.current;
+      if (!doc || !blockId) return;
+
+      publishActiveBlock(doc, blockId);
+    },
+    [publishActiveBlock],
+  );
 
   /** Patches a textarea with an edit that did not come from the network — a
    *  split or merge (#59). Deliberately the same handler a remote edit uses;
@@ -135,5 +207,14 @@ export function useBlockDocument(client: Client | null, documentId: string) {
     handlersRef.current.get(blockId)?.(patch);
   }, []);
 
-  return { blocks, setBlocks, failed, docRef, registerRemoteHandler, patchBlockText };
+  return {
+    blocks,
+    setBlocks,
+    failed,
+    docRef,
+    registerRemoteHandler,
+    patchBlockText,
+    occupantByBlock,
+    setActiveBlockId,
+  };
 }

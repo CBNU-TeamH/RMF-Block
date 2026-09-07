@@ -26,8 +26,10 @@ import {
 } from "@/lib/blocks/reorder";
 import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
+import { HOST_PRESENCE } from "@/lib/presence/types";
 
 import { useFocusFollow } from "../../focus-follow-provider";
+import { Avatar } from "../../presence-avatar";
 import { useWorkspacePresence } from "../../presence-provider";
 import { DividerBlockView } from "./divider-block";
 import { PdfBlockView } from "./pdf-block";
@@ -73,10 +75,26 @@ function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
  *  Attaching and subscribing are `useBlockDocument`'s, following a presenter is
  *  `useFocusPresence`'s. The rules this holds to: `docs/design/document-editing.md`. */
 export function DocumentEditor({ documentId }: { documentId: string }) {
-  const { client, members, isPresenting, setPresenting } = useWorkspacePresence();
+  const { client, members, memberId, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId } = useFocusFollow();
-  const { blocks, setBlocks, failed, docRef, registerRemoteHandler, patchBlockText } =
-    useBlockDocument(client, documentId);
+  // Falls back to a neutral color/blank name before the roster carries this
+  // browser's own entry yet — `useBlockDocument`'s attach doesn't wait on it.
+  const me = useMemo(
+    () => members.find((member) => member.id === memberId),
+    [members, memberId],
+  );
+  const colorTag = me?.colorTag ?? HOST_PRESENCE.colorTag;
+  const nickname = me?.nickname ?? "";
+  const {
+    blocks,
+    setBlocks,
+    failed,
+    docRef,
+    registerRemoteHandler,
+    patchBlockText,
+    occupantByBlock,
+    setActiveBlockId,
+  } = useBlockDocument(client, documentId, colorTag, nickname);
   // Opacity feedback only. Cleared on `dragend` as well as on drop — a drag
   // cancelled outside any block never fires `onDrop`.
   const [draggedId, setDraggedId] = useState<BlockId | null>(null);
@@ -494,6 +512,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
             onNavigateDown={handleNavigateDown}
             onTextCommitted={ensureTrailingEmptyBlock}
             onSlashSelect={handleSlashSelect}
+            onFocusBlock={setActiveBlockId}
           />
         </div>
       );
@@ -581,7 +600,18 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         void uploadPdfs(files, null);
       }}
     >
-      {blocks.map((block, index) => (
+      {blocks.map((block, index) => {
+        const occupant = occupantByBlock.get(block.id);
+        // The drop indicator wins outright while dragging over this block's
+        // border — an occupant's box outline and the before/after line would
+        // otherwise fight over the same border sides. The gutter avatar below
+        // has no such conflict (a different visual channel), so it keeps
+        // using `occupant` directly. One value, read by both the className
+        // and the style below, rather than the same condition written twice
+        // with inverted polarity.
+        const shownOccupant = dropIndicator?.targetId === block.id ? undefined : occupant;
+
+        return (
         // `group`/`relative` here, not on the drag handle: the handle needs
         // to be positioned against this block and shown only while this
         // block's own textarea has focus (`group-focus-within`), pure CSS —
@@ -596,8 +626,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               ? dropIndicator.before
                 ? "border-t-2 border-sky-deep"
                 : "border-b-2 border-sky-deep"
-              : ""
+              : shownOccupant
+                ? "rounded-md border-2"
+                : ""
           }`}
+          style={shownOccupant ? { borderColor: shownOccupant.colorTag } : undefined}
           onDragOver={(event) => {
             event.preventDefault();
             // The container below also listens, to notice the pointer
@@ -635,9 +668,24 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               <circle cx="7.5" cy="13.5" r="1.5" />
             </svg>
           </span>
+          {/* Always visible, unlike the drag handle above it — the point is
+           * noticing someone else mid-scroll, not only on hover. `top-6`
+           * keeps it clear of the handle's `top-0.5` on a block that is both
+           * draggable-by-you and occupied-by-someone-else at once. */}
+          {occupant ? (
+            <span className="absolute -left-4 top-6">
+              <Avatar
+                colorTag={occupant.colorTag}
+                label={occupant.nickname.slice(0, 1)}
+                name={occupant.nickname}
+                size="size-5"
+              />
+            </span>
+          ) : null}
           {rowFor(block, index)}
         </div>
-      ))}
+        );
+      })}
 
       {/* Below the document rather than above it: this appends, and the
        * button sitting where the new block will appear is less surprising
