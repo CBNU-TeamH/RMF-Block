@@ -2,16 +2,9 @@
 
 import type { ChatAttachment, ChatMessage } from "@/lib/chat/types";
 
-/**
- * One message in the chat panel (FR-060-01/02).
- *
- * **Prototype.** `docs/ui/` has no chat artboard — the confirmed v0.4 dashboard
- * and the older app-shell wireframes both stop short of it — so this borrows
- * the shell's vocabulary rather than inventing one: the `ink`/`paper`/`sky`
- * tokens, a 1px `border-ink` edge, and the same coloured initial the document
- * list and presence stack use for a person. It is meant to be replaced once
- * there is a design, not defended.
- */
+/** One message in the chat panel (FR-060-01/02). **Prototype** — `docs/ui/` has
+ *  no chat artboard, so this borrows the shell's vocabulary and is meant to be
+ *  replaced once there is a design, not defended. */
 
 /** The four types `preview` will serve inline — anything else gets a card. */
 const INLINE_IMAGE_TYPES = new Set([
@@ -36,15 +29,10 @@ function readableSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-/**
- * An attachment, drawn as what it is: an image if the server will serve it
- * inline, a card otherwise.
- *
- * The test is the same list the server keeps, restated rather than imported,
- * because this one is only choosing a layout. Getting it wrong shows a broken
- * image; the server's copy is what decides whether anything renders at all
- * (`lib/files/serving.ts`).
- */
+/** An image if the server will serve it inline, a card otherwise. The list is
+ *  restated rather than imported because this copy only picks a layout — getting
+ *  it wrong shows a broken image, while `lib/files/serving.ts` decides whether
+ *  anything renders at all. */
 function Attachment({ attachment }: { attachment: ChatAttachment }) {
   const download = `/api/files/${attachment.fileId}/download`;
 

@@ -1,26 +1,10 @@
-/**
- * The pure half of the block editor's text surface — everything decided in
- * `docs/design/document-editing.md`'s "Editing surface" section that does not
- * need a DOM to run. Kept apart from the `<textarea>` component so it is
- * tested without a browser, the way `lib/presence/roster.ts` is.
- *
- * The two path readers at the bottom stretch that description a little: they
- * are about Yorkie's op paths rather than about text. They live here because
- * they are read together, in the same loop over one change event, and because
- * a decision with three documented edge cases belongs somewhere it can be
- * tested rather than inline in an effect.
- */
+/** The DOM-free half of the editing surface (`docs/design/document-editing.md`),
+ *  testable without a browser. The two path readers at the bottom sit here
+ *  because one loop over a change event reads both. */
 
-/**
- * One replacement inside a block's text, in the shape a textarea can apply:
- * "swap `[from, to)` for `value.content`".
- *
- * Deliberately narrower than Yorkie's `EditOpInfo`, which is assignable to it.
- * A remote edit is not the only thing that has to reach a textarea — the editor
- * itself rewrites a block's text on the person's behalf when it splits or
- * merges one, and that has to travel the same road or the DOM and the document
- * drift apart (issue #59).
- */
+/** One replacement inside a block's text. Narrower than Yorkie's `EditOpInfo`
+ *  on purpose, so a split reaches the textarea by the road a remote edit takes
+ *  (#59). */
 export type TextPatch = {
   from: number;
   to: number;
@@ -46,14 +30,8 @@ export function diffRange(
   return { from: start, to: oldEnd, value: newStr.slice(start, newEnd) };
 }
 
-/**
- * Where a caret at `pos` should land once a remote edit (`from`/`to`/the
- * inserted text's length) lands elsewhere in the same string.
- *
- * `null` means the edit overlapped the caret itself — measured as the one
- * case worth naming rather than guessing at: the caller decides what to do
- * (`patchRange` logs it), this only ever reports what it actually knows.
- */
+/** Where a caret at `pos` lands after an edit elsewhere in the string. `null`
+ *  means the edit overlapped the caret — the one case this leaves to the caller. */
 export function shiftCaret(
   pos: number,
   op: { from: number; to: number; insertedLength: number },
@@ -64,43 +42,19 @@ export function shiftCaret(
   return null;
 }
 
-/**
- * Reads the array index out of a text-edit's path, e.g. `$.blocks.3.content.text`
- * → `3`. Yorkie's paths are positional, not by block id (`document-editing.md`,
- * "Subscribing to remote changes") — resolving the index back to an id has to
- * happen against the document's *current* array, at the moment the event
- * arrives, or a block that has moved since routes to the wrong handler.
- */
+/** `$.blocks.3.content.text` → `3`. Positional, so the caller must resolve it to
+ *  an id against the array as it is when the event arrives — see the doc's
+ *  "Subscribing to remote changes". */
 export function blockIndexFromEditPath(path: string): number | null {
   const match = /^\$\.blocks\.(\d+)\.content\.text$/.exec(path);
   if (!match) return null;
   return Number(match[1]);
 }
 
-/**
- * Whether a remote operation means the rendered block list is stale.
- *
- * True for anything touching the array itself or a field inside one block:
- *
- * - `$.blocks` — a split, merge or reorder (`add`, `remove`, `move`).
- * - `$.blocks.<i>` — a markdown-shortcut conversion setting the block's `type`.
- * - `$.blocks.<i>.content` — the same conversion setting `level`, `style` or
- *   `checked`. Missing this one made a peer's heading conversion invisible
- *   until some later, unrelated edit happened to recompute for its own reasons.
- *
- * Text edits do *not* come through here — they are routed to the block's own
- * textarea by `blockIndexFromEditPath` instead, because there the DOM node to
- * patch is known and rebuilding the whole list would throw away the caret.
- * Everything else is recomputed rather than patched: there is no single node
- * whose value moved, the list itself is wrong.
- *
- * **Open question, deliberately not changed while extracting this:** a peer
- * seeding a brand-new document assigns the whole array (`root.blocks = [...]`),
- * and whether Yorkie reports that as `$.blocks` or as a set on `$` has not been
- * measured. If it is the latter, this returns false and that peer's seed is not
- * drawn until something else happens — which the seeding race in `#42` would
- * usually hide. Worth measuring before anyone relies on it.
- */
+/** Whether a remote operation means the rendered block list is stale; the paths
+ *  it accepts are enumerated in this module's tests. Text edits deliberately go
+ *  elsewhere — a full rebuild would cost the caret. One unmeasured case is in
+ *  the doc's Open questions. */
 export function touchesBlockList(path: string): boolean {
   return path === "$.blocks" || path.startsWith("$.blocks.");
 }

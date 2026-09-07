@@ -21,19 +21,11 @@ function NameLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-/**
- * Who else is here, as the artboard draws it: overlapping circles carrying an
- * initial, newest arrivals folded into a `+N`.
- *
- * The current user comes first — the same ordering Yorkie's own profile-stack
- * example uses — so the one avatar you can identify without hovering is yours.
- *
- * The name appears on hover, like that example's bubble, but through CSS rather
- * than click state: the label is always in the DOM, which is what a screen
- * reader reads, and `group-hover` is what makes it visible. `title` would have
- * been one attribute less, but its a-second-or-so delay is too slow for
- * something you glance at.
- */
+/** Who else is here, as the artboard draws it — overlapping circles, newest
+ *  folded into a `+N`, the current user first so the one avatar you can identify
+ *  without hovering is yours. The name is always in the DOM (which is what a
+ *  screen reader reads) and revealed by `group-hover`; `title` would be one
+ *  attribute less but its delay is too slow for something you glance at. */
 export function PresenceStack({ memberId }: { memberId: string }) {
   const { status, members } = useWorkspacePresence();
 

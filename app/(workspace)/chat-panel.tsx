@@ -7,18 +7,11 @@ import type { ChatMessage } from "@/lib/chat/types";
 import { ChatMessageRow } from "./chat-message";
 import { useWorkspacePresence } from "./presence-provider";
 
-/**
- * The workspace chat (FR-060-01/02/04/05/07).
+/** The workspace chat (FR-060-01/02/04/05/07). **Prototype** — no chat artboard
+ *  in `docs/ui/`, so this is built from the shell's vocabulary.
  *
- * **Prototype.** There is no chat artboard in `docs/ui/`, so this is built from
- * the shell's own vocabulary and is meant to be replaced once there is a
- * design.
- *
- * History arrives over REST and everything after it over the socket the chat
- * module already broadcasts on — `GET /api/chat` is the backfill a reconnecting
- * client needs, and `chat:message` is the live feed. The two can overlap, so
- * messages are merged by id rather than appended.
- */
+ *  History arrives over REST and everything after it over the socket. The two
+ *  can overlap, so messages are merged by id rather than appended. */
 
 const WS_PATH = "/api/chat/ws";
 
@@ -27,14 +20,9 @@ type Pending = {
   key: string;
   text: string;
   file: File | null;
-  /**
-   * Set once the file is stored, so a retry does not upload it again.
-   *
-   * The upload and the send are two requests, and only the second one tends to
-   * fail. Re-uploading on retry would store a second copy under a new id and
-   * strand the first, which nothing ever collects — deleting a file is
-   * deliberately out of scope, so an orphan is permanent.
-   */
+  /** Set once the file is stored, so a retry does not upload it twice. Only the
+   *  send tends to fail, and a second copy would strand the first — deleting a
+   *  file is out of scope, so an orphan is permanent. */
   fileId?: string;
   failed: boolean;
 };

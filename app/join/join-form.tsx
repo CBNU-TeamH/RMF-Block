@@ -15,14 +15,9 @@ const INPUT_BASE = "rounded-md border bg-paper-2 px-3 py-2 text-base text-ink";
 const INPUT_OK = "border-ink";
 const INPUT_BAD = "border-red-600";
 
-/**
- * FR-020-01/02/05/08. Two fields and a button.
- *
- * There are deliberately no password rules here — no length, no strength, no
- * confirmation field. The host chose the password and told it to the guest, so
- * the only thing this form could check is whether they typed something, and the
- * only authority on whether it is right is the server (`lib/workspace-config.ts`).
- */
+/** FR-020-01/02/05/08. Two fields and a button, and deliberately no password
+ *  rules — the host chose the password and told it to the guest, so the only
+ *  authority on whether it is right is the server. */
 export function JoinForm() {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -37,13 +32,9 @@ export function JoinForm() {
   // The nickname waiting on the guest's answer, or null when nothing is asked.
   const [conflict, setConflict] = useState<string | null>(null);
 
-  // `<dialog>` is only modal — backdrop, focus trap, Esc to dismiss — when it is
-  // opened through showModal(), which has no declarative equivalent.
-  //
-  // Focus is restored here rather than by whoever cleared `conflict`, because
-  // until `close()` runs the form is inert: a `.focus()` call from the click
-  // handler is ignored, and `close()` then hands focus back to whatever was
-  // active before `showModal()` — the submit button they pressed to get here.
+  // `<dialog>` is modal only through `showModal()`, which has no declarative
+  // equivalent. Focus is restored here because until `close()` runs the form is
+  // inert — and `close()` hands focus back to the submit button itself.
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -55,12 +46,9 @@ export function JoinForm() {
     }
   }, [conflict]);
 
-  /**
-   * Back out of a takeover. Only reachable while nothing is in flight: once
-   * `join(true)` has been sent the displacement has already happened on the
-   * server, and dismissing would have closed the dialog while the request went
-   * on to sign the guest in under the very name they had backed out of.
-   */
+  /** Back out of a takeover — only while nothing is in flight. Once `join(true)`
+   *  is sent the displacement has happened, and dismissing would sign the guest
+   *  in under the name they backed out of. */
   function dismiss() {
     setConflict(null);
   }

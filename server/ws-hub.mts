@@ -2,27 +2,12 @@ import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocketServer, type WebSocket } from 'ws';
 
-/**
- * Generic WebSocket connection registry + broadcaster — not chat-specific.
- * `ChatService` only depends on this through the `ChatBroadcaster` interface
- * (`lib/chat/types.ts`); this file never imports anything chat-related, so a
- * future feature can reuse it the same way (NFR-MAI-001). Presence did not:
- * it rides Yorkie's own document attach, so the only thing on this socket
- * besides chat is `session:revoked`.
- *
- * Connections may carry a session id, which is what makes FR-020-08's takeover
- * visible: when the same nickname signs in from another device, `revoke()`
- * closes the sockets the displaced session still holds. Connections without one
- * keep working exactly as before — chat never had to authenticate and still
- * does not.
- *
- * Cached on `globalThis`, same reason as `lib/host-secret.ts`: this module
- * gets loaded twice in one process — once by `server/index.mts` (Node's
- * native loader, no bundler) and once through Next's own bundled module
- * graph when `lib/chat/chat-service.ts` imports it. Without the cache, those
- * two loads would each hold a private connection registry, and a broadcast
- * from one side would never reach connections the other side registered.
- */
+/** Generic WebSocket registry and broadcaster — nothing chat-specific is
+ *  imported here, so a future feature can reuse it through `ChatBroadcaster`
+ *  (NFR-MAI-001). A connection may carry a session id, which is what makes
+ *  FR-020-08's takeover visible; a connection without one still works. On
+ *  `globalThis` like `lib/host-secret.ts`: loaded twice in one process. What
+ *  this layer must do, and what an unauthenticated socket can: `chat.md`. */
 
 /** Close code for a socket the server dropped on purpose. 4000-4999 is the
  * range reserved for application use, so it cannot collide with a protocol code. */
@@ -41,9 +26,8 @@ class WsHub {
   ): void {
     this.server.handleUpgrade(request, socket, head, (ws) => {
       this.connections.set(ws, sessionId);
-      // A protocol error (a malformed frame) or a failed send emits 'error' on
-      // the socket. With no listener, EventEmitter rethrows it and takes the
-      // whole process down — Next included, since this is one process.
+      // Without this listener EventEmitter rethrows and takes the process down
+      // (`docs/design/chat.md`).
       ws.on('error', (error) => {
         console.error('ws connection error', error);
         ws.close();
@@ -61,12 +45,8 @@ class WsHub {
     }
   }
 
-  /**
-   * Tell every socket held by `sessionId` that it has been displaced, then close
-   * it. The message goes first: a client that only saw the close would have to
-   * guess whether it was evicted or the network dropped, and those want
-   * different handling.
-   */
+  /** Tell every socket held by `sessionId` it was displaced, then close it —
+   *  message first (`docs/design/chat.md`). */
   revoke(sessionId: string): void {
     const frame = JSON.stringify({ event: 'session:revoked', payload: null });
 

@@ -5,19 +5,13 @@ import { chatService } from "@/lib/chat/chat-service";
 import { ChatValidationError, type ChatAttachment } from "@/lib/chat/types";
 import { fileRepository } from "@/lib/files/file-repository";
 
-/**
- * Chat history (GET) and send (POST) — FR-060-01/04/05/07, `docs/design/api.md`
- * §5 Version A: POST persists then broadcasts `chat:message` over WebSocket
- * (`server/ws-hub.mts`) so every connected client sees it inside NFR-PER-004's
- * 1s budget. GET is what a reconnecting client calls to backfill everything it
- * missed while disconnected.
+/** Chat history (GET) and send (POST) — FR-060-01/04/05/07, `docs/design/api.md`
+ *  §5 Version A. POST persists then broadcasts over the socket inside
+ *  NFR-PER-004's 1s budget; GET is a reconnecting client's backfill.
  *
- * Both require a workspace session. `chat.md` shipped this module before guest
- * login existed and left `sender` client-supplied, with a note that it "becomes
- * server-derived once this module is wired to it" — login arrived and the wiring
- * did not, so until now anything on the LAN could post as anyone without joining
- * at all.
- */
+ *  Both require a workspace session. This module shipped before guest login
+ *  existed and left `sender` client-supplied, so until the wiring landed anything
+ *  on the LAN could post as anyone (`docs/design/chat.md`). */
 export async function GET() {
   if (!(await currentMember())) {
     return NextResponse.json({ error: "no workspace session" }, { status: 401 });
@@ -36,9 +30,7 @@ export async function POST(request: NextRequest) {
   const text = typeof body?.text === "string" ? body.text : undefined;
   const fileId = typeof body?.fileId === "string" ? body.fileId : undefined;
 
-  // The request names a file; the server describes it. A client that could send
-  // its own `fileName` and `size` could describe a file as something it is not,
-  // and that description is what every other client renders.
+  // The request names a file; the server describes it (`docs/design/chat.md`).
   let attachment: ChatAttachment | undefined;
   if (fileId) {
     const file = await fileRepository.find(fileId);

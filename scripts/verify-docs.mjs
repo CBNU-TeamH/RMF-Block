@@ -122,7 +122,21 @@ const BACKTICK_PATH =
 // is a broken reference — checking either would mean resolving into a
 // vendored dependency's version-specific internals, a different question
 // from "is our own doc reference broken."
-const EXCLUDED_PREFIXES = [".data/", "packages/"];
+//
+// The three `yorkie/` prefixes are paths into Yorkie's own Go server, cited by
+// `api.md` where a contract is only knowable from that source — which status
+// codes the auth webhook accepts, which flags the server exposes, the spelling
+// of a method name. They are the same case as `packages/`: a reference into a
+// dependency, quoted so a reader can go and check it, not a file this repo
+// has. `server/` is deliberately not excluded on its own, since this repo has
+// one.
+const EXCLUDED_PREFIXES = [
+  ".data/",
+  "packages/",
+  "server/rpc/",
+  "cmd/yorkie/",
+  "api/types/",
+];
 
 // AGENTS.md's own workflow table, and this repo's task-naming convention,
 // both use YYYY/MM/DD-shaped placeholders in prose — not a path anyone
@@ -166,6 +180,13 @@ function extractBacktickPaths(text) {
   const found = [];
   for (const match of text.matchAll(BACKTICK_PATH)) {
     if (isSkippable(match[1])) continue;
+    // A `./`-prefixed backtick path is not following the root-relative writing
+    // convention this function resolves by — it is quoting relative-import
+    // syntax as a module must spell it (`conventions.md`'s type-stripping
+    // section quotes `./ws-hub.mts` the way `server/index.mts` writes it).
+    // Only here: a markdown link `[x](./y.md)` is a real hyperlink and keeps
+    // its own file-relative resolution.
+    if (match[1].startsWith("./")) continue;
     found.push({ path: match[1], rootRelative: true });
   }
   return found;
@@ -215,8 +236,16 @@ function checkDeadLinks() {
     }
   }
 
-  // Backtick-quoted prose: only docs/ and AGENTS.md — see extractBacktickPaths.
-  for (const file of [...docsFiles, agentsFile]) {
+  // Backtick-quoted prose: only docs/ and AGENTS.md — see extractBacktickPaths —
+  // minus the point-in-time records, for that function's own stated reason.
+  // `HOST-GUEST-ENTRY-ko.md` opens by saying it is a record of a moment and is
+  // left as written, then names `app/page.tsx` *because it is gone* and the
+  // spike files (`server/watcher.mts`, `app/spike/`, `lib/pm-schema.ts`)
+  // because that spike finished. Those are the same "prose names a path that
+  // is not a live reference" case that already excludes `tasks/active/*.md`.
+  // Its markdown links stay checked above, where a reader really would click.
+  const historicalDocs = new Set([join(ROOT, "docs", "HOST-GUEST-ENTRY-ko.md")]);
+  for (const file of [...docsFiles, agentsFile].filter((f) => !historicalDocs.has(f))) {
     const text = readFileSync(file, "utf8");
     const dir = dirname(file);
     for (const candidate of extractBacktickPaths(text)) {

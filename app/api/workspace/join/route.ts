@@ -10,14 +10,9 @@ import {
 import { isWorkspacePassword } from "@/lib/workspace-config";
 import { wsHub } from "@/server/ws-hub.mts";
 
-/**
- * FR-020-02~05/08. Nickname plus the workspace access password; on a match the
- * guest is admitted and the session lands in an httpOnly cookie, so the token
- * never appears in the address bar during screen sharing (UC-030).
- *
- * A nickname someone is still signed in under comes back as 409 rather than
- * silently displacing them; the client asks and retries with `force: true`.
- */
+/** FR-020-02~05/08. Nickname plus the workspace password; the session lands in
+ *  an httpOnly cookie, so it never appears in the address bar during screen
+ *  sharing (UC-030). What this answers with: `docs/design/api.md`. */
 export async function POST(request: NextRequest) {
   let body: { nickname?: unknown; password?: unknown; force?: unknown };
   try {
@@ -31,21 +26,14 @@ export async function POST(request: NextRequest) {
   // Set by the client only after the guest has seen the takeover warning below.
   const force = body.force === true;
 
-  // FR-020-05: a wrong password is the guest's to retry. The message names the
-  // password because that is the only thing this branch can mean — an unknown
-  // nickname is not a failure here, it becomes a new member — so the older
-  // "nickname or password" wording pointed at a field that cannot be at fault.
+  // FR-020-05: the message names the password because that is the only thing
+  // this branch can mean (`docs/design/api.md`).
   if (!isWorkspacePassword(password)) {
     return NextResponse.json({ error: "비밀번호가 틀렸습니다." }, { status: 401 });
   }
 
-  // FR-020-08 takes the nickname over and revokes the other device. Right for
-  // one person's second device, wrong for two people who picked the same name
-  // during the opening rush — and the server cannot tell those apart, since a
-  // nickname plus a password everyone shares is all it has. So it asks.
-  //
-  // After the password check, never before: this is the one response that
-  // confirms a nickname is in use, and only someone already inside sees it.
+  // 409 rather than a silent takeover, and after the password check, never
+  // before (`docs/design/api.md`).
   if (!force && sessionRegistry.hasLiveSession(nickname)) {
     return NextResponse.json({ reason: "nickname-live" }, { status: 409 });
   }
@@ -63,10 +51,8 @@ export async function POST(request: NextRequest) {
     if (error instanceof MemberStoreError) {
       return NextResponse.json({ error: error.message }, { status: 503 });
     }
-    // Anything else still fails the request, but with a body the form can show.
-    // Re-throwing handed Next its own 500 page, and the form fell back to
-    // "서버에 연결할 수 없습니다" — which points at the network for a fault that
-    // is on the server.
+    // A body the form can render — re-throwing gave Next's 500 page, and the
+    // form then blamed the network (`docs/design/api.md`).
     console.error("join failed", error);
     return NextResponse.json(
       { error: "입장하지 못했습니다. 잠시 후 다시 시도해 주세요." },

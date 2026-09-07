@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Bring the comment budget down, starting with `lib/presence/types.ts`](active/20260905-comment-budget-todo.md) | [lessons](active/20260905-comment-budget-lessons.md) |
 | [Verify scripts — ownership, comment budget, hooks, `verify:docs`](active/20260904-verify-scripts-todo.md) | [lessons](active/20260904-verify-scripts-lessons.md) |
 | [Track D — wire Phase 1's rules into AGENTS.md — todo](active/20260904-agents-md-todo.md) | [lessons](active/20260904-agents-md-lessons.md) |
 | [AGENTS.md doc-routing table: spell out tasks/active, tasks/archive — todo](active/20260904-agents-md-tasks-link-todo.md) | [lessons](active/20260904-agents-md-tasks-link-lessons.md) |

@@ -1,16 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
 
-/**
- * The workspace name and access password the host sets before starting the
- * server (FR-010-01/02). Unlike the host's bootstrap secret, which the server
- * mints (`lib/host-secret.ts`), this password is chosen by a person and told to
- * guests out of band — so the server never generates it and never rejects it for
- * being simple. `1234` is a legitimate choice for a one-hour session on a LAN.
- *
- * The only rule is a length floor, and it exists to catch a typo or a half-filled
- * `.env`, not to enforce strength. Guests therefore need no password rules in the
- * join form: the host already decided what the password is.
- */
+/** The workspace name and access password the host sets before starting the
+ *  server (FR-010-01/02). Chosen by a person and told to guests out of band, so
+ *  the server never generates it and never rejects it for being simple — `1234`
+ *  is legitimate for an hour on a LAN. The one rule is a length floor, to catch
+ *  a typo or a half-filled `.env` rather than to enforce strength. */
 const MIN_PASSWORD_LENGTH = 4;
 
 const DEFAULT_WORKSPACE_NAME = "RMF Block";

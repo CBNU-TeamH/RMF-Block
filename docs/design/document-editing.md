@@ -32,6 +32,11 @@ All six text-bearing types put the `yorkie.Text` at the same path —
 `blocks[i].content.text` — with their own fields as primitives beside it. For
 text, quote and code that wrapper holds nothing else, and it is still there.
 
+**Reading flattens it back.** The `Block` types in `lib/blocks/types.ts` expose `text` directly,
+not `content.text`, because a renderer reaching for the words should not first have to know which
+kind of block it is holding. The wrapper exists for the write path's benefit, not the read path's,
+so the read model drops it.
+
 **The reason is block type conversion**, which this schema originally made
 impossible to do without losing the text. Typing `- ` at the start of a
 paragraph turns it into a list item; so does picking a type from a menu, or
@@ -431,6 +436,19 @@ the array changes shape elsewhere. The editor has to re-derive each block's curr
 walking `path` against the current array — a fixed-path subscription per block, kept for the
 block's whole life, is the one option ruled out by this.
 
+### Operations name a block by `id`, never by index
+
+The same hazard on the write side. Every function in `lib/blocks/operations.ts` takes a `BlockId`
+and resolves it to a Yorkie `TimeTicket` at call time; none of them accepts an array position. An
+index is a fact about one replica at one moment — a peer inserting above you shifts it, and the
+operation lands on the wrong block. Yorkie's own operations carry `TimeTicket`s rather than
+indices for exactly this reason, and `moveAfterByIndex` exists but is not used here.
+
+The resolution is a linear scan of the array, deliberately. A document a person actually reads is
+not long enough for that to cost anything, and an `id`→ticket index would be a second structure to
+keep true across every remote change — the same class of duplicated state that S-2 in
+[`docs/conventions.md`](../conventions.md) forbids.
+
 ### Writes never go through the `Block` view model
 
 Restated because the surface is where it would be easiest to forget: `editBlockText` (or
@@ -439,7 +457,152 @@ a whole string over the field. `lib/blocks/types.ts` already says why — a `Blo
 is read-only shape, and assigning it back would erase whatever a peer typed at that moment instead
 of merging with it.
 
+## The registry is one table, and the table's shape is the argument
+
+`lib/blocks/registry.ts` holds one entry per block type. The reason it is a `Record` keyed by the
+`BlockType` union rather than a `switch` with a `default` is exhaustiveness: **leave a key out and
+it does not compile.** This was measured before the table existed — adding a member to the union
+produced *one* compile error and *five* silent runtime fallbacks, one of which dropped the block
+from the document entirely. A `default` branch turns "we forgot this type" into a value.
+
+### Four surfaces, not twelve types
+
+Renderers branch on a **surface**, not on a type: `text` (edited through one `<textarea>`),
+`embed` (a file rendered in place, bytes behind a `fileId`), `link` (a pointer at another document
+or block), and `none` (the divider). Twelve types collapse into four ways of behaving, and a
+renderer written against the surface keeps working when a type is added to a surface it already
+handles.
+
+The `surface` field is constrained against the union rather than free-form: a type carrying `text`
+**must** be declared `"text"`, and one that does not **cannot** be. That constraint is what makes
+`isTextBearing` a sound type guard whose runtime answer comes from the table — without it the
+guard would be a promise the table could quietly break.
+
+`continuation` says what pressing Enter at the end of a block leaves behind. Omitted means a plain
+text block, which is right for everything except the three types that "run": a list stays a list
+until you leave it.
+
+## Reordering: what a drop means
+
+`lib/blocks/reorder.ts` keeps the order questions apart from the DOM, the same way
+`text-surface.ts` keeps IME and diff maths apart from the `<textarea>` — so both are testable
+without a browser. Order is the one thing the `blocks` state array is reliable for.
+
+A drop is compared against the target block's **vertical midpoint**, not its top edge: a drop
+anywhere in the bottom half of a block means "after this one".
+
+`dropDestination` returns `{ afterId }` or `null`, and the wrapper matters — a legitimate `null`
+("insert at the front") has to stay distinct from "this drop moves nothing". Three cases move
+nothing: dropping a block on itself, dropping it after itself, and dropping it into the slot it
+already occupies.
+
+**One rule, two callers, on purpose.** The insertion line is drawn only where `dropDestination`
+returns a destination. When the line and the drop each decided for themselves, they drifted, and
+the line promised drops that did nothing.
+
+## Attaching under React's Strict Mode
+
+Strict Mode double-invokes an effect on mount in development — mount → cleanup → mount,
+**synchronously**. For a Yorkie attachment that means two `attach()` calls back to back for the
+same document key from the same client. Measured: the second fails with a misleading
+`"client not found"`, because Yorkie's server-side `TryAttaching` filters on the document not
+already being Attached for this client, and a cancelled run whose `attach()` succeeded anyway was
+never detached.
+
+The fix is to **chain one run's full teardown (unsubscribe + detach) in front of the next run's
+`attach()`.** React runs cleanup(N) before effect(N+1) even in the synchronous double-invoke, so a
+ref holding the previous run's teardown is exactly what the next attach must await — and the
+attach never reaches the server while the previous run's document is still marked Attached.
+
+Two places do this for the same reason: `use-block-document.ts` for a content document, and
+`presence-provider.tsx` for the workspace one
+([#32](https://github.com/CBNU-TeamH/RMF-Block/issues/32)).
+
+### Seeding a brand-new document is a known race
+
+Two people opening the same empty document at once can both see it empty and both seed it. `blocks`
+is last-write-wins as a whole, so one seed replaces the other outright. This is the same category
+of race a two-person `changeBlockType` already accepts, and is `#42` material if it ever matters at
+this app's scale.
+
+### Routing a remote text edit
+
+A remote edit is applied to one block's textarea rather than by rebuilding the list, because the
+node to patch is known and a rebuild costs the caret. Two details make that safe:
+
+- **The block list is recomputed at most once per event, not once per matching op.** A markdown
+  conversion alone produces two ops (a `set` on `type`, a `set` on `content`), and a multi-block
+  paste or reorder more. Recomputing is an O(n) read of the whole array, so it happens once per
+  batch.
+- **A block with no handler registered yet falls back to a rebuild.** Its row exists in the
+  document but has not mounted, so the textarea that would take the patch does not exist. Dropping
+  the op would leave that block showing its mount-time text forever — a peer creating a block and
+  typing into it does exactly this within a frame or two. The rebuild remounts the row with the
+  text the document holds *now* (#59).
+
+A split or merge is patched through **the same handler a remote edit uses**, deliberately. That is
+what keeps the block's diff baseline in step; writing `el.value` from outside would fix the display
+and leave the next keystroke diffing against the wrong string.
+
+## Rules the editor component holds to
+
+**Every mutation reads live, never from `blocks` state.** That state's `text` is a snapshot taken
+at the last render and goes stale the moment anyone types — locally or remotely. A split that
+trimmed the snapshot would drop a concurrent remote edit past the caret; a checkbox that toggled
+the snapshot would flip from a value that is no longer there. So `editor.tsx` reads the block out
+of the live document inside the same `doc.update()` that writes it.
+
+Reading it means `for...of` over `blocks.elements()`, not `.find`. `JSONArray<T>`'s `Array<T>`
+typing is a compile-time claim about a proxy; only iteration is known to work at runtime.
+
+**One mutation path.** Every local edit goes through one helper that runs the mutation and
+republishes the list, and `setBlocks` happens nowhere else. It returns `false` when the edit did
+not land — no document attached, or a peer removed the block first. That is never an error to
+report: the peer's operation is the one that stands. Callers with follow-up work (a caret to move,
+a trailing block to append) check the result.
+
+**One empty text block is kept at the end,** so starting a new paragraph never means clicking into
+a block someone else is typing in. It is idempotent, so running it after every text commit costs
+one read, and it is enforced locally only — the append reaches peers as an ordinary add.
+
+### Leaving a code block
+
+Enter inside a code block is a literal newline — code is source text, not a sequence of blocks.
+That leaves no way out, since a code block has no marker to retype and the `/` menu does not open
+inside one. **A second Enter on a blank line at the very end exits it.** The "at the very end"
+half matters: a blank line in the middle of otherwise real code is code, and must stay.
+
+Two guards elsewhere in the same component share one reason. Only a **plain text** block converts
+on a markdown marker, and only a plain text block opens the `/` menu. In a code block both `# `
+and `/` are legitimate source text; in a heading, retyping a marker asks for a conversion that has
+already happened. The `/` menu's query is recomputed from the text rather than tracked as a
+session, so deleting back through the slash closes it on its own.
+
+### Three places a drag can land
+
+Reordering (FR-022-04) carries the dragged id in the browser's transfer data rather than in
+component state, because `dragstart` and `drop` can fire on different renders. Where it lands is
+`dropDestination`'s answer, which is also what the insertion line is drawn from, so the two cannot
+disagree.
+
+| zone | what it means | why it must claim the drop |
+| --- | --- | --- |
+| a block | before or after it, by midpoint | the ordinary case |
+| the footer | at the very end | it is not a block, so it cannot answer "before or after?" from its own rect and passes `forcedBefore` |
+| the padding beside the blocks | nothing | a block drag that reaches the container passed every block without being claimed; without `preventDefault` the browser shows "no drop", and the line is cleared rather than left promising a landing spot the release would decline |
+
+The empty space *under* the document is the footer's `flex-1` region — which is exactly where a
+block is dragged when the intent is "put it at the end". Before it claimed the drop, the browser
+refused it while the line stayed drawn over the last block crossed. File drags are left to bubble
+to the container, which already appends them.
+
 ## Open questions
+
+**Unmeasured: how Yorkie reports a whole-array seed.** A peer seeding a brand-new document assigns
+all of `root.blocks` at once, and whether the SDK reports that as an operation on `$.blocks` or as
+a set on `$` has never been checked. `touchesBlockList` in `lib/blocks/text-surface.ts` accepts the
+former; if it is the latter, the seed is not drawn until something else happens — a race
+[#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42) usually hides.
 
 - ~~Concurrent-move convergence on the pinned SDK version.~~ Closed by
   [Verification](#verification-2026-08-27) item 2, with two follow-up cases named

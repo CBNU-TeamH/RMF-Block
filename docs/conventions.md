@@ -122,7 +122,7 @@ fixing it already exists in the codebase, and says so."*
 
 The test: **could a reader derive this from the code itself?** If yes, the comment is restating
 what's already legible and should go. If no, it's carrying information the code genuinely can't,
-and it earns its place. Three kinds pass:
+and it earns its place. Five kinds pass:
 
 1. **An external constraint the code can't express.** The SDK `JSON.stringify`s every presence
    value before sending it, so `undefined` doesn't survive the round trip — nothing in the type
@@ -131,11 +131,104 @@ and it earns its place. Three kinds pass:
 2. **A one-line requirement tag** — `FR-020-06/07`, `UC-021 step 5`. Traceability, not
    explanation.
 3. **A deliberate-simplicity marker** — see below.
+4. **A cross-reference to the design doc that now owns the rationale.** One line, naming the
+   file and what it answers: *"Why presence rides Yorkie rather than the WS hub:
+   `docs/design/presence-and-focus.md`."* Not the argument, just where the argument lives.
+   Moving rationale out of a file and leaving no trace of where it went makes the next reader
+   re-derive it, or re-write it here.
+5. **A one-line statement of what an exported symbol is**, where the name alone does not carry
+   it. `WORKSPACE_DOC_KEY = "workspace"` does not say it is a document nobody edits, attached to
+   only so members can be counted present. One clause. If it needs two sentences, it is
+   rationale, and rationale goes to `docs/design/`.
 
 Anything else — "why this design is safe," "what alternative was considered and rejected," "the
 history of how this got here" — belongs in `docs/design/`, not in the code. If a file's comments
-have grown past what these three kinds explain, that file's rationale has outgrown the code and
+have grown past what these five kinds explain, that file's rationale has outgrown the code and
 needs a design doc to hold it, not a longer comment.
+
+Kinds 4 and 5 were promoted here from `20260905-comment-budget-lessons.md`: both were already in
+use — #70 established the cross-reference when it moved this rationale out — and the rulebook not
+naming them meant every trim re-argued whether they were allowed.
+
+### Write the comment in as few lines as it takes
+
+Format is not content. A JSDoc block whose prose is one sentence is written on one line:
+
+```ts
+/** UC-021 E4a. */
+```
+
+not
+
+```ts
+/**
+ * UC-021's E4a: a name already in use gets a disambiguating suffix rather
+ * than being refused — the SRS asks for "겹치지 않는 식별자", not an error.
+ */
+```
+
+Both point at the same rule. The second spends four lines restating a sentence already in
+`docs/SRS-ko.md` under **E4a**, which the tag alone reaches. **When a requirement tag or a
+design-doc reference already leads the reader to the rule, prose repeating it is not
+documentation — it is a second copy, free to go stale on its own.**
+
+Two rules follow:
+
+- **A block whose prose fits on one line is written on one line**, `/** … */`. `/**` and `*/`
+  holding their own lines is a formatting choice, not a requirement — this repo already has 66
+  single-line blocks. Measured across the codebase, that choice alone costs **334 lines**, and
+  reflowing without deleting a word of prose recovers **531**.
+- **A tag can be a complete comment.** `/** UC-021 E4a. */` is finished. Add prose only for what
+  the referenced document does *not* say — an implementation constraint the SRS could not know
+  about.
+
+### The comment budget is a ratio, and a ratio has a floor — a low one
+
+`scripts/comment-budget.mjs` flags a file whose comments exceed 25% of its lines. That threshold
+is reachable for most files and genuinely unreachable for a few. The difference is worth stating
+precisely, because an earlier version of this section got it wrong and the error is instructive.
+
+The arithmetic is real: a 25% budget on *N* code lines allows *N/3* comment lines, and a small
+file with several exported symbols has very little room. What that does **not** justify is the
+delimiter cost. The earlier version argued the budget was unreachable because *"JSDoc spends two
+of those lines on `/**` and `*/` before a word is written."* The single-line form spends none.
+Every ratio it quoted was a formatting choice reported as arithmetic:
+
+| file | claimed floor | actual, compactly written |
+| --- | ---: | ---: |
+| `lib/presence/types.ts` | 60.5% | **34.8%** |
+| `lib/files/serving.ts` | 56.3% | **30.0%** |
+| `lib/blocks/types.ts` | 30.7% | **24.8%** |
+| `editor.tsx` | 34.0% | **21.9%** |
+
+Across the codebase the same correction took the comment ratio from 40.0% to 23.6% — under the
+budget, with no protected sentence deleted.
+
+**The real floor is content, and it binds on small files only.** Of the 21 files still over
+budget, 17 hold 40 code lines or fewer. `lib/focus/pathname.ts` is the clearest: three code lines,
+a budget of one, and a comment that has to say both what the function returns and why the file
+exists apart from its only caller (Node's test runner cannot import a client component). Two lines
+over, and correct there.
+
+So: **the budget routes, it does not adjudicate.** Over budget means "look at whether the
+rationale outgrew the code." Before concluding it did not, check in this order:
+
+1. **Is the prose restating a document the comment already cites?** Cut it to the citation. A
+   requirement tag reaches the rule on its own: `/** UC-021 E4a. */` is a complete comment when
+   `SRS-ko.md` carries E4a, and the four-line paraphrase it replaces was a second copy free to go
+   stale.
+2. **Is a multi-line block carrying one sentence?** Reflow it to one line.
+3. **Is this design rationale at all?** Then it belongs in `docs/design/`, and the code keeps
+   kind 4's one-line pointer.
+
+Only a file that survives all three and is still over budget is honestly over budget. Say so in
+the PR and leave it — that is a passing result, not a deferred one.
+
+What tracks the problem better than the ratio is the size of the *blocks*: a comment of eight
+lines or more is nearly always design rationale that belongs in `docs/`. One caution, learned the
+hard way: an audit that lists only blocks of eight lines and up will never show you the three- and
+four-line comments inside function bodies, and this repo had more lines in those than the long
+blocks the audit was built to find.
 
 ### The `simple:` marker
 

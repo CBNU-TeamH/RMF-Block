@@ -152,6 +152,36 @@ Two rules are worth stating because the obvious implementation gets them wrong:
   Clamping the width instead makes the window slide sideways once it can get no narrower, and
   the border runs away from the pointer.
 
+## What the server decides, and what it refuses to be told
+
+Two fields on `SendChatMessageInput` are resolved by the route from the session and **never taken
+from the request body**.
+
+`sender` comes from `currentMember()`. It is non-optional because there is no longer a path where
+it could be missing: the route answers 401 before reaching the service. A client that could name
+its own sender could post as anyone.
+
+`attachment` is looked up in the file store by id. A client that could supply its own `fileName`,
+`fileType` and `size` could describe a file as something it is not — and the description, not the
+file, is what every other browser renders.
+
+The attachment is **copied onto the message** rather than resolved by `fileId` at render time, so
+history draws without a round trip per message. The copy cannot go stale because the SRS gives
+files no rename. Its four fields are deliberately the same as `FileBlock`'s: an attached file and
+an embedded one are one thing seen from two places.
+
+## Two things the socket layer must do
+
+**Every socket needs an `'error'` listener.** A protocol error — a malformed frame — or a failed
+send emits `'error'` on the socket, and with no listener `EventEmitter` rethrows it and takes the
+whole process down. Next included, since this is one process.
+
+**A connection without a session id still works.** Carrying one is what makes a takeover visible — `revoke()` can only close sockets it can attribute — but chat never required authentication and still does not, so an anonymous connection keeps receiving broadcasts. Anything on the LAN can open one; what it cannot do is *post*, since `POST /api/chat` requires a workspace session.
+
+**A revoked socket is told before it is closed.** A client that only saw the close would have to
+guess whether it was evicted or the network dropped, and those want different handling
+(`app/session-watch.tsx` shows the eviction; a dropped network should retry).
+
 ## Isolation
 
 Existing files keep their current logic untouched. The only touch-points are mechanical
