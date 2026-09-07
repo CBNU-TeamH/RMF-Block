@@ -17,7 +17,7 @@ files, and neither is worth its own review round. If either grows, it splits.
   already requires this — §4.1 says a 목록 블록 "항목을 들여쓰기하여 중첩(하위 목록)할 수 있다" —
   and `depth` is already in the schema, in `changeBlockType`'s `TypeFields`, and in `OWNED_FIELDS`.
   **Nothing can set it.** This is wiring, not new modelling.
-- **Files**: `lib/blocks/indent.ts` (new, pure), `lib/blocks/indent.test.ts` (new),
+- **Files**: `lib/blocks/indent.ts` (new, pure), `lib/blocks/indent.test.mts` (new),
   `lib/blocks/list-numbering.ts`, `app/(workspace)/documents/[id]/text-block.tsx` (key handler),
   `app/(workspace)/documents/[id]/editor.tsx` (handler + indent rendering).
 - **Reuse**: `changeBlockType` already writes `depth` and clamps it to `>= 0`; `idBeforeInOrder`
@@ -116,6 +116,26 @@ mismatch, and a background tab never took focus, so no keypress could be deliver
 client. Both halves of the round trip are proven separately above, and the subscription path
 (`touchesBlockList` matching `$.blocks.*`) is untouched by this task. **Worth one manual check
 before merge.**
+
+**Review findings addressed** (CodeRabbit on #76):
+
+- 🟠 **Major — a hostile `depth` crashed the renderer.** Verified before fixing: `depth: 4294967295`
+  from storage or the LAN reaches `orderedListNumbers`, whose `counters.length = depth + 1` throws
+  `RangeError: Invalid array length` and takes the whole editor's render with it. **Wider than
+  reported** — `depth: "abc"` does the same, because `Math.max(0, Math.trunc("abc"))` is `NaN` and
+  `counters.length = NaN` throws too. `1e9` did not throw but produced `paddingLeft: 24000000000px`.
+
+  This was a regression **this task introduced**: before it, `orderedListNumbers` ignored `depth`,
+  so nothing sized an array from it.
+
+  Fixed with one `listDepth()` normalizer in `document.ts`, beside the `FALLBACK_*` constants that
+  already exist for "storage can hold anything", and applied at all four depth boundaries —
+  `readBlocks` (the render path, which closes the crash on its own: all three `setBlocks` call sites
+  go through it), `changeBlockType`, `createList`, and the constant itself moved to `types.ts`,
+  where the other block-shape constraints live. 7 regression tests; reverting the fix fails 5 of
+  them.
+
+- 🔵 **Nitpick** — the file list said `indent.test.ts`; the tracked test is `.mts`. Corrected.
 
 **Cut**: nothing.
 

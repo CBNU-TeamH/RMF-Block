@@ -1,3 +1,4 @@
+import { listDepth } from "./document.ts";
 import type {
   BlockId,
   ChecklistBlock,
@@ -51,7 +52,7 @@ export function createHeading(level: HeadingLevel): HeadingBlock {
 /** `style` is required for the same reason a heading's `level` is. `depth` is
  *  not a choice — only the editor knows when a new item continues a nested one. */
 export function createList(style: ListStyle, depth = 0): ListBlock {
-  return { id: newBlockId(), type: "list", style, depth, text: "" };
+  return { id: newBlockId(), type: "list", style, depth: listDepth(depth), text: "" };
 }
 
 /** Always unchecked: a task that is already done is not a task anyone adds. */

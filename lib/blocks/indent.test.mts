@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { MAX_LIST_DEPTH, indentedDepth, preservingDepth } from "./indent.ts";
-import type { Block } from "./types.ts";
+import { indentedDepth, preservingDepth } from "./indent.ts";
+import { MAX_LIST_DEPTH, type Block } from "./types.ts";
 
 const text = (id: string): Block => ({ id, type: "text", text: "" });
 const item = (id: string, depth = 0): Block => ({

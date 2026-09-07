@@ -1,9 +1,7 @@
 import type { TypeFields } from "./operations.ts";
 import { idBeforeInOrder } from "./reorder.ts";
+import { MAX_LIST_DEPTH } from "./types.ts";
 import type { Block, BlockId } from "./types.ts";
-
-/** How deep a list may nest, and why 5: `docs/design/document-editing.md`. */
-export const MAX_LIST_DEPTH = 5;
 
 /** The depth a list block takes on when Tab or Shift+Tab is pressed, or `null`
  *  when the key should be left alone — not a list, at the limit, or nothing

@@ -595,6 +595,18 @@ however it got there, so it is `max(depth - 1, 0)`.
 `MAX_LIST_DEPTH` is 5. Past that the text column is narrower than the indent that pushed it, which
 reads as broken rather than nested.
 
+**It is a bound on the model, not on the gesture.** `depth` arrives from storage and from the LAN,
+where nothing validates a write (`api.md` §2), so the ceiling has to hold for values no keypress
+produced. `listDepth()` in `document.ts` is the one normalizer, applied wherever a depth enters:
+`readBlocks`, `changeBlockType`, and `createList`.
+
+Clamping the low end is not enough, and the failure is not cosmetic. `orderedListNumbers` sizes an
+array from the depth — `counters.length = depth + 1` — so `depth: 4294967295` throws
+`RangeError: Invalid array length` and takes the whole editor's render down. A non-numeric value
+does the same, because `Math.trunc` of one is `NaN` and `counters.length = NaN` throws as well.
+`readBlocks` alone closes that path, since every rendered block comes through it; the other two are
+there so the value is never stored in the first place.
+
 **Tab is intercepted only on a list block.** Everywhere else it keeps its default and moves focus.
 Trapping Tab inside every textarea would leave a keyboard user unable to get out of the editor, and
 that trade — one key on one block type — is cheaper than an editor nobody can leave.
