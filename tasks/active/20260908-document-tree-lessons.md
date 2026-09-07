@@ -17,6 +17,12 @@ that the next person does not rediscover this.
   문서" click would have tried to create a document under a parent whose id was `[object Object]`,
   and the route's own "상위 문서를 찾을 수 없습니다" would have been the only symptom.
 
+- **"이 브라우저는 WebSocket을 못 쓴다"was wrong.** Every socket read `readyState=0` for several
+  probes in a row, including chat's shipped one, so it looked environmental — and it was reported
+  that way. Probed again later, all three opened in 7–17ms and the live document list worked. The
+  probes had all landed in the window around a dev-server restart. **A negative result repeated
+  inside one bad window is one observation, not several.**
+
 ## What we would do differently
 
 - **Check the socket path against the server, not against memory.** The first version connected to
@@ -39,7 +45,8 @@ Things that should become a convention, a helper, or a line in `AGENTS.md`.
   document. Proposal: `conventions.md` already lists what may stay as a comment; a sibling note
   that an invariant the SRS omits belongs in a *test*, since there is no requirement id to cite.
 
-- **This browser cannot verify WebSockets at all** — every socket hangs at `readyState=0`, chat's
-  included. Worth recording next to `AGENTS.md` §2's "Run and verify": realtime behaviour is
-  checked with a Node client (`ws`) against the running server, and the browser only shows what
-  arrives once it is connected.
+- **Read the requirement's gesture, not just its noun.** SRS type 11 is a 문서 링크 block, and a
+  picker for existing documents satisfies that sentence completely. What was actually wanted was
+  Notion's `/page` — a page made on the way, not one gone and set up first. The type was built
+  correctly and the feature was still the wrong one, which is the kind of gap only a person using
+  it reports.
