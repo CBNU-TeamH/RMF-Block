@@ -3,9 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { sessionRegistry } from "@/lib/auth/session-registry";
 import { SESSION_COOKIE } from "@/lib/auth/types";
-import { createDocument, DocumentValidationError } from "@/lib/documents/documents";
+import { createDocument, DocumentValidationError, readDocuments } from "@/lib/documents/documents";
 import { HOST_PRESENCE } from "@/lib/presence/types";
 import { isHostSecret } from "@/lib/host-secret";
+import { wsHub } from "@/server/ws-hub.mts";
 
 /**
  * UC-021's 기본 흐름: creates a document and adds it to the workspace's catalogue
@@ -17,6 +18,20 @@ import { isHostSecret } from "@/lib/host-secret";
  * 수 있다"), the host included — hence the same `role` fallback `layout.tsx` uses
  * for `HOST_PRESENCE`, since the host has no guest session to resolve.
  */
+/** The catalogue, for a client that needs it after first paint — the `/` menu's
+ *  document picker. The workspace page reads `readDocuments()` directly as a
+ *  server component and never calls this. */
+export async function GET() {
+  const jar = await cookies();
+  const member = sessionRegistry.resolve(jar.get(SESSION_COOKIE)?.value);
+
+  if (!member && !isHostSecret(jar.get("role")?.value)) {
+    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
+  return NextResponse.json({ documents: readDocuments() });
+}
+
 export async function POST(request: NextRequest) {
   const jar = await cookies();
   const member = sessionRegistry.resolve(jar.get(SESSION_COOKIE)?.value);
@@ -41,12 +56,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "요청을 읽을 수 없습니다." }, { status: 400 });
   }
 
-  const { name: rawName } = body as { name?: unknown };
+  const { name: rawName, parentId: rawParent } = body as {
+    name?: unknown;
+    parentId?: unknown;
+  };
   const name = typeof rawName === "string" ? rawName : undefined;
+  // Absent and `null` both mean the root; anything else has to be an id.
+  const parentId = typeof rawParent === "string" ? rawParent : null;
   const createdBy = member?.id ?? HOST_PRESENCE.id;
 
   try {
-    const document = createDocument(name, createdBy);
+    const document = createDocument(name, createdBy, undefined, parentId);
+
+    // FR-021-06: the other clients' trees show it without a reload. The
+    // catalogue is `.data/`, not Yorkie, so the hub is what carries it
+    // (`docs/design/architecture.md` §3(d)).
+    wsHub.broadcast("document:created", { document });
+
     return NextResponse.json({ document }, { status: 201 });
   } catch (error) {
     if (error instanceof DocumentValidationError) {

@@ -6,6 +6,7 @@ import {
   createChecklist,
   createCode,
   createDivider,
+  createDocLink,
   createHeading,
   createList,
   createQuote,
@@ -42,6 +43,7 @@ import { useFocusFollow } from "../../focus-follow-provider";
 import { Avatar } from "../../presence-avatar";
 import { useWorkspacePresence } from "../../presence-provider";
 import { DividerBlockView } from "./divider-block";
+import { DocLinkBlockView } from "./doc-link-block";
 import { FileBlockView } from "./file-block";
 import { ImageBlockView } from "./image-block";
 import { PdfBlockView } from "./pdf-block";
@@ -308,6 +310,22 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     );
   };
 
+  /** The block a picked document link goes after, or `null` while the picker is
+   *  closed. Two pieces of state, not one: the list arrives asynchronously and
+   *  the dialog has to open before it does. */
+  const [linkAnchor, setLinkAnchor] = useState<BlockId | null>(null);
+  const [linkChoices, setLinkChoices] = useState<Array<{ id: string; name: string }>>([]);
+
+  /** Inserts the link and closes the picker. */
+  const insertDocLink = (documentId: string) => {
+    if (linkAnchor === null) return;
+
+    const block = toStoredBlock(createDocLink(documentId));
+    applyEdit((_root, blocks) => insertBlockAfter(blocks, linkAnchor, block));
+    setLinkAnchor(null);
+    setLinkChoices([]);
+  };
+
   /** A `/` menu choice (UC-022 기본 흐름 1). `text-block.tsx` has already cleared
    *  the query, so the block is empty and ready to become what was picked. */
   const handleSlashSelect = (blockId: BlockId, action: SlashAction) => {
@@ -329,6 +347,17 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       applyEdit((_root, blocks) =>
         insertBlockAfter(blocks, idBeforeInOrder(order, blockId), divider),
       );
+      return;
+    }
+
+    if (action.kind === "link-document") {
+      // The catalogue is fetched when the picker opens, not held in this
+      // component: it changes from other browsers (FR-021-06) and a list read
+      // at mount would be stale by the time anyone opened this.
+      setLinkAnchor(blockId);
+      void fetch("/api/documents")
+        .then((response) => (response.ok ? response.json() : { documents: [] }))
+        .then((body) => setLinkChoices(body.documents ?? []));
       return;
     }
 
@@ -669,7 +698,13 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       // The two link blocks wait on the document tree (UC-021/023), which is
       // what would give them a `documentId` to point at.
       case "link":
-        return <UnsupportedBlock type={block.type} />;
+        // `block-link` (SRS type 12) has no creator yet — it needs a way to
+        // point at one block inside a document, which nothing offers.
+        return block.type === "doc-link" ? (
+          <DocLinkBlockView block={block} onDelete={handleDeleteBlock} />
+        ) : (
+          <UnsupportedBlock type={block.type} />
+        );
 
       default: {
         // Not padding: a fifth `BlockSurface` stops this compiling until it has
@@ -880,6 +915,53 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           </span>
         )}
       </div>
+
+      {/* Rendered only while open, so the fetch that fills it cannot land in a
+        * dialog nobody asked for. A plain overlay rather than `<dialog>`: this
+        * one has nothing to trap focus away from — the editor behind it is what
+        * the person is choosing a link *for*. */}
+      {linkAnchor !== null ? (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 p-6">
+          <div className="max-h-[70vh] w-full max-w-sm overflow-y-auto rounded-lg border border-ink bg-paper p-4">
+            <h2 className="mb-3 text-base font-bold text-ink">어느 문서로 링크할까요?</h2>
+
+            {linkChoices.length === 0 ? (
+              <p className="py-6 text-center text-[13px] text-ink-faint">
+                연결할 다른 문서가 없습니다.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {linkChoices
+                  // Not this one: a document linking to itself is a loop a
+                  // reader can only get out of with the back button.
+                  .filter((choice) => choice.id !== documentId)
+                  .map((choice) => (
+                    <li key={choice.id}>
+                      <button
+                        type="button"
+                        onClick={() => insertDocLink(choice.id)}
+                        className="w-full truncate rounded-md px-3 py-2 text-left text-[13px] text-ink hover:bg-sky-soft"
+                      >
+                        {choice.name}
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setLinkAnchor(null);
+                setLinkChoices([]);
+              }}
+              className="mt-3 w-full rounded-md border border-ink bg-paper px-3 py-1.5 text-[12px] font-semibold text-ink"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -11,7 +11,9 @@ export type SlashAction =
   /** Put a divider above this block and leave the caret where it is. */
   | { kind: "divider" }
   /** Open the file picker; the block follows once the upload returns an id. */
-  | { kind: "upload-file" };
+  | { kind: "upload-file" }
+  /** Ask which document to link to; the block follows once one is picked. */
+  | { kind: "link-document" };
 
 export type SlashItem = {
   /** Stable across renders and locales — used as a React key and in tests. */
@@ -105,6 +107,13 @@ export const SLASH_ITEMS: Array<SlashItem> = [
     hint: "파일을 올려 문서에 넣기 (이미지·PDF·그 밖의 파일)",
     keywords: ["file", "upload", "image", "pdf", "photo", "파일", "첨부", "이미지", "사진", "그림"],
     action: { kind: "upload-file" },
+  },
+  {
+    id: "doc-link",
+    label: "문서 링크",
+    hint: "워크스페이스의 다른 문서로 가는 링크",
+    keywords: ["link", "doc", "document", "링크", "문서", "연결"],
+    action: { kind: "link-document" },
   },
 ];
 

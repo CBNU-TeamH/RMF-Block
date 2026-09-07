@@ -598,6 +598,21 @@ and `/` are legitimate source text; in a heading, retyping a marker asks for a c
 already happened. The `/` menu's query is recomputed from the text rather than tracked as a
 session, so deleting back through the slash closes it on its own.
 
+### The document link block
+
+SRS §4.1 type 11, created from the `/` menu. **Only the target's id is stored.** A file block
+caches its name because a file has no rename in the SRS; a document does (FR-023-01), so a cached
+name would go stale the first time anyone used it. The name is read from the catalogue when the
+block draws.
+
+**A link to a deleted document is a state, not an error.** FR-023-04 deletes documents and nothing
+rewrites the blocks pointing at them, so the block renders as unavailable — the same shape a file
+block whose bytes are gone already uses. The picker leaves the current document out of its own
+list, since a link to the page you are on is a loop with only a back button out.
+
+`block-link` (type 12) still has no creator: it needs a way to point at one block inside a
+document, which nothing offers yet.
+
 ### Pasting more than one line
 
 **A single-line paste is not a block operation.** It goes through the textarea's own default,

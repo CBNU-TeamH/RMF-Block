@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { WorkspaceMember } from "@/lib/auth/types";
 import type { WorkspaceDocument } from "@/lib/documents/documents";
+import { treeRows } from "@/lib/documents/tree";
 
 export type DocumentRow = WorkspaceDocument & {
   /** null when the creator's record is gone — a member the host removed, or one
@@ -51,6 +52,71 @@ const INPUT_BAD = "border-red-600";
 export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  // Where a "새 하위 문서" click puts the next one, or `null` for the root.
+  const [parentId, setParentId] = useState<string | null>(null);
+
+  // The server component's list is the first paint; the socket keeps it current
+  // from there (FR-021-06, FR-023-07).
+  const [live, setLive] = useState(documents);
+  // Re-seeded during render rather than in an effect, which is React's own
+  // pattern for adjusting state when a prop changes — an effect that calls
+  // `setState` synchronously renders twice for every `router.refresh()`, and
+  // eslint refuses it.
+  const [seeded, setSeeded] = useState(documents);
+  if (seeded !== documents) {
+    setSeeded(documents);
+    setLive(documents);
+  }
+
+  useEffect(() => {
+    // Same origin and port as the page, and the workspace path `server/index.mts`
+    // routes to the hub — the shape `app/session-watch.tsx` already uses. `/ws`
+    // is not a path this server upgrades.
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const socket = new WebSocket(`${protocol}//${window.location.host}/api/workspace/ws`);
+
+    socket.addEventListener("message", (event) => {
+      let message: { event?: string; payload?: unknown };
+      try {
+        message = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+
+      // A created or moved document arrives without its creator — the socket
+      // carries the catalogue row, not the member join the server component
+      // does. `null` is the same "creator unknown" this list already renders
+      // for a removed member, so the row draws rather than waiting.
+      if (message.event === "document:created" || message.event === "document:changed") {
+        const { document } = message.payload as { document: WorkspaceDocument };
+        setLive((current) => {
+          const row: DocumentRow = {
+            ...document,
+            creator: current.find((d) => d.id === document.id)?.creator ?? null,
+          };
+          const without = current.filter((d) => d.id !== document.id);
+          return [row, ...without];
+        });
+      }
+
+      if (message.event === "document:deleted") {
+        const { ids } = message.payload as { ids: Array<string> };
+        const gone = new Set(ids);
+        setLive((current) => current.filter((d) => !gone.has(d.id)));
+      }
+    });
+
+    return () => socket.close();
+  }, []);
+
+  const toggle = useCallback((id: string) => {
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }, []);
 
   const dialogRef = useRef<HTMLDialogElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -58,13 +124,26 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * The rows to draw. **A search flattens the tree on purpose**: a match three
+   * levels down would otherwise be hidden behind two collapsed parents, and
+   * showing its ancestors just to reach it buries the thing that matched.
+   */
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return documents;
-    return documents.filter((doc) => doc.name.toLowerCase().includes(needle));
-  }, [documents, query]);
+    if (needle) {
+      return live
+        .filter((doc) => doc.name.toLowerCase().includes(needle))
+        .map((document) => ({ document, depth: 0, hasChildren: false }));
+    }
+    return treeRows(live, collapsed);
+  }, [live, query, collapsed]);
 
-  function openDialog() {
+  /** `under` is the document the new one goes inside, or `null` for the root
+   *  (UC-021 E1a). Held in state rather than passed to `create()` because the
+   *  dialog sits between the click and the request. */
+  function openDialog(under: string | null = null) {
+    setParentId(under);
     setName("");
     setError(null);
     dialogRef.current?.showModal();
@@ -81,7 +160,7 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
       const response = await fetch("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, parentId }),
       });
       const body = await response.json().catch(() => ({}));
 
@@ -124,7 +203,7 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
         <span className="flex-1" />
         <button
           type="button"
-          onClick={openDialog}
+          onClick={() => openDialog(null)}
           className="rounded-md border border-sky-deep bg-sky px-4 py-1.5 text-[13px] font-bold text-ink"
         >
           + 새 문서
@@ -149,17 +228,42 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
           </p>
         ) : (
           <ul>
-            {rows.map((doc) => (
+            {rows.map(({ document: doc, depth, hasChildren }) => (
               <li
                 key={doc.id}
-                className="border-b border-dashed border-ink/15 last:border-b-0"
+                className="group/row relative border-b border-dashed border-ink/15 last:border-b-0"
               >
                 <Link
                   href={`/documents/${doc.id}`}
                   className={`grid ${COLUMNS} items-center px-3.5 py-2.5 hover:bg-paper-2`}
                 >
-                  <span className="truncate text-[13.5px] font-semibold text-ink">
-                    {doc.name}
+                  <span
+                    className="flex min-w-0 items-center gap-1"
+                    // Indent by depth in `px` rather than a class per level:
+                    // depth is data with no fixed ceiling, and one arithmetic
+                    // beats five names for it.
+                    style={{ paddingLeft: depth * 18 }}
+                  >
+                    <button
+                      type="button"
+                      aria-label={collapsed.has(doc.id) ? "펼치기" : "접기"}
+                      // Inside the row's `<Link>`, so the navigation has to be
+                      // stopped here — a disclosure triangle that also opened
+                      // the document would make a parent unreadable.
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        toggle(doc.id);
+                      }}
+                      className={`w-3.5 shrink-0 text-[10px] text-ink-faint ${
+                        hasChildren ? "" : "invisible"
+                      }`}
+                    >
+                      {collapsed.has(doc.id) ? "▶" : "▼"}
+                    </button>
+                    <span className="truncate text-[13.5px] font-semibold text-ink">
+                      {doc.name}
+                    </span>
                   </span>
                   <span>
                     {doc.creator ? (
@@ -175,6 +279,19 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
                   <span className="text-[13px] text-ink">{stamp(doc.updatedAt)}</span>
                   <span className="text-[13px] text-ink-soft">{stamp(doc.createdAt)}</span>
                 </Link>
+
+                {/* Outside the `<Link>`, not inside it: a button nested in an
+                  * anchor is invalid HTML, and the browser's own fix for it is
+                  * to close the anchor early — which silently drops the rest of
+                  * the row out of the link. */}
+                <button
+                  type="button"
+                  onClick={() => openDialog(doc.id)}
+                  title={`${doc.name} 안에 새 문서`}
+                  className="absolute top-1.5 right-3.5 rounded-md border border-ink bg-paper px-1.5 py-0.5 text-[11px] font-semibold text-ink-soft opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
+                >
+                  + 하위
+                </button>
               </li>
             ))}
           </ul>
@@ -195,7 +312,11 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
           }}
           className="flex flex-col gap-3"
         >
-          <h2 className="text-base font-bold text-ink">새 문서</h2>
+          <h2 className="text-base font-bold text-ink">
+            {parentId === null
+              ? "새 문서"
+              : `${live.find((d) => d.id === parentId)?.name ?? "문서"} 안에 새 문서`}
+          </h2>
           <label className="flex flex-col gap-1 text-sm text-ink-soft">
             문서 이름
             <input
