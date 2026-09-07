@@ -1,6 +1,6 @@
 # API Design — Endpoint Catalog
 
-- **Status**: Draft. Endpoints only — no request/response schemas yet. Shipped so far: `/api/auth/host` (as a simplified interim `GET` + query param, not the `POST` below — see `app/api/auth/host/route.ts`), `/api/workspace/join`, `/api/chat`, `/api/chat/files`, `/api/documents/:id/files` (PDFs only, see below), `/api/files/:id/preview`, `/api/files/:id/download`, plus two endpoints this catalogue does not list because they are not client-facing: `/api/auth/yorkie-token` (issues a per-session token) and `/api/internal/yorkie/auth` (the webhook Yorkie itself calls). Every other row below is target design, not yet built.
+- **Status**: Draft. Endpoints only — no request/response schemas yet. Shipped so far: `/api/auth/host` (as a simplified interim `GET` + query param, not the `POST` below — see `app/api/auth/host/route.ts`), `/api/workspace/join`, `/api/chat`, `/api/chat/files`, `/api/documents/:id/files`, `/api/files/:id/preview`, `/api/files/:id/download`, plus two endpoints this catalogue does not list because they are not client-facing: `/api/auth/yorkie-token` (issues a per-session token) and `/api/internal/yorkie/auth` (the webhook Yorkie itself calls). Every other row below is target design, not yet built.
 - **Owns**: `lib/auth/`, `lib/workspace-config.ts`, `lib/yorkie-admin.ts`,
   `app/api/auth/host/route.ts`, `app/api/auth/yorkie-token/route.ts`,
   `app/api/internal/yorkie/auth/route.ts`, `app/api/workspace/join/route.ts`,
@@ -146,16 +146,29 @@ One requirement, two halves — the tree half is served here, the roster half is
 | `POST` | `/api/documents` | Create a document or folder, resolving name collisions | guest | FR-021-01~05 | ✅ |
 | `PATCH` | `/api/documents/:id` | Rename or move to another folder | guest | FR-023-01~03 | |
 | `DELETE` | `/api/documents/:id` | Delete, cascading to child documents | guest | FR-023-04~06 | |
-| `POST` | `/api/documents/:id/files` | Upload a file to embed as a file block | guest | FR-022-13/14 | ✅ PDF only |
+| `POST` | `/api/documents/:id/files` | Upload a file to embed as a block | guest | FR-022-13/14 | ✅ |
 
 Tree mutations are relayed to other clients over the workspace WebSocket (§4), not polled — FR-021-06 and FR-023-07 both require realtime reflection in every client's tree.
 
-`POST /api/documents/:id/files` **accepts PDFs and refuses everything else (415)**, and
-decides that from the bytes (`%PDF-`) rather than the client's claimed MIME type. FR-022-14
-dispatches five kinds into three block types and only the PDF block has a renderer today, so
-accepting the rest would store bytes no block can display. It stores the file with
-`origin: "document"` and `type: "application/pdf"` — a type this server verified, not one it was
-told — and returns the metadata; the client then puts the `fileId` on the block it creates.
+`POST /api/documents/:id/files` **accepts any file, and decides what it is from the bytes** —
+never from the client's claimed MIME type or the file's name. `%PDF-` makes it a PDF; the magic
+number of PNG, JPEG, GIF or WebP makes it that image; **everything else is stored as
+`application/octet-stream`**, which is what a file block holds (FR-022-13).
+
+The sniffing is not a nicety. `GET /api/files/:id/preview` answers `inline` for any file whose
+**stored** type is in `serving.ts`'s `INLINE_TYPES`, so a stored type the uploader chose would be
+a way to have an HTML page served as an image and run. Verified: an HTML file renamed `.png` is
+stored as `octet-stream`, and `preview` then answers 404 for it.
+
+SVG is deliberately not an image here. It is XML that can carry `<script>`, so it is not in
+`INLINE_TYPES` and becomes a file block — a download card, never a preview. The same is true of
+the Word, PPT and Excel types FR-022-14 names: this project has no viewer for them, and
+`download` is unconditional `octet-stream` + `attachment`, so nothing a file block points at can
+render or run.
+
+It stores the file with `origin: "document"` and the verified type, and returns the metadata; the
+client then puts the `fileId` on the block it creates, choosing the block from the **returned
+type**, which is the only one of name, claim and content that was checked.
 Every check on the request itself (declared length, 25 MB cap, the `file` field) is shared with
 `POST /api/chat/files` in `lib/files/upload.ts`.
 

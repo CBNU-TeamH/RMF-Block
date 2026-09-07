@@ -8,6 +8,8 @@ import type {
   HeadingLevel,
   ListBlock,
   ListStyle,
+  FileBlock,
+  ImageBlock,
   PdfBlock,
   QuoteBlock,
   TextBlock,
@@ -81,4 +83,27 @@ export function createPdf(file: {
   size: number;
 }): PdfBlock {
   return { id: newBlockId(), type: "pdf", ...file };
+}
+
+/** The image leg of FR-022-14. Same arguments as `createPdf` — which block an
+ *  upload becomes is the route's answer, from the bytes, not this file's. */
+export function createImage(file: {
+  fileId: string;
+  fileName: string;
+  size: number;
+}): ImageBlock {
+  return { id: newBlockId(), type: "image", ...file };
+}
+
+/** FR-022-13, and the fallback for every type FR-022-14 does not name a viewer
+ *  for. `fileType` is carried where the other two do not need it: a download
+ *  card is all a reader gets, so the type is the only hint at what they will
+ *  open. */
+export function createFile(file: {
+  fileId: string;
+  fileName: string;
+  fileType: string;
+  size: number;
+}): FileBlock {
+  return { id: newBlockId(), type: "file", ...file };
 }

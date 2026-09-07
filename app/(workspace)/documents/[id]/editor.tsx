@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { createDivider, createText } from "@/lib/blocks/create";
+import {
+  createChecklist,
+  createCode,
+  createDivider,
+  createHeading,
+  createList,
+  createQuote,
+  createText,
+} from "@/lib/blocks/create";
 import { BLOCK_KINDS, continuationBlock, isTextBearing } from "@/lib/blocks/registry";
 import type { SlashAction } from "@/lib/blocks/slash-menu";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot, type StoredBlock } from "@/lib/blocks/document";
@@ -18,6 +26,7 @@ import {
   type BlockArray,
 } from "@/lib/blocks/operations";
 import { indentedDepth, preservingDepth } from "@/lib/blocks/indent";
+import { parsePaste, type PastedLine } from "@/lib/blocks/paste";
 import { orderedListNumbers } from "@/lib/blocks/list-numbering";
 import {
   dropDestination,
@@ -33,11 +42,13 @@ import { useFocusFollow } from "../../focus-follow-provider";
 import { Avatar } from "../../presence-avatar";
 import { useWorkspacePresence } from "../../presence-provider";
 import { DividerBlockView } from "./divider-block";
+import { FileBlockView } from "./file-block";
+import { ImageBlockView } from "./image-block";
 import { PdfBlockView } from "./pdf-block";
 import { TextBlockView, type BlockVariant } from "./text-block";
 import { useBlockDocument } from "./use-block-document";
 import { useFocusPresence } from "./use-focus-presence";
-import { usePdfUpload } from "./use-pdf-upload";
+import { useFileUpload } from "./use-file-upload";
 
 /** Exhaustive on purpose — the `never` below makes a seventh text-bearing type a
  *  compile error rather than a block that silently renders as plain text. */
@@ -122,11 +133,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   // The footer's hidden file input, so the `/` menu's PDF item can open the
   // same picker the button does rather than growing a second one…
-  const pdfInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   // …and where the block should land when it does. The picker is a native
   // dialog with its own lifetime, so the anchor cannot be an argument — it has
   // to wait somewhere until `change` fires, or be forgotten if it never does.
-  const pdfAnchorRef = useRef<BlockId | null>(null);
+  const fileAnchorRef = useRef<BlockId | null>(null);
   // Reaches a block's live textarea by id, to focus it after a split or merge.
   // `useCallback` is load-bearing: `text-block.tsx` memoizes on this reference,
   // so an inline arrow would re-add the Map entry every render.
@@ -247,7 +258,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     if (blockId) focusBlock(blockId, 0);
   };
 
-  const { uploading, uploadError, uploadPdfs } = usePdfUpload({
+  const { uploading, uploadError, uploadFiles } = useFileUpload({
     documentId,
     applyEdit,
     liveBlockOf,
@@ -321,8 +332,8 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       return;
     }
 
-    pdfAnchorRef.current = blockId;
-    pdfInputRef.current?.click();
+    fileAnchorRef.current = blockId;
+    fileInputRef.current?.click();
   };
 
   /** Enter (FR-022-01): trim at the caret, insert the tail after. The new block
@@ -364,6 +375,69 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     if (trimmed) patchBlockText(blockId, trimmed);
 
     focusBlock(newBlockId ?? blockId, 0);
+  };
+
+  /** The empty block a pasted line becomes, before its text is written into it.
+   *  `create.ts` is the one place a block of each type is built. */
+  const blockFor = (fields: PastedLine["fields"]): Block => {
+    switch (fields.type) {
+      case "heading":
+        return createHeading(fields.level);
+      case "list":
+        return createList(fields.style);
+      case "checklist":
+        return createChecklist();
+      case "quote":
+        return createQuote();
+      case "code":
+        return createCode();
+      case "text":
+        return createText();
+    }
+  };
+
+  /**
+   * A paste carrying newlines (FR-022-01). The first line replaces the pasted-into
+   * block's text and takes its type; the rest become blocks after it. Why a
+   * single-line paste never reaches here: `docs/design/document-editing.md`,
+   * "Pasting more than one line".
+   */
+  const handlePaste = (blockId: BlockId, text: string) => {
+    if (!blocks) return;
+
+    const lines = parsePaste(text);
+    const first = lines[0];
+    if (!first) return;
+
+    let lastId: BlockId = blockId;
+    // What the document did to the pasted-into block, so the same can be done to
+    // its textarea afterwards — the shape `handleSplit` uses for the same reason.
+    let replaced: TextPatch | null = null;
+
+    const applied = applyEdit((root, array) => {
+      // The first line lands in the block that already has the caret. Its whole
+      // text is replaced rather than inserted into: a multi-line paste is a
+      // structural edit, and splitting a word into a heading is not what anyone
+      // means by one.
+      const liveText = liveTextOf(root, blockId);
+      changeBlockType(array, blockId, preservingDepth(first.fields, blockOf(blockId)));
+      editBlockText(array, blockId, 0, liveText.length, first.text);
+      replaced = { from: 0, to: liveText.length, value: { content: first.text } };
+
+      for (const line of lines.slice(1)) {
+        const block = toStoredBlock(blockFor(line.fields));
+        insertBlockAfter(array, lastId, block);
+        if (line.text) editBlockText(array, block.id, 0, 0, line.text);
+        lastId = block.id;
+      }
+    });
+
+    if (!applied) return;
+
+    // Same reason as a split: the textarea is uncontrolled and read its text
+    // once, so the document's change has to be shown to it by hand (#59).
+    if (replaced) patchBlockText(blockId, replaced);
+    focusBlock(lastId, lines[lines.length - 1]!.text.length);
   };
 
   /** Backspace at offset 0 (FR-022-03): append to the previous block, remove this
@@ -485,7 +559,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     // the file lands where the pointer is (UC-022 기본 흐름 1).
     const files = droppedFiles(event);
     if (files.length > 0) {
-      void uploadPdfs(files, before ? idBeforeInOrder(order, targetId) : targetId);
+      void uploadFiles(files, before ? idBeforeInOrder(order, targetId) : targetId);
       return;
     }
 
@@ -556,6 +630,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
             onSlashSelect={handleSlashSelect}
             onFocusBlock={setActiveBlockId}
             onIndent={handleIndent}
+            onPasteBlocks={handlePaste}
           />
         </div>
       );
@@ -567,14 +642,19 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
     switch (surface) {
       case "embed":
-        // PDF is the only embed with a renderer: the image and generic-file
-        // legs of FR-022-14 are refused at the upload endpoint until they have
-        // one, so a block of either kind can only have come from elsewhere.
-        return block.type === "pdf" ? (
-          <PdfBlockView block={block} onDelete={handleDeleteBlock} />
-        ) : (
-          <UnsupportedBlock type={block.type} />
-        );
+        // All three embeds render now (FR-022-13, FR-022-14). Which one a file
+        // becomes is decided from its bytes at upload, never from what the
+        // request claimed — `docs/design/api.md` §1.
+        switch (block.type) {
+          case "pdf":
+            return <PdfBlockView block={block} onDelete={handleDeleteBlock} />;
+          case "image":
+            return <ImageBlockView block={block} onDelete={handleDeleteBlock} />;
+          case "file":
+            return <FileBlockView block={block} onDelete={handleDeleteBlock} />;
+          default:
+            return <UnsupportedBlock type={block.type} />;
+        }
 
       case "none":
         return block.type === "divider" ? (
@@ -640,7 +720,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         const files = droppedFiles(event);
         if (files.length === 0) return;
         event.preventDefault();
-        void uploadPdfs(files, null);
+        void uploadFiles(files, null);
       }}
     >
       {blocks.map((block, index) => {
@@ -765,11 +845,10 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
             uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-sky-soft"
           }`}
         >
-          PDF 추가
+          파일 추가
           <input
-            ref={pdfInputRef}
+            ref={fileInputRef}
             type="file"
-            accept="application/pdf,.pdf"
             multiple
             disabled={uploading}
             className="hidden"
@@ -780,9 +859,9 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               event.target.value = "";
               // Set only when the `/` menu opened this picker; the button below
               // leaves it null, which still means "at the end".
-              const anchor = pdfAnchorRef.current;
-              pdfAnchorRef.current = null;
-              if (files.length > 0) void uploadPdfs(files, anchor);
+              const anchor = fileAnchorRef.current;
+              fileAnchorRef.current = null;
+              if (files.length > 0) void uploadFiles(files, anchor);
             }}
           />
         </label>
@@ -793,7 +872,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           <span className="text-[11px] text-red-600">{uploadError}</span>
         ) : (
           <span className="text-[11px] text-ink-faint">
-            PDF 파일을 문서에 끌어다 놓을 수도 있습니다.
+            파일을 문서에 끌어다 놓을 수도 있습니다.
           </span>
         )}
       </div>

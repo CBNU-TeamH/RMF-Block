@@ -3,12 +3,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { currentMember } from "@/lib/auth/current-member";
 import { readDocuments } from "@/lib/documents/documents";
 import { fileRepository } from "@/lib/files/file-repository";
-import { looksLikePdf, readUpload } from "@/lib/files/upload";
+import { detectImageType, looksLikePdf, readUpload } from "@/lib/files/upload";
 
-/** Uploads a file to embed as a file block (FR-022-13, FR-022-14). Its own
- *  request because bytes never enter the Yorkie document — a stray upload is
- *  recoverable, a block pointing at bytes nobody stored is not. **PDFs only
- *  today**: the other legs of FR-022-14 have no renderer. */
+/** Uploads a file to embed as a block (FR-022-13, FR-022-14). Its own request
+ *  because bytes never enter the Yorkie document — a stray upload is
+ *  recoverable, a block pointing at bytes nobody stored is not. Which block a
+ *  file becomes, and why the type is sniffed rather than believed:
+ *  `docs/design/api.md` §1. */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -34,27 +35,27 @@ export async function POST(
   }
 
   const bytes = Buffer.from(await upload.file.arrayBuffer());
-  // The uploader's claimed MIME type is not consulted: it is a string they
-  // choose, and what decides whether this is a PDF is the file itself.
-  if (!looksLikePdf(bytes)) {
-    return NextResponse.json(
-      { error: "지금은 PDF 파일만 문서에 넣을 수 있습니다." },
-      { status: 415 },
-    );
-  }
+  // The uploader's claimed MIME type is never consulted. `preview` answers
+  // inline for a stored type in `INLINE_TYPES`, so a type the request chose
+  // would be a way to have HTML served as an image — the stored type has to be
+  // one this server proved from the bytes.
+  const type = looksLikePdf(bytes)
+    ? "application/pdf"
+    : (detectImageType(bytes) ?? "application/octet-stream");
 
   const stored = await fileRepository.save(bytes, {
     // The name is display and download only — never a path, since the store
     // writes under an id (`lib/files/types.ts`).
-    name: upload.file.name || "file.pdf",
-    // Stored as what the bytes proved to be, not as what the request claimed.
-    // `preview` reads this to decide it may answer inline, so the one endpoint
-    // that names a content type now names one this server verified.
-    type: "application/pdf",
+    name: upload.file.name || "file",
+    type,
     size: upload.file.size,
     uploadedBy: member.nickname,
     origin: "document",
   });
 
+  // `octet-stream` is the honest answer for anything unrecognised, and it is
+  // what makes accepting every other type safe: `download` never consults the
+  // stored type, so a file block can hold a `.docx` or an `.svg` without either
+  // ever being rendered (FR-022-13).
   return NextResponse.json(stored, { status: 201 });
 }

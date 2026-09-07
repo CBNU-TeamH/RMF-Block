@@ -53,7 +53,9 @@ describe("slashMenuItems", () => {
   });
 
   it("ignores case and surrounding space", () => {
-    assert.deepEqual(slashMenuItems("  PDF ").map((i) => i.id), ["pdf"]);
+    // PDF is still a keyword on the one file item, which is what makes this a
+    // case/space test rather than a test of which items exist.
+    assert.deepEqual(slashMenuItems("  PDF ").map((i) => i.id), ["file"]);
   });
 
   it("returns nothing when nothing matches, so the menu can hide", () => {
@@ -78,7 +80,7 @@ describe("SLASH_ITEMS", () => {
     // and a PDF only arrived by drag-and-drop or the footer button.
     const kinds = SLASH_ITEMS.map((i) => i.action.kind);
     assert.ok(kinds.includes("divider"));
-    assert.ok(kinds.includes("upload-pdf"));
+    assert.ok(kinds.includes("upload-file"));
   });
 });
 

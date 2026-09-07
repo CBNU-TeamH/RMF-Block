@@ -598,6 +598,34 @@ and `/` are legitimate source text; in a heading, retyping a marker asks for a c
 already happened. The `/` menu's query is recomputed from the text rather than tracked as a
 session, so deleting back through the slash closes it on its own.
 
+### Pasting more than one line
+
+**A single-line paste is not a block operation.** It goes through the textarea's own default,
+which already lands at the caret, mid-word, and fires `onInput` after. Only a newline in the
+clipboard makes a paste structural — which keeps the common paste on the path that already works,
+and means the code below is never reached by the ordinary case.
+
+A multi-line paste becomes one block per line. **The first line reuses the block being pasted
+into** rather than inserting above it: that block already holds the caret, and making a new one to
+replace it would move focus for no reason. Its whole text is replaced, not spliced at the offset —
+a multi-line paste is a structural edit, and splitting a word in half to make the front of it a
+heading is not what anyone means by one.
+
+Each line is parsed on its own by `lib/blocks/paste.ts`, and a markdown marker at the start of a
+line converts that line's block. This needs its own parser: `detectMarkdownShortcut` matches a
+marker as a block's **entire** text (`"# "` triggers, `"# hello"` does not), which is right for
+typing — the conversion has to fire as the marker completes — and useless for a paste, where the
+marker always arrives with its line. The marker table is still the one authority; `paste.ts` hands
+it the marker alone and keeps the rest as text.
+
+`[x] ` is the one marker only a paste can carry. Nobody types it — you type `[] ` and click — so
+`detectMarkdownShortcut` does not know it, correctly, and `paste.ts` reads the checked state
+itself.
+
+One trailing newline is dropped, because that is how a copied paragraph ends rather than a request
+for an empty block after it. Blank lines *between* lines are kept: those are the person's own
+spacing.
+
 ### Indenting a list item
 
 SRS §4.1 gives 목록 블록 nesting — "항목을 들여쓰기하여 중첩(하위 목록)할 수 있다" — and `depth`

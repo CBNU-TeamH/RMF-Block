@@ -11,7 +11,7 @@ export type SlashAction =
   /** Put a divider above this block and leave the caret where it is. */
   | { kind: "divider" }
   /** Open the file picker; the block follows once the upload returns an id. */
-  | { kind: "upload-pdf" };
+  | { kind: "upload-file" };
 
 export type SlashItem = {
   /** Stable across renders and locales — used as a React key and in tests. */
@@ -97,11 +97,14 @@ export const SLASH_ITEMS: Array<SlashItem> = [
     action: { kind: "divider" },
   },
   {
-    id: "pdf",
-    label: "PDF",
-    hint: "PDF 파일을 올려 문서에 넣기",
-    keywords: ["pdf", "file", "upload", "파일", "첨부"],
-    action: { kind: "upload-pdf" },
+    id: "file",
+    label: "파일",
+    // One item, not three: which block an upload becomes is decided from its
+    // bytes (`docs/design/api.md` §1), so asking the person to pick first would
+    // be asking them to guess at an answer the server already knows.
+    hint: "파일을 올려 문서에 넣기 (이미지·PDF·그 밖의 파일)",
+    keywords: ["file", "upload", "image", "pdf", "photo", "파일", "첨부", "이미지", "사진", "그림"],
+    action: { kind: "upload-file" },
   },
 ];
 
