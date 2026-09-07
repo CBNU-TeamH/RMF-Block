@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -99,6 +100,7 @@ function indentOf(block: Block): number {
  *  Attaching and subscribing are `useBlockDocument`'s, following a presenter is
  *  `useFocusPresence`'s. The rules this holds to: `docs/design/document-editing.md`. */
 export function DocumentEditor({ documentId }: { documentId: string }) {
+  const router = useRouter();
   const { client, members, memberId, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId } = useFocusFollow();
   // Falls back to a neutral color/blank name before the roster carries this
@@ -310,6 +312,60 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     );
   };
 
+  /**
+   * `/페이지`: a new document **inside this one**, linked from here, opened.
+   *
+   * Three things, in an order that cannot strand any of them — the document
+   * first, so a link is never written to an id the catalogue does not have; the
+   * block second, while this editor is still mounted; the navigation last.
+   * Failing at step one leaves nothing behind, and the dialog says so.
+   *
+   * The new page is a **child**, which is what keeps it in the tree rather than
+   * only in this document's blocks: the workspace tree reads the catalogue, and
+   * `parentId` is what puts it under the page it was created from.
+   */
+  const [newPageAnchor, setNewPageAnchor] = useState<BlockId | null>(null);
+  const [newPageName, setNewPageName] = useState("");
+  const [newPageError, setNewPageError] = useState<string | null>(null);
+  const [creatingPage, setCreatingPage] = useState(false);
+
+  const createPage = async () => {
+    if (newPageAnchor === null) return;
+
+    setCreatingPage(true);
+    setNewPageError(null);
+
+    try {
+      const response = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newPageName, parentId: documentId }),
+      });
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setNewPageError(body.error ?? "페이지를 만들지 못했습니다.");
+        return;
+      }
+
+      const created = body.document.id;
+      const placed = applyEdit((_root, blocks) =>
+        insertBlockAfter(blocks, newPageAnchor, toStoredBlock(createDocLink(created))),
+      );
+
+      // The page exists either way; only the link back to it is missing, and a
+      // document with no inbound link is still in the tree.
+      if (!placed) console.warn("페이지는 만들었지만 링크 블록을 넣지 못했습니다.");
+
+      setNewPageAnchor(null);
+      router.push(`/documents/${created}`);
+    } catch {
+      setNewPageError("서버에 연결할 수 없습니다.");
+    } finally {
+      setCreatingPage(false);
+    }
+  };
+
   /** The block a picked document link goes after, or `null` while the picker is
    *  closed. Two pieces of state, not one: the list arrives asynchronously and
    *  the dialog has to open before it does. */
@@ -347,6 +403,13 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       applyEdit((_root, blocks) =>
         insertBlockAfter(blocks, idBeforeInOrder(order, blockId), divider),
       );
+      return;
+    }
+
+    if (action.kind === "new-page") {
+      setNewPageAnchor(blockId);
+      setNewPageName("");
+      setNewPageError(null);
       return;
     }
 
@@ -915,6 +978,58 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           </span>
         )}
       </div>
+
+      {/* `/페이지`'s one question. A name is asked for rather than defaulted to
+        * "제목 없음": nothing in the editor renames a document yet, so a
+        * placeholder name would be one nobody could change from here. */}
+      {newPageAnchor !== null ? (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 p-6">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void createPage();
+            }}
+            className="flex w-full max-w-sm flex-col gap-3 rounded-lg border border-ink bg-paper p-5"
+          >
+            <h2 className="text-base font-bold text-ink">이 문서 안에 새 페이지</h2>
+
+            <label className="flex flex-col gap-1 text-sm text-ink-soft">
+              페이지 이름
+              <input
+                autoFocus
+                value={newPageName}
+                onChange={(event) => setNewPageName(event.target.value)}
+                disabled={creatingPage}
+                className={`rounded-md border bg-paper-2 px-3 py-2 text-base text-ink ${
+                  newPageError ? "border-red-600" : "border-ink"
+                }`}
+              />
+            </label>
+
+            {newPageError ? (
+              <p className="text-[12px] text-red-600">{newPageError}</p>
+            ) : null}
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setNewPageAnchor(null)}
+                disabled={creatingPage}
+                className="rounded-md border border-ink bg-paper px-3 py-1.5 text-[12px] font-semibold text-ink"
+              >
+                취소
+              </button>
+              <button
+                type="submit"
+                disabled={creatingPage}
+                className="rounded-md border border-sky-deep bg-sky px-3 py-1.5 text-[12px] font-bold text-ink disabled:opacity-60"
+              >
+                {creatingPage ? "만드는 중…" : "만들고 이동"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
 
       {/* Rendered only while open, so the fetch that fills it cannot land in a
         * dialog nobody asked for. A plain overlay rather than `<dialog>`: this

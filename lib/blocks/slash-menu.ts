@@ -13,7 +13,9 @@ export type SlashAction =
   /** Open the file picker; the block follows once the upload returns an id. */
   | { kind: "upload-file" }
   /** Ask which document to link to; the block follows once one is picked. */
-  | { kind: "link-document" };
+  | { kind: "link-document" }
+  /** Make a new document inside this one, link to it, and go there. */
+  | { kind: "new-page" };
 
 export type SlashItem = {
   /** Stable across renders and locales — used as a React key and in tests. */
@@ -107,6 +109,13 @@ export const SLASH_ITEMS: Array<SlashItem> = [
     hint: "파일을 올려 문서에 넣기 (이미지·PDF·그 밖의 파일)",
     keywords: ["file", "upload", "image", "pdf", "photo", "파일", "첨부", "이미지", "사진", "그림"],
     action: { kind: "upload-file" },
+  },
+  {
+    id: "page",
+    label: "페이지",
+    hint: "이 문서 안에 새 페이지를 만들고 그리로 이동",
+    keywords: ["page", "new", "sub", "child", "페이지", "새", "하위", "문서"],
+    action: { kind: "new-page" },
   },
   {
     id: "doc-link",
