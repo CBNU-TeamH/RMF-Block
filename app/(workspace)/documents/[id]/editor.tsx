@@ -73,10 +73,21 @@ function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
  *  Attaching and subscribing are `useBlockDocument`'s, following a presenter is
  *  `useFocusPresence`'s. The rules this holds to: `docs/design/document-editing.md`. */
 export function DocumentEditor({ documentId }: { documentId: string }) {
-  const { client, members, isPresenting, setPresenting } = useWorkspacePresence();
+  const { client, members, memberId, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId } = useFocusFollow();
-  const { blocks, setBlocks, failed, docRef, registerRemoteHandler, patchBlockText } =
-    useBlockDocument(client, documentId);
+  // Falls back to a neutral color before the roster carries this browser's own
+  // entry yet — `useBlockDocument`'s attach doesn't wait on it.
+  const colorTag = members.find((member) => member.id === memberId)?.colorTag ?? "#64748b";
+  const {
+    blocks,
+    setBlocks,
+    failed,
+    docRef,
+    registerRemoteHandler,
+    patchBlockText,
+    occupantColorByBlock,
+    setActiveBlockId,
+  } = useBlockDocument(client, documentId, colorTag);
   // Opacity feedback only. Cleared on `dragend` as well as on drop — a drag
   // cancelled outside any block never fires `onDrop`.
   const [draggedId, setDraggedId] = useState<BlockId | null>(null);
@@ -494,6 +505,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
             onNavigateDown={handleNavigateDown}
             onTextCommitted={ensureTrailingEmptyBlock}
             onSlashSelect={handleSlashSelect}
+            onFocusBlock={setActiveBlockId}
           />
         </div>
       );
@@ -596,8 +608,18 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               ? dropIndicator.before
                 ? "border-t-2 border-sky-deep"
                 : "border-b-2 border-sky-deep"
-              : ""
+              // The drop indicator wins outright while dragging over this
+              // block — an occupant's box outline and the before/after line
+              // would otherwise fight over the same border sides.
+              : occupantColorByBlock.has(block.id)
+                ? "rounded-md border-2"
+                : ""
           }`}
+          style={
+            dropIndicator?.targetId !== block.id && occupantColorByBlock.has(block.id)
+              ? { borderColor: occupantColorByBlock.get(block.id) }
+              : undefined
+          }
           onDragOver={(event) => {
             event.preventDefault();
             // The container below also listens, to notice the pointer

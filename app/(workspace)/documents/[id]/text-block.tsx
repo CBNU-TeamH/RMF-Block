@@ -71,6 +71,7 @@ export function TextBlockView({
   onNavigateDown,
   onTextCommitted,
   onSlashSelect,
+  onFocusBlock,
 }: {
   blockId: BlockId;
   initialText: string;
@@ -108,6 +109,11 @@ export function TextBlockView({
    * this block's id, since the parent checks the *document's* trailing
    * block, not this one specifically. */
   onTextCommitted: () => void;
+  /** Reports this block gaining focus (`blockId`) or losing it (`null`) — the
+   * occupancy signal (`docs/design/document-editing.md`, FR-022-06). Losing
+   * focus does not clear the border on other browsers, only stops refreshing
+   * it, so it fades on its own TTL rather than vanishing instantly. */
+  onFocusBlock: (blockId: BlockId | null) => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // A ref callback reruns on identity, not on a dependency list, so an inline
@@ -364,6 +370,8 @@ export function TextBlockView({
         onTextCommitted();
         flushQueuedRemoteEdits();
       }}
+      onFocus={() => onFocusBlock(blockId)}
+      onBlur={() => onFocusBlock(null)}
         className={`min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-1 py-0.5 text-ink outline-none ${textareaClass(variant)}`}
       />
 

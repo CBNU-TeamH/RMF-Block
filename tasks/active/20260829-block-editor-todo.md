@@ -276,6 +276,26 @@ shortcut.
 - **Border colour**: `style={{ borderColor }}`, not a dynamic Tailwind class. The JIT scans class
   strings at build time, so a class name assembled at runtime has no CSS behind it.
 - **Done**: two browsers focused on different blocks each see the other's coloured border.
+- **Shipped**: `lib/presence/occupancy.ts` (new, with `occupancy.test.mts`), `use-block-document.ts`,
+  `text-block.tsx`, `editor.tsx`. The provider change this section asked for (`client` exposed
+  through context, `fetchToken` staying put) turned out to already be done — both were already in
+  `presence-provider.tsx` from earlier work, so this milestone only needed to *consume* them, not
+  build them. One addition beyond this section's original write-up: a TTL/heartbeat, decided with
+  the user during planning. `activeBlockId` alone can't tell "still in this block" from "clicked
+  the sidebar ten minutes ago and never came back" — Yorkie only clears presence on detach, not on
+  losing DOM focus. Fix: the content presence carries `updatedAt`; focusing a block publishes it and
+  starts a 10s heartbeat that keeps refreshing it; losing focus stops the heartbeat without
+  publishing anything, so the border stays at its last position and fades on its own once
+  `updatedAt` is more than 30s stale (`OCCUPANCY_TTL_MS`/`OCCUPANCY_HEARTBEAT_MS` in
+  `occupancy.ts`). Scoped to text-bearing blocks only (text/heading/list/checklist/quote/code) —
+  PDF and divider have no focus mechanism yet, so occupancy for those is future work, not a gap in
+  this one. Self is excluded from `getOthersPresences()` by the SDK itself, so "only show other
+  people's borders" needed no extra filtering. Verified: `node --test lib/presence/occupancy.test.mts`
+  (6 cases — empty, single occupant, two different blocks, same-block-first-wins, TTL-expired,
+  TTL-still-fresh); `pnpm lint`, `pnpm test` (349), `tsc --noEmit`, `pnpm build` all pass. Two-browser
+  live verification (each side seeing the other's border, the TTL fade after leaving a block) is the
+  user's own next step, same gap milestone 3's Strict Mode lesson already named for DOM/pointer
+  interaction a script can't exercise.
 
 ### 6. Undo / redo
 
@@ -301,7 +321,8 @@ shortcut.
 - [x] Hangul typed in the same block from both sides never loses a composing syllable — confirmed
       in a real browser (M2), not just the Step 0 spike
 - [ ] All seven block types render, edit, and convert between each other — text only so far
-- [ ] Occupancy is distinguishable per user and **does not block editing** (SIR003)
+- [x] Occupancy is distinguishable per user and **does not block editing** (SIR003) — text-bearing
+      blocks only; PDF/divider occupancy is future work (M5's Review note)
 - [ ] Ctrl+Z reverts only the local change
 - [ ] Restarting the app server leaves an open document's content intact (Phase 1 exit criteria)
 - [ ] Restarting the Yorkie container brings the same content back from MongoDB (Phase 1 exit
