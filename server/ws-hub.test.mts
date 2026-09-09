@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
-import { test } from "node:test";
+import { test } from "vitest";
 import WebSocket from "ws";
 
 import { wsHub } from "./ws-hub.mts";

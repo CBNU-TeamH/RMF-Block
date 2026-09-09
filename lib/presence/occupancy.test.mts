@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 
 import { occupantsByBlock, sameOccupants, OCCUPANCY_TTL_MS, type BlockPresence } from "./occupancy.ts";
 

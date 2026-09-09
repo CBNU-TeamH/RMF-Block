@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { test } from "node:test";
+import { test } from "vitest";
 
 import { JsonChatRepository } from "./chat-repository.ts";
 import type { ChatMessage } from "./types.ts";

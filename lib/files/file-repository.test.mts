@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { after, describe, it } from "node:test";
+import { afterAll, describe, it } from "vitest";
 
 import { FileRepository } from "./file-repository.ts";
 import { InvalidFileIdError, type NewFile } from "./types.ts";
@@ -15,7 +15,7 @@ async function freshStore() {
   return new FileRepository(path.join(root, "files"));
 }
 
-after(async () => {
+afterAll(async () => {
   const { rm } = await import("node:fs/promises");
   await Promise.all(roots.map((root) => rm(root, { recursive: true, force: true })));
 });

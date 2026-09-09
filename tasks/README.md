@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Vitest runner migration (Phase 2, track C4)](active/20260909-vitest-runner-migration-todo.md) | [lessons](active/20260909-vitest-runner-migration-lessons.md) |
 | [Ctrl+Z: undo and redo, per person](active/20260908-undo-redo-todo.md) | [lessons](active/20260908-undo-redo-lessons.md) |
 | [The document tree: sub-documents, rename, move, delete, and the link block](active/20260908-document-tree-todo.md) | [lessons](active/20260908-document-tree-lessons.md) |
 | [Make the PR-prep steps hard to skip by accident](active/20260907-pr-review-workflow-todo.md) | [lessons](active/20260907-pr-review-workflow-lessons.md) |

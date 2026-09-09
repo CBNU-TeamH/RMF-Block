@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 
 import { SessionRegistry } from "./session-registry.ts";
 import { JoinValidationError, MemberStoreError, WorkspaceFullError } from "./types.ts";

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 
 import { readSessionCookie } from "./session-cookie.ts";
 import { SESSION_COOKIE } from "./types.ts";

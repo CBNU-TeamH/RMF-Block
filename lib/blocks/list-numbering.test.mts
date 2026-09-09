@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 
 import { orderedListNumbers } from "./list-numbering.ts";
 import type { Block } from "./types.ts";
