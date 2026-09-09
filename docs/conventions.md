@@ -204,14 +204,22 @@ Every ratio it quoted was a formatting choice reported as arithmetic:
 Across the codebase the same correction took the comment ratio from 40.0% to 23.6% — under the
 budget, with no protected sentence deleted.
 
-**The real floor is content, and it binds on small files only.** Of the 21 files still over
-budget, 17 hold 40 code lines or fewer. `lib/focus/pathname.ts` is the clearest: three code lines,
-a budget of one, and a comment that has to say both what the function returns and why the file
-exists apart from its only caller (Node's test runner cannot import a client component). Two lines
-over, and correct there.
+**The real floor is content, and it binds on small files only.** `lib/focus/pathname.ts` is the
+clearest case: three code lines, a budget of one, and a comment that has to say both what the
+function returns and why the file exists apart from its only caller (Node's test runner cannot
+import a client component). Two lines over, and correct there — no amount of trimming buys back a
+floor this low.
 
-So: **the budget routes, it does not adjudicate.** Over budget means "look at whether the
-rationale outgrew the code." Before concluding it did not, check in this order:
+[`#75`](https://github.com/CBNU-TeamH/RMF-Block/issues/75) measured where that population actually
+sits: after #74's cleanup, every file over 40 code lines passed the 25% budget; the files still
+failing were all at or under that line (88% of ≤20-line files, 76% of 21–40-line files). Below 40
+code lines the ratio is measuring file size, not commenting — so `scripts/comment-budget.mjs`
+exempts a file at or under that floor from the check entirely, rather than asking its author to
+re-argue the same three-line-comment case in every PR that happens to touch it.
+
+So: **the budget routes, it does not adjudicate, and it only applies past the floor.** Over budget
+on a file above 40 code lines means "look at whether the rationale outgrew the code." Before
+concluding it did not, check in this order:
 
 1. **Is the prose restating a document the comment already cites?** Cut it to the citation. A
    requirement tag reaches the rule on its own: `/** UC-021 E4a. */` is a complete comment when
@@ -223,6 +231,12 @@ rationale outgrew the code." Before concluding it did not, check in this order:
 
 Only a file that survives all three and is still over budget is honestly over budget. Say so in
 the PR and leave it — that is a passing result, not a deferred one.
+
+The exemption is what closes the "zero false positives" criterion in #65's gate. The promotion
+date (2026-09-23, `scripts/lib/promotion-date.mjs`) stays a reminder rather than an automatic
+trigger — whether to wire `--strict` into CI when it fires is still a call for whoever reviews the
+notice, informed by how the citation and review-cost criteria measure on real tasks between now
+and then.
 
 What tracks the problem better than the ratio is the size of the *blocks*: a comment of eight
 lines or more is nearly always design rationale that belongs in `docs/`. One caution, learned the

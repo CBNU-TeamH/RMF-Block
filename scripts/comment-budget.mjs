@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-// Comment ratio for .ts/.tsx files changed against the merge base. A routing
+// Comment ratio for .ts/.tsx files changed against the merge base, for files
+// past SMALL_FILE_FLOOR — smaller ones are exempt (see docs/conventions.md,
+// "the real floor is content, and it binds on small files only"). A routing
 // signal, not a gate: exceeding the threshold means "this file's comments
 // outgrew the file — move the rationale to docs/", not "fix this before you
 // can commit." See docs/conventions.md for what may stay inline.
@@ -14,6 +16,11 @@ import { execFileSync } from "node:child_process";
 import { promotionNotice } from "./lib/promotion-date.mjs";
 
 const THRESHOLD = 0.25;
+// #75: below this many code lines the 25% ratio fails regardless of quality — measured
+// (docs/conventions.md, "the real floor is content, and it binds on small files only"): 0% of
+// files over this line failed after #74's cleanup; 76-88% of files at or under it did. Exempt
+// them rather than asking every small file's author to re-argue the same case per PR.
+const SMALL_FILE_FLOOR = 40;
 
 function git(args) {
   return execFileSync("git", args, { encoding: "utf8" }).trim();
@@ -66,7 +73,7 @@ function ratioFromSource(source) {
     }
   }
   const total = code + comment;
-  return total === 0 ? null : comment / total;
+  return total === 0 ? null : { code, ratio: comment / total };
 }
 
 // The committed content at HEAD — `git show HEAD:path`, not the working tree,
@@ -108,8 +115,9 @@ export function run({ strict = false, staged = false, base = resolveMergeBase() 
 
   const over = [];
   for (const path of changed) {
-    const ratio = ratioFor(path);
-    if (ratio !== null && ratio > THRESHOLD) over.push({ path, ratio });
+    const measured = ratioFor(path);
+    if (measured === null || measured.code <= SMALL_FILE_FLOOR) continue;
+    if (measured.ratio > THRESHOLD) over.push({ path, ratio: measured.ratio });
   }
 
   return { base, over, strict, failed: strict && over.length > 0 };
