@@ -19,6 +19,11 @@ that the next person does not rediscover this.
   is that condition. Rewriting it was part of milestone 1, not a follow-up. Comments that say what
   would falsify them are worth writing.
 
+- **A menu that scrolls is a menu whose highlight can leave the screen.** The `/` menu shipped in
+  #63 with `max-h-64` and eleven items, so six were always below the fold — arrow keys moved the
+  highlight somewhere invisible and the menu read as frozen. Nobody noticed for four PRs because
+  the first six items cover the common cases. Found by a person using it, not by a test.
+
 ## What we would do differently
 
 - **Verify a DOM query before trusting what it reports.** `el.querySelector('span')` was reading the
@@ -33,6 +38,11 @@ that the next person does not rediscover this.
   `__reactProps.onInput` directly, opened the `/` menu — while a real click on a button worked. Any
   browser check of this editor has to use real keyboard and mouse events, and a background tab does
   not receive them at all (its `document.activeElement` stays `BODY`).
+
+- **Write the edge case as a test even when it looks unreachable.** `scrollTopForHighlight`'s
+  "a row taller than the viewport" test failed on the first run: the helper scrolled *past* the
+  row's top, hiding its first line. A menu row is 48px against a 254px viewport, so it cannot
+  happen today — but the helper was wrong, and the test cost one line.
 
 ## Worth extracting
 

@@ -11,7 +11,11 @@ export type SlashAction =
   /** Put a divider above this block and leave the caret where it is. */
   | { kind: "divider" }
   /** Open the file picker; the block follows once the upload returns an id. */
-  | { kind: "upload-pdf" };
+  | { kind: "upload-file" }
+  /** Ask which document to link to; the block follows once one is picked. */
+  | { kind: "link-document" }
+  /** Make a new document inside this one, link to it, and go there. */
+  | { kind: "new-page" };
 
 export type SlashItem = {
   /** Stable across renders and locales — used as a React key and in tests. */
@@ -97,11 +101,28 @@ export const SLASH_ITEMS: Array<SlashItem> = [
     action: { kind: "divider" },
   },
   {
-    id: "pdf",
-    label: "PDF",
-    hint: "PDF 파일을 올려 문서에 넣기",
-    keywords: ["pdf", "file", "upload", "파일", "첨부"],
-    action: { kind: "upload-pdf" },
+    id: "file",
+    label: "파일",
+    // One item, not three: which block an upload becomes is decided from its
+    // bytes (`docs/design/api.md` §1), so asking the person to pick first would
+    // be asking them to guess at an answer the server already knows.
+    hint: "파일을 올려 문서에 넣기 (이미지·PDF·그 밖의 파일)",
+    keywords: ["file", "upload", "image", "pdf", "photo", "파일", "첨부", "이미지", "사진", "그림"],
+    action: { kind: "upload-file" },
+  },
+  {
+    id: "page",
+    label: "페이지",
+    hint: "이 문서 안에 새 페이지를 만들고 그리로 이동",
+    keywords: ["page", "new", "sub", "child", "페이지", "새", "하위", "문서"],
+    action: { kind: "new-page" },
+  },
+  {
+    id: "doc-link",
+    label: "문서 링크",
+    hint: "워크스페이스의 다른 문서로 가는 링크",
+    keywords: ["link", "doc", "document", "링크", "문서", "연결"],
+    action: { kind: "link-document" },
   },
 ];
 
@@ -136,4 +157,30 @@ export function slashMenuItems(query: string): Array<SlashItem> {
 export function moveHighlight(current: number, delta: number, length: number): number {
   if (length === 0) return 0;
   return (current + delta + length) % length;
+}
+
+/**
+ * The `scrollTop` the menu needs for its highlighted row to be visible, or
+ * `null` when it already is.
+ *
+ * Arithmetic rather than `element.scrollIntoView()` on purpose. That walks
+ * *every* scroll ancestor, and this editor's scroll container publishes a focus
+ * anchor whenever it moves (FR-030-07) — nudging the page to reveal a menu row
+ * would send every follower somewhere the presenter never looked. Working the
+ * number out here touches the menu and nothing else.
+ */
+export function scrollTopForHighlight(
+  view: { scrollTop: number; height: number },
+  row: { top: number; height: number },
+): number | null {
+  if (row.top < view.scrollTop) return row.top;
+
+  const overshoot = row.top + row.height - (view.scrollTop + view.height);
+  if (overshoot <= 0) return null;
+
+  // Never past the row's own top: a row taller than the viewport cannot be shown
+  // whole, and cutting off its first line is the worse half to lose.
+  const next = Math.min(view.scrollTop + overshoot, row.top);
+
+  return next === view.scrollTop ? null : next;
 }

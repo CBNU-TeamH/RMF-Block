@@ -19,8 +19,10 @@ import {
 } from "@/lib/presence/occupancy";
 
 /** One document's blocks and the Yorkie attachment behind them. `setBlocks` is
- *  returned because the subscription reacts to `remote-change` only — a local
- *  edit is the caller's to apply and republish. */
+ *  returned because an ordinary local edit is the caller's to apply and
+ *  republish; the subscription takes what has no such caller — remote changes,
+ *  and this browser's own undo (`docs/design/document-editing.md`, "Undo is per
+ *  person"). */
 export function useBlockDocument(
   client: Client | null,
   documentId: string,
@@ -28,6 +30,9 @@ export function useBlockDocument(
   nickname: string,
 ) {
   const [blocks, setBlocks] = useState<Array<Block> | null>(null);
+  /** How deep the undo stack was once this document was ready — see where it is
+   *  set. `canUndo` alone would let a person undo the document out of existence. */
+  const undoFloorRef = useRef(0);
   const [failed, setFailed] = useState(false);
   const [occupantByBlock, setOccupantByBlock] = useState<Map<BlockId, Occupant>>(new Map());
 
@@ -99,10 +104,25 @@ export function useBlockDocument(
       });
 
       docRef.current = doc;
+      // Nothing before this point may be undone. The seed above is a
+      // `doc.update()` like any other, and undoing it would leave a document
+      // with no blocks and nowhere to type. Measured against 0.7.13 the root
+      // assignment happens to produce no reverse op, so the stack is empty here
+      // anyway — but that is an accident of which operation the seed uses, and
+      // a floor says what is meant. Borrowed from wafflebase's docs store,
+      // which hit the same edge from the other side.
+      undoFloorRef.current = doc.getUndoStackForTest().length;
+
       setBlocks(readBlocks(doc.getRoot().blocks));
 
       unsubscribe = doc.subscribe((event) => {
-        if (event.type !== "remote-change") return;
+        // An undo is a `local-change`, not a `remote-change`, and it arrives
+        // with no caller to republish the list — `doc.history.undo()` is not
+        // this component's `applyEdit`. To everything below, the two are the
+        // same thing: a change nothing local is already holding the text for.
+        // See `docs/design/document-editing.md`, "Undo is per person".
+        const isUndoRedo = event.type === "local-change" && event.source === "undoredo";
+        if (event.type !== "remote-change" && !isUndoRedo) return;
 
         // Once per event, not per op — one conversion already produces two
         // (`docs/design/document-editing.md`).
@@ -203,6 +223,28 @@ export function useBlockDocument(
   /** Patches a textarea with an edit that did not come from the network — a
    *  split or merge (#59). Deliberately the same handler a remote edit uses;
    *  why that matters: `docs/design/document-editing.md`. */
+  /**
+   * Undo and redo, floored at the state this document was opened in.
+   *
+   * Yorkie's stack holds only this browser's own changes, so neither can ever
+   * take back what a peer typed (`docs/design/document-editing.md`, "Undo is
+   * per person"). The floor is what stops an undo reaching past the seed.
+   */
+  const history = useCallback((direction: "undo" | "redo") => {
+    const doc = docRef.current;
+    if (!doc) return;
+
+    if (direction === "redo") {
+      if (doc.history.canRedo()) doc.history.redo();
+      return;
+    }
+
+    if (!doc.history.canUndo()) return;
+    if (doc.getUndoStackForTest().length <= undoFloorRef.current) return;
+
+    doc.history.undo();
+  }, []);
+
   const patchBlockText = useCallback((blockId: BlockId, patch: TextPatch) => {
     handlersRef.current.get(blockId)?.(patch);
   }, []);
@@ -214,6 +256,7 @@ export function useBlockDocument(
     docRef,
     registerRemoteHandler,
     patchBlockText,
+    history,
     occupantByBlock,
     setActiveBlockId,
   };

@@ -24,6 +24,9 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Ctrl+Z: undo and redo, per person](active/20260908-undo-redo-todo.md) | [lessons](active/20260908-undo-redo-lessons.md) |
+| [The document tree: sub-documents, rename, move, delete, and the link block](active/20260908-document-tree-todo.md) | [lessons](active/20260908-document-tree-lessons.md) |
+| [Pasting into blocks, and the image and file legs of FR-022-14](active/20260907-paste-and-file-blocks-todo.md) | [lessons](active/20260907-paste-and-file-blocks-lessons.md) |
 | [List nesting with Tab, and a placeholder that reveals the `/` menu](active/20260907-list-indent-and-placeholder-todo.md) | [lessons](active/20260907-list-indent-and-placeholder-lessons.md) |
 | [Bring the comment budget down, starting with `lib/presence/types.ts`](active/20260905-comment-budget-todo.md) | [lessons](active/20260905-comment-budget-lessons.md) |
 | [Verify scripts — ownership, comment budget, hooks, `verify:docs`](active/20260904-verify-scripts-todo.md) | [lessons](active/20260904-verify-scripts-lessons.md) |

@@ -60,3 +60,37 @@ const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46, 0x2d];
 export function looksLikePdf(bytes: Uint8Array): boolean {
   return PDF_MAGIC.every((byte, index) => bytes[index] === byte);
 }
+
+/** Exactly `serving.ts`'s `INLINE_TYPES` image half, by the bytes that identify
+ *  them. Why sniffed rather than believed, and why SVG is not here:
+ *  `docs/design/api.md` §1, "accepts any file, and decides what it is from the
+ *  bytes". */
+const IMAGE_MAGIC: Array<{ type: string; bytes: Array<number>; at?: number }> = [
+  { type: "image/png", bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
+  // Every JPEG variant opens SOI + the first marker; what follows differs.
+  { type: "image/jpeg", bytes: [0xff, 0xd8, 0xff] },
+  { type: "image/gif", bytes: [0x47, 0x49, 0x46, 0x38] },
+  // RIFF....WEBP — the four bytes between are the file length, so the second
+  // half is checked at its own offset rather than as one run.
+  { type: "image/webp", bytes: [0x52, 0x49, 0x46, 0x46] },
+];
+
+const WEBP_TAG = { bytes: [0x57, 0x45, 0x42, 0x50], at: 8 };
+
+/** The image this file actually is, or `null` — including for an image format
+ *  this project does not serve inline. */
+export function detectImageType(bytes: Uint8Array): string | null {
+  const match = IMAGE_MAGIC.find((format) => startsWith(bytes, format.bytes, format.at ?? 0));
+  if (!match) return null;
+
+  if (match.type === "image/webp" && !startsWith(bytes, WEBP_TAG.bytes, WEBP_TAG.at)) {
+    // RIFF is a container: WAV and AVI open the same way.
+    return null;
+  }
+
+  return match.type;
+}
+
+function startsWith(bytes: Uint8Array, magic: Array<number>, at: number): boolean {
+  return magic.every((byte, index) => bytes[at + index] === byte);
+}

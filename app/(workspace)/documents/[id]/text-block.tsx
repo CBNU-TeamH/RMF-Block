@@ -7,6 +7,7 @@ import { detectMarkdownShortcut, type MarkdownShortcut } from "@/lib/blocks/mark
 import {
   detectSlashQuery,
   moveHighlight,
+  scrollTopForHighlight,
   slashMenuItems,
   type SlashAction,
 } from "@/lib/blocks/slash-menu";
@@ -73,6 +74,8 @@ export function TextBlockView({
   onSlashSelect,
   onFocusBlock,
   onIndent,
+  onPasteBlocks,
+  onHistory,
 }: {
   blockId: BlockId;
   initialText: string;
@@ -109,6 +112,13 @@ export function TextBlockView({
   /** Tab / Shift+Tab on a list block. The caller decides whether the move is
    *  legal (`lib/blocks/indent.ts`) — this only reports the keypress. */
   onIndent: (blockId: BlockId, direction: "in" | "out") => void;
+  /** A paste that carries newlines — only those, since a single-line paste is
+   *  left to the textarea's own default (`docs/design/document-editing.md`,
+   *  "Pasting more than one line"). */
+  onPasteBlocks: (blockId: BlockId, text: string) => void;
+  /** Ctrl/Cmd+Z and its shifted form. The document owns the history, not this
+   *  block — an undo can be of an edit made in a different one. */
+  onHistory: (direction: "undo" | "redo") => void;
   /** Called after every local text commit — not just here, and not tied to
    * this block's id, since the parent checks the *document's* trailing
    * block, not this one specifically. */
@@ -131,13 +141,31 @@ export function TextBlockView({
   );
   /** The `/` menu's session — query read off the textarea, highlight moved by
    *  arrow keys. Why only a plain text block opens one:
-   *  `docs/design/document-editing.md`. */
+   *  `docs/design/document-editing.md`, "Leaving a code block". */
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [highlight, setHighlight] = useState(0);
   const slashItems = slashQuery === null ? [] : slashMenuItems(slashQuery);
   // "Open" means there is something to choose. With no matches the menu hides
   // and every key goes back to meaning what it usually means — Enter splits.
   const slashOpen = slashItems.length > 0;
+  const slashListRef = useRef<HTMLUListElement>(null);
+
+  // Keeps the highlighted row on screen: eleven items overflow `max-h-64`, so
+  // arrow keys used to move the highlight somewhere nobody could see. The
+  // `<ul>` is `absolute`, which makes it its rows' `offsetParent`, so
+  // `offsetTop` is already in the coordinate space `scrollTop` is measured in
+  // (the same requirement `lib/focus/dom.ts` documents for block boxes).
+  useEffect(() => {
+    const list = slashListRef.current;
+    const row = list?.children[highlight];
+    if (!list || !(row instanceof HTMLElement)) return;
+
+    const next = scrollTopForHighlight(
+      { scrollTop: list.scrollTop, height: list.clientHeight },
+      { top: row.offsetTop, height: row.offsetHeight },
+    );
+    if (next !== null) list.scrollTop = next;
+  }, [highlight, slashOpen]);
 
   const closeSlash = () => {
     setSlashQuery(null);
@@ -276,6 +304,16 @@ export function TextBlockView({
           }
         }
 
+        // Before every other key, and before the composition guards below: the
+        // browser's own textarea history would otherwise rewind the DOM while
+        // Yorkie kept the text, which is the desync `#59` was about. Stopping
+        // it here makes the document's history the only one.
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+          event.preventDefault();
+          onHistory(event.shiftKey ? "redo" : "undo");
+          return;
+        }
+
         if (event.key === "Tab" && variant.type === "list") {
           // Intercepted on a list block only. Everywhere else Tab keeps its
           // default and moves focus — trapping it in every textarea would leave
@@ -351,7 +389,8 @@ export function TextBlockView({
         if (composingRef.current) return;
 
         // Plain text only — the same guard as the markdown check below, for the
-        // reason both share (`docs/design/document-editing.md`).
+        // reason both share (`docs/design/document-editing.md`, "Leaving a code
+        // block").
         const query = variant.type === "text" ? detectSlashQuery(el.value) : null;
         if (query !== slashQuery) {
           setSlashQuery(query);
@@ -373,6 +412,15 @@ export function TextBlockView({
 
         commitLocal(el.value);
         onTextCommitted();
+      }}
+      onPaste={(event) => {
+        const text = event.clipboardData.getData("text/plain");
+        // Only a newline makes this a block operation (`document-editing.md`,
+        // "Pasting more than one line").
+        if (!text.includes("\n") && !text.includes("\r")) return;
+
+        event.preventDefault();
+        onPasteBlocks(blockId, text);
       }}
       onCompositionStart={() => {
         composingRef.current = true;
@@ -401,6 +449,7 @@ export function TextBlockView({
        * remounts the textarea and drops the caret). */}
       {slashOpen ? (
         <ul
+          ref={slashListRef}
           role="listbox"
           aria-label="블록 종류"
           className="absolute top-full left-6 z-20 mt-1 max-h-64 w-64 overflow-y-auto rounded-md border border-ink bg-paper py-1 shadow-lg"
