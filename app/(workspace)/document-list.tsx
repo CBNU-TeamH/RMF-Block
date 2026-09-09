@@ -188,7 +188,7 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
       <div className="mb-4 flex items-baseline gap-2.5">
         <h1 className="text-[22px] font-bold text-ink">문서</h1>
         <span className="font-mono text-[10px] tracking-wide text-ink-faint uppercase">
-          {documents.length}개 항목 · 이 워크스페이스
+          {live.length}개 항목 · 이 워크스페이스
         </span>
       </div>
 
@@ -222,7 +222,7 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
 
         {rows.length === 0 ? (
           <p className="px-3.5 py-8 text-center text-[13px] text-ink-faint">
-            {documents.length === 0
+            {live.length === 0
               ? "아직 문서가 없습니다."
               : `'${query}'와 일치하는 문서가 없습니다.`}
           </p>
