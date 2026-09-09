@@ -89,6 +89,7 @@ Which document to open for which job.
 - **`main` is always releasable.** Never commit to it directly — branch, then open a PR.
 - **One branch per task**, named `<type>/<slug>` with the same prefixes as commits: `feat/block-lock`, `fix/presence-flicker`, `docs/adr-realtime`.
 - **One PR per task**, and its description links the task doc in `tasks/active/` or the GitHub issue it closes.
+- **Before opening a PR**: start the description from [`.github/pull_request_template.md`](.github/pull_request_template.md) verbatim — don't write one from scratch (`gh pr create --body` skips the template entirely; open the file and fill it in). If `/code-review low` and `/simplify` (`skills/README.md`) haven't run yet this task, from a Sonnet session, run them now rather than deferring — the template's own checklist assumes they already have by the time it's filled in.
 - **Before merging**: `pnpm lint`, `pnpm test` and `pnpm build` pass. CI enforces this — `lint · test · build` and `container smoke test` are required checks on `main`, and both run on every PR.
 - **Squash merge** — the only method `main` allows. Give the squashed commit a prefixed title, so `main` reads as one line per task. The branch is deleted automatically.
 - **Review**: one approval, and [`.github/CODEOWNERS`](.github/CODEOWNERS) makes it the other maintainer's. An approval does not carry over to commits pushed after it. An org owner may bypass this to merge when waiting would block the team — direct pushes to `main` stay blocked either way — and says so in the PR afterwards.
