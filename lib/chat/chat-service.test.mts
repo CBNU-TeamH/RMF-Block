@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test } from "vitest";
 
 import { ChatService } from "./chat-service.ts";
 import { ChatValidationError, type ChatMessage } from "./types.ts";

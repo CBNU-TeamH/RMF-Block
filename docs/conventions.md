@@ -272,19 +272,6 @@ always literally `.ts`). This does not extend to package specifiers (`next`) or 
 (`node:http`), which resolve through their own mechanisms and take no extension at all — the rule
 is about relative TypeScript imports specifically, not imports in general.
 
-`node --test` (`*.test.mts`) hits the identical constraint, for the identical reason — it's the
-same runtime, doing the same literal resolution. It is not, however, the *cause*: a comment that
-credits the test runner for this constraint is describing a symptom as the source, and would
-mislead the next person into thinking the constraint goes away once the test runner changes. It
-doesn't — `server/index.mts` still runs the same way in production regardless of what runs the
-tests.
-
-**Revise this section once #66 (Phase 2) migrates the runner to Vitest.** The paragraph above
-stops being true, not just stale — tests won't run under `node --test` at all once that lands,
-so "hits the identical constraint, for the identical reason" would be describing a runner this
-repo no longer uses. Drop that paragraph; keep only the production-side reasoning, which doesn't
-change (`server/index.mts` still runs directly under `node` regardless of what runs the tests).
-
 ## Why `next.config.ts` picks a different `distDir` for `pnpm dev`
 
 `dev` sets `NODE_ENV=development` explicitly, `start` sets `production`, and `build` sets

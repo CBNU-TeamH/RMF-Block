@@ -17,9 +17,10 @@ import { wsHub } from "../../server/ws-hub.mts";
  */
 export class ChatService {
   // Spelled out rather than TS parameter properties: this class is loaded
-  // both through Next's bundler (route.ts) and directly by `node --test`
-  // (chat-service.test.mts), and Node's native type stripping — unlike a real
-  // compiler — cannot generate the `this.x = x` a parameter property implies.
+  // both through Next's bundler (route.ts) and directly by Vitest under
+  // Node's native type stripping (chat-service.test.mts), which — unlike a
+  // real compiler — cannot generate the `this.x = x` a parameter property
+  // implies.
   private readonly repository: ChatRepository;
   private readonly broadcaster: ChatBroadcaster;
 
