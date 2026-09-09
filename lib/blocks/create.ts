@@ -1,3 +1,4 @@
+import { listDepth } from "./document.ts";
 import type {
   BlockId,
   ChecklistBlock,
@@ -7,6 +8,9 @@ import type {
   HeadingLevel,
   ListBlock,
   ListStyle,
+  DocLinkBlock,
+  FileBlock,
+  ImageBlock,
   PdfBlock,
   QuoteBlock,
   TextBlock,
@@ -51,7 +55,7 @@ export function createHeading(level: HeadingLevel): HeadingBlock {
 /** `style` is required for the same reason a heading's `level` is. `depth` is
  *  not a choice — only the editor knows when a new item continues a nested one. */
 export function createList(style: ListStyle, depth = 0): ListBlock {
-  return { id: newBlockId(), type: "list", style, depth, text: "" };
+  return { id: newBlockId(), type: "list", style, depth: listDepth(depth), text: "" };
 }
 
 /** Always unchecked: a task that is already done is not a task anyone adds. */
@@ -80,4 +84,34 @@ export function createPdf(file: {
   size: number;
 }): PdfBlock {
   return { id: newBlockId(), type: "pdf", ...file };
+}
+
+/** The image leg of FR-022-14. Same arguments as `createPdf` — which block an
+ *  upload becomes is the route's answer, from the bytes, not this file's. */
+export function createImage(file: {
+  fileId: string;
+  fileName: string;
+  size: number;
+}): ImageBlock {
+  return { id: newBlockId(), type: "image", ...file };
+}
+
+/** SRS §4.1 type 11. Only the id is stored: the target's name is the catalogue's
+ *  to answer and changes under FR-023-01, so caching it here would go stale the
+ *  first time anyone renames — unlike a file block's name, which cannot. */
+export function createDocLink(documentId: string): DocLinkBlock {
+  return { id: newBlockId(), type: "doc-link", documentId };
+}
+
+/** FR-022-13, and the fallback for every type FR-022-14 does not name a viewer
+ *  for. `fileType` is carried where the other two do not need it: a download
+ *  card is all a reader gets, so the type is the only hint at what they will
+ *  open. */
+export function createFile(file: {
+  fileId: string;
+  fileName: string;
+  fileType: string;
+  size: number;
+}): FileBlock {
+  return { id: newBlockId(), type: "file", ...file };
 }

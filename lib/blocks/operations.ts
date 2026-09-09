@@ -1,6 +1,6 @@
 import type { JSONArray, Text } from "@yorkie-js/sdk";
 
-import type { StoredBlock, StoredContent } from "./document.ts";
+import { listDepth, type StoredBlock, type StoredContent } from "./document.ts";
 import type { BlockId, HeadingLevel, ListStyle } from "./types.ts";
 
 /** Every change the editor can make to a document's blocks (FR-022-01~04).
@@ -143,7 +143,7 @@ export function changeBlockType(
     content.level = fields.level;
   } else if (fields.type === "list") {
     content.style = fields.style;
-    content.depth = Math.max(0, Math.trunc(fields.depth ?? 0));
+    content.depth = listDepth(fields.depth ?? 0);
   } else if (fields.type === "checklist") {
     content.checked = fields.checked ?? false;
   }

@@ -565,6 +565,26 @@ a trailing block to append) check the result.
 a block someone else is typing in. It is idempotent, so running it after every text commit costs
 one read, and it is enforced locally only — the append reaches peers as an ordinary add.
 
+### The `/` menu's highlight has to stay on screen
+
+Eleven items at 48px overflow the menu's `max-h-64` (254px), so six sit below the fold. Arrow keys
+move the highlight through all eleven, which means the highlight can land where nobody can see it —
+the menu looks frozen while it is in fact responding.
+
+The list scrolls to follow, by arithmetic (`scrollTopForHighlight` in `slash-menu.ts`) rather than
+`element.scrollIntoView()`. **`scrollIntoView` walks every scroll ancestor**, and this editor's
+scroll container publishes a focus anchor whenever it moves (FR-030-07) — nudging the page to
+reveal a menu row would send every follower to a position the presenter never looked at. Computing
+the number and assigning `list.scrollTop` touches the menu and nothing else.
+
+The `<ul>` is `absolute`, which makes it its rows' `offsetParent`, so a row's `offsetTop` is already
+in the coordinate space `scrollTop` is measured in — the same requirement `lib/focus/dom.ts`
+documents for block boxes.
+
+One edge the helper handles: a row taller than the viewport cannot be shown whole, so it stops at
+the row's own top rather than scrolling past it. Cutting off a row's first line is the worse half
+to lose.
+
 ### Leaving a code block
 
 Enter inside a code block is a literal newline — code is source text, not a sequence of blocks.
@@ -577,6 +597,177 @@ on a markdown marker, and only a plain text block opens the `/` menu. In a code 
 and `/` are legitimate source text; in a heading, retyping a marker asks for a conversion that has
 already happened. The `/` menu's query is recomputed from the text rather than tracked as a
 session, so deleting back through the slash closes it on its own.
+
+### `/페이지` makes a page; `/문서 링크` points at one
+
+Two menu items, because they are two things. `/문서 링크` picks a document that already exists.
+**`/페이지` creates a new one inside this document, links to it, and opens it** — the Notion
+gesture, where a page is somewhere you make on the way rather than something you go and set up
+first.
+
+The new document is a **child of the one it was typed in**. That is what keeps it in the workspace
+tree rather than only in this document's blocks: the tree reads the catalogue, and `parentId` is
+what puts it under the page it came from. Nothing about the tree is special-cased for this — the
+same `POST /api/documents` the workspace home calls, with a parent.
+
+The three steps run in an order that cannot strand any of them: **document, then block, then
+navigate.** A link written before the document existed would point at an id the catalogue does not
+have; a block written after navigating would be written into an editor that has unmounted. Failing
+at the first step leaves nothing behind at all, and the dialog says so.
+
+It asks for a name rather than defaulting to 제목 없음, because nothing in the editor renames a
+document yet — a placeholder name would be one nobody could change from where they are standing.
+
+### The document link block
+
+SRS §4.1 type 11, created from the `/` menu. **Only the target's id is stored.** A file block
+caches its name because a file has no rename in the SRS; a document does (FR-023-01), so a cached
+name would go stale the first time anyone used it. The name is read from the catalogue when the
+block draws.
+
+**A link to a deleted document is a state, not an error.** FR-023-04 deletes documents and nothing
+rewrites the blocks pointing at them, so the block renders as unavailable — the same shape a file
+block whose bytes are gone already uses. The picker leaves the current document out of its own
+list, since a link to the page you are on is a loop with only a back button out.
+
+`block-link` (type 12) still has no creator: it needs a way to point at one block inside a
+document, which nothing offers yet.
+
+## Undo is per person, and it is Yorkie's
+
+`Ctrl/Cmd+Z` undoes, `Ctrl/Cmd+Shift+Z` redoes. No FR asks for either; they are here because they
+are the first keys anyone presses.
+
+**The undo stack is per client, and that is what makes this safe.** The SDK guide states it —
+*"History tracks only local changes. Remote changes are applied but not added to undo/redo
+stacks"* — and the source agrees: `pushUndo` is reached only from the local `update()` path,
+immediately after `localChanges.push(change)`, while remote changes arrive through
+`applyChanges(…, OpSource.Remote)` and never touch it. So an undo takes back *this browser's* last
+edit and never a peer's — the only version of undo a shared document can have, and the reason this
+is the SDK's job rather than something built here.
+
+**The array-of-blocks decision is what makes undo available at all.** §"Why an Array of blocks, and
+not one `yorkie.Tree`" chose the array for reasons that had nothing to do with history; the guide
+lists undo/redo as supported for Text, object and array operations and says *"Tree: Undo/Redo
+support is under development"*. The earlier choice paid an unplanned dividend, and a document built
+on `yorkie.Tree` could not have this feature today.
+
+**`undo()` must not be called inside a `doc.update()` callback** — the guide says it throws
+*"Undo is not allowed during an update"*. Nothing here does: the only caller is a keydown handler,
+and `applyEdit` is the only thing that opens an update. Written down because the two would be easy
+to combine later — an "undo this block" button inside an edit, say.
+
+**The redo stack clears once a new change is made after an undo.** Standard, and worth knowing
+before someone reports it: undo, type, and the thing you undid is not coming back.
+
+**An undo publishes `local-change`, not `remote-change`**, with `source: OpSource.UndoRedo`. That
+is the one thing the design had to solve: `use-block-document` subscribed to `remote-change` only,
+on the reasoning that a local edit is the caller's to apply and republish — and an undo has no
+caller to do that. It now takes both, because to that component they are the same thing: a change
+nothing local is already holding the text for. Everything downstream — the op-routing loop,
+`touchesBlockList`, the per-block handler map, the rebuild fallback — was written for remote
+changes and needed no change at all.
+
+**The browser's own undo has to be stopped.** A `<textarea>` keeps its own edit history, and
+`Ctrl+Z` inside a focused one would rewind the DOM while Yorkie kept the text — the desync
+[#59](https://github.com/CBNU-TeamH/RMF-Block/issues/59) was about. The keydown handler calls
+`preventDefault` so the document's history is the only one.
+
+### The floor
+
+**Nothing from before the document was opened may be undone.** Opening an empty document seeds it
+with a first block through `doc.update()`, and undoing that would leave a document with no blocks
+and nowhere to type.
+
+Measured against 0.7.13, the seed's root assignment happens to produce no reverse operation, so the
+stack is empty at that point anyway — but that is an accident of which operation the seed uses, not
+a design. `use-block-document` records the stack depth once the document is ready and refuses to
+undo past it. Borrowed from wafflebase's docs store, which reached the same rule from the other
+side: its own seed *is* reversible, and undoing it "would destroy blocks the cursor still
+references".
+
+The stack is capped at 50 entries (`MaxUndoRedoStackDepth`), so undo is not a journey back to the
+empty document.
+
+### Pasting more than one line
+
+**A single-line paste is not a block operation.** It goes through the textarea's own default,
+which already lands at the caret, mid-word, and fires `onInput` after. Only a newline in the
+clipboard makes a paste structural — which keeps the common paste on the path that already works,
+and means the code below is never reached by the ordinary case.
+
+A multi-line paste becomes one block per line. **The first line reuses the block being pasted
+into** rather than inserting above it: that block already holds the caret, and making a new one to
+replace it would move focus for no reason. Its whole text is replaced, not spliced at the offset —
+a multi-line paste is a structural edit, and splitting a word in half to make the front of it a
+heading is not what anyone means by one.
+
+Each line is parsed on its own by `lib/blocks/paste.ts`, and a markdown marker at the start of a
+line converts that line's block. This needs its own parser: `detectMarkdownShortcut` matches a
+marker as a block's **entire** text (`"# "` triggers, `"# hello"` does not), which is right for
+typing — the conversion has to fire as the marker completes — and useless for a paste, where the
+marker always arrives with its line. The marker table is still the one authority; `paste.ts` hands
+it the marker alone and keeps the rest as text.
+
+`[x] ` is the one marker only a paste can carry. Nobody types it — you type `[] ` and click — so
+`detectMarkdownShortcut` does not know it, correctly, and `paste.ts` reads the checked state
+itself.
+
+One trailing newline is dropped, because that is how a copied paragraph ends rather than a request
+for an empty block after it. Blank lines *between* lines are kept: those are the person's own
+spacing.
+
+### Indenting a list item
+
+SRS §4.1 gives 목록 블록 nesting — "항목을 들여쓰기하여 중첩(하위 목록)할 수 있다" — and `depth`
+has carried it in the schema since the block model landed. `Tab` and `Shift+Tab` are what set it,
+and `lib/blocks/indent.ts` holds the rule.
+
+**Indent is capped by the block above, not by the block itself.** The new depth is
+`min(depth + 1, previousListDepth + 1)`, so an item can never end up more than one level deeper
+than the item above it. Without that cap a depth-2 item can sit under a depth-0 one and render as
+a child of nothing. A list item with no list above it therefore cannot indent at all, and a
+non-list block above ends the run — nesting under a paragraph is not something this model can
+express. Outdent has no such rule: a stray nested item must always be able to come back out,
+however it got there, so it is `max(depth - 1, 0)`.
+
+`MAX_LIST_DEPTH` is 5. Past that the text column is narrower than the indent that pushed it, which
+reads as broken rather than nested.
+
+**It is a bound on the model, not on the gesture.** `depth` arrives from storage and from the LAN,
+where nothing validates a write (`api.md` §2), so the ceiling has to hold for values no keypress
+produced. `listDepth()` in `document.ts` is the one normalizer, applied wherever a depth enters:
+`readBlocks`, `changeBlockType`, and `createList`.
+
+Clamping the low end is not enough, and the failure is not cosmetic. `orderedListNumbers` sizes an
+array from the depth — `counters.length = depth + 1` — so `depth: 4294967295` throws
+`RangeError: Invalid array length` and takes the whole editor's render down. A non-numeric value
+does the same, because `Math.trunc` of one is `NaN` and `counters.length = NaN` throws as well.
+`readBlocks` alone closes that path, since every rendered block comes through it; the other two are
+there so the value is never stored in the first place.
+
+**Tab is intercepted only on a list block.** Everywhere else it keeps its default and moves focus.
+Trapping Tab inside every textarea would leave a keyboard user unable to get out of the editor, and
+that trade — one key on one block type — is cheaper than an editor nobody can leave.
+
+Checklist blocks do not nest. SRS §4.1 gives nesting to 목록 only, and `TypeFields` carries `depth`
+only on `list`; extending it is a model change and an SRS question, not an oversight.
+
+Ordered numbering counts each depth separately, so an indented run starts its own `1.` and coming
+back out resumes the outer sequence. A counter is dropped when its level is left, which is what
+makes a second indented run under a different parent start at 1 rather than continue the first.
+
+#### A conversion must not flatten what it did not mention
+
+`changeBlockType` treats `TypeFields` as the whole target state and drops every owned field the
+caller did not name — deliberately, so a conversion cannot leave the previous type's fields behind.
+That is right for `level` and `checked`, and wrong for `depth`: **changing a bullet to a number is
+a style change, not a re-parenting**, and an item three levels in should stay three levels in.
+
+Neither caller can name the depth itself — the `/` menu's items are static and a markdown marker
+carries none — so `preservingDepth` (`lib/blocks/indent.ts`) carries it from the block being
+converted, at both call sites. This was invisible until Tab existed: while `depth` was always 0,
+there was nothing for a conversion to lose.
 
 ### Three places a drag can land
 

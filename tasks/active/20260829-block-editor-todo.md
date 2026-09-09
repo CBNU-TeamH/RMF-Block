@@ -276,6 +276,54 @@ shortcut.
 - **Border colour**: `style={{ borderColor }}`, not a dynamic Tailwind class. The JIT scans class
   strings at build time, so a class name assembled at runtime has no CSS behind it.
 - **Done**: two browsers focused on different blocks each see the other's coloured border.
+- **Shipped**: `lib/presence/occupancy.ts` (new, with `occupancy.test.mts`), `use-block-document.ts`,
+  `text-block.tsx`, `editor.tsx`. The provider change this section asked for (`client` exposed
+  through context, `fetchToken` staying put) turned out to already be done — both were already in
+  `presence-provider.tsx` from earlier work, so this milestone only needed to *consume* them, not
+  build them. One addition beyond this section's original write-up: a TTL/heartbeat, decided with
+  the user during planning. `activeBlockId` alone can't tell "still in this block" from "clicked
+  the sidebar ten minutes ago and never came back" — Yorkie only clears presence on detach, not on
+  losing DOM focus. Fix: the content presence carries `updatedAt`; focusing a block publishes it and
+  starts a 10s heartbeat that keeps refreshing it; losing focus stops the heartbeat without
+  publishing anything, so the border stays at its last position and fades on its own once
+  `updatedAt` is more than 30s stale (`OCCUPANCY_TTL_MS`/`OCCUPANCY_HEARTBEAT_MS` in
+  `occupancy.ts`). Scoped to text-bearing blocks only (text/heading/list/checklist/quote/code) —
+  PDF and divider have no focus mechanism yet, so occupancy for those is future work, not a gap in
+  this one. Self is excluded from `getOthersPresences()` by the SDK itself, so "only show other
+  people's borders" needed no extra filtering. Verified: `node --test lib/presence/occupancy.test.mts`
+  (6 cases — empty, single occupant, two different blocks, same-block-first-wins, TTL-expired,
+  TTL-still-fresh); `pnpm lint`, `pnpm test` (349), `tsc --noEmit`, `pnpm build` all pass.
+
+  **Two-browser live verification, done by the user**: border and TTL fade both confirmed working
+  as designed.
+
+  **Follow-up, same session**: a gutter avatar alongside the border, so occupancy is visible while
+  scrolling past a block rather than only once looking straight at it. `PresenceStack`'s
+  avatar-plus-hover-name markup was pulled into a shared `Avatar` component
+  (`app/(workspace)/presence-avatar.tsx`, its own scoped `group/avatar` so it drops into the block
+  row's existing `group` without fighting the drag handle's `group-hover` for hover state) —
+  `presence-stack.tsx` now calls it too, rather than keeping two copies of the same circle-and-
+  tooltip. `BlockPresence` gained `nickname` alongside `colorTag`, and `occupantColorsByBlock`
+  became `occupantsByBlock`, returning the whole occupant rather than just a color string. The
+  avatar sits in the same `-left-4` gutter the drag handle uses, at `top-6` instead of the handle's
+  `top-0.5` so a block that is both draggable-by-you and occupied-by-someone-else never overlaps
+  the two. Unlike the handle, it's always visible while occupied, not hover-only — the point is
+  noticing someone else mid-scroll.
+
+  **`/code-review low` and `/simplify` run before opening the PR**, from this Sonnet session:
+  `/code-review low` found nothing across either commit (empty findings, both passes). `/simplify`
+  found four real items, three applied: the drop-indicator-vs-occupant precedence check was
+  written twice (className and inline `style`) with inverted polarity — collapsed into one
+  `shownOccupant` value; the heartbeat and `setActiveBlockId` built an identical presence object —
+  pulled into a shared `publishActiveBlock`; the heartbeat and TTL-recheck were two separate
+  timers doing one conceptual job — merged into one, plus a `sameOccupants` equality check
+  (`occupancy.ts`) so a tick where nothing changed skips the state update and its re-render. A
+  fourth (extending `Avatar` to cover `presence-stack.tsx`'s `+N` badge too) was skipped as scope
+  creep into unrelated existing code for a single small duplication. A fifth suggestion from the
+  same pass — moving `colorTag`/`nickname` into a ref so a change wouldn't retrigger the whole
+  attach effect — was also skipped: grepped for any path that mutates an existing member's
+  nickname/color after join and found none, so the reattach this would prevent cannot currently
+  happen.
 
 ### 6. Undo / redo
 
@@ -301,7 +349,8 @@ shortcut.
 - [x] Hangul typed in the same block from both sides never loses a composing syllable — confirmed
       in a real browser (M2), not just the Step 0 spike
 - [ ] All seven block types render, edit, and convert between each other — text only so far
-- [ ] Occupancy is distinguishable per user and **does not block editing** (SIR003)
+- [x] Occupancy is distinguishable per user and **does not block editing** (SIR003) — text-bearing
+      blocks only; PDF/divider occupancy is future work (M5's Review note)
 - [ ] Ctrl+Z reverts only the local change
 - [ ] Restarting the app server leaves an open document's content intact (Phase 1 exit criteria)
 - [ ] Restarting the Yorkie container brings the same content back from MongoDB (Phase 1 exit

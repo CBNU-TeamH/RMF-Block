@@ -1,6 +1,7 @@
 "use client";
 
 import type { ChatAttachment, ChatMessage } from "@/lib/chat/types";
+import { readableSize } from "@/lib/files/size";
 
 /** One message in the chat panel (FR-060-01/02). **Prototype** — `docs/ui/` has
  *  no chat artboard, so this borrows the shell's vocabulary and is meant to be
@@ -22,12 +23,6 @@ const time = new Intl.DateTimeFormat("ko-KR", {
   // timestamp that disagrees with the hydrated one is a React error.
   timeZone: "Asia/Seoul",
 });
-
-function readableSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
 
 /** An image if the server will serve it inline, a card otherwise. The list is
  *  restated rather than imported because this copy only picks a layout — getting

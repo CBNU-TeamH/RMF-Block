@@ -1,5 +1,6 @@
 import { Text } from "@yorkie-js/sdk";
 
+import { MAX_LIST_DEPTH } from "./types.ts";
 import type {
   Block,
   BlockType,
@@ -47,6 +48,22 @@ const FALLBACK_HEADING_LEVEL: HeadingLevel = 1;
 /** Same reasoning: an unordered list is the plainer of the two. */
 const FALLBACK_LIST_STYLE: ListStyle = "unordered";
 
+/**
+ * A list's nesting level, from a value that is only *typed* as a number.
+ *
+ * `Math.max(0, Math.trunc(x))` is not enough on its own, and both holes are
+ * reachable from the LAN (`docs/design/api.md` §2): a non-numeric value yields
+ * `NaN`, and a huge one survives. Either then reaches `orderedListNumbers`,
+ * whose `counters.length = depth + 1` throws `RangeError: Invalid array
+ * length` and takes the whole editor's render with it.
+ */
+export function listDepth(value: unknown): number {
+  const depth = Math.trunc(Number(value));
+  if (!Number.isFinite(depth)) return 0;
+
+  return Math.min(Math.max(0, depth), MAX_LIST_DEPTH);
+}
+
 const textOf = (content: StoredContent | undefined): string =>
   content?.text?.toString() ?? "";
 
@@ -90,8 +107,7 @@ function readBlock(stored: StoredBlock | null): Block | null {
         id,
         type: "list",
         style: content?.style ?? FALLBACK_LIST_STYLE,
-        // A negative depth would indent backwards out of the document.
-        depth: Math.max(0, Math.trunc(content?.depth ?? 0)),
+        depth: listDepth(content?.depth),
         text: textOf(content),
       };
 

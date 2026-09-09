@@ -1,8 +1,18 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { createDivider, createText } from "@/lib/blocks/create";
+import {
+  createChecklist,
+  createCode,
+  createDivider,
+  createDocLink,
+  createHeading,
+  createList,
+  createQuote,
+  createText,
+} from "@/lib/blocks/create";
 import { BLOCK_KINDS, continuationBlock, isTextBearing } from "@/lib/blocks/registry";
 import type { SlashAction } from "@/lib/blocks/slash-menu";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot, type StoredBlock } from "@/lib/blocks/document";
@@ -17,6 +27,8 @@ import {
   removeBlock,
   type BlockArray,
 } from "@/lib/blocks/operations";
+import { indentedDepth, preservingDepth } from "@/lib/blocks/indent";
+import { parsePaste, type PastedLine } from "@/lib/blocks/paste";
 import { orderedListNumbers } from "@/lib/blocks/list-numbering";
 import {
   dropDestination,
@@ -26,15 +38,20 @@ import {
 } from "@/lib/blocks/reorder";
 import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
+import { HOST_PRESENCE } from "@/lib/presence/types";
 
 import { useFocusFollow } from "../../focus-follow-provider";
+import { Avatar } from "../../presence-avatar";
 import { useWorkspacePresence } from "../../presence-provider";
 import { DividerBlockView } from "./divider-block";
+import { DocLinkBlockView } from "./doc-link-block";
+import { FileBlockView } from "./file-block";
+import { ImageBlockView } from "./image-block";
 import { PdfBlockView } from "./pdf-block";
 import { TextBlockView, type BlockVariant } from "./text-block";
 import { useBlockDocument } from "./use-block-document";
 import { useFocusPresence } from "./use-focus-presence";
-import { usePdfUpload } from "./use-pdf-upload";
+import { useFileUpload } from "./use-file-upload";
 
 /** Exhaustive on purpose — the `never` below makes a seventh text-bearing type a
  *  compile error rather than a block that silently renders as plain text. */
@@ -69,14 +86,42 @@ function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
   }
 }
 
+/** One nesting level, in px. Matches the 24px marker slot beside the text, so an
+ *  indented item's bullet lands where its parent's text starts. */
+const INDENT_STEP = 24;
+
+/** How far a block is pushed in. Only a list nests (SRS §4.1), so everything
+ *  else is flush. */
+function indentOf(block: Block): number {
+  return block.type === "list" ? block.depth * INDENT_STEP : 0;
+}
+
 /** One document's blocks and every edit made to them (FR-022-01~04, FR-022-09).
  *  Attaching and subscribing are `useBlockDocument`'s, following a presenter is
  *  `useFocusPresence`'s. The rules this holds to: `docs/design/document-editing.md`. */
 export function DocumentEditor({ documentId }: { documentId: string }) {
-  const { client, members, isPresenting, setPresenting } = useWorkspacePresence();
+  const router = useRouter();
+  const { client, members, memberId, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId } = useFocusFollow();
-  const { blocks, setBlocks, failed, docRef, registerRemoteHandler, patchBlockText } =
-    useBlockDocument(client, documentId);
+  // Falls back to a neutral color/blank name before the roster carries this
+  // browser's own entry yet — `useBlockDocument`'s attach doesn't wait on it.
+  const me = useMemo(
+    () => members.find((member) => member.id === memberId),
+    [members, memberId],
+  );
+  const colorTag = me?.colorTag ?? HOST_PRESENCE.colorTag;
+  const nickname = me?.nickname ?? "";
+  const {
+    blocks,
+    setBlocks,
+    failed,
+    docRef,
+    registerRemoteHandler,
+    patchBlockText,
+    history,
+    occupantByBlock,
+    setActiveBlockId,
+  } = useBlockDocument(client, documentId, colorTag, nickname);
   // Opacity feedback only. Cleared on `dragend` as well as on drop — a drag
   // cancelled outside any block never fires `onDrop`.
   const [draggedId, setDraggedId] = useState<BlockId | null>(null);
@@ -93,11 +138,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   // The footer's hidden file input, so the `/` menu's PDF item can open the
   // same picker the button does rather than growing a second one…
-  const pdfInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   // …and where the block should land when it does. The picker is a native
   // dialog with its own lifetime, so the anchor cannot be an argument — it has
   // to wait somewhere until `change` fires, or be forgotten if it never does.
-  const pdfAnchorRef = useRef<BlockId | null>(null);
+  const fileAnchorRef = useRef<BlockId | null>(null);
   // Reaches a block's live textarea by id, to focus it after a split or merge.
   // `useCallback` is load-bearing: `text-block.tsx` memoizes on this reference,
   // so an inline arrow would re-add the Map entry every render.
@@ -218,7 +263,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     if (blockId) focusBlock(blockId, 0);
   };
 
-  const { uploading, uploadError, uploadPdfs } = usePdfUpload({
+  const { uploading, uploadError, uploadFiles } = useFileUpload({
     documentId,
     applyEdit,
     liveBlockOf,
@@ -230,7 +275,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     applyEdit((root, blocks) => {
       const current = liveTextOf(root, blockId);
       editBlockText(blocks, blockId, 0, current.length, "");
-      changeBlockType(blocks, blockId, shortcut);
+      changeBlockType(blocks, blockId, preservingDepth(shortcut, blockOf(blockId)));
     });
   };
 
@@ -243,6 +288,101 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     });
   };
 
+  /** A block as `blocks` state has it — for the two questions state is reliable
+   *  for: what type a block is, and how deep. Never for its text. */
+  const blockOf = (blockId: BlockId) => blocks?.find((block) => block.id === blockId);
+
+  /** Tab / Shift+Tab on a list item. `indentedDepth` returns `null` for a move
+   *  that is not allowed — the first item in a run, one already at the cap —
+   *  and that is a no-op, not an error: the key simply does nothing there.
+   *
+   *  Read from `blocks` state rather than live, unlike every other edit here.
+   *  The rule is about *order* — which block sits above this one and how deep
+   *  it is — and order is the one thing that state is reliable for. */
+  const handleIndent = (blockId: BlockId, direction: "in" | "out") => {
+    if (!blocks) return;
+
+    const depth = indentedDepth(blocks, blockId, direction);
+    if (depth === null) return;
+
+    const block = blockOf(blockId);
+    if (block?.type !== "list") return;
+
+    applyEdit((_root, arr) =>
+      changeBlockType(arr, blockId, { type: "list", style: block.style, depth }),
+    );
+  };
+
+  /**
+   * `/페이지`: a new document **inside this one**, linked from here, opened.
+   *
+   * Three things, in an order that cannot strand any of them — the document
+   * first, so a link is never written to an id the catalogue does not have; the
+   * block second, while this editor is still mounted; the navigation last.
+   * Failing at step one leaves nothing behind, and the dialog says so.
+   *
+   * The new page is a **child**, which is what keeps it in the tree rather than
+   * only in this document's blocks: the workspace tree reads the catalogue, and
+   * `parentId` is what puts it under the page it was created from.
+   */
+  const [newPageAnchor, setNewPageAnchor] = useState<BlockId | null>(null);
+  const [newPageName, setNewPageName] = useState("");
+  const [newPageError, setNewPageError] = useState<string | null>(null);
+  const [creatingPage, setCreatingPage] = useState(false);
+
+  const createPage = async () => {
+    if (newPageAnchor === null) return;
+
+    setCreatingPage(true);
+    setNewPageError(null);
+
+    try {
+      const response = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newPageName, parentId: documentId }),
+      });
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setNewPageError(body.error ?? "페이지를 만들지 못했습니다.");
+        return;
+      }
+
+      const created = body.document.id;
+      const placed = applyEdit((_root, blocks) =>
+        insertBlockAfter(blocks, newPageAnchor, toStoredBlock(createDocLink(created))),
+      );
+
+      // The page exists either way; only the link back to it is missing, and a
+      // document with no inbound link is still in the tree.
+      if (!placed) console.warn("페이지는 만들었지만 링크 블록을 넣지 못했습니다.");
+
+      setNewPageAnchor(null);
+      router.push(`/documents/${created}`);
+    } catch {
+      setNewPageError("서버에 연결할 수 없습니다.");
+    } finally {
+      setCreatingPage(false);
+    }
+  };
+
+  /** The block a picked document link goes after, or `null` while the picker is
+   *  closed. Two pieces of state, not one: the list arrives asynchronously and
+   *  the dialog has to open before it does. */
+  const [linkAnchor, setLinkAnchor] = useState<BlockId | null>(null);
+  const [linkChoices, setLinkChoices] = useState<Array<{ id: string; name: string }>>([]);
+
+  /** Inserts the link and closes the picker. */
+  const insertDocLink = (documentId: string) => {
+    if (linkAnchor === null) return;
+
+    const block = toStoredBlock(createDocLink(documentId));
+    applyEdit((_root, blocks) => insertBlockAfter(blocks, linkAnchor, block));
+    setLinkAnchor(null);
+    setLinkChoices([]);
+  };
+
   /** A `/` menu choice (UC-022 기본 흐름 1). `text-block.tsx` has already cleared
    *  the query, so the block is empty and ready to become what was picked. */
   const handleSlashSelect = (blockId: BlockId, action: SlashAction) => {
@@ -250,7 +390,9 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       // The block keeps its id and its `yorkie.Text`, so a peer typing into it
       // through the conversion keeps their characters — `changeBlockType`'s own
       // contract, the same one the markdown shortcuts rely on.
-      applyEdit((_root, blocks) => changeBlockType(blocks, blockId, action.fields));
+      applyEdit((_root, blocks) =>
+        changeBlockType(blocks, blockId, preservingDepth(action.fields, blockOf(blockId))),
+      );
       return;
     }
 
@@ -265,8 +407,26 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       return;
     }
 
-    pdfAnchorRef.current = blockId;
-    pdfInputRef.current?.click();
+    if (action.kind === "new-page") {
+      setNewPageAnchor(blockId);
+      setNewPageName("");
+      setNewPageError(null);
+      return;
+    }
+
+    if (action.kind === "link-document") {
+      // The catalogue is fetched when the picker opens, not held in this
+      // component: it changes from other browsers (FR-021-06) and a list read
+      // at mount would be stale by the time anyone opened this.
+      setLinkAnchor(blockId);
+      void fetch("/api/documents")
+        .then((response) => (response.ok ? response.json() : { documents: [] }))
+        .then((body) => setLinkChoices(body.documents ?? []));
+      return;
+    }
+
+    fileAnchorRef.current = blockId;
+    fileInputRef.current?.click();
   };
 
   /** Enter (FR-022-01): trim at the caret, insert the tail after. The new block
@@ -308,6 +468,72 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     if (trimmed) patchBlockText(blockId, trimmed);
 
     focusBlock(newBlockId ?? blockId, 0);
+  };
+
+  /** The empty block a pasted line becomes, before its text is written into it.
+   *  `create.ts` is the one place a block of each type is built. */
+  const blockFor = (fields: PastedLine["fields"]): Block => {
+    switch (fields.type) {
+      case "heading":
+        return createHeading(fields.level);
+      case "list":
+        return createList(fields.style);
+      case "checklist":
+        // `createChecklist` is always unchecked — "a task that is already done
+        // is not a task anyone adds" — which holds for a new one and not for a
+        // pasted one, where `[x]` is the whole point of writing it.
+        return { ...createChecklist(), checked: fields.checked };
+      case "quote":
+        return createQuote();
+      case "code":
+        return createCode();
+      case "text":
+        return createText();
+    }
+  };
+
+  /**
+   * A paste carrying newlines (FR-022-01). The first line replaces the pasted-into
+   * block's text and takes its type; the rest become blocks after it. Why a
+   * single-line paste never reaches here: `docs/design/document-editing.md`,
+   * "Pasting more than one line".
+   */
+  const handlePaste = (blockId: BlockId, text: string) => {
+    if (!blocks) return;
+
+    const lines = parsePaste(text);
+    const first = lines[0];
+    if (!first) return;
+
+    let lastId: BlockId = blockId;
+    // What the document did to the pasted-into block, so the same can be done to
+    // its textarea afterwards — the shape `handleSplit` uses for the same reason.
+    let replaced: TextPatch | null = null;
+
+    const applied = applyEdit((root, array) => {
+      // The first line lands in the block that already has the caret. Its whole
+      // text is replaced rather than inserted into: a multi-line paste is a
+      // structural edit, and splitting a word into a heading is not what anyone
+      // means by one.
+      const liveText = liveTextOf(root, blockId);
+      changeBlockType(array, blockId, preservingDepth(first.fields, blockOf(blockId)));
+      editBlockText(array, blockId, 0, liveText.length, first.text);
+      replaced = { from: 0, to: liveText.length, value: { content: first.text } };
+
+      for (const line of lines.slice(1)) {
+        const block = toStoredBlock(blockFor(line.fields));
+        insertBlockAfter(array, lastId, block);
+        if (line.text) editBlockText(array, block.id, 0, 0, line.text);
+        lastId = block.id;
+      }
+    });
+
+    if (!applied) return;
+
+    // Same reason as a split: the textarea is uncontrolled and read its text
+    // once, so the document's change has to be shown to it by hand (#59).
+    if (replaced) patchBlockText(blockId, replaced);
+    focusBlock(lastId, lines[lines.length - 1]!.text.length);
   };
 
   /** Backspace at offset 0 (FR-022-03): append to the previous block, remove this
@@ -429,7 +655,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     // the file lands where the pointer is (UC-022 기본 흐름 1).
     const files = droppedFiles(event);
     if (files.length > 0) {
-      void uploadPdfs(files, before ? idBeforeInOrder(order, targetId) : targetId);
+      void uploadFiles(files, before ? idBeforeInOrder(order, targetId) : targetId);
       return;
     }
 
@@ -463,7 +689,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         // position among its siblings never shifts across a type conversion —
         // the thing that was remounting it (and dropping focus) when the marker
         // used to live conditionally inside `TextBlockView` itself.
-        <div className="flex items-start gap-2">
+        // `paddingLeft`, not a Tailwind class: depth is data with a range, and a
+        // class per level would be five names for one arithmetic. The `<div>`
+        // stays the same element at every depth, so nothing remounts and the
+        // caret survives an indent.
+        <div className="flex items-start gap-2" style={{ paddingLeft: indentOf(block) }}>
           <span className="mt-0.5 flex size-6 shrink-0 justify-center text-[14px] text-ink-faint select-none">
             {block.type === "checklist" ? (
               <input
@@ -494,6 +724,10 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
             onNavigateDown={handleNavigateDown}
             onTextCommitted={ensureTrailingEmptyBlock}
             onSlashSelect={handleSlashSelect}
+            onFocusBlock={setActiveBlockId}
+            onIndent={handleIndent}
+            onPasteBlocks={handlePaste}
+            onHistory={history}
           />
         </div>
       );
@@ -505,14 +739,19 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
 
     switch (surface) {
       case "embed":
-        // PDF is the only embed with a renderer: the image and generic-file
-        // legs of FR-022-14 are refused at the upload endpoint until they have
-        // one, so a block of either kind can only have come from elsewhere.
-        return block.type === "pdf" ? (
-          <PdfBlockView block={block} onDelete={handleDeleteBlock} />
-        ) : (
-          <UnsupportedBlock type={block.type} />
-        );
+        // All three embeds render now (FR-022-13, FR-022-14). Which one a file
+        // becomes is decided from its bytes at upload, never from what the
+        // request claimed — `docs/design/api.md` §1.
+        switch (block.type) {
+          case "pdf":
+            return <PdfBlockView block={block} onDelete={handleDeleteBlock} />;
+          case "image":
+            return <ImageBlockView block={block} onDelete={handleDeleteBlock} />;
+          case "file":
+            return <FileBlockView block={block} onDelete={handleDeleteBlock} />;
+          default:
+            return <UnsupportedBlock type={block.type} />;
+        }
 
       case "none":
         return block.type === "divider" ? (
@@ -524,7 +763,13 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
       // The two link blocks wait on the document tree (UC-021/023), which is
       // what would give them a `documentId` to point at.
       case "link":
-        return <UnsupportedBlock type={block.type} />;
+        // `block-link` (SRS type 12) has no creator yet — it needs a way to
+        // point at one block inside a document, which nothing offers.
+        return block.type === "doc-link" ? (
+          <DocLinkBlockView block={block} onDelete={handleDeleteBlock} />
+        ) : (
+          <UnsupportedBlock type={block.type} />
+        );
 
       default: {
         // Not padding: a fifth `BlockSurface` stops this compiling until it has
@@ -571,17 +816,29 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           return;
         }
         // The padding strip beside the blocks: nothing to drop onto, so no
-        // `preventDefault` and the line is cleared (document-editing.md).
+        // `preventDefault` and the line is cleared — `document-editing.md`,
+        // "Three places a drag can land".
         setDropIndicator(null);
       }}
       onDrop={(event) => {
         const files = droppedFiles(event);
         if (files.length === 0) return;
         event.preventDefault();
-        void uploadPdfs(files, null);
+        void uploadFiles(files, null);
       }}
     >
-      {blocks.map((block, index) => (
+      {blocks.map((block, index) => {
+        const occupant = occupantByBlock.get(block.id);
+        // The drop indicator wins outright while dragging over this block's
+        // border — an occupant's box outline and the before/after line would
+        // otherwise fight over the same border sides. The gutter avatar below
+        // has no such conflict (a different visual channel), so it keeps
+        // using `occupant` directly. One value, read by both the className
+        // and the style below, rather than the same condition written twice
+        // with inverted polarity.
+        const shownOccupant = dropIndicator?.targetId === block.id ? undefined : occupant;
+
+        return (
         // `group`/`relative` here, not on the drag handle: the handle needs
         // to be positioned against this block and shown only while this
         // block's own textarea has focus (`group-focus-within`), pure CSS —
@@ -596,8 +853,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               ? dropIndicator.before
                 ? "border-t-2 border-sky-deep"
                 : "border-b-2 border-sky-deep"
-              : ""
+              : shownOccupant
+                ? "rounded-md border-2"
+                : ""
           }`}
+          style={shownOccupant ? { borderColor: shownOccupant.colorTag } : undefined}
           onDragOver={(event) => {
             event.preventDefault();
             // The container below also listens, to notice the pointer
@@ -635,9 +895,24 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               <circle cx="7.5" cy="13.5" r="1.5" />
             </svg>
           </span>
+          {/* Always visible, unlike the drag handle above it — the point is
+           * noticing someone else mid-scroll, not only on hover. `top-6`
+           * keeps it clear of the handle's `top-0.5` on a block that is both
+           * draggable-by-you and occupied-by-someone-else at once. */}
+          {occupant ? (
+            <span className="absolute -left-4 top-6">
+              <Avatar
+                colorTag={occupant.colorTag}
+                label={occupant.nickname.slice(0, 1)}
+                name={occupant.nickname}
+                size="size-5"
+              />
+            </span>
+          ) : null}
           {rowFor(block, index)}
         </div>
-      ))}
+        );
+      })}
 
       {/* Below the document rather than above it: this appends, and the
        * button sitting where the new block will appear is less surprising
@@ -674,11 +949,10 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
             uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-sky-soft"
           }`}
         >
-          PDF 추가
+          파일 추가
           <input
-            ref={pdfInputRef}
+            ref={fileInputRef}
             type="file"
-            accept="application/pdf,.pdf"
             multiple
             disabled={uploading}
             className="hidden"
@@ -689,9 +963,9 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
               event.target.value = "";
               // Set only when the `/` menu opened this picker; the button below
               // leaves it null, which still means "at the end".
-              const anchor = pdfAnchorRef.current;
-              pdfAnchorRef.current = null;
-              if (files.length > 0) void uploadPdfs(files, anchor);
+              const anchor = fileAnchorRef.current;
+              fileAnchorRef.current = null;
+              if (files.length > 0) void uploadFiles(files, anchor);
             }}
           />
         </label>
@@ -702,10 +976,109 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           <span className="text-[11px] text-red-600">{uploadError}</span>
         ) : (
           <span className="text-[11px] text-ink-faint">
-            PDF 파일을 문서에 끌어다 놓을 수도 있습니다.
+            파일을 문서에 끌어다 놓을 수도 있습니다.
           </span>
         )}
       </div>
+
+      {/* `/페이지`'s one question. A name is asked for rather than defaulted to
+        * "제목 없음": nothing in the editor renames a document yet, so a
+        * placeholder name would be one nobody could change from here. */}
+      {newPageAnchor !== null ? (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 p-6">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void createPage();
+            }}
+            className="flex w-full max-w-sm flex-col gap-3 rounded-lg border border-ink bg-paper p-5"
+          >
+            <h2 className="text-base font-bold text-ink">이 문서 안에 새 페이지</h2>
+
+            <label className="flex flex-col gap-1 text-sm text-ink-soft">
+              페이지 이름
+              <input
+                autoFocus
+                value={newPageName}
+                onChange={(event) => setNewPageName(event.target.value)}
+                disabled={creatingPage}
+                className={`rounded-md border bg-paper-2 px-3 py-2 text-base text-ink ${
+                  newPageError ? "border-red-600" : "border-ink"
+                }`}
+              />
+            </label>
+
+            {newPageError ? (
+              <p className="text-[12px] text-red-600">{newPageError}</p>
+            ) : null}
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setNewPageAnchor(null)}
+                disabled={creatingPage}
+                className="rounded-md border border-ink bg-paper px-3 py-1.5 text-[12px] font-semibold text-ink"
+              >
+                취소
+              </button>
+              <button
+                type="submit"
+                disabled={creatingPage}
+                className="rounded-md border border-sky-deep bg-sky px-3 py-1.5 text-[12px] font-bold text-ink disabled:opacity-60"
+              >
+                {creatingPage ? "만드는 중…" : "만들고 이동"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {/* Rendered only while open, so the fetch that fills it cannot land in a
+        * dialog nobody asked for. A plain overlay rather than `<dialog>`: this
+        * one has nothing to trap focus away from — the editor behind it is what
+        * the person is choosing a link *for*. */}
+      {linkAnchor !== null ? (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 p-6">
+          <div className="max-h-[70vh] w-full max-w-sm overflow-y-auto rounded-lg border border-ink bg-paper p-4">
+            <h2 className="mb-3 text-base font-bold text-ink">어느 문서로 링크할까요?</h2>
+
+            {linkChoices.length === 0 ? (
+              <p className="py-6 text-center text-[13px] text-ink-faint">
+                연결할 다른 문서가 없습니다.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {linkChoices
+                  // Not this one: a document linking to itself is a loop a
+                  // reader can only get out of with the back button.
+                  .filter((choice) => choice.id !== documentId)
+                  .map((choice) => (
+                    <li key={choice.id}>
+                      <button
+                        type="button"
+                        onClick={() => insertDocLink(choice.id)}
+                        className="w-full truncate rounded-md px-3 py-2 text-left text-[13px] text-ink hover:bg-sky-soft"
+                      >
+                        {choice.name}
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setLinkAnchor(null);
+                setLinkChoices([]);
+              }}
+              className="mt-3 w-full rounded-md border border-ink bg-paper px-3 py-1.5 text-[12px] font-semibold text-ink"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
