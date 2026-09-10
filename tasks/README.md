@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Testing strategy doc (issue #66, track C2)](active/20260910-testing-strategy-doc-todo.md) | [lessons](active/20260910-testing-strategy-doc-lessons.md) |
 | [Component tests for issue #39's three regression bugs](active/20260910-component-tests-todo.md) | [lessons](active/20260910-component-tests-lessons.md) |
 | [Vitest runner migration (Phase 2, track C4)](active/20260909-vitest-runner-migration-todo.md) | [lessons](active/20260909-vitest-runner-migration-lessons.md) |
 | [Exempt small files from the comment budget, and close out #65's gate](active/20260909-comment-budget-small-file-exemption-todo.md) | [lessons](active/20260909-comment-budget-small-file-exemption-lessons.md) |

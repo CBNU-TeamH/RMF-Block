@@ -65,7 +65,7 @@ Which document to open for which job.
 | --- | --- |
 | Requirements · module design · ADRs · UI wireframes ([`docs/ui/`](docs/ui/)) | [`docs/`](docs/) |
 | Code conventions | [`docs/conventions.md`](docs/conventions.md) |
-| Test strategy | Doesn't exist yet — arrives with Phase 2 (#66)'s Vitest migration |
+| Test strategy | [`docs/testing.md`](docs/testing.md) |
 | Lint / format config | [`eslint.config.mjs`](eslint.config.mjs) |
 | Open work and its status | [`tasks/`](tasks/) (`tasks/active/`, `tasks/archive/`) |
 | The overall plan | [`ROADMAP.md`](ROADMAP.md) |
