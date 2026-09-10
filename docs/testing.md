@@ -36,7 +36,7 @@ value that mattered was checked.
 | `lib/` + `server/` — pure logic | Does the logic behave correctly in isolation? | Vitest, `environment: "node"`, `node:assert/strict` | In place |
 | `app/` client components (`"use client"`) | Did the right thing render, and does it react correctly to focus, event order, and async completion? | Vitest + `@testing-library/react` / `@testing-library/user-event`, opt into a DOM with `// @vitest-environment happy-dom` | 3 regression tests landed (#39) |
 | `app/` server components — async leaves | Does the server-only gate, redirect, or lookup run correctly before anything reaches the client? | Call `await Page(props)` directly with `next/headers`/`next/navigation` mocked; assert on the thrown redirect/`notFound`, or on the returned element's props | Tier 1 landed (4 files, 7 tests) |
-| `app/api/**/route.ts` — route handlers | Does the auth gate reject before touching data, and does an error map to the right status code? | Call the exported `GET`/`POST`/etc. directly with a constructed `Request` | Not started |
+| `app/api/**/route.ts` — route handlers | Does the auth gate reject before touching data, and does an error map to the right status code? | Call the exported `GET`/`POST`/etc. directly with a constructed `Request` | Landed (11 files, 8 with an auth-gate test, 22 tests) |
 
 ### `lib/` + `server/`
 
@@ -131,6 +131,18 @@ runs before body parsing is even attempted, so an invalid body never gets far en
 validated. The handler's business logic — `createDocument`, `readDocuments`, and the like — is
 already `lib/`'s job and already tested there; a route-handler test is not the place to re-test
 it.
+
+**Landed**: 11 route handlers exist (not the "~10" an earlier estimate used), of which 8 have an
+auth gate to test — either their own inline check (`app/api/documents/route.ts`, `app/api/documents/[id]/route.ts`'s
+private `requireMember()`, `app/api/auth/yorkie-token/route.ts`'s own variant), or the shared
+`lib/auth/current-member.ts` helper five routes delegate to (tested once, at that layer, rather
+than duplicated five times). The other 3 (`auth/host`, `workspace/join`, `internal/yorkie/auth`)
+get no gate test — they're credential-issuing or self-authenticating endpoints the rule doesn't
+apply to. One thing worth stating plainly: **a gate test needs both directions**, not just "rejects
+when everything is falsy" — a first pass on `app/api/documents/route.ts` only tested the all-false case,
+and a mutation flipping its `&&` to `||` passed anyway, because both operators agree when every
+input is false. Adding the "succeeds when one side is true" case is what actually pins the
+operator down.
 
 ## Vitest worker count — symptom and remedy
 
