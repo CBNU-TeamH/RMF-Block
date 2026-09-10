@@ -1,10 +1,12 @@
 // Shared by comment-budget.mjs and verify-docs.mjs so the promotion date and
 // its message live in exactly one place.
 //
-// 2026-09-23 is #65's gate date: comment-budget promotes from a local-only
-// check to a required CI check once the gate's own criteria (zero false
-// positives, the promotion loop actually running) are confirmed. See
-// docs/conventions.md and AGENTS.md §7.
+// 2026-09-23 is when comment-budget could promote from a local-only check to
+// a required CI check. Its own two criteria (zero false positives, the
+// promotion loop actually running) are already met — closed via #65. What's
+// still open is whether to also wait on the review-quality criteria #92
+// tracks (does /code-review ever cite docs/conventions.md, etc.) before
+// flipping --strict on. See docs/conventions.md and AGENTS.md §7.
 export const COMMENT_BUDGET_PROMOTION_DATE = "2026-09-23";
 
 export function promotionNotice(today = new Date()) {
