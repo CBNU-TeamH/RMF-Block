@@ -34,7 +34,7 @@ value that mattered was checked.
 | Layer | A test here answers | How | Status |
 | --- | --- | --- | --- |
 | `lib/` + `server/` — pure logic | Does the logic behave correctly in isolation? | Vitest, `environment: "node"`, `node:assert/strict` | In place |
-| `app/` client components (`"use client"`) | Did the right thing render, and does it react correctly to focus, event order, and async completion? | Vitest + `@testing-library/react` / `@testing-library/user-event`, opt into a DOM with `// @vitest-environment happy-dom` | Not started |
+| `app/` client components (`"use client"`) | Did the right thing render, and does it react correctly to focus, event order, and async completion? | Vitest + `@testing-library/react` / `@testing-library/user-event`, opt into a DOM with `// @vitest-environment happy-dom` | 3 regression tests landed (#39) |
 | `app/` server components — async leaves | Does the server-only gate, redirect, or lookup run correctly before anything reaches the client? | `render(await Page(props))` with `next/headers`/`next/navigation` mocked | Not started |
 | `app/api/**/route.ts` — route handlers | Does the auth gate reject before touching data, and does an error map to the right status code? | Call the exported `GET`/`POST`/etc. directly with a constructed `Request` | Not started |
 
