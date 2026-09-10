@@ -42,10 +42,22 @@ describe("WorkspaceLayout — auth gate", () => {
     );
   });
 
-  it("does not redirect when a host cookie or a session is present", async () => {
+  it("does not redirect when the host cookie is present", async () => {
     vi.mocked(cookies).mockResolvedValue(jar as never);
     vi.mocked(isHostSecret).mockReturnValue(true);
     vi.mocked(sessionRegistry.resolve).mockReturnValue(null);
+
+    await WorkspaceLayout({ children: null });
+  });
+
+  it("does not redirect when a session is present", async () => {
+    vi.mocked(cookies).mockResolvedValue(jar as never);
+    vi.mocked(isHostSecret).mockReturnValue(false);
+    vi.mocked(sessionRegistry.resolve).mockReturnValue({
+      id: "member-1",
+      nickname: "누군가",
+      colorTag: "#ef4444",
+    });
 
     await WorkspaceLayout({ children: null });
   });

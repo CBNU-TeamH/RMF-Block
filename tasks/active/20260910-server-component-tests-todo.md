@@ -7,7 +7,7 @@
 
 ## Milestones
 
-### 1. Four Tier-1 tests, one per named risk
+### 1. Four Tier-1 test files, one per named risk
 
 - **What**: `app/(workspace)/layout.tsx`'s auth gate (FR-020-04), `app/join/page.tsx`'s
   already-signed-in redirect, `app/(workspace)/documents/[id]/page.tsx`'s `notFound` for an
@@ -18,9 +18,10 @@
   `notFound()` really `throw` in `next@16.2.12` (confirmed against `node_modules/next/dist/...`),
   so the three gate/redirect/not-found cases are `assert.rejects`, not `render()`; the join case
   is a direct check on the returned element's `props`.
-- **Done**: 6 tests total (2 for the auth gate — fires and doesn't; 2 for the join-page redirect —
-  host cookie and existing session, each a separate branch of the `||`; 1 for `notFound`; 1 for
-  the creator join, covering both the resolved and null cases in one fixture). Verified the auth
+- **Done**: 7 tests total (3 for the auth gate — fires, holds open on a host cookie, holds open
+  on a session, each a separate branch; 2 for the join-page redirect — host cookie and existing
+  session, each a separate branch of the `||`; 1 for `notFound`; 1 for the creator join, covering
+  both the resolved and null cases in one fixture). Verified the auth
   gate test actually catches a regression by temporarily flipping its `&&` to `||` locally,
   confirming the "does not redirect" test fails, then reverting — clean and fast, no hang (unlike
   one case in the client-component tier's own verification).
@@ -37,7 +38,7 @@
 
 ## Acceptance
 
-- [x] `pnpm test` — all 37 files / 465 tests pass (459 existing + 6 new), unmodified.
+- [x] `pnpm test` — all 37 files / 466 tests pass (459 existing + 7 new), unmodified.
 - [x] The auth gate test confirmed to actually fail against a broken gate (temporarily flipped
       locally, confirmed failure, reverted).
 - [x] `pnpm lint` / `pnpm build` clean.
