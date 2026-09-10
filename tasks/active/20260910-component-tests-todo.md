@@ -33,14 +33,15 @@
 - [x] `pnpm test` — all 33 files / 459 tests pass (456 existing + 3 new), unmodified.
 - [x] Both fixes' tests confirmed to actually fail against the pre-fix code (temporarily reverted
       locally, confirmed failure, reverted back — not just reasoned about).
-- [ ] `pnpm lint` / `pnpm build` clean.
-- [ ] `pnpm verify:docs` clean.
+- [x] `pnpm lint` / `pnpm build` clean.
+- [x] `pnpm verify:docs` clean.
 
 ## Cross-cutting
 
-Docs-only follow-up, not in this PR: `docs/testing.md`'s "app/ client components" row still says
-"Not started" — it's on `docs/testing-strategy` (#88), which hadn't merged yet when this branch
-was cut from `main`. Update that row once #88 lands.
+`docs/testing.md`'s "app/ client components" row said "Not started" when this branch was first
+cut from `main` (`docs/testing-strategy`/#88 hadn't merged yet). #88 merged mid-task; merged
+`main` into this branch and updated that row to "3 regression tests landed (#39)" in the same PR
+— done, not a follow-up.
 
 No SRS requirement — this is harness/test-infrastructure work under #66/#67.
 
