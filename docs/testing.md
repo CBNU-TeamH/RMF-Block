@@ -48,10 +48,11 @@ why it already has the most tests.
 
 The motivating cases are the three bugs [#39](https://github.com/CBNU-TeamH/RMF-Block/issues/39)
 lists, and all three are the same shape: **"where did focus go," "in what order did the events
-arrive," and "what happened to the in-flight request during unmount."** None of the three is "what
-is in the DOM" — a `querySelector` assertion would not have caught any of them. That's the actual
-case for `@testing-library/user-event` over a lighter DOM-inspection approach: the bugs that
-motivated this layer are about interaction sequencing, not markup.
+arrive," and "is a dismiss action blocked while a request it would contradict is still in
+flight."** None of the three is "what is in the DOM" — a `querySelector` assertion would not have
+caught any of them. That's the actual case for `@testing-library/user-event` over a lighter
+DOM-inspection approach: the bugs that motivated this layer are about interaction sequencing, not
+markup.
 
 Every `"use client"` file is a candidate. A new component test is required whenever a fix lands
 for a bug of this shape — not proactively for every component that happens to exist.
