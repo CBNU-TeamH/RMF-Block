@@ -35,7 +35,7 @@ value that mattered was checked.
 | --- | --- | --- | --- |
 | `lib/` + `server/` — pure logic | Does the logic behave correctly in isolation? | Vitest, `environment: "node"`, `node:assert/strict` | In place |
 | `app/` client components (`"use client"`) | Did the right thing render, and does it react correctly to focus, event order, and async completion? | Vitest + `@testing-library/react` / `@testing-library/user-event`, opt into a DOM with `// @vitest-environment happy-dom` | 3 regression tests landed (#39) |
-| `app/` server components — async leaves | Does the server-only gate, redirect, or lookup run correctly before anything reaches the client? | `render(await Page(props))` with `next/headers`/`next/navigation` mocked | Not started |
+| `app/` server components — async leaves | Does the server-only gate, redirect, or lookup run correctly before anything reaches the client? | Call `await Page(props)` directly with `next/headers`/`next/navigation` mocked; assert on the thrown redirect/`notFound`, or on the returned element's props | Tier 1 landed (4 files, 6 tests) |
 | `app/api/**/route.ts` — route handlers | Does the auth gate reject before touching data, and does an error map to the right status code? | Call the exported `GET`/`POST`/etc. directly with a constructed `Request` | Not started |
 
 ### `lib/` + `server/`
@@ -60,18 +60,24 @@ for a bug of this shape — not proactively for every component that happens to 
 ### `app/` server components — async leaves
 
 All of this repo's async server components are **leaves**: they `await` only `cookies()` or
-`params`, then return a client component. That's why `render(await Page(props))` works at all —
-Next's own guidance against testing async Server Components with Vitest is about *nested* async
-components, streaming, and RSC serialization, none of which apply to a leaf.
+`params`, then return a client component. That's why calling `await Page(props)` directly is
+enough — Next's own guidance against testing async Server Components with Vitest is about
+*nested* async components, streaming, and RSC serialization, none of which apply to a leaf.
+`redirect()`/`notFound()` really `throw` in this Next version, so the gate/redirect/not-found
+cases are `assert.rejects` on that call, no rendering involved at all; the one case that returns
+normally (the creator join) is a direct check on the returned element's `props` — `render()`
+from `@testing-library/react` doesn't come up anywhere in this tier.
 
 Two tiers, in order:
 
 - **Tier 1** — cover the leaves as they stand today, with `next/headers`/`next/navigation` mocked.
-  The priority case is the **FR-020-03/04 auth gate**: if it breaks, the whole workspace opens
-  to anyone. Also in scope at this tier: the redirect when a session already exists, `notFound`
-  for an unknown document id, and the document↔member join returning a null `creator` when a
-  member was removed — the last of which has a comment explaining the case today and nothing
-  verifying it.
+  The priority case is the **FR-020-04 auth gate** (`app/(workspace)/layout.tsx`): if it breaks,
+  the whole workspace opens to anyone. FR-020-03 is the password *check* itself, done upstream in
+  `/api/auth/*` — the layout only enforces 04's absence-of-session flip side. Also in scope at
+  this tier: the redirect when a session already exists, `notFound` for an unknown document id,
+  and the document↔member join returning a null `creator` when a member was removed — the last of
+  which has a comment explaining the case today and nothing verifying it. Landed: 4 files, 6
+  tests, all under the default `environment: "node"` (no DOM needed for any of them).
 - **Tier 2** — extract the gate and join logic into `lib/` so the components become shells. This
   repo's own lessons already state the rule this tier acts on: *geometry belongs outside the
   component.* Tier 1 is the safety net that makes this refactor low-risk, not the end state.
