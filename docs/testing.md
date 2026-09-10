@@ -96,8 +96,8 @@ if (!member && !isHostSecret(jar.get("role")?.value)) {
 
 `sessionRegistry.resolve` and `isHostSecret` each have their own `lib/` tests already. What no
 `lib/` test can see is this route dropping the check, or getting the `&&`/`||` wrong, on the next
-edit. The same file also carries an already-fixed, currently unguarded bug, named in its own
-comment:
+edit. The same file also carries a bug that was fixed with a runtime check but has no regression
+test guarding it, named in its own comment:
 
 ```ts
 // `null`, a bare number, a string — all parse as valid JSON, so `.json()`
@@ -106,13 +106,19 @@ comment:
 // is.
 ```
 
-That is the exact "selection hole" shape #56/#57 already established, one layer over: a fix
-landed, and nothing guards it from regressing.
+The check right below that comment (`typeof body !== "object" || body === null`) is what fixes it
+today — the gap is that nothing would fail if a future edit weakened or removed that check. That
+is the exact "selection hole" shape #56/#57 already established, one layer over: a fix landed, and
+no test guards it from regressing.
 
-**Required per handler**: an unauthenticated request is rejected before any data access, and an
-invalid body maps to 400, not 500. The handler's business logic — `createDocument`, `readDocuments`,
-and the like — is already `lib/`'s job and already tested there; a route-handler test is not the
-place to re-test it.
+**Required per handler**: an unauthenticated request is rejected before any data access — this
+applies to every handler, whether or not it parses a body. **For handlers that parse a request
+body**, add two more cases: an authenticated request with a malformed body maps to 400, not 500;
+and an *un*authenticated request with a malformed body still returns 401, not 400 — the auth check
+runs before body parsing is even attempted, so an invalid body never gets far enough to be
+validated. The handler's business logic — `createDocument`, `readDocuments`, and the like — is
+already `lib/`'s job and already tested there; a route-handler test is not the place to re-test
+it.
 
 ## Vitest worker count — symptom and remedy
 

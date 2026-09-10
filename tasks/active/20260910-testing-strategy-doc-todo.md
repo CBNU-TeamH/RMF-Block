@@ -25,14 +25,16 @@
   own four-layer table lists them as a zero-tests layer with no C4 sub-track claiming them either.
   Decided with the user to give this layer a real, concrete rule rather than leave it as an
   unscoped gap, grounded in `app/api/documents/route.ts`: an inlined auth check no `lib/` test can
-  see if it regresses, and an already-fixed, currently-unguarded malformed-body bug named in that
-  file's own comment — the same "selection hole" shape #56/#57 already established.
+  see if it regresses, and a malformed-body bug that a runtime check already fixes but no
+  regression test guards, named in that file's own comment — the same "selection hole" shape
+  #56/#57 already established.
 - **Files**: `docs/testing.md` (same file as milestone 1).
 - **Reuse**: route handlers are plain exported async functions, callable directly with a
   constructed `Request` — no DOM, `environment: "node"`, the same cost as a `lib/` test.
 - **Done**: the doc states the required minimum per handler (unauthenticated request rejected
-  before data access; invalid body maps to 400) without re-scoping business-logic testing that
-  already belongs to `lib/`.
+  before data access, for every handler; for handlers that parse a body, an authenticated request
+  with a malformed body maps to 400 and an unauthenticated one still maps to 401) without
+  re-scoping business-logic testing that already belongs to `lib/`.
 
 ### 3. Wire the doc in
 
