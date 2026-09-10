@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-09-09
 - **Related**: [ADR-003](003-stack-choices.md) (Decision 4), issue #39, issue #66 (Phase 2 of #67),
-  `tasks/active/20260909-vitest-runner-migration-todo.md`
+  `tasks/archive/2026/09/20260909-vitest-runner-migration-todo.md`
 - **Supersedes**: [ADR-003](003-stack-choices.md) — Decision 4 only. Decisions 1, 2, 3, and 5
   stand unchanged.
 
