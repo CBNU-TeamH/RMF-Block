@@ -1,8 +1,8 @@
 # Testing strategy
 
-- **Status**: Baseline — four layers (including route handlers), the regression/boundary rule,
-  and the Vitest worker-count remedy. Component-test, server-component, and route-handler tracks
-  are scoped here but not yet built — see [issue #66](https://github.com/CBNU-TeamH/RMF-Block/issues/66).
+- **Status**: All four layers landed — component tests (#39/#89), server-component Tier 1 (#91),
+  and route handlers (#93). Only server-component Tier 2 (extract gate/join logic into `lib/`)
+  remains open — see [issue #66](https://github.com/CBNU-TeamH/RMF-Block/issues/66).
 - **Owns**: none — this is process/strategy, not a module's design rationale. The four layers
   below name which existing design doc still owns *why* each module behaves the way it does; this
   document only says *where a new test for it belongs*.

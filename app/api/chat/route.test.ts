@@ -26,10 +26,13 @@ describe("/api/chat — auth gate", () => {
 
   it("POST returns 401 without a member, before reading the body", async () => {
     vi.mocked(currentMember).mockResolvedValue(null);
+    const request = new Request("http://x", { method: "POST" });
+    const jsonSpy = vi.spyOn(request, "json");
 
-    const response = await POST(new Request("http://x", { method: "POST" }) as never);
+    const response = await POST(request as never);
 
     assert.equal(response.status, 401);
+    assert.equal(jsonSpy.mock.calls.length, 0);
   });
 });
 
@@ -40,14 +43,14 @@ describe("/api/chat — malformed body (currently caught downstream, not by the 
       nickname: "누군가",
       colorTag: "#ef4444",
     });
-    vi.mocked(chatService.send).mockRejectedValue(
-      new ChatValidationError("메시지나 첨부 파일 중 하나는 있어야 합니다."),
-    );
+    const message = "메시지나 첨부 파일 중 하나는 있어야 합니다.";
+    vi.mocked(chatService.send).mockRejectedValue(new ChatValidationError(message));
 
     const response = await POST(
       new Request("http://x", { method: "POST", body: JSON.stringify({}) }) as never,
     );
 
     assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: message });
   });
 });

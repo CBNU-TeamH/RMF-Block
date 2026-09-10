@@ -52,6 +52,23 @@ describe("GET /api/auth/yorkie-token", () => {
     assert.deepEqual(vi.mocked(yorkieTokenRegistry.issue).mock.calls[0], ["host:host-secret"]);
   });
 
+  it("prefers the session when both a session and the host secret are present", async () => {
+    vi.mocked(cookies).mockResolvedValue(
+      jar({ workspace_session: "session-1", role: "host-secret" }) as never,
+    );
+    vi.mocked(sessionRegistry.resolve).mockReturnValue({
+      id: "member-1",
+      nickname: "누군가",
+      colorTag: "#ef4444",
+    });
+    vi.mocked(isHostSecret).mockReturnValue(true);
+
+    const response = await GET();
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(vi.mocked(yorkieTokenRegistry.issue).mock.calls[0], ["session-1"]);
+  });
+
   it("returns 401 when there is neither a session nor the host secret", async () => {
     vi.mocked(cookies).mockResolvedValue(jar({}) as never);
     vi.mocked(sessionRegistry.resolve).mockReturnValue(null);
