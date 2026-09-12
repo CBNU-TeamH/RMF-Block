@@ -1,4 +1,5 @@
 import type { BlockId } from "@/lib/blocks/types";
+import type { Mark } from "@/lib/focus/ink";
 
 /** The content document's own presence shape — separate from `WorkspacePresence`,
  *  which carries the workspace-doc's `presenting` anchor for screen-share/follow
@@ -12,6 +13,13 @@ export type BlockPresence = {
    *  focused and then wandered away from (still attached, no explicit leave
    *  event) as vacated after `OCCUPANCY_TTL_MS`, without an onBlur publish. */
   updatedAt: number;
+  /** This browser's `WorkspacePresence["id"]`, so a follower can tell the
+   *  presenter's ink from anyone else's (FR-030-13). Optional, and published by
+   *  `ink-overlay.tsx` rather than at attach: `presence.set` merges before it
+   *  sends, so only a client that has actually drawn carries one. */
+  id?: string;
+  /** Standing underline/highlight (FR-030-12), capped at `MARK_CAP`. */
+  marks?: Array<Mark> | null;
 };
 
 export type Occupant = { colorTag: string; nickname: string };
@@ -44,6 +52,26 @@ export function occupantsByBlock(
   }
 
   return byBlock;
+}
+
+/** The one member whose ink this browser may draw: the presenter it is
+ *  following, nobody else (FR-030-13). `null` for anyone not following, which
+ *  is the whole of "a non-follower with the document open sees nothing" — the
+ *  marks reach every attached client either way, so the gate has to be here.
+ *  The colour is the presenter's own, already on their presence. */
+export function inkFrom(
+  others: Array<{ presence: BlockPresence }>,
+  followingId: string | null,
+): { marks: Array<Mark>; colorTag: string } | null {
+  if (!followingId) return null;
+
+  for (const { presence } of others) {
+    if (presence?.id !== followingId) continue;
+
+    return { marks: presence.marks ?? [], colorTag: presence.colorTag };
+  }
+
+  return null;
 }
 
 /** Whether a fresh `occupantsByBlock` result changed anything worth a

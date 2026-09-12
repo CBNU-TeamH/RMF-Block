@@ -21,8 +21,10 @@ export type FocusAnchor = {
 // simple: quantized to 1% of the block's height, so the presenter's "has it
 // moved?" check can ever match — against a raw float it never did. Bounds
 // nothing on its own; the cadence is `PUBLISH_MS`'s job.
-const clampRatio = (ratio: number): number =>
-  Math.round(Math.min(Math.max(ratio, 0), 1) * 100) / 100;
+export const RATIO_STEPS = 100;
+
+const clampRatio = (ratio: number, steps: number): number =>
+  Math.round(Math.min(Math.max(ratio, 0), 1) * steps) / steps;
 
 /** The block the viewport's top edge sits in. One pass suffices: a `scrollTop`
  *  before a box's `top` means "before the first" or "in a gap", and both resolve
@@ -31,6 +33,9 @@ const clampRatio = (ratio: number): number =>
 export function anchorAt(
   boxes: Array<BlockBox>,
   scrollTop: number,
+  /** Ratio quantization, as a denominator. Ink passes a finer one than the
+   *  scroll anchor's 1% — `lib/focus/ink.ts` says why it needs to. */
+  steps: number = RATIO_STEPS,
 ): FocusAnchor | null {
   if (boxes.length === 0) return null;
 
@@ -44,7 +49,7 @@ export function anchorAt(
       // Defensive against height 0 — a divider block, say — which would
       // otherwise divide by zero and hand back NaN.
       const ratio = box.height > 0 ? (scrollTop - box.top) / box.height : 0;
-      return { blockId: box.id, ratio: clampRatio(ratio) };
+      return { blockId: box.id, ratio: clampRatio(ratio, steps) };
     }
   }
 
