@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Presenter marks — block-anchored freehand underline and highlight](active/20260912-presenter-marks-todo.md) | [lessons](active/20260912-presenter-marks-lessons.md) |
 | [Server-component Tier 1 tests (issue #66, C4 server components)](active/20260910-server-component-tests-todo.md) | [lessons](active/20260910-server-component-tests-lessons.md) |
 | [Route-handler tests (issue #66's last docs/testing.md layer)](active/20260910-route-handler-tests-todo.md) | [lessons](active/20260910-route-handler-tests-lessons.md) |
 | [Ctrl+Z: undo and redo, per person](active/20260908-undo-redo-todo.md) | [lessons](active/20260908-undo-redo-lessons.md) |

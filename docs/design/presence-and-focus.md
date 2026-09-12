@@ -4,7 +4,8 @@
   and `lib/presence` supports it and the connected-user list.
 - **Owns**: `lib/presence/`, `lib/focus/`, `app/(workspace)/presence-provider.tsx`,
   `app/(workspace)/presence-stack.tsx`, `app/(workspace)/focus-follow-provider.tsx`,
-  `app/(workspace)/focus-share.tsx`, `app/(workspace)/documents/[id]/use-focus-presence.ts`.
+  `app/(workspace)/focus-share.tsx`, `app/(workspace)/documents/[id]/use-focus-presence.ts`,
+  `app/(workspace)/documents/[id]/ink-overlay.tsx`.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(b) (presence over the client
   sync channel, not the WS hub); [`docs/SRS-ko.md`](../SRS-ko.md) FR-020-06/07/08, FR-030;
   [`docs/conventions.md`](../conventions.md) (the `simple:` marker convention this doc's source
@@ -263,3 +264,178 @@ rather than threading it down through context continuously — the anchor is onl
 that moment, and a `null` read (the editor for this route hasn't finished mounting) is rare and
 self-resolves: nothing happens, and pressing the button again a moment later works. Marked
 `simple:` in the source for exactly this tradeoff.
+
+## The ink layer
+
+UC-030's presenter tools (FR-030-12/13/14, issue #95): a presenter drags over the document and
+every follower sees the mark land on the same block. The whole feature is one SVG overlay, one
+pure module (`lib/focus/ink.ts`) and three optional keys on a presence type that already existed.
+
+**The anchor argument extends to ink unchanged.** "What travels is an anchor, not a scroll
+position" is above; every word of it holds for a drawn mark, and for the same reason — a follower's
+window reflows the document, so a container-space pixel means something different on each machine.
+An ink point is therefore `FocusAnchor & { x }`, which is not a convenience: being structurally a
+`FocusAnchor` is what lets `scrollTopFor` decode it with no adapter, and lets `anchorAt` resolve the
+vertical half with no second copy of the gap rule, the before-the-first rule, or the past-the-last
+clamp.
+
+What that buys and what it does not: the **block** is exact everywhere, and a mark survives either
+side scrolling, a third person inserting blocks above it, and any difference in window height. What
+it does not survive is a block that wraps to a different number of lines, where a ratio can land
+between two lines. That is inherent to anchoring by ratio; the fix would be character-offset
+anchoring, which a bare `<textarea>` cannot support without a mirror layer replicating its font
+metrics — rejected in #95 with that reasoning, not forgotten.
+
+### Why x is measured against the block, not the container
+
+The scroll container carries `-ml-4 pl-4` — load-bearing for the drag handle, which is why it
+cannot simply be dropped. That padding puts a block's `offsetLeft` at 16 while an absolutely
+positioned overlay's `left: 0` sits at the padding box edge, and `clientWidth` and
+`getBoundingClientRect().width` disagree by a scrollbar. Measuring `x` as a fraction of the
+block's **own** box sidesteps all three: `offsetLeft`/`offsetWidth` are in exactly the space
+`offsetTop`/`offsetHeight` already are, so the two axes compose by construction rather than by
+arithmetic that has to be kept in step.
+
+That is what `readBoxes` widened for. `InkBox` is `BlockBox` plus the horizontal half, and
+`Array<InkBox>` satisfies every `Array<BlockBox>` parameter, so the scroll-anchor callers did not
+change at all.
+
+### Two quantizations, for two different reasons
+
+`anchorAt` rounds a ratio to 1% of its block. That figure exists so the presenter's "has the anchor
+actually moved?" check can ever match — against a raw float it never would. Ink has no such check,
+and 1% of a tall code block is visible jitter, so ink passes a finer `steps`.
+
+Ink still rounds, for a reason the scroll anchor does not have: **Yorkie presence has no delta.**
+`Presence.set` merges the partial into the local presence and then transmits `deepcopy` of the
+whole object, and the receiver replaces its entry wholesale. Splitting ink into its own presence
+*key* therefore saves nothing; the only lever is keeping the object that gets re-sent small, which
+makes a short number worth having.
+
+That same fact cuts the other way and is worth stating plainly: `publishActiveBlock` and the 5s
+occupancy heartbeat retransmit the marks too. At one write per focus change and one per five
+seconds, with the caps below in place, that is the *cold* price of the channel. The *hot* price —
+while a stroke is actively being drawn — is its own section, next.
+
+### A mark is a path, not a rectangle — and what that costs
+
+A drag's two endpoints once made a rectangular band per block crossed. A presenter now draws
+freehand, so a mark is an ordered path:
+
+```ts
+type MarkPoint = Omit<InkPoint, "blockId">;
+type InkSegment = { blockId: BlockId; points: Array<MarkPoint> };
+type Mark = { kind: MarkKind; segments: Array<InkSegment> };
+```
+
+Segments, not one flat `Array<InkPoint>` — measured, not guessed, with real
+`JSON.stringify`/`Buffer.byteLength` against `newBlockId()`'s actual 36-character shape:
+
+| points in one block | flat (`blockId` on every point) | segmented (`blockId` once) | saved |
+|---:|---:|---:|---:|
+| 50 | 3,881 B | 1,495 B | 61% |
+| 150 | 11,581 B | 4,295 B | 63% |
+| 300 | 23,131 B | 8,495 B | 63% |
+
+Most strokes stay inside one or two blocks, which is exactly where a flat encoding pays the
+36-byte `blockId` tax on every single point. Grouping consecutive same-block points into one
+segment is one rule — append to the last segment if the new point's block matches, else start a
+new one — for a 61–63% cut in the payload this feature makes hot. Given presence has no delta,
+that is the minimum code that solves the problem, not an unrequested abstraction.
+
+Two caps follow, each with a stated basis rather than a round number:
+
+- **`MIN_POINT_DISTANCE_PX = 2`** — a candidate point is kept only once it has moved this far from
+  the last accepted one, in raw pixels (not ratio — a ratio lives in one block's own scale and
+  isn't a physical distance comparable across blocks). The figure follows the precedent issue #95
+  already cites, Yorkie's own cursors example, which thins at the same 2px.
+- **`MAX_POINTS_PER_MARK = 300`** — `MARK_CAP` bounds how many marks a member may hold, but never
+  looked inside one, and a mark is no longer the fixed ~110-byte shape it was sized against. 300
+  points measures to 8,495B segmented — at least 600px of accepted travel at the 2px floor, already
+  several paragraph-widths past what an underline or highlight gesture needs. Past the cap,
+  extending a mark is a no-op: the stroke freezes rather than losing its start, which would be more
+  code and would move where the stroke appears to begin. Worst case, every one of `MARK_CAP`'s 16
+  marks at this cap: 16 × 8,495B ≈ 133KB, up from ~1.8KB when a mark was a fixed rectangle — not
+  shrunk further, because reaching it needs 16 uncleared 300-point strokes left standing at once,
+  far outside real annotation use, and it costs bandwidth only for as long as that state persists,
+  not a recurring per-second charge on top of what's below.
+
+### Streaming a stroke: throttled while drawing, immediate at the moments that matter
+
+A follower watches a stroke form, not only its finished shape, so the presenter's browser has to
+publish mid-drag. `PUBLISH_MS` — the scroll anchor's own trailing-edge throttle constant — is
+exported from `use-focus-presence.ts` and reused here rather than defined a second time at the
+same value: one throttle idiom, one source of truth for its cadence.
+
+The old code published on every change to the presenter's own `mine` state, in a plain effect —
+correct when a mark only ever changed once, on release, and wrong the moment a mark can change
+many times a second while a stroke is drawn. It is replaced by explicit calls at the four moments
+that actually need different rules:
+
+- **starting a stroke** publishes immediately — once up front, not only on the next move, the same
+  rule the scroll anchor's own presenter effect already follows.
+- **extending a stroke** schedules the throttled publish, which reads the *current* stroke through
+  a ref at fire time rather than whatever it closed over when scheduled — the same reason the
+  scroll anchor's effect re-reads `container.scrollTop` live instead of capturing it.
+- **releasing the pointer** cancels any pending timer and publishes the final state immediately,
+  unthrottled. Without this, points accepted after the last throttle tick would sit unsent until a
+  tick that, since the drag just ended, may never come.
+- **지우기 and ending the share** were never on the throttle path to begin with — a direct call and
+  a small effect, respectively, both unconditional.
+
+A follower who attaches mid-stroke needs no special case: presence carries full current state on
+every write (no delta, again), so whatever the presenter's last publish sent — in-progress points
+included — is exactly what a newly-attached follower's first read returns, the same way a follower
+joining mid-scroll already sees the presenter's current anchor rather than nothing.
+
+A stroke crossing a block boundary can show a small seam where its two segments meet, since each
+decodes independently against its own block's boxes — the same accepted "sub-block drift"
+limitation as the scroll anchor's own ratio, not a bug worth chasing.
+
+### Ink is read where it is drawn
+
+`useBlockDocument` already subscribes to the content document's `others` channel for block
+occupancy. The overlay opens a **second** subscription on that same channel rather than adding a
+branch to the first, and the reason is not tidiness: the existing callback ends in
+`setOccupantByBlock`, state that lives in `useBlockDocument` and therefore re-renders the whole
+editor. `TextBlockView` is a plain function, not `memo`, so routing ink through there would
+re-render every textarea in the document each time a mark arrives. Owning the state in the overlay
+confines that to one `<svg>`. Yorkie allows several subscribers on one document; this is not a
+second connection.
+
+The visibility gate lives in `inkFrom` rather than in the transport, because presence reaches every
+attached client either way — marks are published to the document, and *who may draw them* is a
+rendering decision. `followingId === null` returning `null` is the whole of "a non-follower with the
+document open sees nothing" (FR-030-13), which is why it is a unit test rather than a manual check.
+
+### The presenter's own marks are local state, and that is not two owners
+
+The rule is already above for `isPresenting`: reading your own published state back re-renders on
+every publish, and that is the bug that tore the scroll listener down. Marks follow it.
+
+This reads like `docs/conventions.md`'s S-2 — one fact in two places — and is not. S-2 is about two
+places both *read* as the current value, kept in step by two write paths. Here there is one write
+path, and the browser that writes the presence copy never reads it: on the drawing machine local
+state is the owner and the published copy is a projection sent outward; on a receiving machine the
+received presence is the only owner. The failure S-2 describes — the UI showing one thing while the
+data says another — has nowhere to occur.
+
+Ending a share is settled during render, not in an effect, the same way a follow that has stopped
+is settled in `focus-follow-provider.tsx`: the answer is already in hand, and an effect would only
+force a second render to reach it.
+
+### Where the overlay sits
+
+Last child of the scroll container, for two reasons that are easy to lose. **Paint order**: at equal
+`z-index` later DOM order wins, which is how pen mode covers `text-block.tsx`'s `z-20` slash menu
+without claiming the `z-30` the editor's modals use. **Effect order**: sibling effects run in DOM
+order, so measuring last means measuring after every textarea in that commit has auto-grown.
+
+Its height is the bottom of the last measured box. `inset-0` would give the visible box and clip
+every mark past the first screen; `scrollHeight` over-reports, because the 파일 추가 footer and its
+`flex-1` sit below the last block.
+
+The overlay is not optional, and this is the one place the editor's own design constrains the
+feature: every block's editing surface is a bare `<textarea>`, so a pointerdown on a block moves the
+caret. Something has to be on top to take the drag instead. With no tool selected it drops back to
+`pointer-events: none`, so a follower's standing marks never eat a click.
