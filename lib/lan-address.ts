@@ -11,10 +11,7 @@ export function lanAddresses(): string[] {
   const override = process.env.HOST_LAN_IP;
   if (override) return [override];
 
-  const external = Object.values(networkInterfaces())
-    .flatMap((ifaces) => ifaces ?? [])
-    .filter((iface) => iface.family === "IPv4" && !iface.internal)
-    .map((iface) => iface.address);
+  const external = externalIPv4();
 
   // 172.16/12 is where Docker puts its bridge networks and where WSL2 puts its
   // NAT — an address there usually reaches nobody on the LAN. Rank those last
@@ -24,6 +21,36 @@ export function lanAddresses(): string[] {
     ...external.filter((address) => !isNatRange(address)),
     ...external.filter(isNatRange),
   ];
+}
+
+/** Origins `next dev` may serve `/_next/*` to. Distinct from
+ *  `lanAddresses()` on purpose: that one answers "which address do we
+ *  advertise to a guest", where narrowing to the override is the whole point,
+ *  and this one answers "which origins may load the app at all", where
+ *  narrowing locks somebody out — a host who sets `HOST_LAN_IP` would
+ *  otherwise be shut out of their own `127.0.0.1`. So the override *adds*
+ *  here, and loopback is always in.
+ *
+ *  Dev-only. `next start`, which is what the container runs, has no such
+ *  restriction and never reads this. */
+export function devOrigins(): string[] {
+  const override = process.env.HOST_LAN_IP;
+
+  return [
+    ...new Set([
+      "localhost",
+      "127.0.0.1",
+      ...externalIPv4(),
+      ...(override ? [override] : []),
+    ]),
+  ];
+}
+
+function externalIPv4(): string[] {
+  return Object.values(networkInterfaces())
+    .flatMap((ifaces) => ifaces ?? [])
+    .filter((iface) => iface.family === "IPv4" && !iface.internal)
+    .map((iface) => iface.address);
 }
 
 export function isNatRange(address: string): boolean {
