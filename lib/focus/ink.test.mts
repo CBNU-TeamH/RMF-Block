@@ -8,9 +8,11 @@ import {
   inkPixelsFor,
   inkPointAt,
   markPixelSegments,
+  pointsEqual,
   pruneTrail,
   MARK_CAP,
   MAX_POINTS_PER_MARK,
+  MAX_SEGMENTS_PER_MARK,
   MIN_POINT_DISTANCE_PX,
   TRAIL_MS,
   shouldAcceptPoint,
@@ -125,6 +127,11 @@ describe("startMark", () => {
   });
 });
 
+/** `extendMark`'s own point-count check is internal; sum it back up here
+ *  rather than exporting a second entry point just for tests. */
+const pointCountOf = (mark: Mark): number =>
+  mark.segments.reduce((sum, segment) => sum + segment.points.length, 0);
+
 describe("extendMark", () => {
   it("appends to the last segment when the block is unchanged", () => {
     const mark = startMark("underline", { blockId: "a", ratio: 0, x: 0 });
@@ -151,6 +158,35 @@ describe("extendMark", () => {
 
     const atCap = extendMark(mark, { blockId: "a", ratio: 1, x: 0 });
     assert.equal(atCap.segments[0].points.length, MAX_POINTS_PER_MARK);
+  });
+
+  it("stops growing at exactly MAX_SEGMENTS_PER_MARK when every point crosses a block", () => {
+    // The adversarial case MAX_SEGMENTS_PER_MARK exists for: alternating
+    // blocks, one point apiece, well short of MAX_POINTS_PER_MARK.
+    let mark = startMark("underline", { blockId: "a", ratio: 0, x: 0 });
+    for (let i = 1; i < MAX_SEGMENTS_PER_MARK; i += 1) {
+      mark = extendMark(mark, { blockId: i % 2 === 0 ? "a" : "b", ratio: 0, x: 0 });
+    }
+    assert.equal(mark.segments.length, MAX_SEGMENTS_PER_MARK);
+    assert.equal(pointCountOf(mark), MAX_SEGMENTS_PER_MARK);
+
+    const atCap = extendMark(mark, { blockId: "c", ratio: 0, x: 0 });
+    assert.equal(atCap.segments.length, MAX_SEGMENTS_PER_MARK);
+    assert.equal(pointCountOf(atCap), MAX_SEGMENTS_PER_MARK);
+  });
+
+  it("a same-block extension past MAX_SEGMENTS_PER_MARK still grows the last segment", () => {
+    // The segment cap only blocks *starting a new one* — a mark already at
+    // the cap can still accept more points in whichever block it's in.
+    let mark = startMark("underline", { blockId: "a", ratio: 0, x: 0 });
+    for (let i = 1; i < MAX_SEGMENTS_PER_MARK; i += 1) {
+      mark = extendMark(mark, { blockId: i % 2 === 0 ? "a" : "b", ratio: 0, x: 0 });
+    }
+    const lastBlock = mark.segments[mark.segments.length - 1].blockId;
+
+    const extended = extendMark(mark, { blockId: lastBlock, ratio: 0.5, x: 0 });
+    assert.equal(extended.segments.length, MAX_SEGMENTS_PER_MARK);
+    assert.equal(pointCountOf(extended), MAX_SEGMENTS_PER_MARK + 1);
   });
 });
 
@@ -318,5 +354,33 @@ describe("pruneTrail", () => {
   it("returns the same array reference when nothing is dropped", () => {
     const trail = [point(now)];
     assert.equal(pruneTrail(trail, now), trail);
+  });
+});
+
+describe("pointsEqual", () => {
+  it("is true for two nulls", () => {
+    assert.equal(pointsEqual(null, null), true);
+  });
+
+  it("is false when only one side is null", () => {
+    const point = { blockId: "a", ratio: 0.5, x: 0.5 };
+    assert.equal(pointsEqual(null, point), false);
+    assert.equal(pointsEqual(point, null), false);
+  });
+
+  it("is true for the same anchor from two separate reads", () => {
+    // A heartbeat re-send is a fresh object, not the same reference — the
+    // whole point of this function is comparing by value.
+    assert.equal(
+      pointsEqual({ blockId: "a", ratio: 0.5, x: 0.5 }, { blockId: "a", ratio: 0.5, x: 0.5 }),
+      true,
+    );
+  });
+
+  it("is false when any single field differs", () => {
+    const base = { blockId: "a", ratio: 0.5, x: 0.5 };
+    assert.equal(pointsEqual(base, { ...base, blockId: "b" }), false);
+    assert.equal(pointsEqual(base, { ...base, ratio: 0.6 }), false);
+    assert.equal(pointsEqual(base, { ...base, x: 0.6 }), false);
   });
 });

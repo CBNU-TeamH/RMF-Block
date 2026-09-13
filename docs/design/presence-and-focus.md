@@ -363,7 +363,7 @@ segment is one rule — append to the last segment if the new point's block matc
 new one — for a 61–63% cut in the payload this feature makes hot. Given presence has no delta,
 that is the minimum code that solves the problem, not an unrequested abstraction.
 
-Two caps follow, each with a stated basis rather than a round number:
+Three caps follow, each with a stated basis rather than a round number:
 
 - **`MIN_POINT_DISTANCE_PX = 2`** — a candidate point is kept only once it has moved this far from
   the last accepted one, in raw pixels (not ratio — a ratio lives in one block's own scale and
@@ -379,6 +379,15 @@ Two caps follow, each with a stated basis rather than a round number:
   shrunk further, because reaching it needs 16 uncleared 300-point strokes left standing at once,
   far outside real annotation use, and it costs bandwidth only for as long as that state persists,
   not a recurring per-second charge on top of what's below.
+- **`MAX_SEGMENTS_PER_MARK = 30`** — `MAX_POINTS_PER_MARK` bounds total points but not how they're
+  distributed across segments, and a stroke that keeps crossing back over a block boundary starts a
+  fresh one-point segment each time, paying the full 36-byte `blockId` tax on every point — the
+  exact cost segmenting exists to amortize, inverted. Measured: 300 alternating one-point segments
+  is 27,127B, over 3× the 8,495B a normal 300-point single-segment stroke costs — segmenting made
+  the adversarial case *worse* than the flat encoding it was meant to beat. Frozen with the same
+  policy as the point cap (the stroke stops growing, nothing is dropped), 30 segments caps that
+  case at 2,735B, measured — under the normal 300-point case rather than over it — while still
+  covering a real multi-block stroke generously: more blocks than fit on one screen at once.
 
 ### Streaming a stroke: throttled while drawing, immediate at the moments that matter
 
@@ -510,6 +519,23 @@ Aging happens on arrival *and* on a plain interval (matching `PUBLISH_MS`'s own 
 easing, no adaptive cadence) — a trail also has to fade when the presenter has simply stopped moving,
 which a purely arrival-triggered prune would never catch. `pruneTrail` returns the same array
 reference when nothing ages out, so an idle tick over an unchanged trail re-renders nothing.
+
+**"Arrives" isn't the same as "changed."** The content document's occupancy heartbeat
+(`use-block-document.ts`) republishes the whole presence every few seconds regardless of whether
+the presenter has moved — `pointer` rides along, since presence has no delta, the same fact the
+segmenting decision above is built around. Without a check, a stationary pointer would look like it
+keeps re-arriving every heartbeat: fading, then snapping back to full opacity, on a cycle. `read()`
+tracks the last point it actually appended (`pointsEqual`, in a variable scoped to one subscription,
+not a ref that outlives it) and skips a re-send of the same anchor — a stationary pointer fades
+once and stays gone, rather than resurrecting on every heartbeat.
+
+**Switching who you follow clears the trail immediately, not by waiting for it to decay.**
+`setTrail([])` runs at the top of the effect that (re)subscribes on `followingId` changing — the
+same reason `pointsEqual`'s tracker is scoped to that one subscription's closure rather than a ref:
+both reset naturally the moment a new subscription starts, without a separate branch to remember
+to write. Without it, switching to a different presenter — or unfollowing entirely — would leave
+the previous presenter's fading dot visible over whatever's on screen now for up to `TRAIL_MS`,
+which reads as "whose pointer is this" rather than as a trail winding down.
 
 Rendering ages, so it needs a wall-clock value — and a component's render has to stay pure, which
 rules out calling `Date.now()` inside one. `now` is state in the parent, updated on the same prune

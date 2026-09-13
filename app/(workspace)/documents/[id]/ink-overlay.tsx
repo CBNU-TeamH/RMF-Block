@@ -12,6 +12,7 @@ import {
   inkPixelsFor,
   inkPointAt,
   markPixelSegments,
+  pointsEqual,
   pruneTrail,
   shouldAcceptPoint,
   startMark,
@@ -195,12 +196,28 @@ export function InkOverlay({
     const doc = docRef.current;
     if (!doc) return;
 
+    // Starting a fresh subscription (a new followed presenter, or none) means
+    // whatever trail was on screen belongs to a different presenter now —
+    // clearing it here rather than waiting for it to decay avoids the
+    // previous presenter's fading dot lingering over the new one's screen.
+    setTrail([]);
+    // The content document's occupancy heartbeat (`use-block-document.ts`)
+    // retransmits the whole presence every few seconds regardless of whether
+    // the presenter has moved — `pointer` included, since Yorkie presence has
+    // no delta. Tracked per-subscription (not a ref that outlives it) so a
+    // fresh follow starts with no prior point to compare against.
+    let lastPointer: InkPoint | null = null;
+
     const read = () => {
       const next = inkFrom(doc.getOthersPresences(), followingId);
       setReceived(next);
 
-      if (next?.pointer) {
-        const arrived: TrailPoint = { ...next.pointer, at: Date.now() };
+      const pointer = next?.pointer ?? null;
+      if (pointsEqual(pointer, lastPointer)) return;
+      lastPointer = pointer;
+
+      if (pointer) {
+        const arrived: TrailPoint = { ...pointer, at: Date.now() };
         setTrail((current) => pruneTrail([...current, arrived], arrived.at));
       }
     };
@@ -555,9 +572,10 @@ const PointerTrail = memo(function PointerTrail({
         const opacity = Math.max(0, 1 - (now - at) / TRAIL_MS);
         return <circle key={index} cx={pixel.x} cy={pixel.y} r={POINTER_RADIUS_PX} opacity={opacity} />;
       })}
-      {headPixel ? (
+      {headPixel && head ? (
         <circle
           r={POINTER_HEAD_RADIUS_PX}
+          opacity={Math.max(0, 1 - (now - head.at) / TRAIL_MS)}
           style={{
             transform: `translate(${headPixel.x}px, ${headPixel.y}px)`,
             transition: `transform ${PUBLISH_MS}ms linear`,

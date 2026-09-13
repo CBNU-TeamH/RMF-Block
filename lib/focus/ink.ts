@@ -63,6 +63,17 @@ export const MIN_POINT_DISTANCE_PX = 2;
  *  지우기 untouched. */
 export const MAX_POINTS_PER_MARK = 600;
 
+/** Bounds segment *count* separately from point count — without this, a
+ *  stroke that keeps crossing back over a block boundary (each crossing a
+ *  fresh 1-point segment) could reach `MAX_POINTS_PER_MARK` paying the full
+ *  36-byte `blockId` cost on every single point, the opposite of what
+ *  segmenting exists to save: measured, 300 alternating 1-point segments is
+ *  27,127B — over 3x the 8,495B a normal 300-point single-segment stroke
+ *  costs. 30 keeps that adversarial case's worst size (2,735B, measured)
+ *  under the normal case rather than over it, while comfortably covering a
+ *  real multi-block stroke — more blocks than fit on one screen at once. */
+export const MAX_SEGMENTS_PER_MARK = 30;
+
 /** How many marks a member may hold before the oldest is dropped. Bounds the
  *  *count* of strokes; `MAX_POINTS_PER_MARK` bounds what each one costs, since
  *  a mark is no longer the fixed ~110-byte shape this number was first sized
@@ -152,6 +163,11 @@ export function extendMark(mark: Mark, point: InkPoint): Mark {
     };
   }
 
+  // Starting a new segment — but not past MAX_SEGMENTS_PER_MARK. Same freeze
+  // policy as the point cap above: the stroke stops growing rather than
+  // paying the alternating-block cost that constant's comment measures.
+  if (segments.length >= MAX_SEGMENTS_PER_MARK) return mark;
+
   return { ...mark, segments: [...segments, { blockId: point.blockId, points: [next] }] };
 }
 
@@ -220,4 +236,14 @@ export const TRAIL_MS = 1_500;
 export function pruneTrail(trail: Array<TrailPoint>, now: number): Array<TrailPoint> {
   const fresh = trail.filter((point) => now - point.at < TRAIL_MS);
   return fresh.length === trail.length ? trail : fresh;
+}
+
+/** Whether two received pointer positions are the same anchor — used to drop
+ *  a pointer the *presence heartbeat* re-sends unchanged (it retransmits the
+ *  whole presence, `pointer` included, whether or not the presenter has
+ *  actually moved) from being re-appended to a follower's trail as if it were
+ *  a new point. `null` counts as equal only to `null`. */
+export function pointsEqual(a: InkPoint | null, b: InkPoint | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.blockId === b.blockId && a.ratio === b.ratio && a.x === b.x;
 }
