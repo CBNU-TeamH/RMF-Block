@@ -160,12 +160,58 @@ describe("markPixelSegments", () => {
     assert.deepEqual(segments[0], [{ x: 116, y: 200 }]);
   });
 
-  it("keeps a two-block stroke as two separate point arrays", () => {
+  /** Replaces a test that asserted the opposite ("two separate point arrays").
+   *  The hand did not lift at the block boundary, so the drawn path must not
+   *  either — one run per segment left no line between one segment's last
+   *  point and the next one's first, and a circle drawn over two blocks came
+   *  out cut at the two places it crosses the seam. */
+  it("joins a stroke that crosses a block boundary into one unbroken run", () => {
     const mark: Mark = {
       kind: "highlight",
       segments: [
         { blockId: "a", points: [{ ratio: 0.5, x: 0.5 }] },
         { blockId: "b", points: [{ ratio: 0, x: 0.5 }] },
+      ],
+    };
+
+    const runs = markPixelSegments(boxes, mark);
+
+    assert.equal(runs.length, 1);
+    assert.deepEqual(runs[0], [
+      { x: 116, y: 50 },
+      { x: 116, y: 100 },
+    ]);
+  });
+
+  /** A single-point segment used to render as a one-vertex `<polyline>`, which
+   *  draws nothing — so a fast crossing lost its corner entirely on top of the
+   *  gap. Folded into the run, the corner is just another vertex. */
+  it("keeps a one-point crossing as a vertex rather than dropping it", () => {
+    const mark: Mark = {
+      kind: "underline",
+      segments: [
+        { blockId: "a", points: [{ ratio: 0.2, x: 0.1 }] },
+        { blockId: "b", points: [{ ratio: 0.5, x: 0.5 }] },
+        { blockId: "c", points: [{ ratio: 0.5, x: 0.9 }] },
+      ],
+    };
+
+    const runs = markPixelSegments(boxes, mark);
+
+    assert.equal(runs.length, 1);
+    assert.equal(runs[0].length, 3);
+  });
+
+  /** The break the per-segment split was actually protecting, and the one case
+   *  that must survive the join: joining across a deleted block would draw a
+   *  straight line through where it used to be. */
+  it("still breaks the run where a block in the middle is gone", () => {
+    const mark: Mark = {
+      kind: "underline",
+      segments: [
+        { blockId: "a", points: [{ ratio: 0.5, x: 0.5 }] },
+        { blockId: "gone", points: [{ ratio: 0.5, x: 0.5 }] },
+        { blockId: "c", points: [{ ratio: 0.5, x: 0.5 }] },
       ],
     };
 

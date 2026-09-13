@@ -145,21 +145,48 @@ export function extendMark(mark: Mark, point: InkPoint): Mark {
   return { ...mark, segments: [...segments, { blockId: point.blockId, points: [next] }] };
 }
 
-/** A mark, decoded to one array of pixels per segment — one polyline per
- *  contiguous same-block run. Reuses `inkPixelsFor` per point rather than
- *  duplicating its coordinate math. A segment whose block is gone decodes to
- *  no points and is dropped, rather than drawing a broken line through it. */
+/** A mark, decoded to the pixel runs it should be drawn as. Reuses
+ *  `inkPixelsFor` per point rather than duplicating its coordinate math.
+ *
+ *  One run per *unbroken* stretch of the stroke, not one per segment. A mark
+ *  is segmented by block so each run can decode against its own box, but the
+ *  hand never lifted at those boundaries, so the drawn path must not lift
+ *  either: returning a run per segment left no line between one segment's last
+ *  point and the next one's first, and a stroke crossing a block boundary came
+ *  out visibly cut. Drawing a circle over two blocks broke it at the two points
+ *  where it crosses the seam — the quarter points, with the button still held.
+ *  A segment that decoded to a single point made it worse: one vertex is a
+ *  `<polyline>` that draws nothing at all, so a quick crossing lost its corner
+ *  outright.
+ *
+ *  A segment whose block is gone still breaks the run, which is the case the
+ *  per-segment split was protecting: joining across it would draw a straight
+ *  line through where that block used to be. That break is deliberate; the one
+ *  at every healthy boundary was not. */
 export function markPixelSegments(
   boxes: Array<InkBox>,
   mark: Mark,
 ): Array<Array<{ x: number; y: number }>> {
-  return mark.segments
-    .map((segment) =>
-      segment.points
-        .map((point) => inkPixelsFor(boxes, { blockId: segment.blockId, ...point }))
-        .filter((pixel): pixel is { x: number; y: number } => pixel !== null),
-    )
-    .filter((points) => points.length > 0);
+  const runs: Array<Array<{ x: number; y: number }>> = [];
+  let current: Array<{ x: number; y: number }> = [];
+
+  for (const segment of mark.segments) {
+    const pixels = segment.points
+      .map((point) => inkPixelsFor(boxes, { blockId: segment.blockId, ...point }))
+      .filter((pixel): pixel is { x: number; y: number } => pixel !== null);
+
+    if (pixels.length === 0) {
+      if (current.length > 0) runs.push(current);
+      current = [];
+      continue;
+    }
+
+    current.push(...pixels);
+  }
+
+  if (current.length > 0) runs.push(current);
+
+  return runs;
 }
 
 /** Keeps a member's marks inside `MARK_CAP`, oldest first out. */
