@@ -203,3 +203,21 @@ export function markPixelSegments(
 export function capMarks(marks: Array<Mark>): Array<Mark> {
   return marks.length <= MARK_CAP ? marks : marks.slice(marks.length - MARK_CAP);
 }
+
+/** A received pointer position, stamped with *this browser's own* arrival
+ *  time — no clock sync between machines, since only the current point is
+ *  ever transmitted (never a trail) and each receiver builds its own history
+ *  from when it actually saw each one. */
+export type TrailPoint = InkPoint & { at: number };
+
+/** Shorter than #95's original "~2-3s" — seen live, that read as lingering
+ *  too long after the presenter stopped moving. */
+export const TRAIL_MS = 1_500;
+
+/** Drops points older than `TRAIL_MS`. Returns the same array reference when
+ *  nothing was dropped, so an idle prune tick doesn't re-render a trail that
+ *  hasn't changed. */
+export function pruneTrail(trail: Array<TrailPoint>, now: number): Array<TrailPoint> {
+  const fresh = trail.filter((point) => now - point.at < TRAIL_MS);
+  return fresh.length === trail.length ? trail : fresh;
+}

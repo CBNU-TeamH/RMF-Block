@@ -1,5 +1,5 @@
 import type { BlockId } from "@/lib/blocks/types";
-import type { Mark } from "@/lib/focus/ink";
+import type { InkPoint, Mark } from "@/lib/focus/ink";
 
 /** The content document's own presence shape — separate from `WorkspacePresence`,
  *  which carries the workspace-doc's `presenting` anchor for screen-share/follow
@@ -20,6 +20,10 @@ export type BlockPresence = {
   id?: string;
   /** Standing underline/highlight (FR-030-12), capped at `MARK_CAP`. */
   marks?: Array<Mark> | null;
+  /** Where the presenter's laser is *right now* — never an accumulating
+   *  trail (FR-030-12's other half); `null`, not `undefined`, to clear it,
+   *  the same reason `marks` does. */
+  pointer?: InkPoint | null;
 };
 
 export type Occupant = { colorTag: string; nickname: string };
@@ -62,13 +66,17 @@ export function occupantsByBlock(
 export function inkFrom(
   others: Array<{ presence: BlockPresence }>,
   followingId: string | null,
-): { marks: Array<Mark>; colorTag: string } | null {
+): { marks: Array<Mark>; pointer: InkPoint | null; colorTag: string } | null {
   if (!followingId) return null;
 
   for (const { presence } of others) {
     if (presence?.id !== followingId) continue;
 
-    return { marks: presence.marks ?? [], colorTag: presence.colorTag };
+    return {
+      marks: presence.marks ?? [],
+      pointer: presence.pointer ?? null,
+      colorTag: presence.colorTag,
+    };
   }
 
   return null;

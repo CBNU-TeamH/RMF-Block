@@ -8,13 +8,16 @@ import {
   inkPixelsFor,
   inkPointAt,
   markPixelSegments,
+  pruneTrail,
   MARK_CAP,
   MAX_POINTS_PER_MARK,
   MIN_POINT_DISTANCE_PX,
+  TRAIL_MS,
   shouldAcceptPoint,
   startMark,
   type InkBox,
   type Mark,
+  type TrailPoint,
 } from "./ink.ts";
 
 /** Three ordinary blocks, back to back. `left: 16` is the scroll container's
@@ -284,5 +287,36 @@ describe("the point budget the two caps split between them", () => {
 
     const kb = Buffer.byteLength(JSON.stringify(full)) / 1024;
     assert.ok(kb <= 135, `worst-case marks payload is ${kb.toFixed(1)}KB`);
+  });
+});
+
+describe("pruneTrail", () => {
+  const now = 1_000_000;
+  const point = (at: number): TrailPoint => ({ blockId: "a", ratio: 0, x: 0, at });
+
+  it("is empty in, empty out", () => {
+    assert.deepEqual(pruneTrail([], now), []);
+  });
+
+  it("keeps a mix and drops only the old ones", () => {
+    const trail = [point(now - TRAIL_MS - 1), point(now - 100), point(now)];
+    const pruned = pruneTrail(trail, now);
+
+    assert.deepEqual(pruned, [point(now - 100), point(now)]);
+  });
+
+  it("drops a point aged exactly TRAIL_MS", () => {
+    const trail = [point(now - TRAIL_MS)];
+    assert.deepEqual(pruneTrail(trail, now), []);
+  });
+
+  it("keeps a point aged TRAIL_MS - 1", () => {
+    const trail = [point(now - (TRAIL_MS - 1))];
+    assert.deepEqual(pruneTrail(trail, now), trail);
+  });
+
+  it("returns the same array reference when nothing is dropped", () => {
+    const trail = [point(now)];
+    assert.equal(pruneTrail(trail, now), trail);
   });
 });
