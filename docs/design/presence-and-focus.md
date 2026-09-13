@@ -469,14 +469,21 @@ that it needs its own input-handling architecture, since underline/highlight nee
 drag). A pointer has no drag to protect.
 
 That worry turns out to be moot once one product decision is made: **while the pointer tool is
-selected, the presenter is read-only** — clicking or typing is blocked, exactly like the two drawing
-tools already are. Once that's true, the SVG's existing capture (`z-20 touch-none` while *any* tool
-is selected, unchanged since underline/highlight) already blocks the click underneath for free — the
-pointer tool doesn't need a reason of its own to be `z-20`, it inherits one. So the pointer is a third
-branch on the handlers that already exist, not a parallel architecture: `onPointerDown` gains one
-line (the pointer tool never starts a mark), and `onPointerMove` gains a branch that publishes a
-position instead of extending a stroke. `onPointerUp`/`onPointerCancel` need no changes at all —
-both already guard on `drawingRef.current`, which the pointer tool never touches.
+selected, clicking into the document is blocked** — exactly like the two drawing tools already are.
+Once that's true, the SVG's existing capture (`z-20 touch-none` while *any* tool is selected,
+unchanged since underline/highlight) already blocks the click underneath for free — the pointer tool
+doesn't need a reason of its own to be `z-20`, it inherits one. So the pointer is a third branch on
+the handlers that already exist, not a parallel architecture: `onPointerDown` gains one line (the
+pointer tool never starts a mark), and `onPointerMove` gains a branch that publishes a position
+instead of extending a stroke. `onPointerUp`/`onPointerCancel` need no changes at all — both already
+guard on `drawingRef.current`, which the pointer tool never touches.
+
+**"Read-only" here is about pointer capture, not a hard guarantee.** A `<textarea>` reached by
+clicking is blocked, since the click never lands on it — but browser Tab order isn't affected by
+`z-index`/`pointer-events`, so a block already focused, or reached via Tab, can still be typed into
+while a tool is selected. This gap predates the pointer (the same is already true for
+underline/highlight) and isn't fixed here — closing it needs the textarea's own `readOnly` gated on
+`tool`/`isPresenting`, in `text-block.tsx`, out of this feature's scope.
 
 A pointer position is an `InkPoint`, decoded and rendered with the exact functions marks already use
 (`inkPointAt`, `inkPixelsFor`) — anchoring by block is exactly as necessary here as it is for a mark:
@@ -492,8 +499,9 @@ payload is therefore constant-size regardless of how long or how fast the presen
 which is the one thing that would have made a fading trail expensive to publish.
 
 The trail a follower sees is built entirely on their own side: each arriving point is stamped with
-`Date.now()` *at arrival* and appended to a local buffer, aged out past `TRAIL_MS` (2,500ms, the
-middle of #95's own "~2-3s"). No clock sync between machines is needed, because nothing timestamped
+`Date.now()` *at arrival* and appended to a local buffer, aged out past `TRAIL_MS` (1,500ms —
+shorter than #95's original "~2-3s"; seen live in the container, that range read as lingering).
+No clock sync between machines is needed, because nothing timestamped
 by the sender is ever transmitted — a receiver's trail is simply "what I have received in the last
 `TRAIL_MS`," which is also self-healing across a stall: a receiver that hears nothing for a few
 seconds just has an empty trail, no reconciliation required.
@@ -509,8 +517,8 @@ interval, passed down as a prop rather than read fresh inside the leaf that uses
 
 Only the most recent point additionally eases toward its position with a CSS `transform` transition
 (`PUBLISH_MS` in duration) rather than snapping — the same reasoning already on record for the scroll
-anchor's own follower: regenerating the whole trail's geometry every frame to smooth a curve that 25
-points over 2.5 seconds already renders as continuous would spend a 60Hz render on nothing visible.
+anchor's own follower: regenerating the whole trail's geometry every frame to smooth a curve that 15
+points over 1.5 seconds already renders as continuous would spend a 60Hz render on nothing visible.
 Smoothing only the head, which is the one point that visibly jumps between 10Hz network ticks, is
 where the payoff actually is.
 

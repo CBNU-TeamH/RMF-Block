@@ -1,7 +1,7 @@
 "use client";
 
 import type { Document } from "@yorkie-js/sdk";
-import { memo, useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type PointerEvent, type RefObject } from "react";
 
 import type { BlockDocumentRoot } from "@/lib/blocks/document";
 import type { Block } from "@/lib/blocks/types";
@@ -34,13 +34,6 @@ const HIGHLIGHT_STROKE_PX = 20;
 const UNDERLINE_PX = 2;
 const POINTER_RADIUS_PX = 5;
 const POINTER_HEAD_RADIUS_PX = 7;
-// Fixed, not the presenter's own `colorTag` — a laser pointer is red
-// regardless of who's holding it; matches this app's existing red
-// (`red-600`, used for every error state elsewhere) rather than the guest
-// roster's own rotating red (`session-registry.ts`), which could otherwise
-// coincide with a presenter's assigned color and read as "this is just
-// their color," not "this is the pointer."
-const POINTER_COLOR = "#dc2626";
 
 /** What the toolbar can select. `"pointer"` is not a `MarkKind` — it never
  *  produces a `Mark`, only a live position, so it is kept out of that union
@@ -339,6 +332,11 @@ export function InkOverlay({
 
   const onPointerMove = (event: PointerEvent<SVGSVGElement>) => {
     if (!tool) return;
+    // Cheap bail for the common case: hovering with a drawing tool armed but
+    // no drag active — before any DOM read or anchoring runs, since a plain
+    // hover fires at up to display refresh rate. The pointer tool has no
+    // equivalent "not yet started" state; every accepted move matters to it.
+    if (tool !== "pointer" && !drawingRef.current) return;
     const raw = rawPointFrom(event);
     if (!raw) return;
     if (!shouldAcceptPoint(lastAcceptedPixelRef.current, raw)) return;
@@ -348,17 +346,20 @@ export function InkOverlay({
     // second, so a DOM re-query per point was the real cost.
     const point = inkPointAt(boxes, raw.x, raw.y);
     if (!point) return;
+    lastAcceptedPixelRef.current = raw;
 
     if (tool === "pointer") {
-      lastAcceptedPixelRef.current = raw;
       pointerRef.current = point;
       schedulePublish();
       return;
     }
 
-    if (!drawingRef.current) return;
-    lastAcceptedPixelRef.current = raw;
-    const extended = extendMark(drawingRef.current, point);
+    // Always true here — the bail at the top already ruled out every other
+    // case for a drawing tool — but TypeScript can't narrow a ref's `.current`
+    // across statements, so this still earns its keep as a type guard.
+    const drawing = drawingRef.current;
+    if (!drawing) return;
+    const extended = extendMark(drawing, point);
     drawingRef.current = extended;
     setDrawing(extended);
     schedulePublish();
@@ -525,37 +526,44 @@ const PointerTrail = memo(function PointerTrail({
    *  `Date.now()` call here; render has to stay pure. */
   now: number;
 }) {
+  // A pixel position depends only on `boxes`/the point itself, not on `now` —
+  // the prune-interval tick bumps `now` every `PUBLISH_MS` whether or not any
+  // point actually aged out, and without this, that tick alone would re-run
+  // `inkPixelsFor`'s box lookup for every trail point just to re-derive x/y
+  // that haven't moved. The head is excluded here (drawn separately below,
+  // larger and eased) so it isn't also drawn as a small aging dot under itself.
+  const pixels = useMemo(
+    () =>
+      trail
+        .slice(0, -1)
+        .map((point) => ({ at: point.at, pixel: inkPixelsFor(boxes, point) }))
+        .filter((entry): entry is { at: number; pixel: { x: number; y: number } } => entry.pixel !== null),
+    [boxes, trail],
+  );
   const head = trail[trail.length - 1];
-  const headPixel = head ? inkPixelsFor(boxes, head) : null;
+  const headPixel = useMemo(() => (head ? inkPixelsFor(boxes, head) : null), [boxes, head]);
 
   return (
-    <>
-      {trail.map((point, index) => {
-        const pixel = inkPixelsFor(boxes, point);
-        if (!pixel) return null;
-
-        const opacity = Math.max(0, 1 - (now - point.at) / TRAIL_MS);
-        return (
-          <circle
-            key={index}
-            cx={pixel.x}
-            cy={pixel.y}
-            r={POINTER_RADIUS_PX}
-            fill={POINTER_COLOR}
-            opacity={opacity}
-          />
-        );
+    // Fixed red, not the presenter's own `colorTag` — a laser pointer reads
+    // as one regardless of whose hand is on it, and `red-600` (this app's own
+    // error color) can't coincide with a presenter's assigned roster color
+    // the way `colorTag` itself could. `currentColor`, the same idiom
+    // `editor.tsx`'s drag-handle glyph uses for an inline SVG's fill — one
+    // Tailwind class names the color once instead of a raw hex per shape.
+    <g className="text-red-600" fill="currentColor">
+      {pixels.map(({ at, pixel }, index) => {
+        const opacity = Math.max(0, 1 - (now - at) / TRAIL_MS);
+        return <circle key={index} cx={pixel.x} cy={pixel.y} r={POINTER_RADIUS_PX} opacity={opacity} />;
       })}
       {headPixel ? (
         <circle
           r={POINTER_HEAD_RADIUS_PX}
-          fill={POINTER_COLOR}
           style={{
             transform: `translate(${headPixel.x}px, ${headPixel.y}px)`,
             transition: `transform ${PUBLISH_MS}ms linear`,
           }}
         />
       ) : null}
-    </>
+    </g>
   );
 });
