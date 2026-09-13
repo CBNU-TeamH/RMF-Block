@@ -238,6 +238,56 @@ export function pruneTrail(trail: Array<TrailPoint>, now: number): Array<TrailPo
   return fresh.length === trail.length ? trail : fresh;
 }
 
+/** The trail's width at its head and at the point it ages out — it tapers,
+ *  the way a laser pointer's afterimage does. */
+export const TRAIL_HEAD_WIDTH_PX = 11;
+export const TRAIL_TAIL_WIDTH_PX = 2;
+
+/** One drawn piece of a trail: a curve, and the weight its age has left it. */
+export type TrailStroke = { d: string; width: number; opacity: number };
+
+/** A received trail, decoded into the curve pieces it should be drawn as: one
+ *  quadratic per point, joined at the midpoints of its neighbours, carrying
+ *  the width and opacity its own age has left it. Why a curve rather than the
+ *  circle-per-point this replaced, and why the age is per piece:
+ *  `docs/design/presence-and-focus.md`, "The trail is a curve, not a row of
+ *  dots". `now` is a parameter, not a `Date.now()` call, so this stays pure
+ *  and a caller can drive it from an animation frame. */
+export function trailStrokes(
+  boxes: Array<InkBox>,
+  trail: Array<TrailPoint>,
+  now: number,
+): Array<TrailStroke> {
+  const points = trail
+    .map((point) => ({ at: point.at, pixel: inkPixelsFor(boxes, point) }))
+    .filter((entry): entry is { at: number; pixel: { x: number; y: number } } => entry.pixel !== null)
+    .map((entry) => ({ at: entry.at, ...entry.pixel }));
+
+  if (points.length < 2) return [];
+
+  const mid = (a: { x: number; y: number }, b: { x: number; y: number }) => ({
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2,
+  });
+  const last = points.length - 1;
+
+  return points.slice(1).map((point, offset) => {
+    const index = offset + 1;
+    const from = index === 1 ? points[0] : mid(points[index - 1], point);
+    const to = index === last ? point : mid(point, points[index + 1]);
+    // Clamped both ways: a point can be fractionally older than `TRAIL_MS`
+    // before the prune that drops it lands, and `now` can trail an arrival by
+    // a frame.
+    const life = Math.min(Math.max(1 - (now - point.at) / TRAIL_MS, 0), 1);
+
+    return {
+      d: `M${from.x},${from.y} Q${point.x},${point.y} ${to.x},${to.y}`,
+      width: TRAIL_TAIL_WIDTH_PX + (TRAIL_HEAD_WIDTH_PX - TRAIL_TAIL_WIDTH_PX) * life,
+      opacity: life,
+    };
+  });
+}
+
 /** Whether two received pointer positions are the same anchor — used to drop
  *  a pointer the *presence heartbeat* re-sends unchanged (it retransmits the
  *  whole presence, `pointer` included, whether or not the presenter has

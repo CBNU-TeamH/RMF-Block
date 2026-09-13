@@ -16,6 +16,7 @@ import {
   pruneTrail,
   shouldAcceptPoint,
   startMark,
+  trailStrokes,
   TRAIL_MS,
   type InkBox,
   type InkPoint,
@@ -33,7 +34,6 @@ import { PUBLISH_MS } from "./use-focus-presence";
  *  stroke has no band, only a path, so this is a constant width throughout. */
 const HIGHLIGHT_STROKE_PX = 20;
 const UNDERLINE_PX = 2;
-const POINTER_RADIUS_PX = 5;
 const POINTER_HEAD_RADIUS_PX = 7;
 
 /** What the toolbar can select. `"pointer"` is not a `MarkKind` — it never
@@ -232,19 +232,28 @@ export function InkOverlay({
   }, [docRef, blocksLoaded, followingId]);
 
   // The trail also has to fade when the presenter has simply stopped moving,
-  // not only when a new point arrives to prune against — a plain interval,
-  // matching `PUBLISH_MS`'s own "no easing or adaptive cadence" precedent.
-  // `pruneTrail` returns the same reference when nothing ages out, so an idle
-  // tick over an already-empty or already-fresh trail re-renders nothing.
+  // not only when a new point arrives to prune against. On an animation frame
+  // rather than the `PUBLISH_MS` interval this used to run on — that paced the
+  // fade at the publish rate and read as a stutter (`presence-and-focus.md`).
+  // Runs only while there is a trail on screen, and stops a frame after the
+  // last point ages out.
+  const hasTrail = trail.length > 0;
   useEffect(() => {
-    const id = setInterval(() => {
+    if (!hasTrail) return;
+
+    let frame = 0;
+    const tick = () => {
       const at = Date.now();
       setNow(at);
+      // `pruneTrail` returns the same reference when nothing ages out, so this
+      // re-renders on `now` alone rather than on a new array every frame.
       setTrail((current) => pruneTrail(current, at));
-    }, PUBLISH_MS);
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
 
-    return () => clearInterval(id);
-  }, []);
+    return () => cancelAnimationFrame(frame);
+  }, [hasTrail]);
 
   // Ending a share forgets what was drawn, or the next one would resurrect it.
   // Settled during render rather than in an effect, the way
@@ -543,20 +552,9 @@ const PointerTrail = memo(function PointerTrail({
    *  `Date.now()` call here; render has to stay pure. */
   now: number;
 }) {
-  // A pixel position depends only on `boxes`/the point itself, not on `now` —
-  // the prune-interval tick bumps `now` every `PUBLISH_MS` whether or not any
-  // point actually aged out, and without this, that tick alone would re-run
-  // `inkPixelsFor`'s box lookup for every trail point just to re-derive x/y
-  // that haven't moved. The head is excluded here (drawn separately below,
-  // larger and eased) so it isn't also drawn as a small aging dot under itself.
-  const pixels = useMemo(
-    () =>
-      trail
-        .slice(0, -1)
-        .map((point) => ({ at: point.at, pixel: inkPixelsFor(boxes, point) }))
-        .filter((entry): entry is { at: number; pixel: { x: number; y: number } } => entry.pixel !== null),
-    [boxes, trail],
-  );
+  // Recomputed per frame rather than memoised: `width` and `opacity` are the
+  // fade, and both come from `now` (`presence-and-focus.md`).
+  const strokes = trailStrokes(boxes, trail, now);
   const head = trail[trail.length - 1];
   const headPixel = useMemo(() => (head ? inkPixelsFor(boxes, head) : null), [boxes, head]);
 
@@ -568,10 +566,17 @@ const PointerTrail = memo(function PointerTrail({
     // `editor.tsx`'s drag-handle glyph uses for an inline SVG's fill — one
     // Tailwind class names the color once instead of a raw hex per shape.
     <g className="text-red-600" fill="currentColor">
-      {pixels.map(({ at, pixel }, index) => {
-        const opacity = Math.max(0, 1 - (now - at) / TRAIL_MS);
-        return <circle key={index} cx={pixel.x} cy={pixel.y} r={POINTER_RADIUS_PX} opacity={opacity} />;
-      })}
+      {strokes.map((stroke, index) => (
+        <path
+          key={index}
+          d={stroke.d}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={stroke.width}
+          strokeOpacity={stroke.opacity}
+          strokeLinecap="round"
+        />
+      ))}
       {headPixel && head ? (
         <circle
           r={POINTER_HEAD_RADIUS_PX}

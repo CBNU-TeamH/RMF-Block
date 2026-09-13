@@ -515,10 +515,15 @@ by the sender is ever transmitted — a receiver's trail is simply "what I have 
 `TRAIL_MS`," which is also self-healing across a stall: a receiver that hears nothing for a few
 seconds just has an empty trail, no reconciliation required.
 
-Aging happens on arrival *and* on a plain interval (matching `PUBLISH_MS`'s own precedent — no
-easing, no adaptive cadence) — a trail also has to fade when the presenter has simply stopped moving,
-which a purely arrival-triggered prune would never catch. `pruneTrail` returns the same array
-reference when nothing ages out, so an idle tick over an unchanged trail re-renders nothing.
+Aging happens on arrival *and* on an animation frame — a trail also has to fade when the presenter
+has simply stopped moving, which a purely arrival-triggered prune would never catch. This was a
+`PUBLISH_MS` interval first, matching that constant's own "no easing, no adaptive cadence"
+precedent, and that was the wrong thing to match: `PUBLISH_MS` paces *what goes on the wire*, where
+ten times a second is plenty, and the fade is something an eye watches directly, where ten steps a
+second is visibly a stutter. The frame loop runs only while there is a trail on screen — that is,
+only while a presenter is actively pointing — and stops on the frame after the last point ages out.
+`pruneTrail` returns the same array reference when nothing ages out, so a frame that drops no point
+re-renders on `now` alone rather than on a new array.
 
 **"Arrives" isn't the same as "changed."** The content document's occupancy heartbeat
 (`use-block-document.ts`) republishes the whole presence every few seconds regardless of whether
@@ -538,15 +543,24 @@ the previous presenter's fading dot visible over whatever's on screen now for up
 which reads as "whose pointer is this" rather than as a trail winding down.
 
 Rendering ages, so it needs a wall-clock value — and a component's render has to stay pure, which
-rules out calling `Date.now()` inside one. `now` is state in the parent, updated on the same prune
-interval, passed down as a prop rather than read fresh inside the leaf that uses it.
+rules out calling `Date.now()` inside one. `now` is state in the parent, updated on the frame loop
+above, passed down as a prop rather than read fresh inside the leaf that uses it.
 
-Only the most recent point additionally eases toward its position with a CSS `transform` transition
-(`PUBLISH_MS` in duration) rather than snapping — the same reasoning already on record for the scroll
-anchor's own follower: regenerating the whole trail's geometry every frame to smooth a curve that 15
-points over 1.5 seconds already renders as continuous would spend a 60Hz render on nothing visible.
-Smoothing only the head, which is the one point that visibly jumps between 10Hz network ticks, is
-where the payoff actually is.
+**The trail is a curve, not a row of dots.** One circle per received point was the first shape, on
+the reasoning that "15 points over 1.5 seconds already renders as continuous" — so the only thing
+worth smoothing was the head, eased toward its new position with a CSS `transform` transition. Seen
+live that reasoning did not survive: 15 points over 1.5 seconds is a point every 100ms, and the
+distance a hand covers in 100ms is a visible gap between one dot and the next. The gaps were the
+stutter, and easing the head smoothed the one part of the trail that was already fine.
+
+`trailStrokes` (`lib/focus/ink.ts`) now decodes the trail into one quadratic per point, joined at
+the midpoints of its neighbours — continuous in position and tangent, so it reads as the shape the
+hand drew rather than the polygon the network sampled. Width and opacity come from each piece's own
+age, so the trail tapers and fades along its length instead of flickering as a unit. The head keeps
+its CSS eased transition, which is still doing real work between 10Hz ticks; it is no longer the
+only thing being smoothed. The geometry is recomputed per frame rather than memoised, because
+`width` and `opacity` *are* the fade and both derive from `now` — at ~15 points that is a handful of
+midpoints, cheaper than keeping two derived shapes in step.
 
 The presenter never renders their own dot — their OS cursor already shows where they are; drawing an
 extra one under it would be redundant, not merely unnecessary.

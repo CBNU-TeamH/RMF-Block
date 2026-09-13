@@ -17,6 +17,9 @@ import {
   TRAIL_MS,
   shouldAcceptPoint,
   startMark,
+  trailStrokes,
+  TRAIL_HEAD_WIDTH_PX,
+  TRAIL_TAIL_WIDTH_PX,
   type InkBox,
   type Mark,
   type TrailPoint,
@@ -382,5 +385,71 @@ describe("pointsEqual", () => {
     assert.equal(pointsEqual(base, { ...base, blockId: "b" }), false);
     assert.equal(pointsEqual(base, { ...base, ratio: 0.6 }), false);
     assert.equal(pointsEqual(base, { ...base, x: 0.6 }), false);
+  });
+});
+
+describe("trailStrokes", () => {
+  const at = 10_000;
+  /** Four positions down one block, as `PUBLISH_MS` apart as they arrive. */
+  const trail = [0, 100, 200, 300].map((offset, index) => ({
+    blockId: "b",
+    ratio: 0.1 + index * 0.1,
+    x: 0.5,
+    at: at + offset,
+  }));
+
+  it("draws nothing until there are two points to join", () => {
+    assert.deepEqual(trailStrokes(boxes, [], at), []);
+    assert.deepEqual(trailStrokes(boxes, trail.slice(0, 1), at), []);
+  });
+
+  /** The stutter was gaps, not opacity: one circle per received point leaves
+   *  the distance a hand covers in `PUBLISH_MS` undrawn between each pair.
+   *  Every piece has to start where the previous one ended for the trail to
+   *  read as one continuous mark. */
+  it("joins its pieces end to end, leaving no gap between samples", () => {
+    const strokes = trailStrokes(boxes, trail, trail[trail.length - 1].at);
+
+    assert.equal(strokes.length, trail.length - 1);
+    for (let i = 1; i < strokes.length; i += 1) {
+      const previousEnd = strokes[i - 1].d.split(" ").at(-1);
+      const currentStart = strokes[i].d.split(" ")[0].slice(1);
+      assert.equal(currentStart, previousEnd, `piece ${i} does not start where ${i - 1} ended`);
+    }
+  });
+
+  /** A laser pointer tapers. The oldest piece must be both thinner and fainter
+   *  than the newest, or the trail reads as a train of equal dots. */
+  it("tapers and fades from the head back along the trail", () => {
+    const strokes = trailStrokes(boxes, trail, trail[trail.length - 1].at);
+    const [oldest] = strokes;
+    const newest = strokes[strokes.length - 1];
+
+    assert.ok(newest.width > oldest.width);
+    assert.ok(newest.opacity > oldest.opacity);
+    assert.ok(newest.width <= TRAIL_HEAD_WIDTH_PX);
+    assert.ok(oldest.width >= TRAIL_TAIL_WIDTH_PX);
+  });
+
+  /** Both ends clamped: `now` can trail an arrival by a frame, and a point can
+   *  be fractionally past `TRAIL_MS` before the prune that drops it lands. */
+  it("clamps life at both ends rather than going negative or past full", () => {
+    const stale = trailStrokes(boxes, trail, at + TRAIL_MS * 5);
+    for (const stroke of stale) {
+      assert.equal(stroke.opacity, 0);
+      assert.equal(stroke.width, TRAIL_TAIL_WIDTH_PX);
+    }
+
+    const early = trailStrokes(boxes, trail, at - 50);
+    for (const stroke of early) {
+      assert.ok(stroke.opacity <= 1);
+      assert.equal(stroke.width, TRAIL_HEAD_WIDTH_PX);
+    }
+  });
+
+  it("drops a point whose block is gone rather than drawing to nowhere", () => {
+    const orphaned = [{ blockId: "gone", ratio: 0.5, x: 0.5, at }, ...trail];
+
+    assert.equal(trailStrokes(boxes, orphaned, at).length, trail.length - 1);
   });
 });
