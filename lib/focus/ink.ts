@@ -42,23 +42,33 @@ const INK_RATIO_STEPS = 10_000;
 export const MIN_POINT_DISTANCE_PX = 2;
 
 /** Bounds what `MARK_CAP` no longer can once a mark is an open path: a mark's
- *  own growth. Measured (not estimated) at the segmented encoding above, 300
- *  points is 8,495 serialized bytes — >=600px of accepted travel at the 2px
- *  floor, already several paragraph-widths past what an underline or
- *  highlight gesture needs. Past the cap, `extendMark` stops appending: the
- *  stroke freezes rather than losing its start, which would be more code and
- *  would move where the stroke appears to begin. Worst case, all `MARK_CAP`
- *  marks at this cap: 16 x 8,495B =~ 133KB — up from ~1.8KB when a mark was a
- *  fixed rectangle. Not shrunk further: reaching it needs 16 uncleared
- *  300-point strokes, far outside real use, and it costs bandwidth only while
- *  that state persists, not a recurring per-second cost. */
-export const MAX_POINTS_PER_MARK = 300;
+ *  own growth. Past the cap, `extendMark` stops appending: the stroke freezes
+ *  rather than losing its start, which would move where it appears to begin.
+ *
+ *  600 points is ~1,200px of accepted travel at the 2px floor. The previous
+ *  300 was justified as ">=600px ... already several paragraph-widths past
+ *  what a gesture needs", which held while a mark was a straight band between
+ *  two endpoints and stopped holding when it became a freehand path: the
+ *  editor's scroll container is `flex-1` with no max-width, so one horizontal
+ *  pass across a laptop-width pane is already ~1,000px, and a path that
+ *  actually follows the hand spends more than the distance it covers. The
+ *  freeze was reachable in a single ordinary highlight, and reported as the
+ *  stroke "breaking and starting again".
+ *
+ *  Paid for out of `MARK_CAP` rather than the wire budget, so the measured
+ *  worst case is unchanged: 16 x 300 points = 126.0KB, 8 x 600 = 127.0KB
+ *  (measured at this encoding, not estimated). Trading stroke *count* for
+ *  stroke *length* is the right way round — the freeze hit every long gesture,
+ *  where the 9th uncleared stroke dropping the 1st needs nine of them with
+ *  지우기 untouched. */
+export const MAX_POINTS_PER_MARK = 600;
 
 /** How many marks a member may hold before the oldest is dropped. Bounds the
  *  *count* of strokes; `MAX_POINTS_PER_MARK` bounds what each one costs, since
  *  a mark is no longer the fixed ~110-byte shape this number was first sized
- *  against — see that constant's own comment for the current worst case. */
-export const MARK_CAP = 16;
+ *  against — see that constant's own comment for the current worst case, and
+ *  for why halving this is what pays for doubling that. */
+export const MARK_CAP = 8;
 
 const fraction = (value: number, extent: number): number => {
   if (extent <= 0) return 0;

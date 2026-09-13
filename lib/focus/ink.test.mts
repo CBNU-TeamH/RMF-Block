@@ -248,3 +248,41 @@ describe("capMarks", () => {
     assert.equal(capped[MARK_CAP - 1].segments[0].blockId, `m${MARK_CAP}`);
   });
 });
+
+describe("the point budget the two caps split between them", () => {
+  /** One highlight across a laptop-width editor pane. The scroll container is
+   *  `flex-1` with no max-width, so this is an ordinary gesture, not a long
+   *  one — and a freehand path spends more than the distance it covers. The
+   *  cap that froze mid-stroke allowed 600px. Pinned as a *distance*, not as
+   *  the constant itself: a test that reads `MAX_POINTS_PER_MARK` back can
+   *  never fail when someone lowers it. */
+  it("lets one stroke cross a full-width pane before it freezes", () => {
+    assert.ok(
+      MAX_POINTS_PER_MARK * MIN_POINT_DISTANCE_PX >= 1_200,
+      `a stroke freezes after ${MAX_POINTS_PER_MARK * MIN_POINT_DISTANCE_PX}px of travel`,
+    );
+  });
+
+  /** The invariant the trade actually rests on: raising one cap is paid for by
+   *  lowering the other, so the worst case a presenter can put on the wire
+   *  does not grow. Measured against the real encoding rather than a byte
+   *  estimate, at the ceiling both caps allow at once. */
+  it("keeps the worst-case presence payload inside its measured budget", () => {
+    // Four decimals, because that is what `inkPointAt` stores and the payload
+    // is the point of the test — raw floats would serialize ~17 digits each
+    // and measure a shape this code never puts on the wire.
+    const quantized = (value: number) => Math.round(value * 10_000) / 10_000;
+
+    const full = Array.from({ length: MARK_CAP }, () => {
+      let mark = startMark("highlight", { blockId: "a", ratio: 0, x: 0 });
+      for (let i = 1; i < MAX_POINTS_PER_MARK; i += 1) {
+        const at = quantized(i / MAX_POINTS_PER_MARK);
+        mark = extendMark(mark, { blockId: "a", ratio: at, x: at });
+      }
+      return mark;
+    });
+
+    const kb = Buffer.byteLength(JSON.stringify(full)) / 1024;
+    assert.ok(kb <= 135, `worst-case marks payload is ${kb.toFixed(1)}KB`);
+  });
+});
