@@ -7,8 +7,10 @@ import type { WorkspacePresence } from "@/lib/presence/types";
 
 /** How often a presenter's anchor may go out, at most.
  *  simple: a plain interval, no easing or adaptive cadence
- *  (`docs/design/presence-and-focus.md`). Lower it if following reads as steppy. */
-const PUBLISH_MS = 100;
+ *  (`docs/design/presence-and-focus.md`). Lower it if following reads as steppy.
+ *  Exported so `ink-overlay.tsx` shares this one throttle constant rather than
+ *  defining a second copy of the same value. */
+export const PUBLISH_MS = 100;
 
 /** Focus following (UC-030) for *this* editor. The decisions are pure and tested
  *  in `lib/focus/`; only the two effects driving them are here. Crossing to a

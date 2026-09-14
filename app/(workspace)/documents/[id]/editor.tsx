@@ -47,6 +47,7 @@ import { DividerBlockView } from "./divider-block";
 import { DocLinkBlockView } from "./doc-link-block";
 import { FileBlockView } from "./file-block";
 import { ImageBlockView } from "./image-block";
+import { InkOverlay } from "./ink-overlay";
 import { PdfBlockView } from "./pdf-block";
 import { TextBlockView, type BlockVariant } from "./text-block";
 import { useBlockDocument } from "./use-block-document";
@@ -980,6 +981,20 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           </span>
         )}
       </div>
+
+      {/* After the blocks, not before: sibling effects run in DOM order, so
+        * measuring here happens once every textarea in this commit has grown
+        * to its content. */}
+      <InkOverlay
+        containerRef={scrollContainerRef}
+        docRef={docRef}
+        blocks={blocks}
+        blocksLoaded={blocksLoaded}
+        memberId={memberId}
+        colorTag={colorTag}
+        isPresenting={isPresenting}
+        followingId={followingId}
+      />
 
       {/* `/페이지`'s one question. A name is asked for rather than defaulted to
         * "제목 없음": nothing in the editor renames a document yet, so a

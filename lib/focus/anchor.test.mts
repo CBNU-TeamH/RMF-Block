@@ -52,6 +52,13 @@ describe("anchorAt", () => {
   it("is null for an empty document", () => {
     assert.equal(anchorAt([], 50), null);
   });
+
+  it("takes a finer quantization without the default moving", () => {
+    const tall: Array<BlockBox> = [{ id: "big", top: 0, height: 600 }];
+
+    assert.equal(anchorAt(tall, 3)?.ratio, 0.01);
+    assert.equal(anchorAt(tall, 3, 10_000)?.ratio, 0.005);
+  });
 });
 
 describe("scrollTopFor", () => {
