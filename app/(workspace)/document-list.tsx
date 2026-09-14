@@ -8,6 +8,8 @@ import type { WorkspaceMember } from "@/lib/auth/types";
 import type { WorkspaceDocument } from "@/lib/documents/documents";
 import { treeRows } from "@/lib/documents/tree";
 
+import { DocumentActionDialog, type DocumentAction } from "./document-actions";
+
 export type DocumentRow = WorkspaceDocument & {
   /** null when the creator's record is gone — a member the host removed, or one
    * from before members were persisted. Rendering a stale avatar would be a
@@ -36,6 +38,8 @@ const stamp = (iso: string) => (iso ? day.format(new Date(iso)) : "—");
 const INPUT_BASE = "rounded-md border bg-paper-2 px-3 py-2 text-base text-ink";
 const INPUT_OK = "border-ink";
 const INPUT_BAD = "border-red-600";
+const ROW_ACTION =
+  "rounded-md border border-ink bg-paper px-1.5 py-0.5 text-[11px] font-semibold text-ink-soft";
 
 /**
  * The workspace's documents (FR-020-06, the document half) and where UC-021's
@@ -55,6 +59,9 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   // Where a "새 하위 문서" click puts the next one, or `null` for the root.
   const [parentId, setParentId] = useState<string | null>(null);
+  // UC-023's three operations, or null for none open. One piece of state, not
+  // one flag each: they are mutually exclusive by construction this way.
+  const [action, setAction] = useState<DocumentAction | null>(null);
 
   // The server component's list is the first paint; the socket keeps it current
   // from there (FR-021-06, FR-023-07).
@@ -283,20 +290,60 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
                 {/* Outside the `<Link>`, not inside it: a button nested in an
                   * anchor is invalid HTML, and the browser's own fix for it is
                   * to close the anchor early — which silently drops the rest of
-                  * the row out of the link. */}
-                <button
-                  type="button"
-                  onClick={() => openDialog(doc.id)}
-                  title={`${doc.name} 안에 새 문서`}
-                  className="absolute top-1.5 right-3.5 rounded-md border border-ink bg-paper px-1.5 py-0.5 text-[11px] font-semibold text-ink-soft opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
-                >
-                  + 하위
-                </button>
+                  * the row out of the link.
+                  *
+                  * Revealed on hover and on focus-within, so the row stays
+                  * readable and the buttons are still reachable by keyboard —
+                  * `opacity-0` alone would leave them tabbable but invisible. */}
+                <span className="absolute top-1.5 right-3.5 flex gap-1 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => openDialog(doc.id)}
+                    title={`${doc.name} 안에 새 문서`}
+                    className={ROW_ACTION}
+                  >
+                    + 하위
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAction({ kind: "rename", document: doc })}
+                    title={`${doc.name} 이름 변경`}
+                    className={ROW_ACTION}
+                  >
+                    이름
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAction({ kind: "move", document: doc })}
+                    title={`${doc.name} 이동`}
+                    className={ROW_ACTION}
+                  >
+                    이동
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAction({ kind: "delete", document: doc })}
+                    title={`${doc.name} 삭제`}
+                    className={`${ROW_ACTION} text-red-600`}
+                  >
+                    삭제
+                  </button>
+                </span>
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      <DocumentActionDialog
+        action={action}
+        documents={live}
+        onClose={() => setAction(null)}
+        // The socket has already updated `live` for this browser too; this
+        // keeps the server component's own read (and the creator column it
+        // joins in) from going stale behind it.
+        onDone={() => router.refresh()}
+      />
 
       <dialog
         ref={dialogRef}
