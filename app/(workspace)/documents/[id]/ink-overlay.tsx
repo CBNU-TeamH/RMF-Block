@@ -1,7 +1,7 @@
 "use client";
 
 import type { Document } from "@yorkie-js/sdk";
-import { memo, useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type PointerEvent, type RefObject } from "react";
 
 import type { BlockDocumentRoot } from "@/lib/blocks/document";
 import type { Block } from "@/lib/blocks/types";
@@ -9,13 +9,20 @@ import { readBoxes } from "@/lib/focus/dom";
 import {
   capMarks,
   extendMark,
+  inkPixelsFor,
   inkPointAt,
   markPixelSegments,
+  pointsEqual,
+  pruneTrail,
   shouldAcceptPoint,
   startMark,
+  trailStrokes,
+  TRAIL_MS,
   type InkBox,
+  type InkPoint,
   type Mark,
   type MarkKind,
+  type TrailPoint,
 } from "@/lib/focus/ink";
 import { inkFrom, type BlockPresence } from "@/lib/presence/occupancy";
 
@@ -27,17 +34,25 @@ import { PUBLISH_MS } from "./use-focus-presence";
  *  stroke has no band, only a path, so this is a constant width throughout. */
 const HIGHLIGHT_STROKE_PX = 20;
 const UNDERLINE_PX = 2;
+const POINTER_HEAD_RADIUS_PX = 7;
 
-const TOOLS: Array<{ kind: MarkKind; label: string }> = [
+/** What the toolbar can select. `"pointer"` is not a `MarkKind` — it never
+ *  produces a `Mark`, only a live position, so it is kept out of that union
+ *  rather than widening it for one member that doesn't fit its shape. */
+type Tool = MarkKind | "pointer";
+
+const TOOLS: Array<{ kind: Tool; label: string }> = [
   { kind: "underline", label: "밑줄" },
   { kind: "highlight", label: "형광펜" },
+  { kind: "pointer", label: "포인터" },
 ];
 
-/** The presenter's marks over the block editor (FR-030-12/13/14), and the drag
- *  surface that makes them. Why an overlay is not optional, why marks are
- *  block-anchored rather than pixels, why they are freehand paths rather than
- *  straight bands, and why they are read here rather than in
- *  `useBlockDocument`: `docs/design/presence-and-focus.md`, "The ink layer". */
+/** The presenter's marks and pointer over the block editor (FR-030-12/13/14),
+ *  and the drag surface that makes them. Why an overlay is not optional, why
+ *  marks are block-anchored rather than pixels, why they are freehand paths
+ *  rather than straight bands, why the pointer needed no capture mechanism of
+ *  its own, and why they are read here rather than in `useBlockDocument`:
+ *  `docs/design/presence-and-focus.md`, "The ink layer". */
 export function InkOverlay({
   containerRef,
   docRef,
@@ -64,7 +79,7 @@ export function InkOverlay({
   // can be shorter than the pane it's shown in, and the canvas has to cover
   // the pane, not just the content, or its bottom half is undrawable.
   const [viewportHeight, setViewportHeight] = useState(0);
-  const [picked, setPicked] = useState<MarkKind | null>(null);
+  const [picked, setPicked] = useState<Tool | null>(null);
   /** Derived, not stored: a tool left selected when a share ends would leave
    *  this overlay capturing pointer events over a document nobody can edit. */
   const tool = isPresenting ? picked : null;
@@ -78,16 +93,32 @@ export function InkOverlay({
    *  into `shown` below rather than kept as a separate "preview" — it already
    *  *is* a `Mark`, decoded the same way a finished one is. */
   const [drawing, setDrawing] = useState<Mark | null>(null);
-  const [received, setReceived] = useState<{ marks: Array<Mark>; colorTag: string } | null>(null);
+  const [received, setReceived] = useState<{
+    marks: Array<Mark>;
+    pointer: InkPoint | null;
+    colorTag: string;
+  } | null>(null);
+  /** This browser's own history of the followed presenter's pointer, stamped
+   *  on arrival — never published, only ever received and aged out locally.
+   *  `docs/design/presence-and-focus.md` on why no clock sync is needed. */
+  const [trail, setTrail] = useState<Array<TrailPoint>>([]);
+  // Wall-clock time as state, not a `Date.now()` call during render — a
+  // component's render has to be pure, and "now" is exactly what pruning
+  // this trail *for display* needs, updated on the same interval that ages it.
+  const [now, setNow] = useState(() => Date.now());
 
-  // Mirrors of the two states above, read inside the publish timer's fire-time
-  // callback so it always sends the *current* stroke rather than whatever it
-  // closed over when scheduled — the same reason `use-focus-presence.ts`
-  // re-reads `container.scrollTop` at fire time instead of capturing it.
+  // Mirrors of the state above, read inside the publish timer's fire-time
+  // callback so it always sends the *current* stroke and pointer rather than
+  // whatever it closed over when scheduled — the same reason
+  // `use-focus-presence.ts` re-reads `container.scrollTop` at fire time
+  // instead of capturing it.
   const mineRef = useRef<Array<Mark>>([]);
   const drawingRef = useRef<Mark | null>(null);
-  // The last point accepted onto the current stroke, in raw container pixels
-  // — `shouldAcceptPoint`'s comparison space, not the anchored ratio space.
+  const pointerRef = useRef<InkPoint | null>(null);
+  // The last point accepted onto the current stroke or pointer move, in raw
+  // container pixels — `shouldAcceptPoint`'s comparison space, not the
+  // anchored ratio space. Shared between drawing and pointing: the two are
+  // mutually exclusive (one `tool` at a time), so there is never a collision.
   const lastAcceptedPixelRef = useRef<{ x: number; y: number } | null>(null);
   // The trailing-edge throttle's own state, refs rather than effect-local
   // `let`s because a drag starts and stops repeatedly while this component
@@ -95,12 +126,39 @@ export function InkOverlay({
   const publishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const publishedAtRef = useRef(0);
 
-  // Declared early, ahead of the effect below that needs it — only touches
-  // the ref above, so it has nothing else to wait on.
+  // Declared early, ahead of the effects below that need them — both only
+  // touch the refs above, so they have nothing else to wait on.
   const cancelScheduledPublish = () => {
     if (publishTimerRef.current === null) return;
     clearTimeout(publishTimerRef.current);
     publishTimerRef.current = null;
+  };
+
+  // Composes and sends the whole write every time — marks and pointer
+  // together, since Yorkie presence has no delta anyway, so one publish
+  // scheduled once beats two scheduled independently.
+  const publishNow = () => {
+    const doc = docRef.current;
+    if (!doc) return;
+
+    const marks = drawingRef.current ? [...mineRef.current, drawingRef.current] : mineRef.current;
+    doc.update((_root, presence) => {
+      presence.set({ id: memberId, marks, pointer: pointerRef.current });
+    });
+    publishedAtRef.current = Date.now();
+  };
+
+  // Trailing edge, wall clock — `use-focus-presence.ts`'s own idiom, reused
+  // rather than reinvented. A pending timer is left alone; `publishNow` reads
+  // the refs above when it fires, which is what makes that safe.
+  const schedulePublish = () => {
+    if (publishTimerRef.current !== null) return;
+
+    const wait = Math.max(0, PUBLISH_MS - (Date.now() - publishedAtRef.current));
+    publishTimerRef.current = setTimeout(() => {
+      publishTimerRef.current = null;
+      publishNow();
+    }, wait);
   };
 
   // Re-measured whenever the block list changes, and whenever the container's
@@ -138,7 +196,31 @@ export function InkOverlay({
     const doc = docRef.current;
     if (!doc) return;
 
-    const read = () => setReceived(inkFrom(doc.getOthersPresences(), followingId));
+    // Starting a fresh subscription (a new followed presenter, or none) means
+    // whatever trail was on screen belongs to a different presenter now —
+    // clearing it here rather than waiting for it to decay avoids the
+    // previous presenter's fading dot lingering over the new one's screen.
+    setTrail([]);
+    // The content document's occupancy heartbeat (`use-block-document.ts`)
+    // retransmits the whole presence every few seconds regardless of whether
+    // the presenter has moved — `pointer` included, since Yorkie presence has
+    // no delta. Tracked per-subscription (not a ref that outlives it) so a
+    // fresh follow starts with no prior point to compare against.
+    let lastPointer: InkPoint | null = null;
+
+    const read = () => {
+      const next = inkFrom(doc.getOthersPresences(), followingId);
+      setReceived(next);
+
+      const pointer = next?.pointer ?? null;
+      if (pointsEqual(pointer, lastPointer)) return;
+      lastPointer = pointer;
+
+      if (pointer) {
+        const arrived: TrailPoint = { ...pointer, at: Date.now() };
+        setTrail((current) => pruneTrail([...current, arrived], arrived.at));
+      }
+    };
     // Subscribe before the first read, so an arrival between the two is not
     // missed — the ordering `presence-and-focus.md` already fixed for presence.
     const unsubscribe = doc.subscribe("others", read);
@@ -148,6 +230,30 @@ export function InkOverlay({
     // Never `blocks`: it is a fresh array on every recompute and would rebuild
     // this subscription continuously, dropping the events landing in the gap.
   }, [docRef, blocksLoaded, followingId]);
+
+  // The trail also has to fade when the presenter has simply stopped moving,
+  // not only when a new point arrives to prune against. On an animation frame
+  // rather than the `PUBLISH_MS` interval this used to run on — that paced the
+  // fade at the publish rate and read as a stutter (`presence-and-focus.md`).
+  // Runs only while there is a trail on screen, and stops a frame after the
+  // last point ages out.
+  const hasTrail = trail.length > 0;
+  useEffect(() => {
+    if (!hasTrail) return;
+
+    let frame = 0;
+    const tick = () => {
+      const at = Date.now();
+      setNow(at);
+      // `pruneTrail` returns the same reference when nothing ages out, so this
+      // re-renders on `now` alone rather than on a new array every frame.
+      setTrail((current) => pruneTrail(current, at));
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+
+    return () => cancelAnimationFrame(frame);
+  }, [hasTrail]);
 
   // Ending a share forgets what was drawn, or the next one would resurrect it.
   // Settled during render rather than in an effect, the way
@@ -160,20 +266,40 @@ export function InkOverlay({
   // during render, and a pending throttle timer has to be cancelled explicitly
   // rather than left to race this `doc.update` on ordering. Unthrottled by
   // construction — a separate effect the drag throttle below never touches.
+  // Publishes `null` for both directly, rather than through `publishNow`, to
+  // keep the established "null, not an empty array, means cleared" sentinel
+  // intact — `publishNow` composing `[]` from empty refs reads the same to a
+  // follower, but this keeps the wire value consistent with intent.
   useEffect(() => {
     if (isPresenting) return;
 
     cancelScheduledPublish();
     mineRef.current = [];
     drawingRef.current = null;
+    pointerRef.current = null;
 
     const doc = docRef.current;
     if (!doc) return;
 
     doc.update((_root, presence) => {
-      presence.set({ marks: null });
+      presence.set({ marks: null, pointer: null });
     });
   }, [isPresenting, docRef]);
+
+  // Deselecting the pointer tool (without ending the share) has to clear it
+  // for followers too — otherwise the last position stays stuck on their
+  // screens instead of fading. Composes with whatever marks currently are via
+  // `publishNow`, rather than a second bespoke write.
+  useEffect(() => {
+    if (tool === "pointer" || pointerRef.current === null) return;
+
+    pointerRef.current = null;
+    publishNow();
+    // `publishNow` reads only refs and closed-over identifiers that don't
+    // change per render (`docRef`, `memberId`) — safe to omit as a dependency
+    // the same way the share-end effect above already treats it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool]);
 
   // A stroke mid-throttle when this unmounts (document navigation) must not
   // fire a `doc.update` against a document this component no longer owns —
@@ -183,32 +309,6 @@ export function InkOverlay({
       if (publishTimerRef.current !== null) clearTimeout(publishTimerRef.current);
     };
   }, []);
-
-  const publishNow = (marks: Array<Mark>) => {
-    const doc = docRef.current;
-    if (!doc) return;
-
-    doc.update((_root, presence) => {
-      presence.set({ id: memberId, marks });
-    });
-    publishedAtRef.current = Date.now();
-  };
-
-  // Trailing edge, wall clock — `use-focus-presence.ts`'s own idiom, reused
-  // rather than reinvented. A pending timer is left alone; it reads the refs
-  // above when it fires, which is what makes that safe.
-  const schedulePublish = () => {
-    if (publishTimerRef.current !== null) return;
-
-    const wait = Math.max(0, PUBLISH_MS - (Date.now() - publishedAtRef.current));
-    publishTimerRef.current = setTimeout(() => {
-      publishTimerRef.current = null;
-      const current = drawingRef.current
-        ? [...mineRef.current, drawingRef.current]
-        : mineRef.current;
-      publishNow(current);
-    }, wait);
-  };
 
   /** A pointer event in the scroll container's own raw pixel space — the one
    *  `readBoxes` measures in, and what `shouldAcceptPoint` compares against.
@@ -227,7 +327,9 @@ export function InkOverlay({
   };
 
   const onPointerDown = (event: PointerEvent<SVGSVGElement>) => {
-    if (!tool) return;
+    // The pointer tool never starts a mark — it has no drag to capture, only
+    // hover movement, handled entirely in `onPointerMove`.
+    if (!tool || tool === "pointer") return;
     const raw = rawPointFrom(event);
     if (!raw) return;
 
@@ -251,11 +353,16 @@ export function InkOverlay({
 
     // Once up front, not only on the next move — the same rule
     // `use-focus-presence.ts`'s presenter effect follows for the scroll anchor.
-    publishNow([...mineRef.current, started]);
+    publishNow();
   };
 
   const onPointerMove = (event: PointerEvent<SVGSVGElement>) => {
-    if (!tool || !drawingRef.current) return;
+    if (!tool) return;
+    // Cheap bail for the common case: hovering with a drawing tool armed but
+    // no drag active — before any DOM read or anchoring runs, since a plain
+    // hover fires at up to display refresh rate. The pointer tool has no
+    // equivalent "not yet started" state; every accepted move matters to it.
+    if (tool !== "pointer" && !drawingRef.current) return;
     const raw = rawPointFrom(event);
     if (!raw) return;
     if (!shouldAcceptPoint(lastAcceptedPixelRef.current, raw)) return;
@@ -265,9 +372,20 @@ export function InkOverlay({
     // second, so a DOM re-query per point was the real cost.
     const point = inkPointAt(boxes, raw.x, raw.y);
     if (!point) return;
-
     lastAcceptedPixelRef.current = raw;
-    const extended = extendMark(drawingRef.current, point);
+
+    if (tool === "pointer") {
+      pointerRef.current = point;
+      schedulePublish();
+      return;
+    }
+
+    // Always true here — the bail at the top already ruled out every other
+    // case for a drawing tool — but TypeScript can't narrow a ref's `.current`
+    // across statements, so this still earns its keep as a type guard.
+    const drawing = drawingRef.current;
+    if (!drawing) return;
+    const extended = extendMark(drawing, point);
     drawingRef.current = extended;
     setDrawing(extended);
     schedulePublish();
@@ -288,7 +406,7 @@ export function InkOverlay({
     // Unthrottled: without this, points accepted after the last throttle tick
     // would sit unsent until a tick that, since the drag just ended, may never
     // come.
-    publishNow(finished);
+    publishNow();
   };
 
   const onPointerCancel = () => {
@@ -301,14 +419,14 @@ export function InkOverlay({
 
     // Revert to the committed marks — a canceled stroke should not leave the
     // partial progress already published mid-drag standing forever.
-    publishNow(mineRef.current);
+    publishNow();
   };
 
   const clearMine = () => {
     mineRef.current = [];
     setMine([]);
     cancelScheduledPublish();
-    publishNow([]);
+    publishNow();
   };
 
   const shown = isPresenting ? (drawing ? [...mine, drawing] : mine) : (received?.marks ?? []);
@@ -333,9 +451,7 @@ export function InkOverlay({
         aria-hidden
         width="100%"
         height={height}
-        className={`absolute left-0 top-0 ${
-          tool ? "z-20 touch-none" : "z-10 pointer-events-none"
-        }`}
+        className={`absolute left-0 top-0 ${tool ? "z-20 touch-none" : "z-10 pointer-events-none"}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -344,6 +460,9 @@ export function InkOverlay({
         {shown.map((mark, index) => (
           <MarkShape key={index} boxes={boxes} mark={mark} color={shownColor} />
         ))}
+        {/* The presenter never renders their own dot — their OS cursor
+         *  already shows where they are; only a follower needs this. */}
+        {!isPresenting ? <PointerTrail boxes={boxes} trail={trail} now={now} /> : null}
       </svg>
 
       {isPresenting ? (
@@ -413,5 +532,61 @@ const MarkShape = memo(function MarkShape({
         />
       ))}
     </>
+  );
+});
+
+/** A follower's own local history of a presenter's pointer, each point fading
+ *  linearly with age. The most recent point renders larger and eases toward
+ *  its own new position with a CSS `transform` transition — smoothing between
+ *  `PUBLISH_MS`-spaced network updates without regenerating any geometry
+ *  every frame, the same reasoning already on record for the scroll anchor's
+ *  own follower: `docs/design/presence-and-focus.md`. */
+const PointerTrail = memo(function PointerTrail({
+  boxes,
+  trail,
+  now,
+}: {
+  boxes: Array<InkBox>;
+  trail: Array<TrailPoint>;
+  /** Wall-clock time to age each point against — state in the parent, not a
+   *  `Date.now()` call here; render has to stay pure. */
+  now: number;
+}) {
+  // Recomputed per frame rather than memoised: `width` and `opacity` are the
+  // fade, and both come from `now` (`presence-and-focus.md`).
+  const strokes = trailStrokes(boxes, trail, now);
+  const head = trail[trail.length - 1];
+  const headPixel = useMemo(() => (head ? inkPixelsFor(boxes, head) : null), [boxes, head]);
+
+  return (
+    // Fixed red, not the presenter's own `colorTag` — a laser pointer reads
+    // as one regardless of whose hand is on it, and `red-600` (this app's own
+    // error color) can't coincide with a presenter's assigned roster color
+    // the way `colorTag` itself could. `currentColor`, the same idiom
+    // `editor.tsx`'s drag-handle glyph uses for an inline SVG's fill — one
+    // Tailwind class names the color once instead of a raw hex per shape.
+    <g className="text-red-600" fill="currentColor">
+      {strokes.map((stroke, index) => (
+        <path
+          key={index}
+          d={stroke.d}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={stroke.width}
+          strokeOpacity={stroke.opacity}
+          strokeLinecap="round"
+        />
+      ))}
+      {headPixel && head ? (
+        <circle
+          r={POINTER_HEAD_RADIUS_PX}
+          opacity={Math.max(0, 1 - (now - head.at) / TRAIL_MS)}
+          style={{
+            transform: `translate(${headPixel.x}px, ${headPixel.y}px)`,
+            transition: `transform ${PUBLISH_MS}ms linear`,
+          }}
+        />
+      ) : null}
+    </g>
   );
 });

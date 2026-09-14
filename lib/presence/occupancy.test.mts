@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
-import type { Mark } from "../focus/ink.ts";
+import type { InkPoint, Mark } from "../focus/ink.ts";
 
 import { inkFrom, occupantsByBlock, sameOccupants, OCCUPANCY_TTL_MS, type BlockPresence } from "./occupancy.ts";
 
@@ -83,17 +83,35 @@ describe("inkFrom", () => {
   it("returns only the followed member's marks when two people have drawn", () => {
     const others = [other(drawing("alice", alice(null))), other(drawing("bob", bob(null)))];
 
-    assert.deepEqual(inkFrom(others, "bob"), { marks: [mark], colorTag: "#3b82f6" });
+    assert.deepEqual(inkFrom(others, "bob"), { marks: [mark], pointer: null, colorTag: "#3b82f6" });
   });
 
   it("treats a member who has never drawn as having no marks", () => {
     const never: BlockPresence = { ...alice("block-1"), id: "alice" };
 
-    assert.deepEqual(inkFrom([other(never)], "alice"), { marks: [], colorTag: "#ef4444" });
+    assert.deepEqual(inkFrom([other(never)], "alice"), { marks: [], pointer: null, colorTag: "#ef4444" });
   });
 
   it("skips an entry with no id at all rather than throwing", () => {
     assert.equal(inkFrom([other(alice("block-1"))], "alice"), null);
+  });
+
+  it("returns the presenter's pointer position when they have one", () => {
+    const point: InkPoint = { blockId: "block-1", ratio: 0.4, x: 0.5 };
+    const pointing: BlockPresence = { ...alice("block-1"), id: "alice", pointer: point };
+
+    assert.deepEqual(inkFrom([other(pointing)], "alice"), {
+      marks: [],
+      pointer: point,
+      colorTag: "#ef4444",
+    });
+  });
+
+  it("treats an absent pointer as null, not undefined", () => {
+    const never: BlockPresence = { ...alice("block-1"), id: "alice" };
+    const result = inkFrom([other(never)], "alice");
+
+    assert.equal(result?.pointer, null);
   });
 });
 

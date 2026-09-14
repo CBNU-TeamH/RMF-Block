@@ -63,6 +63,17 @@ export const MIN_POINT_DISTANCE_PX = 2;
  *  지우기 untouched. */
 export const MAX_POINTS_PER_MARK = 600;
 
+/** Bounds segment *count* separately from point count — without this, a
+ *  stroke that keeps crossing back over a block boundary (each crossing a
+ *  fresh 1-point segment) could reach `MAX_POINTS_PER_MARK` paying the full
+ *  36-byte `blockId` cost on every single point, the opposite of what
+ *  segmenting exists to save: measured, 300 alternating 1-point segments is
+ *  27,127B — over 3x the 8,495B a normal 300-point single-segment stroke
+ *  costs. 30 keeps that adversarial case's worst size (2,735B, measured)
+ *  under the normal case rather than over it, while comfortably covering a
+ *  real multi-block stroke — more blocks than fit on one screen at once. */
+export const MAX_SEGMENTS_PER_MARK = 30;
+
 /** How many marks a member may hold before the oldest is dropped. Bounds the
  *  *count* of strokes; `MAX_POINTS_PER_MARK` bounds what each one costs, since
  *  a mark is no longer the fixed ~110-byte shape this number was first sized
@@ -152,6 +163,11 @@ export function extendMark(mark: Mark, point: InkPoint): Mark {
     };
   }
 
+  // Starting a new segment — but not past MAX_SEGMENTS_PER_MARK. Same freeze
+  // policy as the point cap above: the stroke stops growing rather than
+  // paying the alternating-block cost that constant's comment measures.
+  if (segments.length >= MAX_SEGMENTS_PER_MARK) return mark;
+
   return { ...mark, segments: [...segments, { blockId: point.blockId, points: [next] }] };
 }
 
@@ -202,4 +218,82 @@ export function markPixelSegments(
 /** Keeps a member's marks inside `MARK_CAP`, oldest first out. */
 export function capMarks(marks: Array<Mark>): Array<Mark> {
   return marks.length <= MARK_CAP ? marks : marks.slice(marks.length - MARK_CAP);
+}
+
+/** A received pointer position, stamped with *this browser's own* arrival
+ *  time — no clock sync between machines, since only the current point is
+ *  ever transmitted (never a trail) and each receiver builds its own history
+ *  from when it actually saw each one. */
+export type TrailPoint = InkPoint & { at: number };
+
+/** Shorter than #95's original "~2-3s" — seen live, that read as lingering
+ *  too long after the presenter stopped moving. */
+export const TRAIL_MS = 1_500;
+
+/** Drops points older than `TRAIL_MS`. Returns the same array reference when
+ *  nothing was dropped, so an idle prune tick doesn't re-render a trail that
+ *  hasn't changed. */
+export function pruneTrail(trail: Array<TrailPoint>, now: number): Array<TrailPoint> {
+  const fresh = trail.filter((point) => now - point.at < TRAIL_MS);
+  return fresh.length === trail.length ? trail : fresh;
+}
+
+/** The trail's width at its head and at the point it ages out — it tapers,
+ *  the way a laser pointer's afterimage does. */
+export const TRAIL_HEAD_WIDTH_PX = 11;
+export const TRAIL_TAIL_WIDTH_PX = 2;
+
+/** One drawn piece of a trail: a curve, and the weight its age has left it. */
+export type TrailStroke = { d: string; width: number; opacity: number };
+
+/** A received trail, decoded into the curve pieces it should be drawn as: one
+ *  quadratic per point, joined at the midpoints of its neighbours, carrying
+ *  the width and opacity its own age has left it. Why a curve rather than the
+ *  circle-per-point this replaced, and why the age is per piece:
+ *  `docs/design/presence-and-focus.md`, "The trail is a curve, not a row of
+ *  dots". `now` is a parameter, not a `Date.now()` call, so this stays pure
+ *  and a caller can drive it from an animation frame. */
+export function trailStrokes(
+  boxes: Array<InkBox>,
+  trail: Array<TrailPoint>,
+  now: number,
+): Array<TrailStroke> {
+  const points = trail
+    .map((point) => ({ at: point.at, pixel: inkPixelsFor(boxes, point) }))
+    .filter((entry): entry is { at: number; pixel: { x: number; y: number } } => entry.pixel !== null)
+    .map((entry) => ({ at: entry.at, ...entry.pixel }));
+
+  if (points.length < 2) return [];
+
+  const mid = (a: { x: number; y: number }, b: { x: number; y: number }) => ({
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2,
+  });
+  const last = points.length - 1;
+
+  return points.slice(1).map((point, offset) => {
+    const index = offset + 1;
+    const from = index === 1 ? points[0] : mid(points[index - 1], point);
+    const to = index === last ? point : mid(point, points[index + 1]);
+    // Clamped both ways: a point can be fractionally older than `TRAIL_MS`
+    // before the prune that drops it lands, and `now` can trail an arrival by
+    // a frame.
+    const life = Math.min(Math.max(1 - (now - point.at) / TRAIL_MS, 0), 1);
+
+    return {
+      d: `M${from.x},${from.y} Q${point.x},${point.y} ${to.x},${to.y}`,
+      width: TRAIL_TAIL_WIDTH_PX + (TRAIL_HEAD_WIDTH_PX - TRAIL_TAIL_WIDTH_PX) * life,
+      opacity: life,
+    };
+  });
+}
+
+/** Whether two received pointer positions are the same anchor — used to drop
+ *  a pointer the *presence heartbeat* re-sends unchanged (it retransmits the
+ *  whole presence, `pointer` included, whether or not the presenter has
+ *  actually moved) from being re-appended to a follower's trail as if it were
+ *  a new point. `null` counts as equal only to `null`. */
+export function pointsEqual(a: InkPoint | null, b: InkPoint | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.blockId === b.blockId && a.ratio === b.ratio && a.x === b.x;
 }

@@ -13,14 +13,27 @@ const BUTTON =
   "rounded-md border border-ink px-2.5 py-1 font-mono text-[11px] font-medium text-ink disabled:opacity-40";
 
 /** The one header control for UC-030's thin slice: 공유 → 참여 → 종료
- *  (FR-030-01/03/04/09). The four states and the order they are checked in:
- *  `docs/design/presence-and-focus.md`, "`FocusShare`'s four states". */
+ *  (FR-030-01/03/04/09). The states and the order they are checked in:
+ *  `docs/design/presence-and-focus.md`, "`FocusShare`'s states" — including
+ *  why one presenter at a time is what ships, and what allowing several would
+ *  take (issue #100). */
 export function FocusShare({ memberId }: { memberId: string }) {
   const { members, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId, follow, unfollow } = useFocusFollow();
   const pathname = usePathname();
 
-  const presenter = members.find((m) => m.id !== memberId && m.presenting != null);
+  // Sorted, so every client names the same presenter. Nothing stops two
+  // members from presenting at once — `presenting` is a per-member flag and
+  // this roster is a flat list — and `members.find(...)`, the shape this
+  // replaces, resolved that by taking whichever one Yorkie's roster iteration
+  // happened to yield first. That is not the same answer on two machines, so
+  // two followers could be offered two different people, and neither could
+  // tell there was a choice. One presenter is what the UI actually allows
+  // (below), so the fix is to make the pick agree everywhere rather than to
+  // surface a list nobody can reach: issue #100.
+  const presenters = members
+    .filter((m) => m.id !== memberId && m.presenting != null)
+    .sort((a, b) => a.id.localeCompare(b.id));
   const following = followingId ? members.find((m) => m.id === followingId) : undefined;
 
   function startSharing() {
@@ -54,6 +67,10 @@ export function FocusShare({ memberId }: { memberId: string }) {
     );
   }
 
+  // `length > 0`, not `=== 1`: two members *can* both be presenting for the
+  // moment it takes presence to settle, and this control must not fall through
+  // to 공유하기 and invite a third when that happens.
+  const [presenter] = presenters;
   if (presenter) {
     return (
       <button type="button" onClick={() => follow(presenter.id)} className={BUTTON}>
@@ -62,16 +79,14 @@ export function FocusShare({ memberId }: { memberId: string }) {
     );
   }
 
-  // Disabled outside a document, not hidden (`presence-and-focus.md`).
+  // Hidden outside a document — there's no view to anchor a share to on the
+  // dashboard, and there's only ever one other route shape to pop in and out
+  // against, not the churn of many (`presence-and-focus.md`).
   const documentId = documentIdFromPathname(pathname);
+  if (!documentId) return null;
+
   return (
-    <button
-      type="button"
-      onClick={startSharing}
-      disabled={!documentId}
-      title={documentId ? undefined : "문서를 열어야 공유할 수 있습니다."}
-      className={BUTTON}
-    >
+    <button type="button" onClick={startSharing} className={BUTTON}>
       공유하기
     </button>
   );

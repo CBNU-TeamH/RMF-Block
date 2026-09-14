@@ -246,18 +246,44 @@ effect would only force a second render to reach the same answer. The stored id 
 not merely derived away, because leaving it standing would let the same presenter's next share
 pull every browser that once followed them back in with no 참여하기 pressed.
 
-## `FocusShare`'s four states
+## `FocusShare`'s states
 
 It lives in the header beside `PresenceStack`, not as a toast: sharing is a state a person is *in*, and a control that shows the current state has to stay on screen rather than announce a transition and leave.
 
-One control, four mutually exclusive states, checked in an order that assumes a member is never
-simultaneously presenting and following: presenting → 종료 my own share; following someone →
-end that follow; someone else presenting and I am not → 참여하기; otherwise → 공유하기.
+One control, checked in an order that assumes a member is never simultaneously presenting and
+following: presenting → 종료 my own share; following someone → end that follow; another member
+presenting → 참여하기 for that one; otherwise → 공유하기.
 
-The button stays visible (disabled, not hidden) outside a document, because `FR-030-01`'s context
-— "발표자가 바라보고 있는 문서로 시점을 고정시킨다" — has no view to anchor a share to on the
-document list or anywhere else in the shell. Hiding it would make the control pop in and out of
-the header on every navigation instead.
+**One presenter at a time, and that is a property of this control rather than of the data.**
+Nothing in FR-030 or the roster limits presenting to one member — `presenting` is a plain
+per-member flag and the roster is a flat list, so two simultaneous presenters are perfectly
+representable. What makes it one is that the 참여하기 branch above *replaces* 공유하기: while
+anyone else is sharing, nobody else has a control to start sharing with. Whether that should
+change is issue #100; it is a decision about the product, and `docs/SRS-ko.md` does not settle it.
+
+This branch is `presenters.length > 0`, not `=== 1`, precisely because the state it rules out is
+still reachable for the moment presence takes to settle — two members clicking 공유하기 inside one
+round-trip. Falling through to 공유하기 there would invite a third.
+
+**Which presenter, when there is more than one, is decided by sorting rather than by luck.**
+`members.find(...)` — the original shape — resolved it to whichever member Yorkie's roster
+iteration happened to yield first, which is not the same answer on two machines: two followers
+could be offered two different people, with no way for either to tell there was a choice. Sorting
+by id costs nothing and makes every client name the same person. A dropdown of all of them was
+built for this first, and removed: with 공유하기 replaced rather than kept, no sequence a user can
+perform reaches a second presenter, so it was a control for a state the UI cannot produce.
+`docs/ui/app-shell/app-shell.jsx` still sketches a fuller "다중 발표자" card grid, which is where
+this goes if #100 decides in its favour.
+
+The 공유하기 button is hidden outside a document — `FR-030-01`'s context ("발표자가 바라보고 있는
+문서로 시점을 고정시킨다") has no view to anchor a share to on the dashboard or anywhere else in
+the shell that isn't a document, so there is nothing valid for it to do there.
+
+It used to stay visible-but-disabled instead, on the theory that hiding it would make the control
+pop in and out of the header on every navigation. That theory doesn't hold given what the shell
+actually has today: the workspace only has one other route shape (the dashboard) to pop in and
+out against, not the many the theory pictured — the other sidebar items (Members, Storage,
+Settings) are still unbuilt. Revisited directly rather than kept on a guess.
 
 Starting a share reads the current anchor straight off the live DOM at the moment of the click,
 rather than threading it down through context continuously — the anchor is only needed once, at
@@ -343,7 +369,7 @@ segment is one rule — append to the last segment if the new point's block matc
 new one — for a 61–63% cut in the payload this feature makes hot. Given presence has no delta,
 that is the minimum code that solves the problem, not an unrequested abstraction.
 
-Two caps follow, each with a stated basis rather than a round number:
+Three caps follow, each with a stated basis rather than a round number:
 
 - **`MIN_POINT_DISTANCE_PX = 2`** — a candidate point is kept only once it has moved this far from
   the last accepted one, in raw pixels (not ratio — a ratio lives in one block's own scale and
@@ -359,6 +385,15 @@ Two caps follow, each with a stated basis rather than a round number:
   shrunk further, because reaching it needs 16 uncleared 300-point strokes left standing at once,
   far outside real annotation use, and it costs bandwidth only for as long as that state persists,
   not a recurring per-second charge on top of what's below.
+- **`MAX_SEGMENTS_PER_MARK = 30`** — `MAX_POINTS_PER_MARK` bounds total points but not how they're
+  distributed across segments, and a stroke that keeps crossing back over a block boundary starts a
+  fresh one-point segment each time, paying the full 36-byte `blockId` tax on every point — the
+  exact cost segmenting exists to amortize, inverted. Measured: 300 alternating one-point segments
+  is 27,127B, over 3× the 8,495B a normal 300-point single-segment stroke costs — segmenting made
+  the adversarial case *worse* than the flat encoding it was meant to beat. Frozen with the same
+  policy as the point cap (the stroke stops growing, nothing is dropped), 30 segments caps that
+  case at 2,735B, measured — under the normal 300-point case rather than over it — while still
+  covering a real multi-block stroke generously: more blocks than fit on one screen at once.
 
 ### Streaming a stroke: throttled while drawing, immediate at the moments that matter
 
@@ -439,3 +474,120 @@ The overlay is not optional, and this is the one place the editor's own design c
 feature: every block's editing surface is a bare `<textarea>`, so a pointerdown on a block moves the
 caret. Something has to be on top to take the drag instead. With no tool selected it drops back to
 `pointer-events: none`, so a follower's standing marks never eat a click.
+
+### The pointer needed no capture mechanism of its own
+
+FR-030-12's other half: a dot that shows where the presenter is pointing, fading a couple seconds
+after it stops moving — for gesturing while talking, not for leaving a mark. The natural worry is
+that it needs its own input-handling architecture, since underline/highlight need the SVG to
+*capture* pointer events (a bare `<textarea>` would otherwise take the caret on the first click of a
+drag). A pointer has no drag to protect.
+
+That worry turns out to be moot once one product decision is made: **while the pointer tool is
+selected, clicking into the document is blocked** — exactly like the two drawing tools already are.
+Once that's true, the SVG's existing capture (`z-20 touch-none` while *any* tool is selected,
+unchanged since underline/highlight) already blocks the click underneath for free — the pointer tool
+doesn't need a reason of its own to be `z-20`, it inherits one. So the pointer is a third branch on
+the handlers that already exist, not a parallel architecture: `onPointerDown` gains one line (the
+pointer tool never starts a mark), and `onPointerMove` gains a branch that publishes a position
+instead of extending a stroke. `onPointerUp`/`onPointerCancel` need no changes at all — both already
+guard on `drawingRef.current`, which the pointer tool never touches.
+
+**"Read-only" here is about pointer capture, not a hard guarantee.** A `<textarea>` reached by
+clicking is blocked, since the click never lands on it — but browser Tab order isn't affected by
+`z-index`/`pointer-events`, so a block already focused, or reached via Tab, can still be typed into
+while a tool is selected. This gap predates the pointer (the same is already true for
+underline/highlight) and isn't fixed here — closing it needs the textarea's own `readOnly` gated on
+`tool`/`isPresenting`, in `text-block.tsx`, out of this feature's scope.
+
+A pointer position is an `InkPoint`, decoded and rendered with the exact functions marks already use
+(`inkPointAt`, `inkPixelsFor`) — anchoring by block is exactly as necessary here as it is for a mark:
+a follower's window can be a different width than the presenter's, and a raw pixel would land
+somewhere else entirely.
+
+### Only the current point is ever sent — the trail is local
+
+Unlike a mark, a pointer position is never accumulated before it's published — each `onPointerMove`
+that clears `shouldAcceptPoint`'s thinning floor overwrites `pointerRef.current` and republishes the
+single current point, throttled by the same `schedulePublish`/`PUBLISH_MS` marks already use. The
+payload is therefore constant-size regardless of how long or how fast the presenter has been moving,
+which is the one thing that would have made a fading trail expensive to publish.
+
+The trail a follower sees is built entirely on their own side: each arriving point is stamped with
+`Date.now()` *at arrival* and appended to a local buffer, aged out past `TRAIL_MS` (1,500ms —
+shorter than #95's original "~2-3s"; seen live in the container, that range read as lingering).
+No clock sync between machines is needed, because nothing timestamped
+by the sender is ever transmitted — a receiver's trail is simply "what I have received in the last
+`TRAIL_MS`," which is also self-healing across a stall: a receiver that hears nothing for a few
+seconds just has an empty trail, no reconciliation required.
+
+Aging happens on arrival *and* on an animation frame — a trail also has to fade when the presenter
+has simply stopped moving, which a purely arrival-triggered prune would never catch. This was a
+`PUBLISH_MS` interval first, matching that constant's own "no easing, no adaptive cadence"
+precedent, and that was the wrong thing to match: `PUBLISH_MS` paces *what goes on the wire*, where
+ten times a second is plenty, and the fade is something an eye watches directly, where ten steps a
+second is visibly a stutter. The frame loop runs only while there is a trail on screen — that is,
+only while a presenter is actively pointing — and stops on the frame after the last point ages out.
+`pruneTrail` returns the same array reference when nothing ages out, so a frame that drops no point
+re-renders on `now` alone rather than on a new array.
+
+**"Arrives" isn't the same as "changed."** The content document's occupancy heartbeat
+(`use-block-document.ts`) republishes the whole presence every few seconds regardless of whether
+the presenter has moved — `pointer` rides along, since presence has no delta, the same fact the
+segmenting decision above is built around. Without a check, a stationary pointer would look like it
+keeps re-arriving every heartbeat: fading, then snapping back to full opacity, on a cycle. `read()`
+tracks the last point it actually appended (`pointsEqual`, in a variable scoped to one subscription,
+not a ref that outlives it) and skips a re-send of the same anchor — a stationary pointer fades
+once and stays gone, rather than resurrecting on every heartbeat.
+
+**Switching who you follow clears the trail immediately, not by waiting for it to decay.**
+`setTrail([])` runs at the top of the effect that (re)subscribes on `followingId` changing — the
+same reason `pointsEqual`'s tracker is scoped to that one subscription's closure rather than a ref:
+both reset naturally the moment a new subscription starts, without a separate branch to remember
+to write. Without it, switching to a different presenter — or unfollowing entirely — would leave
+the previous presenter's fading dot visible over whatever's on screen now for up to `TRAIL_MS`,
+which reads as "whose pointer is this" rather than as a trail winding down.
+
+Rendering ages, so it needs a wall-clock value — and a component's render has to stay pure, which
+rules out calling `Date.now()` inside one. `now` is state in the parent, updated on the frame loop
+above, passed down as a prop rather than read fresh inside the leaf that uses it.
+
+**The trail is a curve, not a row of dots.** One circle per received point was the first shape, on
+the reasoning that "15 points over 1.5 seconds already renders as continuous" — so the only thing
+worth smoothing was the head, eased toward its new position with a CSS `transform` transition. Seen
+live that reasoning did not survive: 15 points over 1.5 seconds is a point every 100ms, and the
+distance a hand covers in 100ms is a visible gap between one dot and the next. The gaps were the
+stutter, and easing the head smoothed the one part of the trail that was already fine.
+
+`trailStrokes` (`lib/focus/ink.ts`) now decodes the trail into one quadratic per point, joined at
+the midpoints of its neighbours — continuous in position and tangent, so it reads as the shape the
+hand drew rather than the polygon the network sampled. Width and opacity come from each piece's own
+age, so the trail tapers and fades along its length instead of flickering as a unit. The head keeps
+its CSS eased transition, which is still doing real work between 10Hz ticks; it is no longer the
+only thing being smoothed. The geometry is recomputed per frame rather than memoised, because
+`width` and `opacity` *are* the fade and both derive from `now` — at ~15 points that is a handful of
+midpoints, cheaper than keeping two derived shapes in step.
+
+The presenter never renders their own dot — their OS cursor already shows where they are; drawing an
+extra one under it would be redundant, not merely unnecessary.
+
+### The pointer's cost was checked against marks becoming paths, not assumed
+
+`MAX_POINTS_PER_MARK`'s own comment already prices a member's marks at up to ~125KB in the
+worst case, and that number didn't exist when #95 first reasoned "publish only the current point
+keeps the pointer's own payload O(1)" — marks were still a fixed ~110-byte rectangle then. Since
+presence has no delta, the pointer's own small payload rides alongside whatever `marks` currently
+are on *every* publish, and the pointer publishes far more often (continuously, while selected) than
+the occasional focus-change or 5-second heartbeat that used to be the only things re-sending marks.
+Measured, not assumed:
+
+| scenario | payload/publish | at 10Hz |
+|---|---:|---:|
+| pointer field alone | 88 B | ~0.9 KB/s |
+| realistic marks (3 typical strokes) + pointer | ~1.9 KB | ~19 KB/s |
+| worst-case marks (16 maxed 300-point strokes) + pointer | ~125 KB | ~1.25 MB/s |
+
+The realistic case is trivial on a LAN. The worst case is unchanged in kind from what was already
+accepted — it needs 16 uncleared maximum-length strokes standing at once, and the pointer adds 88
+bytes to that ceiling, not a materially new one. No caps changed here; this confirms the existing
+ones still hold rather than deciding anything new.
