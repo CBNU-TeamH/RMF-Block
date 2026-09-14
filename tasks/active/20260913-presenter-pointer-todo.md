@@ -106,16 +106,36 @@ Two more, direct from the browser test of milestone 6:
 - [x] `pruneTrail` holds at the exact `TRAIL_MS` boundary (unit test)
 - [x] `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm comments`, `pnpm verify:docs` pass
 
-Added once folded into the same branch (milestone 6):
+Added once folded into the same branch (milestone 6), then **withdrawn** — see milestone 8:
 
-- [ ] Two members presenting from two different documents at once are **both** reachable — a
-      dropdown, not just the first found
-- [ ] Picking a different name in the dropdown and clicking 참여하기 navigates to *that*
-      presenter's document, not whichever was first
-- [ ] A presenter in the dropdown ending their share does not leave the selection pointed at a
-      gone entry — it falls back to whoever's left
-- [ ] With exactly one presenter, the control looks exactly as it did before (single button, no
-      dropdown) — the common case is unchanged
+- ~~Two members presenting from two different documents at once are both reachable — a dropdown,
+  not just the first found~~
+- ~~Picking a different name in the dropdown and clicking 참여하기 navigates to that presenter's
+  document~~
+- ~~A presenter in the dropdown ending their share falls back to whoever's left~~
+- [x] With one presenter, the control is a single button — the common case is unchanged
+
+## Milestone 8, after manual verification across four devices
+
+Trying to check the four boxes above found that **`presenters.length > 1` is not reachable**. The
+참여하기 branch replaces 공유하기, so while anyone is sharing nobody else has a control to start
+sharing with; two presenters need two clicks inside one presence round-trip. The dropdown was
+correct code for a state the UI cannot produce.
+
+Decided (by the team, prioritising a release that works now): **one presenter at a time**, made
+explicit rather than left emergent. Whether simultaneous presenters should be possible at all is
+[issue #100](https://github.com/CBNU-TeamH/RMF-Block/issues/100), with the "다중 발표자" card grid
+in `docs/ui/app-shell/app-shell.jsx` as the destination if it goes that way.
+
+The defect underneath the dropdown is still fixed, just differently: `members.find(...)` resolved
+"which presenter" to Yorkie's roster iteration order, so two followers could be offered two
+different people. `presenters` is now sorted by id, so every client names the same one.
+
+- [x] The same roster in a different order names the same presenter (component test, checked to
+      fail without the sort)
+- [x] 공유하기 is not offered while another member is presenting — including the transient
+      two-presenter state, which is why the branch is `length > 0` rather than `=== 1`
+- [x] No presenter picker remains in the DOM
 
 ## Cross-cutting
 

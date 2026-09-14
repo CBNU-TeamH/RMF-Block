@@ -251,23 +251,29 @@ pull every browser that once followed them back in with no 참여하기 pressed.
 It lives in the header beside `PresenceStack`, not as a toast: sharing is a state a person is *in*, and a control that shows the current state has to stay on screen rather than announce a transition and leave.
 
 One control, checked in an order that assumes a member is never simultaneously presenting and
-following: presenting → 종료 my own share; following someone → end that follow; more than one
-other member presenting → a dropdown of them plus 참여하기; exactly one other member presenting →
-참여하기 for that one; otherwise → 공유하기.
+following: presenting → 종료 my own share; following someone → end that follow; another member
+presenting → 참여하기 for that one; otherwise → 공유하기.
 
-The dropdown exists because nothing in FR-030 or the roster limits presenting to one member at a
-time — `presenting` is a plain per-member flag, and the roster is a flat list. Picking just the
-first match (the original shape, `members.find(...)`) left every presenter past the first
-completely undiscoverable, on any page, to anyone — not an error (the dashboard never reads
-presence state at all, so nothing could throw), a silent gap: `.find()`'s "first" is whichever
-order Yorkie's own roster happens to iterate in, not "most recent" or "most relevant to what I'm
-looking at." `docs/ui/app-shell/app-shell.jsx` already sketches a fuller "다중 발표자" card-grid for
-this; the dropdown is the minimum that makes every presenter reachable, not that design.
+**One presenter at a time, and that is a property of this control rather than of the data.**
+Nothing in FR-030 or the roster limits presenting to one member — `presenting` is a plain
+per-member flag and the roster is a flat list, so two simultaneous presenters are perfectly
+representable. What makes it one is that the 참여하기 branch above *replaces* 공유하기: while
+anyone else is sharing, nobody else has a control to start sharing with. Whether that should
+change is issue #100; it is a decision about the product, and `docs/SRS-ko.md` does not settle it.
 
-The selection is settled during render, the same way `followingId` is in
-`focus-follow-provider.tsx`: a presenter the dropdown was pointed at ending their share is
-detected by checking whether the picked id is still in the list, falling back to whichever
-presenter is first, rather than needing an effect to notice and correct a stale selection.
+This branch is `presenters.length > 0`, not `=== 1`, precisely because the state it rules out is
+still reachable for the moment presence takes to settle — two members clicking 공유하기 inside one
+round-trip. Falling through to 공유하기 there would invite a third.
+
+**Which presenter, when there is more than one, is decided by sorting rather than by luck.**
+`members.find(...)` — the original shape — resolved it to whichever member Yorkie's roster
+iteration happened to yield first, which is not the same answer on two machines: two followers
+could be offered two different people, with no way for either to tell there was a choice. Sorting
+by id costs nothing and makes every client name the same person. A dropdown of all of them was
+built for this first, and removed: with 공유하기 replaced rather than kept, no sequence a user can
+perform reaches a second presenter, so it was a control for a state the UI cannot produce.
+`docs/ui/app-shell/app-shell.jsx` still sketches a fuller "다중 발표자" card grid, which is where
+this goes if #100 decides in its favour.
 
 The 공유하기 button is hidden outside a document — `FR-030-01`'s context ("발표자가 바라보고 있는
 문서로 시점을 고정시킨다") has no view to anchor a share to on the dashboard or anywhere else in

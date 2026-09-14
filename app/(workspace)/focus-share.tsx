@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 
 import { anchorAt } from "@/lib/focus/anchor";
 import { readBoxes } from "@/lib/focus/dom";
@@ -16,20 +15,25 @@ const BUTTON =
 /** The one header control for UC-030's thin slice: 공유 → 참여 → 종료
  *  (FR-030-01/03/04/09). The states and the order they are checked in:
  *  `docs/design/presence-and-focus.md`, "`FocusShare`'s states" — including
- *  why more than one simultaneous presenter needs a dropdown rather than
- *  picking just one and leaving the rest undiscoverable. */
+ *  why one presenter at a time is what ships, and what allowing several would
+ *  take (issue #100). */
 export function FocusShare({ memberId }: { memberId: string }) {
   const { members, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId, follow, unfollow } = useFocusFollow();
   const pathname = usePathname();
-  // Which simultaneous presenter the dropdown points at — only read once
-  // `presenters.length > 1`. Settled during render below, the same way
-  // `focus-follow-provider.tsx` settles `followingId`: a presenter this was
-  // pointed at ending their share falls back to whoever's left, rather than
-  // holding a stale id an effect would be needed to notice.
-  const [pickedId, setPickedId] = useState<string | null>(null);
 
-  const presenters = members.filter((m) => m.id !== memberId && m.presenting != null);
+  // Sorted, so every client names the same presenter. Nothing stops two
+  // members from presenting at once — `presenting` is a per-member flag and
+  // this roster is a flat list — and `members.find(...)`, the shape this
+  // replaces, resolved that by taking whichever one Yorkie's roster iteration
+  // happened to yield first. That is not the same answer on two machines, so
+  // two followers could be offered two different people, and neither could
+  // tell there was a choice. One presenter is what the UI actually allows
+  // (below), so the fix is to make the pick agree everywhere rather than to
+  // surface a list nobody can reach: issue #100.
+  const presenters = members
+    .filter((m) => m.id !== memberId && m.presenting != null)
+    .sort((a, b) => a.id.localeCompare(b.id));
   const following = followingId ? members.find((m) => m.id === followingId) : undefined;
 
   function startSharing() {
@@ -63,35 +67,15 @@ export function FocusShare({ memberId }: { memberId: string }) {
     );
   }
 
-  if (presenters.length === 1) {
-    const presenter = presenters[0];
+  // `length > 0`, not `=== 1`: two members *can* both be presenting for the
+  // moment it takes presence to settle, and this control must not fall through
+  // to 공유하기 and invite a third when that happens.
+  const [presenter] = presenters;
+  if (presenter) {
     return (
       <button type="button" onClick={() => follow(presenter.id)} className={BUTTON}>
         {presenter.nickname}님이 공유 중 · 참여하기
       </button>
-    );
-  }
-
-  if (presenters.length > 1) {
-    const selected = presenters.find((p) => p.id === pickedId) ?? presenters[0];
-    return (
-      <span className="flex items-center gap-1">
-        <select
-          value={selected.id}
-          onChange={(event) => setPickedId(event.target.value)}
-          aria-label="참여할 발표자 선택"
-          className="rounded-md border border-ink bg-paper px-1.5 py-1 font-mono text-[11px] font-medium text-ink"
-        >
-          {presenters.map((presenter) => (
-            <option key={presenter.id} value={presenter.id}>
-              {presenter.nickname}님이 공유 중
-            </option>
-          ))}
-        </select>
-        <button type="button" onClick={() => follow(selected.id)} className={BUTTON}>
-          참여하기
-        </button>
-      </span>
     );
   }
 
