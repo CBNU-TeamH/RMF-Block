@@ -18,9 +18,10 @@ behaviour gap per line of new code in the repo, and the risk is confined to one 
 
 ### 1. The three operations, from the row
 
-- **What**: each row reveals 이름 / 이동 / 삭제 beside the existing "+ 하위", and each opens a
-  modal that performs the write.
-- **Files**: `app/(workspace)/document-actions.tsx` (new), `app/(workspace)/document-list.tsx`.
+- **What**: each row carries a ⋯ overflow menu holding 새 하위 문서 / 이름 변경 / 이동 / 삭제,
+  and each opens a modal that performs the write.
+- **Files**: `app/(workspace)/document-actions.tsx` (new), `app/(workspace)/document-row-menu.tsx`
+  (new), `app/(workspace)/document-list.tsx`.
 - **Reuse**: the route handlers and `lib/documents/documents.ts` are untouched — every rule
   (FR-023-02's clash, FR-023-06's cascade, `wouldCycle`) already lives there and is already
   tested. `subtreeIds` is reused to decide which parents a move may offer. The `<dialog>` +
@@ -31,7 +32,8 @@ behaviour gap per line of new code in the repo, and the risk is confined to one 
 ### 2. Tests
 
 - **What**: component tests at the layer the behaviour lives in (`docs/testing.md`).
-- **Files**: `app/(workspace)/document-actions.test.tsx` (new).
+- **Files**: `app/(workspace)/document-actions.test.tsx` (new),
+  `app/(workspace)/document-row-menu.test.tsx` (new).
 - **Done**: `pnpm test` green, and each test checked to fail against the behaviour it pins.
 
 ## Acceptance
@@ -45,7 +47,10 @@ behaviour gap per line of new code in the repo, and the risk is confined to one 
 - [ ] A second browser sees a rename, a move and a delete without reloading (FR-023-07) — the
       broadcasts are the server's and unchanged, and `document-list.tsx` already handled both
       events for create; **not re-verified with two browsers in this task**
-- [x] Row actions are reachable by keyboard, not only on hover (`group-focus-within`)
+- [x] Row actions are reachable by keyboard: the ⋯ opens on Enter, focus lands on the first item,
+      Escape closes it and hands focus back
+- [x] The control never overlaps a data column — measured in the browser, ⋯ starts at x=1503 with
+      CREATED ending at x=1494
 - [x] `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm comments`, `pnpm verify:docs`
 
 ## Cross-cutting

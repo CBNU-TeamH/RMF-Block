@@ -9,6 +9,7 @@ import type { WorkspaceDocument } from "@/lib/documents/documents";
 import { treeRows } from "@/lib/documents/tree";
 
 import { DocumentActionDialog, type DocumentAction } from "./document-actions";
+import { DocumentRowMenu } from "./document-row-menu";
 
 export type DocumentRow = WorkspaceDocument & {
   /** null when the creator's record is gone — a member the host removed, or one
@@ -17,7 +18,10 @@ export type DocumentRow = WorkspaceDocument & {
   creator: WorkspaceMember | null;
 };
 
-const COLUMNS = "grid-cols-[2.3fr_90px_110px_130px]";
+// The trailing 30px is the ⋯ column from `docs/ui/dashboard/dashboard.dc.html`.
+// Reserving it is the whole fix for the overlap: the control has somewhere to
+// be that is not on top of a date.
+const COLUMNS = "grid-cols-[2.3fr_90px_110px_130px_30px]";
 
 // Pinned, not left to the runtime default: this list is rendered once on the
 // server and again during hydration, and the container runs UTC while the people
@@ -38,8 +42,6 @@ const stamp = (iso: string) => (iso ? day.format(new Date(iso)) : "—");
 const INPUT_BASE = "rounded-md border bg-paper-2 px-3 py-2 text-base text-ink";
 const INPUT_OK = "border-ink";
 const INPUT_BAD = "border-red-600";
-const ROW_ACTION =
-  "rounded-md border border-ink bg-paper px-1.5 py-0.5 text-[11px] font-semibold text-ink-soft";
 
 /**
  * The workspace's documents (FR-020-06, the document half) and where UC-021's
@@ -225,6 +227,7 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
           <span>만든 사람</span>
           <span>Modified ↓</span>
           <span>Created</span>
+          <span />
         </div>
 
         {rows.length === 0 ? (
@@ -285,49 +288,37 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
                   </span>
                   <span className="text-[13px] text-ink">{stamp(doc.updatedAt)}</span>
                   <span className="text-[13px] text-ink-soft">{stamp(doc.createdAt)}</span>
+                  {/* Reserved for the ⋯ below, which cannot live inside the
+                    * anchor. Empty rather than absent so the row's columns line
+                    * up with the header's. */}
+                  <span />
                 </Link>
 
                 {/* Outside the `<Link>`, not inside it: a button nested in an
                   * anchor is invalid HTML, and the browser's own fix for it is
                   * to close the anchor early — which silently drops the rest of
-                  * the row out of the link.
+                  * the row out of the link. Positioned over the reserved cell
+                  * above, so it sits in its own column rather than on top of a
+                  * date the way four inline buttons did.
                   *
-                  * Revealed on hover and on focus-within, so the row stays
-                  * readable and the buttons are still reachable by keyboard —
-                  * `opacity-0` alone would leave them tabbable but invisible. */}
-                <span className="absolute top-1.5 right-3.5 flex gap-1 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100">
-                  <button
-                    type="button"
-                    onClick={() => openDialog(doc.id)}
-                    title={`${doc.name} 안에 새 문서`}
-                    className={ROW_ACTION}
-                  >
-                    + 하위
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAction({ kind: "rename", document: doc })}
-                    title={`${doc.name} 이름 변경`}
-                    className={ROW_ACTION}
-                  >
-                    이름
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAction({ kind: "move", document: doc })}
-                    title={`${doc.name} 이동`}
-                    className={ROW_ACTION}
-                  >
-                    이동
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAction({ kind: "delete", document: doc })}
-                    title={`${doc.name} 삭제`}
-                    className={`${ROW_ACTION} text-red-600`}
-                  >
-                    삭제
-                  </button>
+                  * Centred with flex, never `-translate-y-1/2`: a transform on
+                  * an ancestor makes it the containing block for `position:
+                  * fixed`, so the menu's viewport coordinates would be measured
+                  * from this span instead and land in the wrong place. */}
+                <span className="absolute inset-y-0 right-3.5 flex items-center">
+                  <DocumentRowMenu
+                    label={doc.name}
+                    items={[
+                      { label: "새 하위 문서", onSelect: () => openDialog(doc.id) },
+                      { label: "이름 변경", onSelect: () => setAction({ kind: "rename", document: doc }) },
+                      { label: "이동", onSelect: () => setAction({ kind: "move", document: doc }) },
+                      {
+                        label: "삭제",
+                        danger: true,
+                        onSelect: () => setAction({ kind: "delete", document: doc }),
+                      },
+                    ]}
+                  />
                 </span>
               </li>
             ))}
