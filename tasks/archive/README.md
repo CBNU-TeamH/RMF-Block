@@ -9,6 +9,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 | Task | Lessons |
 | :--- | :--- |
 | [Testing strategy doc (issue #66, track C2)](2026/09/20260910-testing-strategy-doc-todo.md) | [lessons](2026/09/20260910-testing-strategy-doc-lessons.md) |
+| [Route-handler tests (issue #66's last docs/testing.md layer)](2026/09/20260910-route-handler-tests-todo.md) | [lessons](2026/09/20260910-route-handler-tests-lessons.md) |
 | [Component tests for issue #39's three regression bugs](2026/09/20260910-component-tests-todo.md) | [lessons](2026/09/20260910-component-tests-lessons.md) |
 | [Vitest runner migration (Phase 2, track C4)](2026/09/20260909-vitest-runner-migration-todo.md) | [lessons](2026/09/20260909-vitest-runner-migration-lessons.md) |
 | [Exempt small files from the comment budget, and close out #65's gate](2026/09/20260909-comment-budget-small-file-exemption-todo.md) | [lessons](2026/09/20260909-comment-budget-small-file-exemption-lessons.md) |
