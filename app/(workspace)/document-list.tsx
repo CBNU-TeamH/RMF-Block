@@ -8,6 +8,9 @@ import type { WorkspaceMember } from "@/lib/auth/types";
 import type { WorkspaceDocument } from "@/lib/documents/documents";
 import { treeRows } from "@/lib/documents/tree";
 
+import { DocumentActionDialog, type DocumentAction } from "./document-actions";
+import { DocumentRowMenu } from "./document-row-menu";
+
 export type DocumentRow = WorkspaceDocument & {
   /** null when the creator's record is gone — a member the host removed, or one
    * from before members were persisted. Rendering a stale avatar would be a
@@ -15,7 +18,10 @@ export type DocumentRow = WorkspaceDocument & {
   creator: WorkspaceMember | null;
 };
 
-const COLUMNS = "grid-cols-[2.3fr_90px_110px_130px]";
+// The trailing 30px is the ⋯ column from `docs/ui/dashboard/dashboard.dc.html`.
+// Reserving it is the whole fix for the overlap: the control has somewhere to
+// be that is not on top of a date.
+const COLUMNS = "grid-cols-[2.3fr_90px_110px_130px_30px]";
 
 // Pinned, not left to the runtime default: this list is rendered once on the
 // server and again during hydration, and the container runs UTC while the people
@@ -55,6 +61,9 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   // Where a "새 하위 문서" click puts the next one, or `null` for the root.
   const [parentId, setParentId] = useState<string | null>(null);
+  // UC-023's three operations, or null for none open. One piece of state, not
+  // one flag each: they are mutually exclusive by construction this way.
+  const [action, setAction] = useState<DocumentAction | null>(null);
 
   // The server component's list is the first paint; the socket keeps it current
   // from there (FR-021-06, FR-023-07).
@@ -218,6 +227,7 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
           <span>만든 사람</span>
           <span>Modified ↓</span>
           <span>Created</span>
+          <span />
         </div>
 
         {rows.length === 0 ? (
@@ -278,25 +288,53 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
                   </span>
                   <span className="text-[13px] text-ink">{stamp(doc.updatedAt)}</span>
                   <span className="text-[13px] text-ink-soft">{stamp(doc.createdAt)}</span>
+                  {/* Reserved for the ⋯ below, which cannot live inside the
+                    * anchor. Empty rather than absent so the row's columns line
+                    * up with the header's. */}
+                  <span />
                 </Link>
 
                 {/* Outside the `<Link>`, not inside it: a button nested in an
                   * anchor is invalid HTML, and the browser's own fix for it is
                   * to close the anchor early — which silently drops the rest of
-                  * the row out of the link. */}
-                <button
-                  type="button"
-                  onClick={() => openDialog(doc.id)}
-                  title={`${doc.name} 안에 새 문서`}
-                  className="absolute top-1.5 right-3.5 rounded-md border border-ink bg-paper px-1.5 py-0.5 text-[11px] font-semibold text-ink-soft opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
-                >
-                  + 하위
-                </button>
+                  * the row out of the link. Positioned over the reserved cell
+                  * above, so it sits in its own column rather than on top of a
+                  * date the way four inline buttons did.
+                  *
+                  * Centred with flex, never `-translate-y-1/2`: a transform on
+                  * an ancestor makes it the containing block for `position:
+                  * fixed`, so the menu's viewport coordinates would be measured
+                  * from this span instead and land in the wrong place. */}
+                <span className="absolute inset-y-0 right-3.5 flex items-center">
+                  <DocumentRowMenu
+                    label={doc.name}
+                    items={[
+                      { label: "새 하위 문서", onSelect: () => openDialog(doc.id) },
+                      { label: "이름 변경", onSelect: () => setAction({ kind: "rename", document: doc }) },
+                      { label: "이동", onSelect: () => setAction({ kind: "move", document: doc }) },
+                      {
+                        label: "삭제",
+                        danger: true,
+                        onSelect: () => setAction({ kind: "delete", document: doc }),
+                      },
+                    ]}
+                  />
+                </span>
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      <DocumentActionDialog
+        action={action}
+        documents={live}
+        onClose={() => setAction(null)}
+        // The socket has already updated `live` for this browser too; this
+        // keeps the server component's own read (and the creator column it
+        // joins in) from going stale behind it.
+        onDone={() => router.refresh()}
+      />
 
       <dialog
         ref={dialogRef}
