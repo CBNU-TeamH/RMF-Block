@@ -48,7 +48,7 @@ it — a session that `cd`-ed into a vendored checkout to read its source once f
 against that upstream repo instead, publicly, and it could not be deleted afterward
 (`tasks/archive/2026/08/20260828-yorkie-auth-webhook-lessons.md`).
 
-**Delegating work**: hand repo-wide fact-finding (where is X defined, which files reference Y) to a search/explore-style sub-agent when your tool has one — Claude Code's `Explore` agent is the concrete case this repo has used. Small, localized edits are done directly. Judgement calls — what a thing should do, which trade-off wins — are never delegated; only whoever is actually deciding stays accountable for the decision.
+**Delegating work**: hand repo-wide fact-finding (where is X defined, which files reference Y) to a search/explore-style sub-agent when your tool has one — Claude Code's `Explore` agent is the concrete case this repo has used. Small, localized edits are done directly. Judgement calls — what a thing should do, which trade-off wins — are never delegated; only whoever is actually deciding stays accountable for the decision. When a sibling project's solution is the reference (as wafflebase's undo was for this repo's), the value it carries is usually what it defends against, not how it calls the API — a four-line `undo()` is easy to reproduce; the guard against undoing past the document's own seed is the part worth taking.
 
 ---
 
