@@ -304,3 +304,15 @@ Three separate silent failures in one milestone (`border-sky`, `rounded-sm`/`opa
 each time was the same — swap to a value already proven elsewhere in the project. The underlying
 Turbopack/Tailwind v4 cause was never worth chasing down; the check above is cheaper than
 debugging why a class silently produced no rule.
+
+## A script is not done until it runs against the real repo
+
+Every bug in `tasks/archive/2026/09/20260904-verify-scripts-lessons.md` was caught by execution,
+not by reading the script — a multi-line entry silently truncated by a regex, a prose sentence
+that triggered the very checker it was explaining, an entry-point guard broken only on Windows'
+`file://` path shape. A script reads correctly and is not done until it has been run against the
+thing it checks, in this repo, at least once.
+
+One trap recurs when a script's own trigger pattern is described in prose next to code the
+script parses: quoting the pattern verbatim can make the checker match its own explanation.
+Describe it, don't quote it.

@@ -47,20 +47,10 @@ that the next person does not rediscover this.
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- **Run a new script against the real repo before trusting it, every time — not just once.**
-  Every bug above was caught by execution, not review. This is the same lesson `#68`'s
-  CodeRabbit findings and `#70`'s file-count fix already taught about *content*; this task is
-  the version of it for *tooling*. Worth stating in `docs/conventions.md` or `AGENTS.md`
-  directly: a script is not done when it reads correctly, only when it has been run against the
-  thing it checks.
-- **When writing prose that explains a text-matching tool's own trigger pattern, don't quote the
-  trigger pattern.** Specific enough to be a real trap (happened twice in one file) and general
-  enough to recur anywhere a repo writes about its own linters/checkers in the same format the
-  checker parses.
-- **A local dev machine's Node version can silently gate what "verified by running" can mean.**
-  This task could fully verify comment-budget.mjs and the ownership checker (pure Node, no
-  version-sensitive behavior) but could only half-verify the distDir split and couldn't verify
-  `node --test`'s default file discovery at all — both gated by this machine running Node 22
-  against a repo that needs 24. Worth a line in `docs/testing.md` (once `#66` creates it) or
-  `AGENTS.md`'s run/verify section: what CI can prove that a Node-22 local machine cannot, so
-  the gap is named rather than rediscovered per task.
+- ~~**Run a new script against the real repo before trusting it...**~~ / ~~**When writing prose
+  that explains a text-matching tool's own trigger pattern, don't quote the trigger
+  pattern.**~~ — **promoted 2026-09-16** to `docs/conventions.md` ("A script is not done until it
+  runs against the real repo").
+- ~~**A local dev machine's Node version can silently gate what "verified by running" can
+  mean.**~~ — **promoted 2026-09-16** to `docs/testing.md` ("What a local Node version can
+  verify, and what only CI can").
