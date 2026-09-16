@@ -65,6 +65,10 @@ the same shape one level deeper: queued remote edits and the local composition b
 owners of "what the text currently is," and replaying one against offsets computed for the other
 is what corrupts `lastSyncedRef`.
 
+The same shape applies to constants, not just runtime state: a value two places must agree on —
+the chat launcher bar's height was both a Tailwind class and a separate numeric limit — drifts
+the moment it is written twice; exporting it once removes the second copy to drift from.
+
 ### S-3 — Swallow an error, substitute a plausible default
 
 **Forbidden**: catch broadly, and return something that looks like a valid empty state instead of
@@ -316,3 +320,9 @@ thing it checks, in this repo, at least once.
 One trap recurs when a script's own trigger pattern is described in prose next to code the
 script parses: quoting the pattern verbatim can make the checker match its own explanation.
 Describe it, don't quote it.
+
+## Keep browser-dependent geometry in a pure function, not the component
+
+A function that takes the viewport as an argument instead of reading `window` itself is testable
+without a browser, and is worth the extra parameter wherever a mistake is unrecoverable — a
+window dragged off-screen cannot be dragged back (`lib/chat/window-frame.ts`).

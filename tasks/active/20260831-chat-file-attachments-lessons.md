@@ -46,11 +46,8 @@ Things that should become a convention, a helper, or a line in `AGENTS.md`.
   `verify-chat-files.mjs`. Each prints expected vs actual per case and exits non-zero, so
   it reads as documentation and runs as a check. The right home for claims about what the
   *running server* does, which a unit test cannot make.
-- **Geometry belongs outside the component.** `lib/chat/window-frame.ts` takes the viewport
-  as an argument instead of reading `window`, so every rule is testable without a browser.
-  Worth copying wherever a mistake is unrecoverable — a window dragged off-screen cannot be
-  dragged back.
-- **When two places must agree on a number, export it from one.** The launcher bar's height
-  is both a CSS height and the limit the window stops at. As a Tailwind class plus a
-  constant it was two values that had already drifted; as one exported constant the drift
-  is impossible.
+- ~~**Geometry belongs outside the component.**~~ — **promoted 2026-09-16** to
+  `docs/conventions.md` ("Keep browser-dependent geometry in a pure function, not the
+  component").
+- ~~**When two places must agree on a number, export it from one.**~~ — **promoted
+  2026-09-16** to `docs/conventions.md`'s S-2 section.
