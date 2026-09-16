@@ -263,6 +263,14 @@ The marker exists to be found: it's a place a reader can search for "what did we
 build yet," and a future issue (like `#37`, which references one of these directly) can point at
 by name instead of re-deriving why the simple version was chosen.
 
+## An invariant the SRS doesn't state still needs a test
+
+Nothing in `docs/SRS-ko.md` forbids a document being its own grandparent — nobody writes that
+down — but a tree UI with drag-to-move produces it on the first careless drop. There is no
+requirement id to cite for `wouldCycle`, which is exactly why it belongs in a test rather than a
+comment: a comment citing nothing looks removable, and a test that fails if the guard is deleted
+does not.
+
 ## The Node type-stripping constraint
 
 `server/index.mts` is run directly by `node` — the `Dockerfile`'s runtime stage ends in
