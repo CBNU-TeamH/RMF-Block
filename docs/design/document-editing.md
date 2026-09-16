@@ -769,6 +769,10 @@ carries none — so `preservingDepth` (`lib/blocks/indent.ts`) carries it from t
 converted, at both call sites. This was invisible until Tab existed: while `depth` was always 0,
 there was nothing for a conversion to lose.
 
+`level`, `style` are not protected the way `depth` now is — the same silent-flatten shape applies
+to either of them the moment two block types share one, and nothing today would catch it before a
+user does.
+
 ### Three places a drag can land
 
 Reordering (FR-022-04) carries the dragged id in the browser's transfer data rather than in

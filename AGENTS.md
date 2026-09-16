@@ -40,7 +40,7 @@ We adopt [Spec-Driven Development](https://github.com/github/spec-kit) **as a me
 
 The overall plan lives in [`ROADMAP.md`](ROADMAP.md).
 
-**Run and verify**: changes to server startup, auth, or networking are verified against the container, not `pnpm dev` — a container behaves differently from the dev server, and that gap has already produced real bugs (`tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`). Use `pnpm docker:up`, which fills in `HOST_LAN_IP` before `docker compose up --build`; bare Compose skips that and can print a join address no guest can reach ([`README.md`](README.md)).
+**Run and verify**: changes to server startup, auth, or networking are verified against the container, not `pnpm dev` — a container behaves differently from the dev server, and that gap has already produced real bugs (`tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`). Use `pnpm docker:up`, which fills in `HOST_LAN_IP` before `docker compose up --build`; bare Compose skips that and can print a join address no guest can reach ([`README.md`](README.md)). A DOM assertion in a browser check anchors on a stable container, never a bare tag — a bare `querySelector('span')` matches whatever else on the page happens to be a `<span>` too.
 
 **Working directory and `gh`**: `gh` infers the repository from the current directory, not from
 intent. Pass `--repo` explicitly to any `gh` command run outside this directory, or never leave
