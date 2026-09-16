@@ -72,7 +72,7 @@ the moment it is written twice; exporting it once removes the second copy to dri
 **Near miss, not the same shape**: local state that is also published outward — `isPresenting`,
 a presenter's ink marks — is not S-2 as long as the writer never reads the published copy back.
 S-2 is two places both *read* as current; here there is one write path and one-way projection.
-Full argument in [`docs/design/presence-and-focus.md`](../design/presence-and-focus.md) §"The
+Full argument in [`docs/design/presence-and-focus.md`](design/presence-and-focus.md) §"The
 presenter's own marks are local state, and that is not two owners".
 
 ### S-3 — Swallow an error, substitute a plausible default
