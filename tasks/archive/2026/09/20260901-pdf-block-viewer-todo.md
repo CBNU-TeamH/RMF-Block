@@ -7,9 +7,9 @@ can create them until the File API (FR-022-13/14) … exists"*). That File API
 now half-exists: `20260831-chat-file-attachments-todo.md` built the store, the
 two serving endpoints and the upload guard, and scoped itself out of *"rendering
 a PDF page"* as UC-080's job. This task closes both ends.
-**Design**: [`docs/design/document-editing.md`](../../docs/design/document-editing.md) §10
+**Design**: [`docs/design/document-editing.md`](../../../../docs/design/document-editing.md) §10
 (the block's stored shape, already finalized) and
-[`docs/design/api.md`](../../docs/design/api.md) §Documents/§Files (the upload
+[`docs/design/api.md`](../../../../docs/design/api.md) §Documents/§Files (the upload
 endpoint and the preview/download split).
 
 ## Plan

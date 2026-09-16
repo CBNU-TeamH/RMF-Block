@@ -3,7 +3,7 @@
 **Created**: 2026-09-13
 **Issue**: none — found while manually verifying PR #96/#97 with three devices
 **Design**: no design doc. This is one config field restoring an assumption
-[`README.md`](../../README.md) and [`instrumentation.ts`](../../instrumentation.ts)
+[`README.md`](../../../../README.md) and [`instrumentation.ts`](../../../../instrumentation.ts)
 already make out loud — that the address they print is an address a guest can
 actually use.
 

@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-13
 **Issue**: #95 (second of its two PRs; block-anchored freehand marks is the first, #96)
-**Design**: [`docs/design/presence-and-focus.md`](../../docs/design/presence-and-focus.md) — "The
+**Design**: [`docs/design/presence-and-focus.md`](../../../../docs/design/presence-and-focus.md) — "The
 ink layer" gains the pointer's own subsection.
 
 FR-030-12/13/14's other half: a presenter shows followers where they're pointing right now — a

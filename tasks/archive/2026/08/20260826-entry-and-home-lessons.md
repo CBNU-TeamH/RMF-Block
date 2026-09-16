@@ -63,7 +63,7 @@ that the next person does not rediscover this.
 
 ## What the earlier write-ups no longer describe
 
-[`docs/HOST-GUEST-ENTRY-ko.md`](../../docs/HOST-GUEST-ENTRY-ko.md) walks through the host/guest
+[`docs/HOST-GUEST-ENTRY-ko.md`](../../../../docs/HOST-GUEST-ENTRY-ko.md) walks through the host/guest
 entry flow as it was built, and two of its landmarks have moved since. It is **left as written** —
 it is an account of that task, the way an archived task doc is, and rewriting it would turn a record
 of how something was built into a claim about how it works now. What changed:

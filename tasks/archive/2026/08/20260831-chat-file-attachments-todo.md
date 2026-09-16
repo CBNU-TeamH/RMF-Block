@@ -2,9 +2,9 @@
 
 **Created**: 2026-08-31
 **Issue**: —
-**Design**: [`docs/design/api.md`](../../docs/design/api.md) §1 already catalogues
+**Design**: [`docs/design/api.md`](../../../../docs/design/api.md) §1 already catalogues
 `POST /api/chat/files`, `GET /api/files/:id/preview` and `GET /api/files/:id/download`, and
-[`docs/design/chat.md`](../../docs/design/chat.md) names attachments as "additive
+[`docs/design/chat.md`](../../../../docs/design/chat.md) names attachments as "additive
 `content`-style fields on `ChatMessage`". No new design doc; the two decisions those leave
 open — where bytes live, and what a response may claim they are — are settled below.
 
