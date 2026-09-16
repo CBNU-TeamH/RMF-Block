@@ -40,6 +40,12 @@ The overall plan lives in [`ROADMAP.md`](ROADMAP.md).
 
 **Run and verify**: changes to server startup, auth, or networking are verified against the container, not `pnpm dev` — a container behaves differently from the dev server, and that gap has already produced real bugs (`tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`). Use `pnpm docker:up`, which fills in `HOST_LAN_IP` before `docker compose up --build`; bare Compose skips that and can print a join address no guest can reach ([`README.md`](README.md)).
 
+**Working directory and `gh`**: `gh` infers the repository from the current directory, not from
+intent. Pass `--repo` explicitly to any `gh` command run outside this directory, or never leave
+it — a session that `cd`-ed into a vendored checkout to read its source once filed an issue
+against that upstream repo instead, publicly, and it could not be deleted afterward
+(`tasks/archive/2026/08/20260828-yorkie-auth-webhook-lessons.md`).
+
 **Delegating work**: hand repo-wide fact-finding (where is X defined, which files reference Y) to a search/explore-style sub-agent when your tool has one — Claude Code's `Explore` agent is the concrete case this repo has used. Small, localized edits are done directly. Judgement calls — what a thing should do, which trade-off wins — are never delegated; only whoever is actually deciding stays accountable for the decision.
 
 ---

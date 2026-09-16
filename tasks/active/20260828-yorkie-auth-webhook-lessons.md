@@ -76,9 +76,5 @@ that the next person does not rediscover this.
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- **Verifying against a container makes it easy to run commands in the wrong repository.**
-  Reading Yorkie's source meant `cd`-ing into the vendored `yorkie` checkout, and a later
-  `gh issue create` picked up *that* repo's remote — an issue meant for this project was
-  filed against the upstream open-source one, publicly, and could not be deleted, only
-  closed with an apology. `gh` infers the repository from the working directory. **Pass
-  `--repo` every time**, or never leave the project directory.
+- ~~**Verifying against a container makes it easy to run commands in the wrong
+  repository.**~~ — **promoted 2026-09-16** to `AGENTS.md` §2 ("Working directory and `gh`").
