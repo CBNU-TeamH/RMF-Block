@@ -69,6 +69,12 @@ The same shape applies to constants, not just runtime state: a value two places 
 the chat launcher bar's height was both a Tailwind class and a separate numeric limit — drifts
 the moment it is written twice; exporting it once removes the second copy to drift from.
 
+**Near miss, not the same shape**: local state that is also published outward — `isPresenting`,
+a presenter's ink marks — is not S-2 as long as the writer never reads the published copy back.
+S-2 is two places both *read* as current; here there is one write path and one-way projection.
+Full argument in [`docs/design/presence-and-focus.md`](../design/presence-and-focus.md) §"The
+presenter's own marks are local state, and that is not two owners".
+
 ### S-3 — Swallow an error, substitute a plausible default
 
 **Forbidden**: catch broadly, and return something that looks like a valid empty state instead of
@@ -121,6 +127,14 @@ pattern already existed in the codebase, in the markdown-shortcut path, which cl
 and its `lastSyncedRef` by hand with a comment explaining why. Split and merge needed the same
 mirroring and didn't have it; the issue's shape section calls this out directly: *"The pattern for
 fixing it already exists in the codebase, and says so."*
+
+## Revisit a cost claim when what's adjacent to it changes shape
+
+A cost claim can still be true and still be stale, if what it sits next to changed. The laser
+pointer's "publish only the current point keeps the payload O(1)" never stopped being true, but
+it was written against a ~110-byte presenter mark, and marks had since become open paths up to
+~125KB on the same presence payload. Re-measure the combined cost, not just the number that was
+named, before trusting a claim that predates its neighbor's last change.
 
 ## What may stay as an inline comment
 
