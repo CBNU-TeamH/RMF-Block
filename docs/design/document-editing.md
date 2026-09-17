@@ -105,6 +105,8 @@ race leaves behind, the next conversion of that block clears.
 
 ## Why an Array of blocks, and not one `yorkie.Tree`
 
+See [ADR-007](../adr/007-block-array-not-tree.md) for this decision as an ADR.
+
 Recorded after the fact: the structure above was chosen without this comparison
 written down, and the reference project we borrow from went the other way.
 [wafflebase](https://github.com/wafflebase/wafflebase)'s document editor stores a
@@ -343,6 +345,8 @@ content = {
 Matches the "문서 ID + 블록 위치 정보" pair used throughout SRS wherever a block reference appears (UC-050, UC-060, UC-070). No cached preview of the target block's content — block content is the highest-churn data in the system, so a cache would go stale faster than anything else considered here.
 
 ## Editing surface
+
+See [ADR-008](../adr/008-textarea-editing-surface.md) for this decision as an ADR.
 
 The schema above says what Yorkie holds. This says what turns a key press into an edit on it,
 and — the one question worth settling before any of it is built — what happens when a remote

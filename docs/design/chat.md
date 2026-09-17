@@ -26,6 +26,8 @@ exists. The window's geometry is the one part with rules worth keeping — see b
 
 ## Why a custom server is unavoidable here
 
+See [ADR-005](../adr/005-custom-server-rest-ws.md) for this decision as an ADR.
+
 The pinned Next.js version (16.2.12) has no WebSocket support in Route Handlers — verified by
 grepping the installed package's `dist` for the feature (it exists only as an upstream RFC,
 absent from this version). Next's `output: "standalone"` build mode and a custom server are also
@@ -176,7 +178,7 @@ an embedded one are one thing seen from two places.
 send emits `'error'` on the socket, and with no listener `EventEmitter` rethrows it and takes the
 whole process down. Next included, since this is one process.
 
-**A connection without a session id still works.** Carrying one is what makes a takeover visible — `revoke()` can only close sockets it can attribute — but chat never required authentication and still does not, so an anonymous connection keeps receiving broadcasts. Anything on the LAN can open one; what it cannot do is *post*, since `POST /api/chat` requires a workspace session.
+**A connection without a session id still works.** Carrying one is what makes a takeover visible — `revoke()` can only close sockets it can attribute — but chat never required authentication and still does not, so an anonymous connection keeps receiving broadcasts. Anything on the LAN can open one; what it cannot do is *post*, since `POST /api/chat` requires a workspace session. (PR #107 / [ADR-006](../adr/006-workspace-chat-socket-auth.md) gates the *upgrade* itself on a live session or the host secret — this paragraph's own wording is superseded by that PR directly, not rewritten here to avoid conflicting with it.)
 
 **A revoked socket is told before it is closed.** A client that only saw the close would have to
 guess whether it was evicted or the network dropped, and those want different handling
