@@ -20,7 +20,6 @@ const INPUT_BAD = "border-red-600";
  *  authority on whether it is right is the server. */
 export function JoinForm() {
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
   const nicknameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -54,10 +53,8 @@ export function JoinForm() {
   }
 
   async function join(force: boolean) {
-    const form = formRef.current;
-    if (!form) return;
-    const values = new FormData(form);
-    const nickname = String(values.get("nickname") ?? "");
+    const nickname = nicknameRef.current?.value ?? "";
+    const password = passwordRef.current?.value ?? "";
 
     setPending(true);
     setError(null);
@@ -66,7 +63,7 @@ export function JoinForm() {
       const response = await fetch("/api/workspace/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname, password: values.get("password"), force }),
+        body: JSON.stringify({ nickname, password, force }),
       });
 
       // Someone is still signed in under this nickname and joining would throw
@@ -113,7 +110,6 @@ export function JoinForm() {
   return (
     <>
       <form
-        ref={formRef}
         onSubmit={(event) => {
           event.preventDefault();
           void join(false);
@@ -124,7 +120,6 @@ export function JoinForm() {
           닉네임
           <input
             ref={nicknameRef}
-            name="nickname"
             required
             maxLength={20}
             autoComplete="nickname"
@@ -138,7 +133,6 @@ export function JoinForm() {
           워크스페이스 비밀번호
           <input
             ref={passwordRef}
-            name="password"
             type="password"
             required
             autoComplete="current-password"
