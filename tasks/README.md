@@ -22,7 +22,9 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 ## Active
 
-Nothing in progress.
+| Task | Lessons |
+| :--- | :--- |
+| [Reject unauthenticated WebSocket upgrades](active/20260917-unauthenticated-workspace-socket-todo.md) | [lessons](active/20260917-unauthenticated-workspace-socket-lessons.md) |
 
 ## Archive
 
