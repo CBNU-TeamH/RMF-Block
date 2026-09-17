@@ -12,6 +12,7 @@ import { createServer } from 'node:http';
 import next from 'next';
 
 import { readSessionCookie } from '../lib/auth/session-cookie.ts';
+import { sessionRegistry } from '../lib/auth/session-registry.ts';
 import { wsHub } from './ws-hub.mts';
 
 const CHAT_WS_PATH = '/api/chat/ws';
@@ -50,7 +51,16 @@ server.on('upgrade', (req, socket, head) => {
     // Read here rather than in the hub: this is the only place the raw request
     // exists. The socket is filed under whatever session the browser sent, so
     // `revoke()` can find it again once that session is displaced (FR-020-08).
-    wsHub.handleUpgrade(req, socket, head, readSessionCookie(req.headers.cookie));
+    // Also checked against the registry right here, not just at `revoke()`
+    // time — a session displaced before this socket ever connected would
+    // otherwise register anyway and never be told (#26).
+    wsHub.handleUpgrade(
+      req,
+      socket,
+      head,
+      readSessionCookie(req.headers.cookie),
+      (id) => sessionRegistry.resolve(id) !== null,
+    );
     return;
   }
   handleNextUpgrade(req, socket, head).catch((error) => {

@@ -10,10 +10,12 @@ async function withServer(
   // Stands in for `server/index.mts` reading the session cookie off the upgrade
   // request; the test controls which session each connection is filed under.
   sessionIdFor: (url: string | undefined) => string | null = () => null,
+  // Stands in for `server/index.mts`'s `sessionRegistry.resolve()` check.
+  isSessionValid: (sessionId: string) => boolean = () => true,
 ) {
   const server: Server = createServer();
   server.on("upgrade", (req, socket, head) =>
-    wsHub.handleUpgrade(req, socket, head, sessionIdFor(req.url)),
+    wsHub.handleUpgrade(req, socket, head, sessionIdFor(req.url), isSessionValid),
   );
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const address = server.address();
@@ -133,4 +135,25 @@ test("revoke() ignores connections with no session", async () => {
     assert.equal(anonymous.readyState, WebSocket.OPEN);
     await closeAndWait(anonymous);
   });
+});
+
+test("handleUpgrade() rejects a session that no longer resolves instead of registering it", async () => {
+  await withServer(
+    async (port) => {
+      // Not `connect()`: the server sends the frame and closes as part of the
+      // same upgrade that would otherwise resolve `open`, so listeners have
+      // to be attached before that — not after awaiting `open` — to not race it.
+      const client = new WebSocket(`ws://localhost:${port}/session-a`);
+      const received = nextMessage(client);
+      const closed = nextClose(client);
+
+      // The race in #26: this connection arrives after its session was
+      // already displaced, so nothing was ever registered for `revoke()` to
+      // find — the check has to happen at registration time instead.
+      assert.deepEqual(await received, { event: "session:revoked", payload: null });
+      assert.equal(await closed, 4001);
+    },
+    sessionFromPath,
+    () => false,
+  );
 });
