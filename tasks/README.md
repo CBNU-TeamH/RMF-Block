@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Takeover misses a device that connects its socket after revoke()](active/20260917-ws-revoke-race-todo.md) | [lessons](active/20260917-ws-revoke-race-lessons.md) |
 | [UC-023: rename, move and delete a document, from the UI](active/20260914-document-rename-move-delete-todo.md) | [lessons](active/20260914-document-rename-move-delete-lessons.md) |
 | [Presenter pointer — fading laser pointer](active/20260913-presenter-pointer-todo.md) | [lessons](active/20260913-presenter-pointer-lessons.md) |
 | [`pnpm dev` turns every LAN guest away at the join form](active/20260913-dev-lan-origin-todo.md) | [lessons](active/20260913-dev-lan-origin-lessons.md) |
