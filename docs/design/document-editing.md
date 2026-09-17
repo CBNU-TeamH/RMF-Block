@@ -126,7 +126,7 @@ buys an enormous amount of editor behaviour for free.
 - **SRS asks for no inline formatting.** "Plain text, no inline marks" under
   the text block below is not a simplification we chose — it is the requirement.
   `Tree`'s biggest advantage is unused.
-- **Five of the twelve types hold no text at all** — divider, file, image, PDF,
+- **Six of the twelve types hold no text at all** — divider, file, image, PDF,
   and the two link blocks. As tree nodes they are attribute-only leaves, which
   is a shape the tree model tolerates rather than serves.
 - **FR-022-06 and the block-link block both need a stable per-block id.** A

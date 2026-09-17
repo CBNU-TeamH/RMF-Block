@@ -29,7 +29,7 @@ per [ADR-001](001-realtime-sync.md)'s "no custom merge logic."
   project's requirements rather than a general critique of `Tree`:
   - SRS asks for no inline formatting. "Plain text, no inline marks" is the requirement, not a
     simplification chosen — `Tree`'s biggest advantage over `Array` is unused here.
-  - Five of the twelve block types hold no text at all (divider, file, image, PDF, the two link
+  - Six of the twelve block types hold no text at all (divider, file, image, PDF, the two link
     blocks). As tree nodes they are attribute-only leaves — a shape `Tree` tolerates rather than
     serves.
   - FR-022-06 and the block-link block both need a stable per-block id; an array element with an
