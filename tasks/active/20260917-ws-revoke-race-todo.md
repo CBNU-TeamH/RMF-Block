@@ -45,18 +45,21 @@ a new mechanism. The flow itself is documented in `docs/design/chat.md` and
 
 ## Acceptance
 
-- [ ] New test in `server/ws-hub.test.mts`: a connection whose injected
+- [x] New test in `server/ws-hub.test.mts`: a connection whose injected
       predicate reports its session as invalid receives
       `{ event: "session:revoked", payload: null }` and closes with `4001`.
-- [ ] The file's existing 6 tests still pass unchanged (default predicate is
+- [x] The file's existing 6 tests still pass unchanged (default predicate is
       a no-op, so today's behavior is untouched when no predicate is given).
-- [ ] `pnpm lint` / `pnpm test` / `pnpm build` pass.
-- [ ] `pnpm comments` / `pnpm verify:docs` pass.
-- [ ] `/code-review low` and `/simplify`, from a Sonnet session, run before
+- [x] `pnpm lint` / `pnpm test` / `pnpm build` pass.
+- [x] `pnpm comments` / `pnpm verify:docs` pass.
+- [x] `/code-review low` and `/simplify`, from a Sonnet session, run before
       the PR opens.
-- [ ] Manual container check (`pnpm docker:up`): reproduce the takeover from
-      two devices/tabs and confirm the first device's next socket connect
-      after being displaced gets closed with `4001` instead of sitting open.
+- [x] Manual container check (`pnpm docker:up`): reproduced the race with a
+      scripted HTTP+WS client instead of two browser tabs — device A joins,
+      device B force-joins the same nickname (evicting A before A ever opens
+      a socket), then A connects its socket for the first time carrying the
+      now-stale cookie. Confirmed it receives `{ event: "session:revoked",
+      payload: null }` and closes with `4001` instead of registering.
 
 ## Cross-cutting
 
@@ -68,4 +71,10 @@ a new mechanism. The flow itself is documented in `docs/design/chat.md` and
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+Shipped exactly the two milestones as planned: `WsHub.handleUpgrade` gained
+an `isSessionValid` predicate (default a no-op, so chat and existing tests
+are untouched), and `server/index.mts` wires `sessionRegistry.resolve()` as
+that predicate for workspace sockets. `/simplify` found one real
+duplication (the send-then-close sequence repeated between `revoke()` and
+the new rejection branch) and it was extracted into a shared private
+`sendRevoked()` method. Nothing was cut; nothing moved to another task.
