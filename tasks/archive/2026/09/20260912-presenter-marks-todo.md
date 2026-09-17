@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-12
 **Issue**: #95 (this task is the first of its two PRs; the fading laser pointer is the second)
-**Design**: [`docs/design/presence-and-focus.md`](../../docs/design/presence-and-focus.md) — extended
+**Design**: [`docs/design/presence-and-focus.md`](../../../../docs/design/presence-and-focus.md) — extended
 by this task with the ink layer's own section.
 
 FR-030-12/13/14. A presenter draws freehand and every follower sees the stroke land on the same

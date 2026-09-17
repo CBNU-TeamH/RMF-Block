@@ -1,6 +1,6 @@
 # Roadmap
 
-Phased by use-case priority and technical dependency, not by calendar date. A phase starts once its prerequisites are demonstrably working, not on a fixed schedule. Every phase lists the use cases it covers — see [`docs/SRS-ko.md`](docs/SRS-ko.md) §3.1 for the full scenarios and §3.3 for the functional requirements (`FR-...`) each one expects.
+Phased by use-case priority and technical dependency, not by calendar date. A phase starts once its prerequisites are demonstrably working, not on a fixed schedule. Every phase lists the use cases it covers — see [`docs/SRS-ko.md`](docs/SRS-ko.md) §3.1 for the full scenarios and §3.3 for the functional requirements (`FR-...`) each one expects. An exit criterion is met when someone can actually do the thing end-to-end — a requirement can be fully implemented on the server and completely absent to a user, and neither "is there an endpoint" nor "is there a test" answers that, only trying it as a user does.
 
 Architecture context: [`docs/adr/002-persistence-on-yorkie-mongo.md`](docs/adr/002-persistence-on-yorkie-mongo.md) and the parts of [`docs/adr/001-realtime-sync.md`](docs/adr/001-realtime-sync.md) it leaves standing, plus [`docs/design/architecture.md`](docs/design/architecture.md).
 

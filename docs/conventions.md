@@ -65,6 +65,16 @@ the same shape one level deeper: queued remote edits and the local composition b
 owners of "what the text currently is," and replaying one against offsets computed for the other
 is what corrupts `lastSyncedRef`.
 
+The same shape applies to constants, not just runtime state: a value two places must agree on —
+the chat launcher bar's height was both a Tailwind class and a separate numeric limit — drifts
+the moment it is written twice; exporting it once removes the second copy to drift from.
+
+**Near miss, not the same shape**: local state that is also published outward — `isPresenting`,
+a presenter's ink marks — is not S-2 as long as the writer never reads the published copy back.
+S-2 is two places both *read* as current; here there is one write path and one-way projection.
+Full argument in [`docs/design/presence-and-focus.md`](design/presence-and-focus.md) §"The
+presenter's own marks are local state, and that is not two owners".
+
 ### S-3 — Swallow an error, substitute a plausible default
 
 **Forbidden**: catch broadly, and return something that looks like a valid empty state instead of
@@ -117,6 +127,14 @@ pattern already existed in the codebase, in the markdown-shortcut path, which cl
 and its `lastSyncedRef` by hand with a comment explaining why. Split and merge needed the same
 mirroring and didn't have it; the issue's shape section calls this out directly: *"The pattern for
 fixing it already exists in the codebase, and says so."*
+
+## Revisit a cost claim when what's adjacent to it changes shape
+
+A cost claim can still be true and still be stale, if what it sits next to changed. The laser
+pointer's "publish only the current point keeps the payload O(1)" never stopped being true, but
+it was written against a ~110-byte presenter mark, and marks had since become open paths up to
+~125KB on the same presence payload. Re-measure the combined cost, not just the number that was
+named, before trusting a claim that predates its neighbor's last change.
 
 ## What may stay as an inline comment
 
@@ -259,6 +277,14 @@ The marker exists to be found: it's a place a reader can search for "what did we
 build yet," and a future issue (like `#37`, which references one of these directly) can point at
 by name instead of re-deriving why the simple version was chosen.
 
+## An invariant the SRS doesn't state still needs a test
+
+Nothing in `docs/SRS-ko.md` forbids a document being its own grandparent — nobody writes that
+down — but a tree UI with drag-to-move produces it on the first careless drop. There is no
+requirement id to cite for `wouldCycle`, which is exactly why it belongs in a test rather than a
+comment: a comment citing nothing looks removable, and a test that fails if the guard is deleted
+does not.
+
 ## The Node type-stripping constraint
 
 `server/index.mts` is run directly by `node` — the `Dockerfile`'s runtime stage ends in
@@ -304,3 +330,21 @@ Three separate silent failures in one milestone (`border-sky`, `rounded-sm`/`opa
 each time was the same — swap to a value already proven elsewhere in the project. The underlying
 Turbopack/Tailwind v4 cause was never worth chasing down; the check above is cheaper than
 debugging why a class silently produced no rule.
+
+## A script is not done until it runs against the real repo
+
+Every bug in `tasks/archive/2026/09/20260904-verify-scripts-lessons.md` was caught by execution,
+not by reading the script — a multi-line entry silently truncated by a regex, a prose sentence
+that triggered the very checker it was explaining, an entry-point guard broken only on Windows'
+`file://` path shape. A script reads correctly and is not done until it has been run against the
+thing it checks, in this repo, at least once.
+
+One trap recurs when a script's own trigger pattern is described in prose next to code the
+script parses: quoting the pattern verbatim can make the checker match its own explanation.
+Describe it, don't quote it.
+
+## Keep browser-dependent geometry in a pure function, not the component
+
+A function that takes the viewport as an argument instead of reading `window` itself is testable
+without a browser, and is worth the extra parameter wherever a mistake is unrecoverable — a
+window dragged off-screen cannot be dragged back (`lib/chat/window-frame.ts`).

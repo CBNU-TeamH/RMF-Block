@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-01
 **Issue**: none yet — this doc is the proposal. Related: #39 (no component tests).
-**Design**: [`docs/design/document-editing.md`](../../docs/design/document-editing.md) is the
+**Design**: [`docs/design/document-editing.md`](../../../../docs/design/document-editing.md) is the
 schema this audits against. No new design doc: nothing here changes the block model or the
 storage shape, only where the code that uses them lives.
 

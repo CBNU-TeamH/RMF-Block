@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-07
 **Issue**: none — FR-022-13/14 are unbuilt requirements, paste is a UX gap found while surveying the editor.
-**Design**: [`docs/design/document-editing.md`](../../docs/design/document-editing.md) "Block types" §8–9 (file, image) and "Editing surface"; [`api.md`](../../docs/design/api.md) §1 for the upload contract.
+**Design**: [`docs/design/document-editing.md`](../../../../docs/design/document-editing.md) "Block types" §8–9 (file, image) and "Editing surface"; [`api.md`](../../../../docs/design/api.md) §1 for the upload contract.
 
 Two thirds of FR-022-14 are missing, and pasting more than one line puts it all in one block.
 

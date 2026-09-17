@@ -62,10 +62,6 @@ anything.
 
 ## Worth extracting
 
-- **`docs/conventions.md` candidate**: revisit a cost claim when the thing it's *adjacent to*
-  changes shape, not only when the thing itself does. `MAX_POINTS_PER_MARK`'s comment already
-  covers marks; the pointer's own #95 citation ("O(1) payload") needed no correction, but reading
-  it next to the *other* number it now rides alongside is what surfaced that the combined story
-  had gone stale. This is the same shape as
-  [`20260912-presenter-marks-lessons.md`](20260912-presenter-marks-lessons.md)'s note about
-  `MARK_CAP`, now the second occurrence.
+- ~~**`docs/conventions.md` candidate**: revisit a cost claim when the thing it's *adjacent to*
+  changes shape...~~ — **promoted 2026-09-16** to `docs/conventions.md` ("Revisit a cost claim
+  when what's adjacent to it changes shape").

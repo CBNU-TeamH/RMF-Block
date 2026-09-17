@@ -5,8 +5,8 @@
 touched by those tasks is at or below 25%"); see the Review section for why "addresses" and
 not "closes" — the literal threshold is not met on every file, deliberately.
 **Design**: no new doc. The destinations already exist — that is the point of this task.
-[`docs/conventions.md`](../../docs/conventions.md) is the rule being applied;
-[`docs/design/`](../../docs/design/) is where the rationale goes.
+[`docs/conventions.md`](../../../../docs/conventions.md) is the rule being applied;
+[`docs/design/`](../../../../docs/design/) is where the rationale goes.
 
 ## Why now
 

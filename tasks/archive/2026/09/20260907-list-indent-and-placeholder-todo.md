@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-07
 **Issue**: none — both are SRS/UX gaps found while surveying the editor, not reported bugs.
-**Design**: [`docs/design/document-editing.md`](../../docs/design/document-editing.md), "Block types" §List block (the `depth` field it already specifies) and "Editing surface".
+**Design**: [`docs/design/document-editing.md`](../../../../docs/design/document-editing.md), "Block types" §List block (the `depth` field it already specifies) and "Editing surface".
 
 Two small gaps that both make an existing capability reachable rather than adding a new one.
 

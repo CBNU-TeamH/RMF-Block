@@ -2,7 +2,7 @@
 
 **Created**: 2026-08-25
 **Issue**: —
-**Design**: no new design doc. [`docs/design/api.md`](../../docs/design/api.md) §4.1 sketches a
+**Design**: no new design doc. [`docs/design/api.md`](../../../../docs/design/api.md) §4.1 sketches a
 server-held presence index over the workspace WebSocket, but that entry is scoped to FR-040 (user
 tracking, Phase 3) and carries a `documentId` this task has no documents to put in. This builds the
 FR-020-06/07 half only — who is here — and does it on Yorkie rather than the WS hub. See

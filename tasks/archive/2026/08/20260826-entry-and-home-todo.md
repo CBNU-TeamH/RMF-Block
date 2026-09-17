@@ -2,8 +2,8 @@
 
 **Created**: 2026-08-26
 **Issue**: closes [#22](https://github.com/CBNU-TeamH/RMF-Block/issues/22) and [#32](https://github.com/CBNU-TeamH/RMF-Block/issues/32)
-**Design**: [`docs/ui/dashboard/dashboard.dc.html`](../../docs/ui/dashboard/dashboard.dc.html) screen 2,
-the confirmed v0.4 artboard. No new `docs/design/` doc: [`api.md`](../../docs/design/api.md) already
+**Design**: [`docs/ui/dashboard/dashboard.dc.html`](../../../../docs/ui/dashboard/dashboard.dc.html) screen 2,
+the confirmed v0.4 artboard. No new `docs/design/` doc: [`api.md`](../../../../docs/design/api.md) already
 catalogues what this touches, and the one thing it does not fix — the shape of the two JSON stores —
 is four fields each and is written down below.
 
@@ -207,7 +207,7 @@ lift the client — would have meant two large edits to the same file. See **Coo
 - **Files**: `app/(workspace)/members/page.tsx`, `app/(workspace)/members/member-table.tsx`,
   `app/api/workspace/members/[memberId]/route.ts`, `lib/auth/session-registry.ts`.
 - **Design**: `dashboard.dc.html` screen 3, redrawn on import to columns this project can actually
-  answer — see [`docs/ui/dashboard/source.md`](../../docs/ui/dashboard/source.md).
+  answer — see [`docs/ui/dashboard/source.md`](../../../../docs/ui/dashboard/source.md).
 - **Reuse**: nothing new is needed for the hard parts. `wsHub.revoke(sessionId)` already ends a
   device's session and tells it why — the takeover path calls it today. `isHostSecret()` already
   gates the host, as `app/page.tsx` and `app/join/page.tsx` do. The roster comes from milestone 4's

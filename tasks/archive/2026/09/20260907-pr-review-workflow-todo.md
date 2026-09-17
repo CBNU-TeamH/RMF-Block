@@ -10,7 +10,7 @@ PR #77 shipped without following two things this repo's own harness already docu
 `skills/README.md` says `/code-review low` runs *before opening a PR* and `/simplify` runs
 *while working*, both from a Sonnet session — neither ran until asked for, after the PR was
 already open. Separately, the PR's description was written free-form instead of from
-[`.github/pull_request_template.md`](../../.github/pull_request_template.md) — `gh pr create
+[`.github/pull_request_template.md`](../../../../.github/pull_request_template.md) — `gh pr create
 --body` bypasses the template entirely when a body is supplied directly, so nothing forced the
 template's structure to actually get used.
 
