@@ -38,12 +38,9 @@ that the next person does not rediscover this.
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- **A rule the SRS does not state can still be the one most worth testing.** Nothing forbids a
-  document being its own grandparent, because nobody writes that down — and a tree UI with
-  drag-to-move produces it on the first careless drop, after which the loop is unreachable from the
-  root and invisible in every view. `wouldCycle` exists for a requirement that is not in the
-  document. Proposal: `conventions.md` already lists what may stay as a comment; a sibling note
-  that an invariant the SRS omits belongs in a *test*, since there is no requirement id to cite.
+- ~~**A rule the SRS does not state can still be the one most worth testing.**~~ — **promoted
+  2026-09-16** to `docs/conventions.md` ("An invariant the SRS doesn't state still needs a
+  test").
 
 - **Read the requirement's gesture, not just its noun.** SRS type 11 is a 문서 링크 block, and a
   picker for existing documents satisfies that sentence completely. What was actually wanted was

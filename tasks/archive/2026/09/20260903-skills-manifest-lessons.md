@@ -58,27 +58,11 @@ Things that should become a convention, a helper, or a line in `AGENTS.md`.
   trusting recall about Next — extended one step, because docs can be right about intent and
   still wrong about behaviour.
 
-- **Any sub-agent fan-out inherits the session model, so cost decisions about depth are only
-  half the decision.** Choosing `/code-review low` over full depth saves nothing if it runs
-  five Opus agents. Worth stating wherever we write down what to run: *pick the depth and the
-  model together.*
+- ~~**Any sub-agent fan-out inherits the session model...**~~ / ~~**Order the checks by what
+  they cost, not by what they cover.**~~ — **promoted 2026-09-16** to `AGENTS.md` §6.
 
-- **Order the checks by what they cost, not by what they cover.** `pnpm verify:fast` today —
-  joined by the comment budget and `verify:docs` once #65 adds them — costs zero tokens, while
-  a model pass costs tokens proportional to the diff,
-  multiplied by the number of agents. Letting a review spend findings on something a script
-  already knows pays twice — once in tokens, once in the reader's attention. Sized against
-  this repo it is not a small effect: PRs run to a median of 494 changed lines and the larger
-  ones reach 2,800, against 3,991 lines of source in total.
-
-  Note what `low` does and does not do. It reduces the number of findings reported, not the
-  amount of code read — so it caps the output, not the input. The input is capped by keeping
-  PRs task-sized and by not asking the model to look at what a script has already cleared.
-
-- **A tool that edits "the project's memory file" needs checking against our two-file split.**
-  `AGENTS.md` is the content and `CLAUDE.md` is a one-line shim, which is unusual enough that
-  tools assuming a single `CLAUDE.md` will target the wrong one. Worth a line wherever the
-  `AGENTS.md`/`CLAUDE.md` relationship is explained, so the next tool adoption checks it.
+- ~~**A tool that edits "the project's memory file" needs checking against our two-file
+  split.**~~ — **promoted 2026-09-16** to `AGENTS.md`'s header.
 
 - **This task doc pair was created as the first file-writing action** — an item that has been
   sitting in this section since 2026-08-12 (`20260812-chat-service-lessons.md`: *"create the

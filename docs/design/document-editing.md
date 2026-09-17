@@ -1,6 +1,6 @@
 # Document Editing — Block Schema
 
-- **Status**: Agreed. All 12 block types finalized. The pre-implementation SDK convergence check it was waiting on has been run — see [Verification](#verification-2026-08-27). The [editing surface](#editing-surface) (textarea vs. rich text, IME handling) was decided 2026-08-30, ahead of `tasks/active/20260829-block-editor-todo.md`'s implementation milestones.
+- **Status**: Agreed. All 12 block types finalized. The pre-implementation SDK convergence check it was waiting on has been run — see [Verification](#verification-2026-08-27). The [editing surface](#editing-surface) (textarea vs. rich text, IME handling) was decided 2026-08-30, ahead of `tasks/archive/2026/08/20260829-block-editor-todo.md`'s implementation milestones.
 - **Owns**: `lib/blocks/`, `lib/documents/`, `app/(workspace)/documents/`, `app/api/documents/`.
   One file under the third path — its use-focus-presence hook — is more specifically owned
   elsewhere, by [`docs/design/presence-and-focus.md`](presence-and-focus.md), whose file-level
@@ -772,6 +772,10 @@ Neither caller can name the depth itself — the `/` menu's items are static and
 carries none — so `preservingDepth` (`lib/blocks/indent.ts`) carries it from the block being
 converted, at both call sites. This was invisible until Tab existed: while `depth` was always 0,
 there was nothing for a conversion to lose.
+
+`level`, `style` are not protected the way `depth` now is — the same silent-flatten shape applies
+to either of them the moment two block types share one, and nothing today would catch it before a
+user does.
 
 ### Three places a drag can land
 

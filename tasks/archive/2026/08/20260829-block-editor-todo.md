@@ -3,7 +3,7 @@
 **Created**: 2026-08-29
 **Issue**: closes [#44](https://github.com/CBNU-TeamH/RMF-Block/issues/44) and
 [#45](https://github.com/CBNU-TeamH/RMF-Block/issues/45); leaves #46, #6, #39 and #42 open
-**Design**: [`docs/design/document-editing.md`](../../docs/design/document-editing.md). The
+**Design**: [`docs/design/document-editing.md`](../../../../docs/design/document-editing.md). The
 field-level schema for all twelve block types is settled there (Status: Agreed). **The editing
 surface is not, and this task adds it to that same file** as an "Editing surface" section —
 `architecture.md` §5 puts a module's detailed design in `docs/design/<module>.md`, and for the

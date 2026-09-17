@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-08
 **Issue**: none — FR-021-02/03/06 and all of FR-023 are unbuilt requirements.
-**Design**: [`docs/design/architecture.md`](../../docs/design/architecture.md) §3(d) for where the catalogue lives, [`api.md`](../../docs/design/api.md) §1 for the endpoints, [`document-editing.md`](../../docs/design/document-editing.md) §11 for the link block.
+**Design**: [`docs/design/architecture.md`](../../../../docs/design/architecture.md) §3(d) for where the catalogue lives, [`api.md`](../../../../docs/design/api.md) §1 for the endpoints, [`document-editing.md`](../../../../docs/design/document-editing.md) §11 for the link block.
 
 Today the catalogue is a flat list with one operation: create. UC-021 E1a and every one of
 FR-023's seven clauses are missing, and SRS type 11 (`doc-link`) has nowhere to point.

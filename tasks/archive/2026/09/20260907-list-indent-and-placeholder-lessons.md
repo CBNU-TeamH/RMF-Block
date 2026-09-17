@@ -48,14 +48,8 @@ that the next person does not rediscover this.
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- **A DOM assertion in a browser check should anchor on a stable container, never on a bare tag.**
-  Every block row starts with the drag handle `<span>`, so `querySelector('span')` finds that in
-  each of the twelve block types. Proposal for a browser-checking note in `AGENTS.md` §2's "Run and
-  verify": query from the row element down, and print what the selector matched before believing
-  what it says.
+- ~~**A DOM assertion in a browser check should anchor on a stable container, never on a bare
+  tag.**~~ — **promoted 2026-09-16** to `AGENTS.md` §2 ("Run and verify").
 
-- **A conversion that drops a field it did not name is a class of bug, not one bug.** `OWNED_FIELDS`
-  currently holds `level`, `style`, `depth`, `checked`. `depth` is now protected by
-  `preservingDepth`; the other three are not, and the same silent-flatten shape applies to any of
-  them the moment two types share one. Worth a rule in `document-editing.md` about which fields
-  survive which conversions, rather than a second helper each time it bites.
+- ~~**A conversion that drops a field it did not name is a class of bug, not one bug.**~~ —
+  **promoted 2026-09-16** to `docs/design/document-editing.md`.

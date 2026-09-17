@@ -35,8 +35,5 @@ that the next person does not rediscover this.
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- **Check the reference implementation for the edge, not the shape.** wafflebase's undo is four
-  lines around `doc.history.undo()` — the same four anyone would write. What was worth taking was
-  `undoFloor`, a guard against something it had hit and this had not: undoing past the document's
-  own seed. Proposal for `AGENTS.md` §2's delegation note: when a sibling project solves the same
-  problem, the value is usually in what it defends against, not in how it calls the API.
+- ~~**Check the reference implementation for the edge, not the shape.**~~ — **promoted
+  2026-09-16** to `AGENTS.md` §2's "Delegating work" note.

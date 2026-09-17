@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-08
 **Issue**: none — no FR covers undo. It is the key everyone presses first and nothing happens today.
-**Design**: [`docs/design/document-editing.md`](../../docs/design/document-editing.md) — this task adds "Undo is per person, and it is Yorkie's".
+**Design**: [`docs/design/document-editing.md`](../../../../docs/design/document-editing.md) — this task adds "Undo is per person, and it is Yorkie's".
 
 ## What the SDK actually gives us, checked before designing
 

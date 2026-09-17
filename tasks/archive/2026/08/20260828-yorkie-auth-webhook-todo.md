@@ -2,7 +2,7 @@
 
 **Created**: 2026-08-28
 **Issue**: —
-**Design**: [`docs/design/api.md`](../../docs/design/api.md) §2 catalogues
+**Design**: [`docs/design/api.md`](../../../../docs/design/api.md) §2 catalogues
 `POST /internal/yorkie/auth` and calls it "Not implemented". This builds it. No new
 design doc: the endpoint's contract is Yorkie's, not ours, and the parts `api.md` leaves
 open are decided below.

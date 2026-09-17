@@ -8,7 +8,7 @@
 > 배치는 옮겨졌습니다**: `app/page.tsx`는 사라졌고, 인증 게이트와 셸은
 > `app/(workspace)/layout.tsx`, 화면은 `app/(workspace)/page.tsx`에 있습니다. `(workspace)`는
 > 라우트 그룹이라 URL은 그대로입니다. 옮겨진 것의 전체 목록은
-> [`tasks/active/20260826-entry-and-home-lessons.md`](../tasks/active/20260826-entry-and-home-lessons.md)에
+> [`tasks/archive/2026/08/20260826-entry-and-home-lessons.md`](../tasks/archive/2026/08/20260826-entry-and-home-lessons.md)에
 > 있습니다.
 
 ## 목차

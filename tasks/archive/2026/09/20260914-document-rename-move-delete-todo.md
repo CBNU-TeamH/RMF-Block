@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-14
 **Issue**: none — a gap found reading `ROADMAP.md` Phase 2 against the code
-**Design**: [`docs/design/api.md`](../../docs/design/api.md), "The document endpoints" — the
+**Design**: [`docs/design/api.md`](../../../../docs/design/api.md), "The document endpoints" — the
 server half is already designed and built; this task is the client half only.
 
 FR-023-01~07 have a complete server and no UI. `app/api/documents/[id]/route.ts` implements

@@ -152,3 +152,11 @@ Worker *count* is about speed, not isolation, and it fails differently: **if a r
 suspect the worker count first.** Vitest's default sizes the pool at 50% of available cores, which
 floors to 1 on a low-core machine and serializes every file into one process. Check with
 `--max-workers=2` before adding or restructuring tests to chase a timeout — measured 2026-09-02.
+
+## What a local Node version can verify, and what only CI can
+
+A local machine's Node version silently gates what "verified by running" means. Pure-Node checks
+(`comment-budget.mjs`, the doc-ownership checker) verify fully on any supported version; anything
+touching `next.config.ts`'s dev/prod `distDir` split or `node --test`'s default file discovery
+only fully verifies on the Node version CI actually runs. Name the gap when a task hits it, rather
+than assuming a green local run covers what CI covers.

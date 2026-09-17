@@ -25,6 +25,5 @@
 
 ## Worth extracting
 
-- A requirement can be fully implemented on the server and completely absent to a user. Neither
-  "is there an endpoint" nor "is there a test" answers whether a UC is done; only "can someone do
-  it" does. Worth a line in whatever tracks Phase completion.
+- ~~A requirement can be fully implemented on the server and completely absent to a user...~~ —
+  **promoted 2026-09-16** to `ROADMAP.md`'s intro.

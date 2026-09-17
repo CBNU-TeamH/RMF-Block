@@ -126,12 +126,8 @@ happened to subsume it.
 
 ## Worth extracting
 
-- **`docs/conventions.md` candidate**: "a projection is not a mirror." The presenter's marks live in
-  local state and are published outward; that reads like S-2 (two owners for one fact) and is not,
-  because the browser that writes the presence copy never reads it. S-2's own test — a UI showing X
-  while the data says Y — cannot occur when nothing reads the outbound copy. This is now argued in
-  `presence-and-focus.md`, and it is the second time the same shape has come up (`isPresenting` was
-  the first), which is the bar for promoting it.
+- ~~**`docs/conventions.md` candidate**: "a projection is not a mirror."~~ — **promoted
+  2026-09-16** to `docs/conventions.md`'s S-2 section ("Near miss, not the same shape").
 - **Note for PR 2 (the fading laser pointer), updated**: `MARK_CAP`'s worst case moved from ~1.8KB
   to ~133KB once marks became open paths (`MAX_POINTS_PER_MARK`'s own comment has the arithmetic).
   The cost levers still only pay off together — publishing the current point instead of a trail
