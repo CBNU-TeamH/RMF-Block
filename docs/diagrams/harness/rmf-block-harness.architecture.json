@@ -1,0 +1,272 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "RMF-Block 개발 하네스와 Review Lenses",
+    "output": "rmf-block-harness.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "viewBox": [1330, 870],
+    "repository": {
+      "url": "https://github.com/taejinchoi-cbnu/RMF-Block.git",
+      "provider": "github",
+      "revision": "d317ae1e3aa2435f107a2d82427fb1badb4b7537"
+    },
+    "views": [
+      {
+        "id": "authoring-loop",
+        "label": "SDD 작업 시작",
+        "focus": ["agents_entry", "project_docs", "task_ledger", "worktree"],
+        "note": "AGENTS.md에서 원칙과 명세를 찾고 todo·lessons에 계획과 성공 기준을 기록한 뒤 구현합니다."
+      },
+      {
+        "id": "docs-review-lens",
+        "label": "Docs Review Lens",
+        "focus": ["worktree", "docs_guardrails", "docs_review", "pr_governance"],
+        "note": "자동 문서 검사를 통과한 뒤 harness drift를 감사하고, 종료 시 배운 내용을 AGENTS.md로 승격할지 판단합니다."
+      },
+      {
+        "id": "simplify-lens",
+        "label": "Simplify Lens",
+        "focus": ["quality_commands", "simplify_review", "code_review"],
+        "note": "무료 검사가 먼저 통과한 diff를 대상으로 기능을 보존하면서 명료성·일관성·유지보수성을 다듬습니다."
+      },
+      {
+        "id": "code-review-lens",
+        "label": "Code Review Lens",
+        "focus": ["simplify_review", "code_review", "pr_governance"],
+        "note": "Sonnet 세션의 5개 병렬 reviewer가 규칙·버그·이력을 확인하고 신뢰도 80 이상 finding만 PR에 전달합니다."
+      },
+      {
+        "id": "release-gate",
+        "label": "PR과 릴리스 게이트",
+        "focus": ["container_validation", "pr_governance", "github_ci"],
+        "note": "컨테이너 증거와 review 결과를 PR에 기록하고 CODEOWNERS 승인과 필수 CI 뒤 squash merge합니다."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "agents_entry",
+      "type": "security",
+      "label": "AGENTS.md",
+      "sublabel": "원칙 · 라우팅 · 작업 계약",
+      "tag": "single entry point",
+      "sources": [
+        { "path": "AGENTS.md", "line": 3, "end_line": 10, "label": "단일 진입점과 Next 규칙" },
+        { "path": "AGENTS.md", "line": 26, "end_line": 43, "label": "SDD 절차와 검증 규칙" },
+        { "path": "AGENTS.md", "line": 47, "end_line": 56, "label": "코딩 원칙" }
+      ],
+      "pos": [20, 400],
+      "size": [160, 78]
+    },
+    {
+      "id": "project_docs",
+      "type": "external",
+      "label": "명세와 설계 문서",
+      "sublabel": "SRS · design · ADR · conventions",
+      "sources": [
+        { "path": "AGENTS.md", "line": 60, "end_line": 74, "label": "업무별 문서 지도" },
+        { "path": "docs/testing.md", "line": 21, "end_line": 39, "label": "테스트 규칙과 네 계층" }
+      ],
+      "pos": [210, 100],
+      "size": [180, 80]
+    },
+    {
+      "id": "task_ledger",
+      "type": "database",
+      "label": "Task Ledger",
+      "sublabel": "todo · lessons · archive",
+      "sources": [
+        { "path": "tasks/active/README.md", "line": 15, "end_line": 38, "label": "task 쌍과 lifecycle" },
+        { "path": "scripts/tasks-index.sh", "line": 31, "end_line": 64, "label": "index 생성" },
+        { "path": "scripts/tasks-archive.sh", "line": 23, "end_line": 103, "label": "완료 task archive" }
+      ],
+      "pos": [190, 400],
+      "size": [180, 82]
+    },
+    {
+      "id": "worktree",
+      "type": "frontend",
+      "label": "Task Branch Worktree",
+      "sublabel": "최소 변경 · 성공 기준 · 테스트",
+      "sources": [
+        { "path": "AGENTS.md", "line": 47, "end_line": 56, "label": "구현 원칙" },
+        { "path": "AGENTS.md", "line": 87, "end_line": 95, "label": "브랜치와 PR 규칙" }
+      ],
+      "pos": [410, 400],
+      "size": [180, 82]
+    },
+    {
+      "id": "docs_guardrails",
+      "type": "backend",
+      "label": "Docs Guardrails",
+      "sublabel": "ownership · links · task index",
+      "tag": "verify:docs + comments",
+      "sources": [
+        { "path": "scripts/verify-docs.mjs", "line": 1, "end_line": 18, "label": "네 가지 문서 검사" },
+        { "path": "scripts/verify-docs.mjs", "line": 30, "end_line": 107, "label": "ownership와 index freshness" },
+        { "path": "scripts/comment-budget.mjs", "line": 1, "end_line": 23, "label": "comment routing signal" }
+      ],
+      "pos": [620, 100],
+      "size": [190, 82]
+    },
+    {
+      "id": "quality_commands",
+      "type": "backend",
+      "label": "Local Quality + Hooks",
+      "sublabel": "free checks · git hooks",
+      "tag": "verify:fast",
+      "sources": [
+        { "path": "package.json", "line": 9, "end_line": 21, "label": "검증 script entrypoints" },
+        { "path": ".githooks/pre-commit", "line": 1, "end_line": 25, "label": "staged lint와 comments" },
+        { "path": ".githooks/pre-push", "line": 1, "end_line": 14, "label": "test와 build" }
+      ],
+      "pos": [620, 400],
+      "size": [190, 82]
+    },
+    {
+      "id": "simplify_review",
+      "type": "cloud",
+      "label": "Simplify Lens",
+      "sublabel": "명료성 · 일관성 · 유지보수",
+      "tag": "/simplify · Sonnet",
+      "sources": [
+        { "path": "skills/README.md", "line": 32, "end_line": 36, "label": "기능 보존형 단순화" },
+        { "path": "skills/README.md", "line": 54, "end_line": 61, "label": "무료 검사 이후 실행" },
+        { "path": "skills/README.md", "line": 81, "end_line": 102, "label": "Sonnet 세션 규칙" }
+      ],
+      "pos": [840, 400],
+      "size": [190, 82]
+    },
+    {
+      "id": "code_review",
+      "type": "security",
+      "label": "Code Review Lens",
+      "sublabel": "5 reviewers · rules · bugs",
+      "tag": "/code-review low",
+      "sources": [
+        { "path": "skills/README.md", "line": 32, "end_line": 35, "label": "5개 reviewer와 80점 filter" },
+        { "path": "skills/README.md", "line": 38, "end_line": 52, "label": "low depth와 issue handoff" },
+        { "path": "skills/README.md", "line": 81, "end_line": 99, "label": "Sonnet fan-out 규칙" }
+      ],
+      "pos": [840, 650],
+      "size": [190, 82]
+    },
+    {
+      "id": "docs_review",
+      "type": "external",
+      "label": "Docs Review Lens",
+      "sublabel": "audit · drift · promotion",
+      "tag": "AGENTS.md target",
+      "sources": [
+        { "path": "skills/README.md", "line": 13, "end_line": 15, "label": "skill opt-in 규칙" },
+        { "path": "skills/README.md", "line": 32, "end_line": 36, "label": "시작 audit와 종료 revise" },
+        { "path": "skills/README.md", "line": 104, "end_line": 114, "label": "AGENTS.md 명시 target" }
+      ],
+      "pos": [840, 100],
+      "size": [190, 82]
+    },
+    {
+      "id": "container_validation",
+      "type": "cloud",
+      "label": "Container Validation",
+      "sublabel": "HOST_LAN_IP · app · Yorkie · Mongo",
+      "tag": "docker:up",
+      "sources": [
+        { "path": "AGENTS.md", "line": 41, "end_line": 43, "label": "컨테이너 검증 원칙" },
+        { "path": "package.json", "line": 18, "end_line": 21, "label": "docker entrypoint" },
+        { "path": "scripts/detect-host-ip.sh", "line": 116, "end_line": 175, "label": "WSL mirrored network gate" }
+      ],
+      "pos": [620, 700],
+      "size": [190, 82]
+    },
+    {
+      "id": "pr_governance",
+      "type": "security",
+      "label": "PR Governance",
+      "sublabel": "template · CODEOWNERS · squash",
+      "tag": "protected main",
+      "sources": [
+        { "path": "AGENTS.md", "line": 87, "end_line": 95, "label": "브랜치와 merge 계약" },
+        { "path": ".github/pull_request_template.md", "line": 17, "end_line": 56, "label": "검증과 review checklist" },
+        { "path": ".github/CODEOWNERS", "line": 1, "end_line": 6, "label": "다른 maintainer 승인" }
+      ],
+      "pos": [1080, 100],
+      "size": [190, 82]
+    },
+    {
+      "id": "github_ci",
+      "type": "cloud",
+      "label": "GitHub Actions CI",
+      "sublabel": "lint·test·build + container smoke",
+      "tag": "required checks",
+      "brand": "github",
+      "sources": [
+        { "path": ".github/workflows/ci.yml", "line": 1, "end_line": 49, "label": "trigger와 두 CI jobs" },
+        { "path": ".github/workflows/ci.yml", "line": 65, "end_line": 83, "label": "Yorkie와 image 검증" },
+        { "path": ".github/workflows/ci.yml", "line": 99, "end_line": 188, "label": "host·guest·chat smoke" }
+      ],
+      "pos": [1080, 700],
+      "size": [200, 82]
+    }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Repository Guidance", "wraps": ["agents_entry", "project_docs", "task_ledger"], "pad": 20 },
+    { "kind": "region", "label": "Local Automated Checks", "wraps": ["worktree", "docs_guardrails", "quality_commands", "container_validation"], "pad": 20 },
+    { "kind": "region", "label": "Human-directed Review Lenses", "wraps": ["simplify_review", "code_review", "docs_review"], "pad": 20 },
+    { "kind": "security-group", "label": "GitHub Protected Flow", "wraps": ["pr_governance", "github_ci"], "pad": 20 }
+  ],
+  "connections": [
+    { "id": "entry_routes_docs", "from": "agents_entry", "to": "project_docs", "label": "원칙과 요구사항 탐색", "fromSide": "top", "toSide": "left", "via": [[100, 290], [190, 290], [190, 140]], "labelAt": [145, 280], "variant": "emphasis" },
+    { "id": "docs_define_task", "from": "project_docs", "to": "task_ledger", "label": "계획과 성공 기준", "fromSide": "bottom", "toSide": "top", "via": [[300, 290], [280, 290]], "labelAt": [300, 194] },
+    { "id": "task_guides_build", "from": "task_ledger", "to": "worktree", "label": "todo · lessons", "labelAt": [390, 494], "variant": "emphasis" },
+    { "id": "worktree_checks_docs", "from": "worktree", "to": "docs_guardrails", "label": "verify:docs · comments" },
+    { "id": "docs_feed_review", "from": "docs_guardrails", "to": "docs_review", "label": "drift와 ownership 결과", "labelAt": [825, 196] },
+    { "id": "docs_review_prepares_pr", "from": "docs_review", "to": "pr_governance", "label": "audit · revise 기록", "labelAt": [1050, 70], "variant": "dashed" },
+    { "id": "worktree_checks_code", "from": "worktree", "to": "quality_commands", "label": "lint · test · build", "route": "straight", "labelAt": [605, 496], "variant": "emphasis" },
+    { "id": "quality_enables_simplify", "from": "quality_commands", "to": "simplify_review", "label": "free checks clean", "labelAt": [825, 496] },
+    { "id": "simplify_hands_to_review", "from": "simplify_review", "to": "code_review", "label": "기능 보존형 정리 후 diff", "labelAt": [935, 560] },
+    { "id": "code_review_prepares_pr", "from": "code_review", "to": "pr_governance", "label": "80+ findings · issue handoff", "fromSide": "right", "toSide": "left", "via": [[1070, 691], [1070, 141]], "labelAt": [1070, 620], "variant": "security" },
+    { "id": "worktree_runs_container", "from": "worktree", "to": "container_validation", "label": "startup · auth · network 변경", "fromSide": "bottom", "toSide": "left", "via": [[500, 600], [600, 600], [600, 741]], "labelAt": [550, 590] },
+    { "id": "pr_triggers_ci", "from": "pr_governance", "to": "github_ci", "label": "PR / main push", "fromSide": "bottom", "toSide": "top", "labelAt": [1250, 440], "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Review 실행 순서",
+      "items": [
+        "pnpm verify:fast와 문서 검사를 먼저 실행해 무료로 잡을 수 있는 문제를 제거",
+        "그 다음 /simplify, 마지막으로 /code-review low를 실행",
+        "skill은 자동 실행하지 않으며 사용자가 선택하고 두 명령은 Sonnet 세션에서 실행"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Simplify Lens",
+      "items": [
+        "질문: 동작이 맞는 코드를 더 명료하고 일관되며 유지보수하기 쉽게 만들 수 있는가",
+        "불변식: functionality preserving — 기능이나 범위를 바꾸지 않음",
+        "산출물: 정리된 diff를 Code Review Lens로 전달"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Code Review Lens",
+      "items": [
+        "5개 병렬 reviewer: 규칙 2개, 명백한 버그, git blame, 이전 PR 이력",
+        "low depth는 적은 수의 고신뢰 finding에 집중하고 confidence 80 미만은 제외",
+        "현재 범위 밖 finding은 버리지 않고 issue로 넘김"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Docs Review Lens",
+      "items": [
+        "시작: claude-md-improver로 AGENTS.md routing과 실제 저장소의 drift를 audit",
+        "진행: ownership, task index, dead link, comment 이동 신호를 자동 검사",
+        "종료: /revise-claude-md의 target을 AGENTS.md로 명시하고 lessons 승격을 판단"
+      ]
+    }
+  ]
+}

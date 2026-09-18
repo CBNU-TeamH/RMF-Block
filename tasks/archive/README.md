@@ -8,6 +8,11 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Runtime architecture visualization](2026/09/20260918-runtime-architecture-visualization-todo.md) | [lessons](2026/09/20260918-runtime-architecture-visualization-lessons.md) |
+| [Harness sub-agent subdiagrams](2026/09/20260918-harness-subagent-subdiagrams-todo.md) | [lessons](2026/09/20260918-harness-subagent-subdiagrams-lessons.md) |
+| [Harness review lenses](2026/09/20260918-harness-review-lenses-todo.md) | [lessons](2026/09/20260918-harness-review-lenses-lessons.md) |
+| [Harness architecture visualization](2026/09/20260918-harness-architecture-visualization-todo.md) | [lessons](2026/09/20260918-harness-architecture-visualization-lessons.md) |
+| [Architecture detail and guided story](2026/09/20260918-architecture-detail-story-todo.md) | [lessons](2026/09/20260918-architecture-detail-story-lessons.md) |
 | [Testing strategy doc (issue #66, track C2)](2026/09/20260910-testing-strategy-doc-todo.md) | [lessons](2026/09/20260910-testing-strategy-doc-lessons.md) |
 | [Route-handler tests (issue #66's last docs/testing.md layer)](2026/09/20260910-route-handler-tests-todo.md) | [lessons](2026/09/20260910-route-handler-tests-lessons.md) |
 | [Component tests for issue #39's three regression bugs](2026/09/20260910-component-tests-todo.md) | [lessons](2026/09/20260910-component-tests-lessons.md) |

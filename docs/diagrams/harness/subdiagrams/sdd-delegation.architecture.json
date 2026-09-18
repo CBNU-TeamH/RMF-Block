@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "SDD와 Sub-agent Delegation",
+    "output": "sdd-delegation.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "viewBox": [1330, 870],
+    "repository": { "url": "https://github.com/taejinchoi-cbnu/RMF-Block.git", "provider": "github", "revision": "d317ae1e3aa2435f107a2d82427fb1badb4b7537" },
+    "views": [
+      { "id": "sdd-entry", "label": "SDD 진입", "focus": ["request", "main_agent", "agents_rules", "project_docs", "task_pair"], "note": "Main agent가 원칙·명세를 확인하고 todo·lessons에 계획과 성공 기준을 고정합니다." },
+      { "id": "delegation-gate", "label": "위임 판단", "focus": ["task_pair", "delegation_gate", "explore_agent", "decision_owner"], "note": "repo-wide fact-finding만 Explore-style sub-agent로 보내고 작은 탐색과 판단은 main agent가 유지합니다." },
+      { "id": "explore-loop", "label": "Explore evidence loop", "focus": ["delegation_gate", "explore_agent", "repo_evidence", "decision_owner"], "note": "Explore sub-agent는 정의·참조 위치를 찾아 증거를 돌려주며 설계 결정을 내리지 않습니다." },
+      { "id": "build-loop", "label": "판단과 구현", "focus": ["decision_owner", "localized_build", "task_lessons", "task_archive"], "note": "Main agent가 trade-off와 성공 기준에 책임지고 작은 범위로 구현한 뒤 lessons와 archive로 닫습니다." }
+    ]
+  },
+  "components": [
+    { "id": "request", "type": "external", "label": "User Request", "sublabel": "목표 · 범위 · 제약", "sources": [{ "path": "AGENTS.md", "line": 47, "end_line": 56, "label": "목표 중심 원칙" }], "pos": [20, 400], "size": [160, 76] },
+    { "id": "main_agent", "type": "security", "label": "Main Agent", "sublabel": "판단과 결과 책임", "tag": "decision owner", "sources": [{ "path": "AGENTS.md", "line": 41, "end_line": 43, "label": "위임 책임 경계" }], "pos": [210, 400], "size": [170, 76] },
+    { "id": "agents_rules", "type": "external", "label": "AGENTS.md", "sublabel": "원칙 · routing · workflow", "sources": [{ "path": "AGENTS.md", "line": 1, "end_line": 10, "label": "단일 진입점" }, { "path": "AGENTS.md", "line": 26, "end_line": 43, "label": "SDD와 위임" }], "pos": [420, 80], "size": [180, 76] },
+    { "id": "project_docs", "type": "external", "label": "Project Docs", "sublabel": "SRS · design · conventions", "sources": [{ "path": "AGENTS.md", "line": 60, "end_line": 74, "label": "문서 routing" }], "pos": [420, 260], "size": [180, 76] },
+    { "id": "task_pair", "type": "database", "label": "Todo + Lessons Pair", "sublabel": "계획 · 기준 · 학습", "sources": [{ "path": "tasks/active/README.md", "line": 15, "end_line": 38, "label": "task lifecycle" }, { "path": "AGENTS.md", "line": 30, "end_line": 37, "label": "SDD 단계" }], "pos": [420, 440], "size": [180, 76] },
+    { "id": "delegation_gate", "type": "security", "label": "Delegation Gate", "sublabel": "범위와 판단 여부 분류", "sources": [{ "path": "AGENTS.md", "line": 41, "end_line": 43, "label": "위임 규칙" }], "pos": [640, 440], "size": [180, 76] },
+    { "id": "explore_agent", "type": "cloud", "label": "Explore sub-agent", "sublabel": "repo-wide 위치와 참조 탐색", "tag": "fact-finding only", "sources": [{ "path": "AGENTS.md", "line": 43, "end_line": 43, "label": "Explore 사용 범위" }], "pos": [860, 180], "size": [190, 76] },
+    { "id": "repo_evidence", "type": "database", "label": "Repository Evidence", "sublabel": "정의 · 참조 · 실제 파일", "sources": [{ "path": "AGENTS.md", "line": 60, "end_line": 74, "label": "탐색 대상 지도" }], "pos": [1080, 180], "size": [190, 76] },
+    { "id": "decision_owner", "type": "security", "label": "Main-agent Decision", "sublabel": "trade-off · scope · success", "tag": "never delegated", "sources": [{ "path": "AGENTS.md", "line": 43, "end_line": 43, "label": "판단 비위임" }, { "path": "AGENTS.md", "line": 47, "end_line": 56, "label": "코딩 원칙" }], "pos": [860, 440], "size": [190, 76] },
+    { "id": "localized_build", "type": "frontend", "label": "Localized Build", "sublabel": "최소한의 관련 변경", "sources": [{ "path": "AGENTS.md", "line": 51, "end_line": 56, "label": "단순·외과적 변경" }], "pos": [1080, 440], "size": [190, 76] },
+    { "id": "task_lessons", "type": "database", "label": "Lessons Review", "sublabel": "surprise · improvement · extraction", "sources": [{ "path": "tasks/templates/lessons.md", "line": 1, "end_line": 17, "label": "lessons template" }], "pos": [860, 680], "size": [190, 76] },
+    { "id": "task_archive", "type": "backend", "label": "Task Archive", "sublabel": "move pair · rebuild indexes", "sources": [{ "path": "scripts/tasks-archive.sh", "line": 23, "end_line": 103, "label": "archive script" }], "pos": [1080, 680], "size": [190, 76] }
+  ],
+  "boundaries": [],
+  "connections": [
+    { "id": "request_to_main", "from": "request", "to": "main_agent", "variant": "emphasis" },
+    { "id": "main_reads_rules", "from": "main_agent", "to": "agents_rules" },
+    { "id": "rules_route_docs", "from": "agents_rules", "to": "project_docs" },
+    { "id": "docs_define_task", "from": "project_docs", "to": "task_pair" },
+    { "id": "task_reaches_gate", "from": "task_pair", "to": "delegation_gate" },
+    { "id": "gate_spawns_explore", "from": "delegation_gate", "to": "explore_agent", "variant": "dashed" },
+    { "id": "explore_reads_repo", "from": "explore_agent", "to": "repo_evidence" },
+    { "id": "evidence_returns", "from": "repo_evidence", "to": "decision_owner", "variant": "dashed" },
+    { "id": "gate_keeps_judgement", "from": "delegation_gate", "to": "decision_owner", "variant": "security" },
+    { "id": "decision_builds", "from": "decision_owner", "to": "localized_build", "variant": "emphasis" },
+    { "id": "build_records_lessons", "from": "localized_build", "to": "task_lessons" },
+    { "id": "lessons_archive", "from": "task_lessons", "to": "task_archive" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "위임하는 것", "items": ["어디에 X가 정의됐는지 찾기", "어떤 파일이 Y를 참조하는지 repo-wide 탐색", "결정에 필요한 실제 파일 근거 수집"] },
+    { "dot": "rose", "title": "위임하지 않는 것", "items": ["요구사항 해석과 scope 결정", "trade-off와 설계 선택", "최종 성공 기준과 결과 책임"] },
+    { "dot": "emerald", "title": "완료 루프", "items": ["작은 관련 범위만 구현", "lessons에서 재사용 가능한 항목을 검토", "task pair를 archive하고 index를 재생성"] }
+  ]
+}
