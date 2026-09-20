@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Docs와 Harness Review Loop",
+    "output": "docs-review-loop.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "viewBox": [1370, 870],
+    "repository": { "url": "https://github.com/taejinchoi-cbnu/RMF-Block.git", "provider": "github", "revision": "d317ae1e3aa2435f107a2d82427fb1badb4b7537" },
+    "views": [
+      { "id": "start-audit", "label": "시작 시 Harness audit", "focus": ["main_session", "agents_entry", "repo_reality", "improver_agent", "drift_findings"], "note": "improver sub-agent가 AGENTS.md의 routing·규칙과 실제 저장소를 대조해 drift를 찾습니다." },
+      { "id": "deterministic-docs", "label": "결정론적 문서 검사", "focus": ["main_session", "verify_docs", "ownership_check", "index_check", "links_comments"], "note": "verify:docs와 comments는 sub-agent가 아니라 스크립트이며 소유권·index·링크·comment 신호를 검사합니다." },
+      { "id": "task-lessons", "label": "Lessons 축적", "focus": ["main_session", "task_lessons", "revise_agent"], "note": "구현 중 기록한 lessons가 종료 시 revise sub-agent가 검토할 입력이 됩니다." },
+      { "id": "revision-target", "label": "AGENTS.md target guard", "focus": ["task_lessons", "revise_agent", "target_guard", "agents_entry"], "note": "revise 명령은 import를 따라가지 않으므로 target을 AGENTS.md로 명시하고 CLAUDE.md pointer를 보호합니다." }
+    ]
+  },
+  "components": [
+    { "id": "main_session", "type": "external", "label": "Main Session", "sublabel": "audit와 revise를 명시 실행", "sources": [{ "path": "skills/README.md", "line": 13, "end_line": 15, "label": "opt-in 규칙" }], "pos": [20, 400], "size": [170, 78] },
+    { "id": "agents_entry", "type": "security", "label": "AGENTS.md", "sublabel": "tool-neutral harness", "sources": [{ "path": "AGENTS.md", "line": 1, "end_line": 10, "label": "단일 진입점" }, { "path": "CLAUDE.md", "line": 1, "end_line": 1, "label": "Claude pointer" }], "pos": [230, 200], "size": [170, 76] },
+    { "id": "repo_reality", "type": "database", "label": "Repository Reality", "sublabel": "실제 파일 · scripts · routing", "sources": [{ "path": "AGENTS.md", "line": 60, "end_line": 74, "label": "문서 routing" }], "pos": [230, 60], "size": [170, 76] },
+    { "id": "improver_agent", "type": "cloud", "label": "Improver sub-agent", "sublabel": "harness와 codebase 대조", "tag": "start audit", "sources": [{ "path": "skills/README.md", "line": 32, "end_line": 36, "label": "improver 역할" }], "pos": [470, 120], "size": [190, 78] },
+    { "id": "drift_findings", "type": "external", "label": "Harness Drift Findings", "sublabel": "dead route · stale rule · gap", "sources": [{ "path": "skills/README.md", "line": 34, "end_line": 36, "label": "drift 사례" }], "pos": [720, 120], "size": [190, 78] },
+    { "id": "verify_docs", "type": "backend", "label": "verify:docs", "sublabel": "결정론적 Node scripts", "tag": "no sub-agent", "sources": [{ "path": "scripts/verify-docs.mjs", "line": 1, "end_line": 18, "label": "검사 목록" }, { "path": "package.json", "line": 17, "end_line": 21, "label": "script entry" }], "pos": [230, 430], "size": [170, 78] },
+    { "id": "ownership_check", "type": "backend", "label": "Ownership Check", "sublabel": "dead · duplicate · missing Owns", "sources": [{ "path": "scripts/verify-docs.mjs", "line": 30, "end_line": 50, "label": "ownership 결과" }], "pos": [470, 330], "size": [180, 76] },
+    { "id": "index_check", "type": "backend", "label": "Task Index Check", "sublabel": "generated index freshness", "sources": [{ "path": "scripts/verify-docs.mjs", "line": 52, "end_line": 107, "label": "index freshness" }], "pos": [470, 460], "size": [180, 76] },
+    { "id": "links_comments", "type": "backend", "label": "Links + Comments", "sublabel": "dead links · routing signal", "sources": [{ "path": "scripts/verify-docs.mjs", "line": 110, "end_line": 190, "label": "link scan" }, { "path": "scripts/comment-budget.mjs", "line": 1, "end_line": 23, "label": "comment signal" }], "pos": [470, 590], "size": [180, 76] },
+    { "id": "task_lessons", "type": "database", "label": "Task Lessons", "sublabel": "surprises · promotion", "sources": [{ "path": "tasks/templates/lessons.md", "line": 1, "end_line": 17, "label": "lessons template" }, { "path": "AGENTS.md", "line": 30, "end_line": 37, "label": "Done promotion" }], "pos": [720, 650], "size": [190, 78] },
+    { "id": "revise_agent", "type": "cloud", "label": "Revise sub-agent", "sublabel": "session learning을 harness 후보로", "tag": "/revise-claude-md", "sources": [{ "path": "skills/README.md", "line": 32, "end_line": 36, "label": "종료 revise" }, { "path": "skills/README.md", "line": 104, "end_line": 114, "label": "target 제약" }], "pos": [940, 650], "size": [190, 78] },
+    { "id": "target_guard", "type": "security", "label": "AGENTS.md Target Guard", "sublabel": "CLAUDE.md pointer 보호", "sources": [{ "path": "skills/README.md", "line": 109, "end_line": 114, "label": "명시 target 규칙" }, { "path": "CLAUDE.md", "line": 1, "end_line": 1, "label": "pointer 내용" }], "pos": [1170, 650], "size": [170, 78] }
+  ],
+  "boundaries": [],
+  "connections": [
+    { "id": "session_starts_audit", "from": "main_session", "to": "agents_entry", "variant": "emphasis" },
+    { "id": "agents_to_improver", "from": "agents_entry", "to": "improver_agent" },
+    { "id": "repo_to_improver", "from": "repo_reality", "to": "improver_agent" },
+    { "id": "improver_reports", "from": "improver_agent", "to": "drift_findings", "variant": "dashed" },
+    { "id": "session_runs_docs", "from": "main_session", "to": "verify_docs" },
+    { "id": "docs_checks_owner", "from": "verify_docs", "to": "ownership_check" },
+    { "id": "docs_checks_index", "from": "verify_docs", "to": "index_check" },
+    { "id": "docs_checks_links", "from": "verify_docs", "to": "links_comments" },
+    { "id": "session_records_lessons", "from": "main_session", "to": "task_lessons" },
+    { "id": "lessons_feed_revise", "from": "task_lessons", "to": "revise_agent" },
+    { "id": "drift_feeds_revise", "from": "drift_findings", "to": "revise_agent", "variant": "dashed" },
+    { "id": "revise_targets_agents", "from": "revise_agent", "to": "target_guard", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "violet", "title": "Agentic 단계", "items": ["improver는 시작 시 harness와 실제 저장소를 의미적으로 대조", "revise는 종료 시 session learning과 lessons를 승격 후보로 정리", "둘 다 사용자가 명시적으로 실행"] },
+    { "dot": "cyan", "title": "결정론적 단계", "items": ["verify:docs는 ownership·task index·dead links를 검사", "comments는 comment 비율을 docs 이동 신호로 사용", "이 단계에는 sub-agent fan-out이 없음"] },
+    { "dot": "rose", "title": "Target 안전장치", "items": ["revise는 @AGENTS.md import를 따라가지 않음", "기본 탐색은 CLAUDE.md pointer를 고를 수 있음", "항상 target을 AGENTS.md로 명시하고 CLAUDE.md는 수정하지 않음"] }
+  ]
+}

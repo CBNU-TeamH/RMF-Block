@@ -8,6 +8,11 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Runtime architecture visualization](2026/09/20260918-runtime-architecture-visualization-todo.md) | [lessons](2026/09/20260918-runtime-architecture-visualization-lessons.md) |
+| [Harness sub-agent subdiagrams](2026/09/20260918-harness-subagent-subdiagrams-todo.md) | [lessons](2026/09/20260918-harness-subagent-subdiagrams-lessons.md) |
+| [Harness review lenses](2026/09/20260918-harness-review-lenses-todo.md) | [lessons](2026/09/20260918-harness-review-lenses-lessons.md) |
+| [Harness architecture visualization](2026/09/20260918-harness-architecture-visualization-todo.md) | [lessons](2026/09/20260918-harness-architecture-visualization-lessons.md) |
+| [Architecture detail and guided story](2026/09/20260918-architecture-detail-story-todo.md) | [lessons](2026/09/20260918-architecture-detail-story-lessons.md) |
 | [UC-023: rename, move and delete a document, from the UI](2026/09/20260914-document-rename-move-delete-todo.md) | [lessons](2026/09/20260914-document-rename-move-delete-lessons.md) |
 | [Presenter pointer — fading laser pointer](2026/09/20260913-presenter-pointer-todo.md) | [lessons](2026/09/20260913-presenter-pointer-lessons.md) |
 | [`pnpm dev` turns every LAN guest away at the join form](2026/09/20260913-dev-lan-origin-todo.md) | [lessons](2026/09/20260913-dev-lan-origin-lessons.md) |

@@ -1,0 +1,323 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "RMF-Block 런타임 아키텍처",
+    "output": "rmf-block-runtime.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/taejinchoi-cbnu/RMF-Block.git",
+      "provider": "github",
+      "revision": "d317ae1e3aa2435f107a2d82427fb1badb4b7537"
+    },
+    "views": [
+      {
+        "id": "document-sync",
+        "label": "문서 실시간 동기화",
+        "focus": ["lan_user", "workspace_ui", "yorkie_sdk", "yorkie_server", "mongo_store"],
+        "note": "문서와 presence는 App/WS Server를 거치지 않고 Yorkie로 직접 이동합니다."
+      },
+      {
+        "id": "app-state",
+        "label": "앱 상태와 알림",
+        "focus": ["workspace_ui", "app_server", "ws_hub", "session_registry", "app_data"],
+        "note": "인증, 채팅, 문서 트리와 파일은 앱 서버가 소유합니다."
+      },
+      {
+        "id": "access-control",
+        "label": "Yorkie 접근 제어",
+        "focus": ["workspace_ui", "app_server", "session_registry", "yorkie_server"],
+        "note": "앱 세션을 좁은 Yorkie 토큰으로 교환하고 webhook에서 다시 검증합니다."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "lan_user",
+      "type": "external",
+      "label": "LAN 사용자",
+      "sublabel": "호스트 또는 게스트",
+      "pos": [30, 300],
+      "size": [150, 68]
+    },
+    {
+      "id": "workspace_ui",
+      "type": "frontend",
+      "label": "브라우저 UI",
+      "sublabel": "Next.js App Router",
+      "brand": "next-js",
+      "pos": [250, 300],
+      "size": [170, 72]
+    },
+    {
+      "id": "yorkie_sdk",
+      "type": "frontend",
+      "label": "Yorkie SDK",
+      "sublabel": "문서 CRDT + Presence",
+      "sources": [
+        {
+          "path": "app/(workspace)/documents/[id]/use-block-document.ts",
+          "line": 73,
+          "end_line": 104,
+          "label": "문서 attach와 CRDT 초기화"
+        },
+        {
+          "path": "app/(workspace)/presence-provider.tsx",
+          "line": 90,
+          "end_line": 127,
+          "label": "presence 문서 연결"
+        }
+      ],
+      "pos": [250, 500],
+      "size": [170, 72]
+    },
+    {
+      "id": "app_server",
+      "type": "backend",
+      "label": "App / WS Server",
+      "sublabel": "Next.js custom server :3000",
+      "brand": "next-js",
+      "sources": [
+        {
+          "path": "server/index.mts",
+          "line": 28,
+          "end_line": 73,
+          "label": "HTTP와 WebSocket 진입점"
+        },
+        {
+          "path": "app/api/auth/yorkie-token/route.ts",
+          "line": 21,
+          "end_line": 49,
+          "label": "Yorkie 토큰 발급"
+        },
+        {
+          "path": "app/api/internal/yorkie/auth/route.ts",
+          "line": 10,
+          "end_line": 46,
+          "label": "Yorkie auth webhook"
+        }
+      ],
+      "pos": [530, 250],
+      "size": [190, 78]
+    },
+    {
+      "id": "ws_hub",
+      "type": "messagebus",
+      "label": "WebSocket Hub",
+      "sublabel": "채팅 · 문서 트리 · 세션 해제",
+      "sources": [
+        {
+          "path": "server/ws-hub.mts",
+          "line": 18,
+          "end_line": 79,
+          "label": "연결 등록과 broadcast"
+        }
+      ],
+      "pos": [810, 110],
+      "size": [190, 74]
+    },
+    {
+      "id": "session_registry",
+      "type": "security",
+      "label": "Session Registry",
+      "sublabel": "프로세스 메모리",
+      "tag": "재시작 시 폐기",
+      "sources": [
+        {
+          "path": "lib/auth/session-registry.ts",
+          "line": 35,
+          "end_line": 55,
+          "label": "메모리 세션 소유권"
+        }
+      ],
+      "pos": [810, 250],
+      "size": [190, 74]
+    },
+    {
+      "id": "app_data",
+      "type": "database",
+      "label": ".data/ 저장소",
+      "sublabel": "JSON 메타데이터 + 파일 바이트",
+      "tag": "app-data volume",
+      "sources": [
+        {
+          "path": "docker-compose.yml",
+          "line": 2,
+          "end_line": 17,
+          "label": "app-data volume"
+        },
+        {
+          "path": "lib/chat/chat-repository.ts",
+          "line": 6,
+          "end_line": 17,
+          "label": "채팅 JSON 저장소"
+        },
+        {
+          "path": "lib/files/file-repository.ts",
+          "line": 12,
+          "end_line": 23,
+          "label": "업로드 파일 저장소"
+        }
+      ],
+      "pos": [810, 390],
+      "size": [190, 78]
+    },
+    {
+      "id": "yorkie_server",
+      "type": "backend",
+      "label": "Yorkie Server",
+      "sublabel": "자체 호스팅 :8080",
+      "sources": [
+        {
+          "path": "docker-compose.yml",
+          "line": 46,
+          "end_line": 89,
+          "label": "Yorkie 서비스 설정"
+        }
+      ],
+      "pos": [530, 540],
+      "size": [190, 78]
+    },
+    {
+      "id": "mongo_store",
+      "type": "database",
+      "label": "MongoDB",
+      "sublabel": "Yorkie 내부 저장소",
+      "brand": "mongodb",
+      "tag": "mongo-data volume",
+      "sources": [
+        {
+          "path": "docker-compose.yml",
+          "line": 91,
+          "end_line": 120,
+          "label": "MongoDB와 영속 volume"
+        }
+      ],
+      "pos": [810, 540],
+      "size": [190, 78]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "사용자 브라우저",
+      "wraps": ["workspace_ui", "yorkie_sdk"],
+      "pad": 30
+    },
+    {
+      "kind": "security-group",
+      "label": "호스트 Docker 네트워크",
+      "wraps": ["app_server", "ws_hub", "session_registry", "app_data", "yorkie_server", "mongo_store"],
+      "pad": 34
+    }
+  ],
+  "connections": [
+    {
+      "id": "user_opens_workspace",
+      "from": "lan_user",
+      "to": "workspace_ui",
+      "label": "HTTP :3000",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ui_calls_app",
+      "from": "workspace_ui",
+      "to": "app_server",
+      "label": "SSR + REST",
+      "labelDx": 20,
+      "variant": "emphasis"
+    },
+    {
+      "id": "ui_uses_sdk",
+      "from": "workspace_ui",
+      "to": "yorkie_sdk",
+      "label": "문서 + presence API",
+      "labelAt": [335, 386]
+    },
+    {
+      "id": "ui_opens_socket",
+      "from": "workspace_ui",
+      "to": "ws_hub",
+      "label": "WebSocket: 알림",
+      "variant": "dashed"
+    },
+    {
+      "id": "sdk_syncs_yorkie",
+      "from": "yorkie_sdk",
+      "to": "yorkie_server",
+      "label": "Connect / gRPC-Web: CRDT + Presence",
+      "labelAt": [475, 632],
+      "variant": "emphasis"
+    },
+    {
+      "id": "app_broadcasts",
+      "from": "app_server",
+      "to": "ws_hub",
+      "label": "채팅 · 트리 변경 broadcast"
+    },
+    {
+      "id": "app_resolves_session",
+      "from": "app_server",
+      "to": "session_registry",
+      "label": "세션 확인 / 폐기",
+      "labelAt": [670, 220],
+      "variant": "security"
+    },
+    {
+      "id": "app_persists_state",
+      "from": "app_server",
+      "to": "app_data",
+      "label": "채팅 · 멤버 · 문서 트리 · 파일"
+    },
+    {
+      "id": "app_administers_yorkie",
+      "from": "app_server",
+      "to": "yorkie_server",
+      "label": "Admin API: webhook 설정 / revision",
+      "labelAt": [500, 386],
+      "variant": "dashed"
+    },
+    {
+      "id": "yorkie_checks_access",
+      "from": "yorkie_server",
+      "to": "app_server",
+      "label": "POST auth webhook",
+      "labelDx": 120,
+      "variant": "security"
+    },
+    {
+      "id": "yorkie_persists_documents",
+      "from": "yorkie_server",
+      "to": "mongo_store",
+      "label": "문서 상태 + revision",
+      "labelAt": [765, 632],
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "실시간 경로",
+      "items": [
+        "문서와 presence는 브라우저의 Yorkie SDK가 Yorkie Server와 직접 동기화",
+        "채팅, 문서 트리 변경, 세션 해제 알림만 WebSocket Hub가 전달"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "상태 소유권",
+      "items": [
+        "Yorkie와 MongoDB: CRDT 문서 상태와 revision",
+        "App/WS Server와 .data/: 멤버, 채팅, 문서 메타데이터, 업로드 파일"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "보안 경계",
+      "items": [
+        "workspace session은 메모리에만 존재하며 컨테이너 재시작으로 모두 폐기",
+        "Yorkie는 App/WS Server의 auth webhook으로 토큰과 세션을 검증"
+      ]
+    }
+  ]
+}

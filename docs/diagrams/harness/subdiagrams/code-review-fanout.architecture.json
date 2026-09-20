@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Code Review Sub-agent Fan-out",
+    "output": "code-review-fanout.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "viewBox": [1330, 870],
+    "repository": { "url": "https://github.com/taejinchoi-cbnu/RMF-Block.git", "provider": "github", "revision": "d317ae1e3aa2435f107a2d82427fb1badb4b7537" },
+    "views": [
+      { "id": "prerequisites", "label": "무료 검사 선행", "focus": ["main_session", "free_checks", "simplify_agent"], "note": "lint·test·docs 검사를 먼저 통과시켜 sub-agent가 자동화 가능한 문제에 토큰을 쓰지 않게 합니다." },
+      { "id": "simplify", "label": "Simplify sub-agent", "focus": ["free_checks", "simplify_agent", "review_command"], "note": "Sonnet을 상속한 한 sub-agent가 기능을 보존하며 코드 형태를 정리한 뒤 review 입력을 만듭니다." },
+      { "id": "fanout", "label": "5개 reviewer fan-out", "focus": ["review_command", "rules_reviewer", "comments_reviewer", "bug_reviewer", "history_reviewer", "pr_reviewer"], "note": "한 명령이 다섯 역할을 병렬 실행하며 모두 호출 세션의 모델을 상속합니다." },
+      { "id": "filtering", "label": "Finding 필터", "focus": ["rules_reviewer", "comments_reviewer", "bug_reviewer", "history_reviewer", "pr_reviewer", "confidence_filter"], "note": "각 결과를 합친 뒤 confidence 80 미만을 제외하고 현재 diff와 범위를 기준으로 분류합니다." },
+      { "id": "handoff", "label": "PR과 Issue handoff", "focus": ["confidence_filter", "pr_findings", "issue_handoff"], "note": "고신뢰·현재 범위 finding은 PR로, 범위 밖 finding은 버리지 않고 issue로 넘깁니다." }
+    ]
+  },
+  "components": [
+    { "id": "main_session", "type": "external", "label": "Main Session", "sublabel": "사용자가 review를 명시 실행", "tag": "Sonnet", "sources": [{ "path": "skills/README.md", "line": 13, "end_line": 15, "label": "자동 실행 금지" }, { "path": "skills/README.md", "line": 81, "end_line": 99, "label": "호출 세션 모델 상속" }], "pos": [20, 400], "size": [170, 78] },
+    { "id": "free_checks", "type": "backend", "label": "Free Checks", "sublabel": "verify:fast · comments · docs", "tag": "0 tokens", "sources": [{ "path": "skills/README.md", "line": 54, "end_line": 72, "label": "무료 검사 우선" }, { "path": "package.json", "line": 14, "end_line": 21, "label": "검증 scripts" }], "pos": [220, 400], "size": [170, 78] },
+    { "id": "simplify_agent", "type": "cloud", "label": "Simplify sub-agent", "sublabel": "명료성 · 일관성 · 유지보수", "tag": "/simplify", "sources": [{ "path": "skills/README.md", "line": 34, "end_line": 36, "label": "기능 보존형 단순화" }, { "path": "skills/README.md", "line": 81, "end_line": 102, "label": "Sonnet sub-agent" }], "pos": [420, 400], "size": [180, 78] },
+    { "id": "review_command", "type": "messagebus", "label": "Review Orchestrator", "sublabel": "5개 역할을 병렬 fan-out", "tag": "/code-review low", "sources": [{ "path": "skills/README.md", "line": 32, "end_line": 35, "label": "5개 reviewer" }, { "path": "skills/README.md", "line": 38, "end_line": 52, "label": "low depth" }], "pos": [630, 400], "size": [180, 78] },
+    { "id": "rules_reviewer", "type": "security", "label": "Rules Reviewer", "sublabel": "CLAUDE.md / AGENTS 규칙", "sources": [{ "path": "skills/README.md", "line": 32, "end_line": 35, "label": "규칙 reviewer" }, { "path": "CLAUDE.md", "line": 1, "end_line": 1, "label": "AGENTS import" }], "pos": [840, 70], "size": [180, 72] },
+    { "id": "comments_reviewer", "type": "security", "label": "Comment Reviewer", "sublabel": "comment compliance", "sources": [{ "path": "skills/README.md", "line": 32, "end_line": 35, "label": "comment reviewer" }, { "path": "scripts/comment-budget.mjs", "line": 1, "end_line": 23, "label": "comment 정책 신호" }], "pos": [840, 210], "size": [180, 72] },
+    { "id": "bug_reviewer", "type": "cloud", "label": "Bug Reviewer", "sublabel": "명백한 결함 탐색", "sources": [{ "path": "skills/README.md", "line": 32, "end_line": 35, "label": "obvious bugs 역할" }], "pos": [840, 350], "size": [180, 72] },
+    { "id": "history_reviewer", "type": "cloud", "label": "Git History Reviewer", "sublabel": "git blame 맥락", "sources": [{ "path": "skills/README.md", "line": 32, "end_line": 35, "label": "git blame 역할" }], "pos": [840, 490], "size": [180, 72] },
+    { "id": "pr_reviewer", "type": "cloud", "label": "Prior PR Reviewer", "sublabel": "이전 PR 패턴", "sources": [{ "path": "skills/README.md", "line": 32, "end_line": 35, "label": "previous PR 역할" }], "pos": [840, 630], "size": [180, 72] },
+    { "id": "confidence_filter", "type": "backend", "label": "Confidence Filter", "sublabel": "score · dedupe · scope", "tag": "cutoff 80", "sources": [{ "path": "skills/README.md", "line": 34, "end_line": 35, "label": "80 미만 제외" }, { "path": "skills/README.md", "line": 104, "end_line": 108, "label": "고정 cutoff" }], "pos": [1080, 350], "size": [190, 76] },
+    { "id": "pr_findings", "type": "security", "label": "PR Findings", "sublabel": "고신뢰 · 현재 범위", "sources": [{ "path": ".github/pull_request_template.md", "line": 28, "end_line": 42, "label": "review 기록" }], "pos": [1080, 100], "size": [190, 76] },
+    { "id": "issue_handoff", "type": "external", "label": "Issue Handoff", "sublabel": "범위 밖 finding 보존", "sources": [{ "path": "skills/README.md", "line": 48, "end_line": 52, "label": "issue 이관 규칙" }], "pos": [1080, 630], "size": [190, 76] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Main authoring session", "wraps": ["main_session", "free_checks", "simplify_agent", "review_command"], "pad": 20 },
+    { "kind": "region", "label": "Parallel sub-agents", "wraps": ["rules_reviewer", "comments_reviewer", "bug_reviewer", "history_reviewer", "pr_reviewer"], "pad": 20 },
+    { "kind": "security-group", "label": "Filtered outputs", "wraps": ["confidence_filter", "pr_findings", "issue_handoff"], "pad": 20 }
+  ],
+  "connections": [
+    { "id": "session_runs_free", "from": "main_session", "to": "free_checks", "variant": "emphasis" },
+    { "id": "free_enables_simplify", "from": "free_checks", "to": "simplify_agent" },
+    { "id": "simplify_hands_review", "from": "simplify_agent", "to": "review_command", "variant": "emphasis" },
+    { "id": "fanout_rules", "from": "review_command", "to": "rules_reviewer", "variant": "dashed" },
+    { "id": "fanout_comments", "from": "review_command", "to": "comments_reviewer", "variant": "dashed" },
+    { "id": "fanout_bugs", "from": "review_command", "to": "bug_reviewer", "variant": "dashed" },
+    { "id": "fanout_history", "from": "review_command", "to": "history_reviewer", "variant": "dashed" },
+    { "id": "fanout_prs", "from": "review_command", "to": "pr_reviewer", "variant": "dashed" },
+    { "id": "rules_to_filter", "from": "rules_reviewer", "to": "confidence_filter" },
+    { "id": "comments_to_filter", "from": "comments_reviewer", "to": "confidence_filter" },
+    { "id": "bugs_to_filter", "from": "bug_reviewer", "to": "confidence_filter" },
+    { "id": "history_to_filter", "from": "history_reviewer", "to": "confidence_filter" },
+    { "id": "prs_to_filter", "from": "pr_reviewer", "to": "confidence_filter" },
+    { "id": "filter_to_pr", "from": "confidence_filter", "to": "pr_findings", "variant": "security" },
+    { "id": "filter_to_issue", "from": "confidence_filter", "to": "issue_handoff", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "violet", "title": "모델 상속", "items": ["5개 reviewer와 Simplify sub-agent는 호출 세션의 모델을 상속", "그래서 fan-out 전 Sonnet으로 전환", "low는 finding 수를 줄이지만 읽는 diff 크기는 줄이지 않음"] },
+    { "dot": "emerald", "title": "두 단계의 의미", "items": ["Simplify는 기능을 보존하며 코드 형태를 정리", "Code Review는 규칙·결함·이력에서 finding을 생성", "자동 검사로 잡을 문제는 fan-out 전에 제거"] },
+    { "dot": "amber", "title": "결과 보존", "items": ["confidence 80 미만은 plugin filter에서 제외", "고신뢰 현재 범위 finding은 PR에서 해결", "범위 밖 finding은 issue로 이관"] }
+  ]
+}

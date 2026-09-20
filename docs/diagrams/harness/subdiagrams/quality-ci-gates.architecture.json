@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Local Quality와 CI Gates",
+    "output": "quality-ci-gates.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "viewBox": [1370, 870],
+    "repository": { "url": "https://github.com/taejinchoi-cbnu/RMF-Block.git", "provider": "github", "revision": "d317ae1e3aa2435f107a2d82427fb1badb4b7537" },
+    "views": [
+      { "id": "precommit", "label": "pre-commit gate", "focus": ["worktree", "precommit_hook", "staged_eslint", "comment_signal"], "note": "commit 시 staged TypeScript ESLint와 comment budget script가 실행되며 sub-agent는 없습니다." },
+      { "id": "prepush", "label": "pre-push gate", "focus": ["worktree", "prepush_hook", "vitest_suite", "next_build"], "note": "push 전 전체 Vitest와 production Next build를 로컬 binary로 실행합니다." },
+      { "id": "container", "label": "Container validation", "focus": ["worktree", "docker_validation", "pull_request"], "note": "startup·auth·network 변경은 HOST_LAN_IP 감지와 실제 Compose stack으로 검증한 증거를 PR에 기록합니다." },
+      { "id": "ci-jobs", "label": "GitHub Actions jobs", "focus": ["pull_request", "ci_check_job", "ci_container_job", "merge_gate"], "note": "두 required job이 병렬 실행되고 둘 다 통과해야 protected main의 merge gate가 열립니다." }
+    ]
+  },
+  "components": [
+    { "id": "worktree", "type": "frontend", "label": "Task Worktree", "sublabel": "staged change · branch", "sources": [{ "path": "AGENTS.md", "line": 87, "end_line": 95, "label": "branch와 PR" }], "pos": [20, 400], "size": [170, 78] },
+    { "id": "precommit_hook", "type": "security", "label": "pre-commit Hook", "sublabel": "빠른 staged gate", "tag": "no sub-agent", "sources": [{ "path": ".githooks/pre-commit", "line": 1, "end_line": 25, "label": "hook 전체" }], "pos": [230, 200], "size": [180, 76] },
+    { "id": "staged_eslint", "type": "backend", "label": "Staged ESLint", "sublabel": "*.ts · *.tsx only", "sources": [{ "path": ".githooks/pre-commit", "line": 16, "end_line": 23, "label": "staged lint" }], "pos": [470, 100], "size": [170, 74] },
+    { "id": "comment_signal", "type": "backend", "label": "Comment Budget", "sublabel": "routing signal · always 0", "sources": [{ "path": ".githooks/pre-commit", "line": 25, "end_line": 25, "label": "staged comments" }, { "path": "scripts/comment-budget.mjs", "line": 1, "end_line": 23, "label": "signal semantics" }], "pos": [470, 260], "size": [170, 74] },
+    { "id": "prepush_hook", "type": "security", "label": "pre-push Hook", "sublabel": "전체 test + build", "tag": "no sub-agent", "sources": [{ "path": ".githooks/pre-push", "line": 1, "end_line": 14, "label": "hook 전체" }], "pos": [230, 600], "size": [180, 76] },
+    { "id": "vitest_suite", "type": "backend", "label": "Vitest Suite", "sublabel": "node + component + routes", "sources": [{ "path": ".githooks/pre-push", "line": 11, "end_line": 14, "label": "vitest 실행" }, { "path": "docs/testing.md", "line": 32, "end_line": 39, "label": "네 test 계층" }], "pos": [470, 520], "size": [170, 74] },
+    { "id": "next_build", "type": "backend", "label": "Next Production Build", "sublabel": "Next 16.2.12", "sources": [{ "path": ".githooks/pre-push", "line": 11, "end_line": 14, "label": "build 실행" }, { "path": "package.json", "line": 11, "end_line": 16, "label": "build script" }], "pos": [470, 680], "size": [170, 74] },
+    { "id": "docker_validation", "type": "cloud", "label": "Docker Validation", "sublabel": "LAN IP · app · Yorkie · Mongo", "tag": "docker:up", "sources": [{ "path": "AGENTS.md", "line": 41, "end_line": 41, "label": "container 원칙" }, { "path": "package.json", "line": 18, "end_line": 21, "label": "docker entry" }, { "path": "scripts/detect-host-ip.sh", "line": 116, "end_line": 175, "label": "WSL network gate" }], "pos": [700, 680], "size": [190, 76] },
+    { "id": "pull_request", "type": "external", "label": "Pull Request", "sublabel": "template · evidence · approval", "sources": [{ "path": ".github/pull_request_template.md", "line": 17, "end_line": 56, "label": "verification checklist" }, { "path": ".github/CODEOWNERS", "line": 1, "end_line": 6, "label": "other maintainer" }], "pos": [700, 400], "size": [190, 76] },
+    { "id": "ci_check_job", "type": "cloud", "label": "CI: lint · test · build", "sublabel": "Ubuntu · Node 24 · pnpm", "tag": "required", "brand": "github", "sources": [{ "path": ".github/workflows/ci.yml", "line": 16, "end_line": 38, "label": "check job" }], "pos": [940, 240], "size": [190, 76] },
+    { "id": "ci_container_job", "type": "cloud", "label": "CI: Container Smoke", "sublabel": "Yorkie · host/guest · chat", "tag": "required", "brand": "github", "sources": [{ "path": ".github/workflows/ci.yml", "line": 40, "end_line": 83, "label": "container startup" }, { "path": ".github/workflows/ci.yml", "line": 99, "end_line": 188, "label": "behavior smoke" }], "pos": [940, 540], "size": [190, 76] },
+    { "id": "merge_gate", "type": "security", "label": "Protected Main Gate", "sublabel": "checks + approval + squash", "sources": [{ "path": "AGENTS.md", "line": 87, "end_line": 95, "label": "merge 계약" }], "pos": [1160, 400], "size": [160, 78] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Local deterministic automation", "wraps": ["worktree", "precommit_hook", "staged_eslint", "comment_signal", "prepush_hook", "vitest_suite", "next_build", "docker_validation"], "pad": 20 },
+    { "kind": "security-group", "label": "GitHub required gates", "wraps": ["pull_request", "ci_check_job", "ci_container_job", "merge_gate"], "pad": 20 }
+  ],
+  "connections": [
+    { "id": "worktree_commits", "from": "worktree", "to": "precommit_hook", "label": "git commit" },
+    { "id": "precommit_lints", "from": "precommit_hook", "to": "staged_eslint" },
+    { "id": "precommit_comments", "from": "precommit_hook", "to": "comment_signal" },
+    { "id": "worktree_pushes", "from": "worktree", "to": "prepush_hook", "label": "git push" },
+    { "id": "prepush_tests", "from": "prepush_hook", "to": "vitest_suite" },
+    { "id": "prepush_builds", "from": "prepush_hook", "to": "next_build" },
+    { "id": "worktree_docker", "from": "worktree", "to": "docker_validation" },
+    { "id": "worktree_pr", "from": "worktree", "to": "pull_request", "label": "branch evidence", "variant": "emphasis" },
+    { "id": "docker_pr", "from": "docker_validation", "to": "pull_request", "label": "manual evidence" },
+    { "id": "pr_check_job", "from": "pull_request", "to": "ci_check_job", "label": "PR event" },
+    { "id": "pr_container_job", "from": "pull_request", "to": "ci_container_job", "label": "parallel job" },
+    { "id": "check_to_gate", "from": "ci_check_job", "to": "merge_gate" },
+    { "id": "container_to_gate", "from": "ci_container_job", "to": "merge_gate" }
+  ],
+  "cards": [
+    { "dot": "slate", "title": "Sub-agent 없음", "items": ["Git hooks는 shell script", "lint·Vitest·Next build는 deterministic commands", "GitHub Actions jobs도 고정 workflow이며 agentic judgement를 하지 않음"] },
+    { "dot": "cyan", "title": "로컬 단계", "items": ["pre-commit은 staged lint와 comment signal", "pre-push는 전체 test와 production build", "startup·auth·network는 실제 container seam으로 확인"] },
+    { "dot": "emerald", "title": "GitHub 단계", "items": ["PR이 두 CI job을 병렬 시작", "check job은 lint·test·build", "container job은 Yorkie persistence와 host/guest/chat behavior를 검증"] }
+  ]
+}

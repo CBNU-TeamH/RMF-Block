@@ -1,0 +1,436 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "RMF-Block 세부 런타임 아키텍처",
+    "output": "rmf-block-runtime.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/taejinchoi-cbnu/RMF-Block.git",
+      "provider": "github",
+      "revision": "d317ae1e3aa2435f107a2d82427fb1badb4b7537"
+    },
+    "views": [
+      {
+        "id": "app-state-path",
+        "label": "앱 상태 요청 경로",
+        "focus": ["lan_user", "workspace_shell", "app_server", "domain_services", "app_data"],
+        "note": "사용자 요청이 Next.js 진입점과 도메인 로직을 지나 앱 소유 저장소에 도달합니다."
+      },
+      {
+        "id": "document-edit-path",
+        "label": "문서 편집 동기화",
+        "focus": ["lan_user", "workspace_shell", "block_editor", "yorkie_sdk", "yorkie_server", "mongo_store"],
+        "note": "블록 편집은 App/WS Server를 우회해 Yorkie와 MongoDB에 직접 동기화됩니다."
+      },
+      {
+        "id": "presence-focus-path",
+        "label": "Presence와 Focus",
+        "focus": ["workspace_shell", "block_editor", "presence_focus", "yorkie_sdk", "yorkie_server"],
+        "note": "멤버 상태, 점유, 발표와 따라가기는 브라우저 provider와 Yorkie Presence를 사용합니다."
+      },
+      {
+        "id": "realtime-events-path",
+        "label": "앱 실시간 이벤트",
+        "focus": ["app_server", "domain_services", "ws_hub"],
+        "note": "채팅과 문서 트리 변경은 저장 후 WebSocket Hub에서 broadcast됩니다."
+      },
+      {
+        "id": "access-control-path",
+        "label": "세션 접근 제어",
+        "focus": ["workspace_shell", "app_server", "session_registry"],
+        "note": "HTTP-only workspace session을 서버가 확인하고 Yorkie용 제한 토큰으로 교환합니다."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "lan_user",
+      "type": "external",
+      "label": "LAN 사용자",
+      "sublabel": "호스트 또는 게스트",
+      "pos": [20, 280],
+      "size": [150, 68]
+    },
+    {
+      "id": "workspace_shell",
+      "type": "frontend",
+      "label": "Workspace Shell",
+      "sublabel": "인증 gate · navigation · chat",
+      "brand": "next-js",
+      "sources": [
+        {
+          "path": "app/(workspace)/layout.tsx",
+          "line": 27,
+          "end_line": 69,
+          "label": "공통 shell과 인증 gate"
+        }
+      ],
+      "pos": [220, 60],
+      "size": [190, 76]
+    },
+    {
+      "id": "block_editor",
+      "type": "frontend",
+      "label": "Block Editor",
+      "sublabel": "12종 block · undo/redo · upload",
+      "sources": [
+        {
+          "path": "app/(workspace)/documents/[id]/editor.tsx",
+          "line": 100,
+          "end_line": 125,
+          "label": "문서 편집 orchestration"
+        },
+        {
+          "path": "lib/blocks/operations.ts",
+          "line": 45,
+          "end_line": 138,
+          "label": "CRDT block operations"
+        }
+      ],
+      "pos": [220, 250],
+      "size": [190, 76]
+    },
+    {
+      "id": "presence_focus",
+      "type": "frontend",
+      "label": "Presence / Focus",
+      "sublabel": "roster · 점유 · 발표 · 따라가기",
+      "sources": [
+        {
+          "path": "app/(workspace)/presence-provider.tsx",
+          "line": 90,
+          "end_line": 127,
+          "label": "workspace presence 연결"
+        },
+        {
+          "path": "app/(workspace)/focus-follow-provider.tsx",
+          "line": 28,
+          "end_line": 60,
+          "label": "발표자 문서 따라가기"
+        }
+      ],
+      "pos": [220, 440],
+      "size": [190, 76]
+    },
+    {
+      "id": "yorkie_sdk",
+      "type": "frontend",
+      "label": "Yorkie SDK",
+      "sublabel": "attach · Presence · subscribe",
+      "sources": [
+        {
+          "path": "app/(workspace)/documents/[id]/use-block-document.ts",
+          "line": 73,
+          "end_line": 125,
+          "label": "문서 attach와 subscribe"
+        },
+        {
+          "path": "app/(workspace)/presence-provider.tsx",
+          "line": 90,
+          "end_line": 127,
+          "label": "client activate와 presence"
+        }
+      ],
+      "pos": [470, 440],
+      "size": [190, 76]
+    },
+    {
+      "id": "app_server",
+      "type": "backend",
+      "label": "Next.js Custom Server",
+      "sublabel": "HTTP + Route Handlers + Upgrade :3000",
+      "brand": "next-js",
+      "sources": [
+        {
+          "path": "server/index.mts",
+          "line": 28,
+          "end_line": 73,
+          "label": "HTTP와 WebSocket 진입점"
+        },
+        {
+          "path": "app/api/auth/yorkie-token/route.ts",
+          "line": 21,
+          "end_line": 49,
+          "label": "Yorkie 토큰 발급"
+        },
+        {
+          "path": "app/api/internal/yorkie/auth/route.ts",
+          "line": 10,
+          "end_line": 46,
+          "label": "Yorkie auth webhook"
+        }
+      ],
+      "pos": [700, 60],
+      "size": [200, 80]
+    },
+    {
+      "id": "domain_services",
+      "type": "backend",
+      "label": "Domain Services",
+      "sublabel": "auth · documents · chat · files",
+      "sources": [
+        {
+          "path": "app/api/documents/route.ts",
+          "line": 24,
+          "end_line": 76,
+          "label": "문서 route와 broadcast"
+        },
+        {
+          "path": "app/api/chat/route.ts",
+          "line": 15,
+          "end_line": 64,
+          "label": "채팅 route"
+        },
+        {
+          "path": "lib/chat/chat-service.ts",
+          "line": 37,
+          "end_line": 77,
+          "label": "저장 후 broadcast"
+        }
+      ],
+      "pos": [700, 250],
+      "size": [200, 80]
+    },
+    {
+      "id": "session_registry",
+      "type": "security",
+      "label": "Session Registry",
+      "sublabel": "멤버와 live session",
+      "tag": "프로세스 메모리",
+      "sources": [
+        {
+          "path": "lib/auth/session-registry.ts",
+          "line": 35,
+          "end_line": 68,
+          "label": "세션과 멤버 소유권"
+        },
+        {
+          "path": "lib/auth/session-registry.ts",
+          "line": 95,
+          "end_line": 146,
+          "label": "세션 발급과 폐기"
+        }
+      ],
+      "pos": [970, 60],
+      "size": [190, 76]
+    },
+    {
+      "id": "ws_hub",
+      "type": "messagebus",
+      "label": "WebSocket Hub",
+      "sublabel": "chat · document tree · revoke",
+      "sources": [
+        {
+          "path": "server/ws-hub.mts",
+          "line": 18,
+          "end_line": 79,
+          "label": "연결 registry와 broadcast"
+        }
+      ],
+      "pos": [970, 250],
+      "size": [190, 76]
+    },
+    {
+      "id": "app_data",
+      "type": "database",
+      "label": ".data/ Repositories",
+      "sublabel": "members · documents · chat · files",
+      "tag": "app-data volume",
+      "sources": [
+        {
+          "path": "lib/documents/documents.ts",
+          "line": 30,
+          "end_line": 55,
+          "label": "문서 catalogue 저장"
+        },
+        {
+          "path": "lib/chat/chat-repository.ts",
+          "line": 6,
+          "end_line": 25,
+          "label": "채팅 JSON 저장"
+        },
+        {
+          "path": "lib/files/file-repository.ts",
+          "line": 12,
+          "end_line": 32,
+          "label": "파일 bytes와 index"
+        }
+      ],
+      "pos": [970, 400],
+      "size": [200, 80]
+    },
+    {
+      "id": "yorkie_server",
+      "type": "backend",
+      "label": "Yorkie Server",
+      "sublabel": "CRDT sync · Presence · revision :8080",
+      "sources": [
+        {
+          "path": "docker-compose.yml",
+          "line": 46,
+          "end_line": 89,
+          "label": "Yorkie service 설정"
+        }
+      ],
+      "pos": [700, 560],
+      "size": [190, 80]
+    },
+    {
+      "id": "mongo_store",
+      "type": "database",
+      "label": "MongoDB",
+      "sublabel": "Yorkie 내부 영속 저장소",
+      "brand": "mongodb",
+      "tag": "mongo-data volume",
+      "sources": [
+        {
+          "path": "docker-compose.yml",
+          "line": 91,
+          "end_line": 120,
+          "label": "MongoDB와 volume"
+        }
+      ],
+      "pos": [970, 560],
+      "size": [200, 80]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "사용자 브라우저",
+      "wraps": ["workspace_shell", "block_editor", "presence_focus", "yorkie_sdk"],
+      "pad": 30
+    },
+    {
+      "kind": "security-group",
+      "label": "호스트 Docker 네트워크",
+      "wraps": ["app_server", "domain_services", "session_registry", "ws_hub", "app_data", "yorkie_server", "mongo_store"],
+      "pad": 34
+    }
+  ],
+  "connections": [
+    {
+      "id": "user_enters_workspace",
+      "from": "lan_user",
+      "to": "workspace_shell",
+      "label": "HTTP :3000",
+      "variant": "emphasis"
+    },
+    {
+      "id": "shell_opens_editor",
+      "from": "workspace_shell",
+      "to": "block_editor",
+      "label": "문서 route와 편집 UI",
+      "labelAt": [315, 193]
+    },
+    {
+      "id": "shell_calls_server",
+      "from": "workspace_shell",
+      "to": "app_server",
+      "label": "RSC · SSR · REST",
+      "variant": "emphasis"
+    },
+    {
+      "id": "editor_uses_focus",
+      "from": "block_editor",
+      "to": "presence_focus",
+      "label": "점유 · 발표 · 따라가기",
+      "labelAt": [315, 383]
+    },
+    {
+      "id": "editor_updates_sdk",
+      "from": "block_editor",
+      "to": "yorkie_sdk",
+      "label": "block update · subscribe"
+    },
+    {
+      "id": "presence_updates_sdk",
+      "from": "presence_focus",
+      "to": "yorkie_sdk",
+      "label": "Presence update",
+      "labelAt": [440, 530]
+    },
+    {
+      "id": "sdk_syncs_yorkie",
+      "from": "yorkie_sdk",
+      "to": "yorkie_server",
+      "label": "Connect / gRPC-Web",
+      "variant": "emphasis"
+    },
+    {
+      "id": "server_calls_domain",
+      "from": "app_server",
+      "to": "domain_services",
+      "label": "Route Handler 호출",
+      "labelAt": [800, 194]
+    },
+    {
+      "id": "server_checks_session",
+      "from": "app_server",
+      "to": "session_registry",
+      "label": "session resolve / revoke",
+      "labelAt": [935, 174],
+      "variant": "security"
+    },
+    {
+      "id": "domain_broadcasts",
+      "from": "domain_services",
+      "to": "ws_hub",
+      "label": "저장 후 broadcast",
+      "labelAt": [935, 236]
+    },
+    {
+      "id": "domain_persists_app_state",
+      "from": "domain_services",
+      "to": "app_data",
+      "label": "JSON + file bytes",
+      "labelAt": [900, 385],
+      "variant": "emphasis"
+    },
+    {
+      "id": "yorkie_persists_crdt",
+      "from": "yorkie_server",
+      "to": "mongo_store",
+      "label": "CRDT + revision",
+      "labelAt": [935, 654],
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "브라우저 모듈",
+      "items": [
+        "Workspace Shell이 인증 gate와 공통 UI를 소유",
+        "Block Editor와 Presence / Focus가 Yorkie SDK client를 공유"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "서버 모듈",
+      "items": [
+        "Custom Server가 HTTP와 WebSocket Upgrade를 한 포트에서 분기",
+        "Domain Services가 저장을 완료한 뒤 WebSocket Hub로 이벤트를 broadcast",
+        "서버 시작 시 Yorkie Admin API로 auth webhook을 등록"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "두 영속성 경로",
+      "items": [
+        ".data/: 멤버, 문서 catalogue, 채팅, 업로드 파일",
+        "Yorkie → MongoDB: CRDT 문서 상태와 revision"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Story 재생",
+      "items": [
+        "Play story 또는 P 키로 5개 직접 연결 경로를 순서대로 재생",
+        "Live / Still이 Still이면 Live로 전환해야 자동 재생"
+      ]
+    }
+  ]
+}
