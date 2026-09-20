@@ -129,10 +129,10 @@ jobs:
           # The workspace is password-gated now (FR-020-03/04), so a visitor
           # with no session lands on the join screen rather than inside.
           assert_body "$(curl -sS --connect-timeout 5 --max-time 10 -L http://localhost:3000/)" \
-            'name="nickname"' 'a visitor with no session was not sent to the join screen'
+            'autoComplete="nickname"' 'a visitor with no session was not sent to the join screen'
 
           assert_body "$(curl -sS --connect-timeout 5 --max-time 10 -c wrong.txt -L 'http://localhost:3000/api/auth/host?secret=wrong')" \
-            'name="nickname"' 'a wrong secret granted host'
+            'autoComplete="nickname"' 'a wrong secret granted host'
 
           # A wrong password must not get in, and must not say which field was
           # wrong — that would confirm nicknames to a stranger.
