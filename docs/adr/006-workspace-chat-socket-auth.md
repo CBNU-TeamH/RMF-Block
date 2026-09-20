@@ -1,8 +1,7 @@
 # ADR-006: Both WebSocket upgrade paths require a live session or the host secret
 
-- **Status**: Proposed — decided by the team (issue #83, PR #107), not yet landed on `main`.
-  Written ahead of merge per direction from the team; update to Accepted once PR #107 merges, and
-  correct this ADR first if the PR changes materially before then.
+- **Status**: Accepted — decided by the team (issue #83), landed on `main` via PR #107
+  (2026-09-20).
 - **Date**: 2026-09-17
 - **Related**: [ADR-005](005-custom-server-rest-ws.md) (the server and hub this gates), issue #83,
   PR #82, PR #107, [`docs/design/chat.md`](../design/chat.md)
