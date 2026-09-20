@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Takeover misses a device that connects its socket after revoke()](active/20260917-ws-revoke-race-todo.md) | [lessons](active/20260917-ws-revoke-race-lessons.md) |
 | [Reject unauthenticated WebSocket upgrades](active/20260917-unauthenticated-workspace-socket-todo.md) | [lessons](active/20260917-unauthenticated-workspace-socket-lessons.md) |
 | [Join form leaks the workspace password via a GET fallback](active/20260917-join-password-leak-todo.md) | [lessons](active/20260917-join-password-leak-lessons.md) |
 | [ADR maintenance: fix a cross-reference gap, add 4 new ADRs](active/20260917-adr-maintenance-todo.md) | [lessons](active/20260917-adr-maintenance-lessons.md) |

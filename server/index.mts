@@ -12,6 +12,7 @@ import { createServer } from 'node:http';
 import next from 'next';
 
 import { isAuthenticatedSocket, readSessionCookie } from '../lib/auth/session-cookie.ts';
+import { sessionRegistry } from '../lib/auth/session-registry.ts';
 import { wsHub } from './ws-hub.mts';
 
 const CHAT_WS_PATH = '/api/chat/ws';
@@ -63,8 +64,17 @@ server.on('upgrade', (req, socket, head) => {
     }
     // Only the workspace socket is filed under a session, so `revoke()` can
     // find it again once that session is displaced (FR-020-08) — chat's
-    // connections still carry none.
-    wsHub.handleUpgrade(req, socket, head, req.url === WORKSPACE_WS_PATH ? sessionId : null);
+    // connections still carry none. The registry is also re-checked right
+    // here, not just at `revoke()` time — a session displaced between the
+    // auth check above and this connection actually registering would
+    // otherwise register anyway and never be told (#26).
+    wsHub.handleUpgrade(
+      req,
+      socket,
+      head,
+      req.url === WORKSPACE_WS_PATH ? sessionId : null,
+      (id) => sessionRegistry.resolve(id) !== null,
+    );
     return;
   }
   handleNextUpgrade(req, socket, head).catch((error) => {
