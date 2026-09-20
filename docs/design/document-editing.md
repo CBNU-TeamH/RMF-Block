@@ -1,6 +1,6 @@
 # Document Editing — Block Schema
 
-- **Status**: Agreed. All 12 block types finalized. The pre-implementation SDK convergence check it was waiting on has been run — see [Verification](#verification-2026-08-27). The [editing surface](#editing-surface) (textarea vs. rich text, IME handling) was decided 2026-08-30, ahead of `tasks/active/20260829-block-editor-todo.md`'s implementation milestones.
+- **Status**: Agreed. All 12 block types finalized. The pre-implementation SDK convergence check it was waiting on has been run — see [Verification](#verification-2026-08-27). The [editing surface](#editing-surface) (textarea vs. rich text, IME handling) was decided 2026-08-30, ahead of `tasks/archive/2026/08/20260829-block-editor-todo.md`'s implementation milestones.
 - **Owns**: `lib/blocks/`, `lib/documents/`, `app/(workspace)/documents/`, `app/api/documents/`.
   One file under the third path — its use-focus-presence hook — is more specifically owned
   elsewhere, by [`docs/design/presence-and-focus.md`](presence-and-focus.md), whose file-level
@@ -105,6 +105,8 @@ race leaves behind, the next conversion of that block clears.
 
 ## Why an Array of blocks, and not one `yorkie.Tree`
 
+See [ADR-007](../adr/007-block-array-not-tree.md) for this decision as an ADR.
+
 Recorded after the fact: the structure above was chosen without this comparison
 written down, and the reference project we borrow from went the other way.
 [wafflebase](https://github.com/wafflebase/wafflebase)'s document editor stores a
@@ -124,7 +126,7 @@ buys an enormous amount of editor behaviour for free.
 - **SRS asks for no inline formatting.** "Plain text, no inline marks" under
   the text block below is not a simplification we chose — it is the requirement.
   `Tree`'s biggest advantage is unused.
-- **Five of the twelve types hold no text at all** — divider, file, image, PDF,
+- **Six of the twelve types hold no text at all** — divider, file, image, PDF,
   and the two link blocks. As tree nodes they are attribute-only leaves, which
   is a shape the tree model tolerates rather than serves.
 - **FR-022-06 and the block-link block both need a stable per-block id.** A
@@ -343,6 +345,8 @@ content = {
 Matches the "문서 ID + 블록 위치 정보" pair used throughout SRS wherever a block reference appears (UC-050, UC-060, UC-070). No cached preview of the target block's content — block content is the highest-churn data in the system, so a cache would go stale faster than anything else considered here.
 
 ## Editing surface
+
+See [ADR-008](../adr/008-textarea-editing-surface.md) for this decision as an ADR.
 
 The schema above says what Yorkie holds. This says what turns a key press into an edit on it,
 and — the one question worth settling before any of it is built — what happens when a remote
@@ -768,6 +772,10 @@ Neither caller can name the depth itself — the `/` menu's items are static and
 carries none — so `preservingDepth` (`lib/blocks/indent.ts`) carries it from the block being
 converted, at both call sites. This was invisible until Tab existed: while `depth` was always 0,
 there was nothing for a conversion to lose.
+
+`level`, `style` are not protected the way `depth` now is — the same silent-flatten shape applies
+to either of them the moment two block types share one, and nothing today would catch it before a
+user does.
 
 ### Three places a drag can land
 

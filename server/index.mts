@@ -11,14 +11,14 @@
 import { createServer } from 'node:http';
 import next from 'next';
 
-import { readSessionCookie } from '../lib/auth/session-cookie.ts';
+import { isAuthenticatedSocket, readSessionCookie } from '../lib/auth/session-cookie.ts';
 import { sessionRegistry } from '../lib/auth/session-registry.ts';
 import { wsHub } from './ws-hub.mts';
 
 const CHAT_WS_PATH = '/api/chat/ws';
-// Separate from chat's socket on purpose. Chat is a teammate's experiment and
-// stays untouched: its upgrade path is byte-for-byte what it was, and its
-// connections still carry no session.
+// A separate URL from the workspace socket, but the same wsHub singleton and
+// the same indiscriminate broadcast() — so the auth gate below has to apply
+// to both paths equally, or either one alone is a bypass of the other (#83).
 const WORKSPACE_WS_PATH = '/api/workspace/ws';
 
 const dev = process.env.NODE_ENV !== 'production';
@@ -43,22 +43,36 @@ const server = createServer((req, res) => {
 });
 
 server.on('upgrade', (req, socket, head) => {
-  if (req.url === CHAT_WS_PATH) {
-    wsHub.handleUpgrade(req, socket, head);
-    return;
-  }
-  if (req.url === WORKSPACE_WS_PATH) {
-    // Read here rather than in the hub: this is the only place the raw request
-    // exists. The socket is filed under whatever session the browser sent, so
-    // `revoke()` can find it again once that session is displaced (FR-020-08).
-    // Also checked against the registry right here, not just at `revoke()`
-    // time — a session displaced before this socket ever connected would
+  if (req.url === CHAT_WS_PATH || req.url === WORKSPACE_WS_PATH) {
+    // Read once, here rather than in the hub: this is the only place the raw
+    // request exists, and both the auth check below and the `handleUpgrade`
+    // call after it need the same value — parsing the header twice for the
+    // identical cookie would cost that on every upgrade for nothing.
+    const sessionId = readSessionCookie(req.headers.cookie);
+
+    // Reject the upgrade itself rather than completing the handshake and
+    // closing right after — an unauthenticated client is never registered in
+    // wsHub at all (#83: anyone on the LAN could otherwise read the document
+    // catalogue and chat off either path).
+    if (!isAuthenticatedSocket(sessionId, req.headers.cookie)) {
+      // `end()`, not `write()` + `destroy()`: `destroy()` can drop whatever is
+      // still buffered, so the 401 might never actually reach the client under
+      // backpressure. `end()` flushes first; `ws`'s own `abortHandshake` uses
+      // the identical shape (write, then destroy once `'finish'` fires).
+      socket.end('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
+      return;
+    }
+    // Only the workspace socket is filed under a session, so `revoke()` can
+    // find it again once that session is displaced (FR-020-08) — chat's
+    // connections still carry none. The registry is also re-checked right
+    // here, not just at `revoke()` time — a session displaced between the
+    // auth check above and this connection actually registering would
     // otherwise register anyway and never be told (#26).
     wsHub.handleUpgrade(
       req,
       socket,
       head,
-      readSessionCookie(req.headers.cookie),
+      req.url === WORKSPACE_WS_PATH ? sessionId : null,
       (id) => sessionRegistry.resolve(id) !== null,
     );
     return;

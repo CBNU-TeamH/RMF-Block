@@ -19,12 +19,16 @@ class WsHub {
   private readonly server = new WebSocketServer({ noServer: true });
   private readonly connections = new Map<WebSocket, string | null>();
 
-  /** Called from `server/index.mts`'s `upgrade` handler. `isSessionValid` lets
-   *  a session-bearing socket be rejected at registration time — closing the
-   *  race where a session is revoked before its socket ever connects, so
-   *  `revoke()` below never gets a chance to find it (issue #26). Must stay
-   *  synchronous: an await here between the check and `connections.set`
-   *  below would reopen the exact race this closes. */
+  /** Called from `server/index.mts`'s `upgrade` handler, which is where every
+   *  path this hub serves is authenticated (#83) — this method itself enforces
+   *  nothing, so a new upgrade path wired straight to this without going
+   *  through that gate first bypasses it silently. `isSessionValid` lets a
+   *  session-bearing socket be rejected at registration time on top of that —
+   *  closing the race where a session is revoked between the auth check and
+   *  this socket ever connecting, so `revoke()` below never gets a chance to
+   *  find it (issue #26). Must stay synchronous: an await here between the
+   *  check and `connections.set` below would reopen the exact race this
+   *  closes. */
   handleUpgrade(
     request: IncomingMessage,
     socket: Duplex,
