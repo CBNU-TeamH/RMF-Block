@@ -105,6 +105,8 @@ race leaves behind, the next conversion of that block clears.
 
 ## Why an Array of blocks, and not one `yorkie.Tree`
 
+See [ADR-007](../adr/007-block-array-not-tree.md) for this decision as an ADR.
+
 Recorded after the fact: the structure above was chosen without this comparison
 written down, and the reference project we borrow from went the other way.
 [wafflebase](https://github.com/wafflebase/wafflebase)'s document editor stores a
@@ -124,7 +126,7 @@ buys an enormous amount of editor behaviour for free.
 - **SRS asks for no inline formatting.** "Plain text, no inline marks" under
   the text block below is not a simplification we chose — it is the requirement.
   `Tree`'s biggest advantage is unused.
-- **Five of the twelve types hold no text at all** — divider, file, image, PDF,
+- **Six of the twelve types hold no text at all** — divider, file, image, PDF,
   and the two link blocks. As tree nodes they are attribute-only leaves, which
   is a shape the tree model tolerates rather than serves.
 - **FR-022-06 and the block-link block both need a stable per-block id.** A
@@ -343,6 +345,8 @@ content = {
 Matches the "문서 ID + 블록 위치 정보" pair used throughout SRS wherever a block reference appears (UC-050, UC-060, UC-070). No cached preview of the target block's content — block content is the highest-churn data in the system, so a cache would go stale faster than anything else considered here.
 
 ## Editing surface
+
+See [ADR-008](../adr/008-textarea-editing-surface.md) for this decision as an ADR.
 
 The schema above says what Yorkie holds. This says what turns a key press into an edit on it,
 and — the one question worth settling before any of it is built — what happens when a remote

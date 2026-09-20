@@ -26,6 +26,8 @@ exists. The window's geometry is the one part with rules worth keeping — see b
 
 ## Why a custom server is unavoidable here
 
+See [ADR-005](../adr/005-custom-server-rest-ws.md) for this decision as an ADR.
+
 The pinned Next.js version (16.2.12) has no WebSocket support in Route Handlers — verified by
 grepping the installed package's `dist` for the feature (it exists only as an upstream RFC,
 absent from this version). Next's `output: "standalone"` build mode and a custom server are also
@@ -176,7 +178,7 @@ an embedded one are one thing seen from two places.
 send emits `'error'` on the socket, and with no listener `EventEmitter` rethrows it and takes the
 whole process down. Next included, since this is one process.
 
-**A connection without a session id still works — for `revoke()` attribution, not for authentication.** ~~Chat never required authentication and still does not, so an anonymous connection keeps receiving broadcasts.~~ **Superseded 2026-09-17 (#83).** `wsHub.broadcast()` fans every event to every connection with no per-path filtering, and once #82 put the document catalogue on the same hub, "chat stays anonymous" meant anyone on the LAN could read document names through it too — the two upgrade paths were never actually isolated from each other's data. Both `/api/chat/ws` and `/api/workspace/ws` now require a live session or the host secret to complete the upgrade at all (`server/index.mts`). What's unchanged: chat's connections still aren't filed under a session afterward — `revoke()` has nothing to evict them by, same as before — and posting already required a session (`POST /api/chat`), which this doesn't touch.
+**A connection without a session id still works — for `revoke()` attribution, not for authentication.** ~~Chat never required authentication and still does not, so an anonymous connection keeps receiving broadcasts.~~ **Superseded 2026-09-17 (#83).** `wsHub.broadcast()` fans every event to every connection with no per-path filtering, and once #82 put the document catalogue on the same hub, "chat stays anonymous" meant anyone on the LAN could read document names through it too — the two upgrade paths were never actually isolated from each other's data. Both `/api/chat/ws` and `/api/workspace/ws` now require a live session or the host secret to complete the upgrade at all (`server/index.mts`). What's unchanged: chat's connections still aren't filed under a session afterward — `revoke()` has nothing to evict them by, same as before — and posting already required a session (`POST /api/chat`), which this doesn't touch. ([ADR-006](../adr/006-workspace-chat-socket-auth.md) records this as a decision.)
 
 **A revoked socket is told before it is closed.** A client that only saw the close would have to
 guess whether it was evicted or the network dropped, and those want different handling
