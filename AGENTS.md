@@ -1,7 +1,9 @@
 # AGENTS.md
 
 > The **single entry point** for this repository. Every AI agent and teammate reads this before starting work.
-> Tool-neutral (Claude / Cursor / Copilot alike). `CLAUDE.md` only imports this file.
+> Tool-neutral (Claude / Cursor / Copilot alike). `CLAUDE.md` only imports this file — a tool
+> that edits "the project's memory file" by name will target `CLAUDE.md` and miss the content
+> that actually lives here, so check that assumption before adopting one that writes to it.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
@@ -38,9 +40,15 @@ We adopt [Spec-Driven Development](https://github.com/github/spec-kit) **as a me
 
 The overall plan lives in [`ROADMAP.md`](ROADMAP.md).
 
-**Run and verify**: changes to server startup, auth, or networking are verified against the container, not `pnpm dev` — a container behaves differently from the dev server, and that gap has already produced real bugs (`tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`). Use `pnpm docker:up`, which fills in `HOST_LAN_IP` before `docker compose up --build`; bare Compose skips that and can print a join address no guest can reach ([`README.md`](README.md)).
+**Run and verify**: changes to server startup, auth, or networking are verified against the container, not `pnpm dev` — a container behaves differently from the dev server, and that gap has already produced real bugs (`tasks/archive/2026/08/20260809-host-guest-entry-lessons.md`). Use `pnpm docker:up`, which fills in `HOST_LAN_IP` before `docker compose up --build`; bare Compose skips that and can print a join address no guest can reach ([`README.md`](README.md)). A DOM assertion in a browser check anchors on a stable container, never a bare tag — a bare `querySelector('span')` matches whatever else on the page happens to be a `<span>` too.
 
-**Delegating work**: hand repo-wide fact-finding (where is X defined, which files reference Y) to a search/explore-style sub-agent when your tool has one — Claude Code's `Explore` agent is the concrete case this repo has used. Small, localized edits are done directly. Judgement calls — what a thing should do, which trade-off wins — are never delegated; only whoever is actually deciding stays accountable for the decision.
+**Working directory and `gh`**: `gh` infers the repository from the current directory, not from
+intent. Pass `--repo` explicitly to any `gh` command run outside this directory, or never leave
+it — a session that `cd`-ed into a vendored checkout to read its source once filed an issue
+against that upstream repo instead, publicly, and it could not be deleted afterward
+(`tasks/archive/2026/08/20260828-yorkie-auth-webhook-lessons.md`).
+
+**Delegating work**: hand repo-wide fact-finding (where is X defined, which files reference Y) to a search/explore-style sub-agent when your tool has one — Claude Code's `Explore` agent is the concrete case this repo has used. Small, localized edits are done directly. Judgement calls — what a thing should do, which trade-off wins — are never delegated; only whoever is actually deciding stays accountable for the decision. When a sibling project's solution is the reference (as wafflebase's undo was for this repo's), the value it carries is usually what it defends against, not how it calls the API — a four-line `undo()` is easy to reproduce; the guard against undoing past the document's own seed is the part worth taking.
 
 ---
 
@@ -89,7 +97,7 @@ Which document to open for which job.
 - **`main` is always releasable.** Never commit to it directly — branch, then open a PR.
 - **One branch per task**, named `<type>/<slug>` with the same prefixes as commits: `feat/block-lock`, `fix/presence-flicker`, `docs/adr-realtime`.
 - **One PR per task**, and its description links the task doc in `tasks/active/` or the GitHub issue it closes.
-- **Before opening a PR**: start the description from [`.github/pull_request_template.md`](.github/pull_request_template.md) verbatim — don't write one from scratch (`gh pr create --body` skips the template entirely; open the file and fill it in). If `/code-review low` and `/simplify` (`skills/README.md`) haven't run yet this task, from a Sonnet session, run them now rather than deferring — the template's own checklist assumes they already have by the time it's filled in.
+- **Before opening a PR**: start the description from [`.github/pull_request_template.md`](.github/pull_request_template.md) verbatim — don't write one from scratch (`gh pr create --body` skips the template entirely; open the file and fill it in). If `/code-review low` and `/simplify` (`skills/README.md`) haven't run yet this task, from a Sonnet session, run them now rather than deferring — the template's own checklist assumes they already have by the time it's filled in. Pick review depth and model together — a sub-agent fan-out inherits the session's model, so `/code-review low` over full depth saves nothing if it still runs full-cost agents. Order checks by cost, not coverage: a script (`pnpm verify:fast`, the comment budget, `verify:docs`) costs nothing to run and should catch what it can before a model pass spends tokens re-finding it.
 - **Before merging**: `pnpm lint`, `pnpm test` and `pnpm build` pass. CI enforces this — `lint · test · build` and `container smoke test` are required checks on `main`, and both run on every PR.
 - **Squash merge** — the only method `main` allows. Give the squashed commit a prefixed title, so `main` reads as one line per task. The branch is deleted automatically.
 - **Review**: one approval, and [`.github/CODEOWNERS`](.github/CODEOWNERS) makes it the other maintainer's. An approval does not carry over to commits pushed after it. An org owner may bypass this to merge when waiting would block the team — direct pushes to `main` stay blocked either way — and says so in the PR afterwards.

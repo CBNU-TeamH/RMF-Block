@@ -17,7 +17,10 @@ class WsHub {
   private readonly server = new WebSocketServer({ noServer: true });
   private readonly connections = new Map<WebSocket, string | null>();
 
-  /** Called from `server/index.mts`'s `upgrade` handler. */
+  /** Called from `server/index.mts`'s `upgrade` handler, which is where every
+   *  path this hub serves is authenticated (#83) — this method itself enforces
+   *  nothing, so a new upgrade path wired straight to this without going
+   *  through that gate first bypasses it silently. */
   handleUpgrade(
     request: IncomingMessage,
     socket: Duplex,
