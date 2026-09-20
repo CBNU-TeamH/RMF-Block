@@ -1,6 +1,6 @@
 # ADR-003: Yorkie, Next.js App Router, and the small choices around them
 
-- **Status**: Proposed. Parts of this are **reconstructed after the fact** — see *What this ADR does not claim*.
+- **Status**: Proposed. Parts of this are **reconstructed after the fact** — see *What this ADR does not claim*. Decision 4 superseded by [ADR-004](004-test-runner-migration.md) (2026-09-09); Decisions 1, 2, 3, and 5 stand.
 - **Date**: 2026-08-26
 - **Related**: [ADR-001](001-realtime-sync.md) (which components own what), [ADR-002](002-persistence-on-yorkie-mongo.md) (where state lives), [`docs/SRS-ko.md`](../SRS-ko.md) §2.1, [`docs/design/architecture.md`](../design/architecture.md)
 
@@ -62,6 +62,8 @@ For a two-screen app built by four people, deleting that layer is worth more tha
 - The usual "SSR saves round trips" argument is weak here. A LAN round trip is about a millisecond.
 
 **What keeps the choice cheap to reverse:** `lib/` has **zero** imports from `next` — the session registry, the member and chat stores, the presence roster, the workspace config are all plain TypeScript. Moving to another framework would rewrite the roughly eight files under `app/`, and that number does not grow as long as this rule holds. **Keep business logic out of `app/`.**
+
+See [ADR-005](005-custom-server-rest-ws.md) for the custom server's internal design — the WebSocket-upgrade cost noted below is that ADR's starting point.
 
 **Alternatives considered**
 

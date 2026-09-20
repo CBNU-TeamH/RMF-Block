@@ -13,18 +13,42 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 | [Harness review lenses](2026/09/20260918-harness-review-lenses-todo.md) | [lessons](2026/09/20260918-harness-review-lenses-lessons.md) |
 | [Harness architecture visualization](2026/09/20260918-harness-architecture-visualization-todo.md) | [lessons](2026/09/20260918-harness-architecture-visualization-lessons.md) |
 | [Architecture detail and guided story](2026/09/20260918-architecture-detail-story-todo.md) | [lessons](2026/09/20260918-architecture-detail-story-lessons.md) |
+| [UC-023: rename, move and delete a document, from the UI](2026/09/20260914-document-rename-move-delete-todo.md) | [lessons](2026/09/20260914-document-rename-move-delete-lessons.md) |
+| [Presenter pointer — fading laser pointer](2026/09/20260913-presenter-pointer-todo.md) | [lessons](2026/09/20260913-presenter-pointer-lessons.md) |
+| [`pnpm dev` turns every LAN guest away at the join form](2026/09/20260913-dev-lan-origin-todo.md) | [lessons](2026/09/20260913-dev-lan-origin-lessons.md) |
+| [Presenter marks — block-anchored freehand underline and highlight](2026/09/20260912-presenter-marks-todo.md) | [lessons](2026/09/20260912-presenter-marks-lessons.md) |
 | [Testing strategy doc (issue #66, track C2)](2026/09/20260910-testing-strategy-doc-todo.md) | [lessons](2026/09/20260910-testing-strategy-doc-lessons.md) |
+| [Server-component Tier 1 tests (issue #66, C4 server components)](2026/09/20260910-server-component-tests-todo.md) | [lessons](2026/09/20260910-server-component-tests-lessons.md) |
 | [Route-handler tests (issue #66's last docs/testing.md layer)](2026/09/20260910-route-handler-tests-todo.md) | [lessons](2026/09/20260910-route-handler-tests-lessons.md) |
 | [Component tests for issue #39's three regression bugs](2026/09/20260910-component-tests-todo.md) | [lessons](2026/09/20260910-component-tests-lessons.md) |
 | [Vitest runner migration (Phase 2, track C4)](2026/09/20260909-vitest-runner-migration-todo.md) | [lessons](2026/09/20260909-vitest-runner-migration-lessons.md) |
 | [Exempt small files from the comment budget, and close out #65's gate](2026/09/20260909-comment-budget-small-file-exemption-todo.md) | [lessons](2026/09/20260909-comment-budget-small-file-exemption-lessons.md) |
+| [Ctrl+Z: undo and redo, per person](2026/09/20260908-undo-redo-todo.md) | [lessons](2026/09/20260908-undo-redo-lessons.md) |
+| [The document tree: sub-documents, rename, move, delete, and the link block](2026/09/20260908-document-tree-todo.md) | [lessons](2026/09/20260908-document-tree-lessons.md) |
+| [Make the PR-prep steps hard to skip by accident](2026/09/20260907-pr-review-workflow-todo.md) | [lessons](2026/09/20260907-pr-review-workflow-lessons.md) |
+| [Pasting into blocks, and the image and file legs of FR-022-14](2026/09/20260907-paste-and-file-blocks-todo.md) | [lessons](2026/09/20260907-paste-and-file-blocks-lessons.md) |
+| [List nesting with Tab, and a placeholder that reveals the `/` menu](2026/09/20260907-list-indent-and-placeholder-todo.md) | [lessons](2026/09/20260907-list-indent-and-placeholder-lessons.md) |
+| [Bring the comment budget down, starting with `lib/presence/types.ts`](2026/09/20260905-comment-budget-todo.md) | [lessons](2026/09/20260905-comment-budget-lessons.md) |
+| [Verify scripts — ownership, comment budget, hooks, `verify:docs`](2026/09/20260904-verify-scripts-todo.md) | [lessons](2026/09/20260904-verify-scripts-lessons.md) |
 | [`docs/design/presence-and-focus.md` + the wrong/dangling comments found reading it](2026/09/20260904-presence-and-focus-todo.md) | [lessons](2026/09/20260904-presence-and-focus-lessons.md) |
 | [`docs/conventions.md` — the rulebook `code-review` is already reading for](2026/09/20260904-conventions-todo.md) | [lessons](2026/09/20260904-conventions-lessons.md) |
+| [Track D — wire Phase 1's rules into AGENTS.md — todo](2026/09/20260904-agents-md-todo.md) | [lessons](2026/09/20260904-agents-md-lessons.md) |
+| [AGENTS.md doc-routing table: spell out tasks/active, tasks/archive — todo](2026/09/20260904-agents-md-tasks-link-todo.md) | [lessons](2026/09/20260904-agents-md-tasks-link-lessons.md) |
+| [Tool alignment — skills/ as an install manifest](2026/09/20260903-skills-manifest-todo.md) | [lessons](2026/09/20260903-skills-manifest-lessons.md) |
+| [The `/` block menu, and the divider it can finally create](2026/09/20260902-slash-menu-todo.md) | [lessons](2026/09/20260902-slash-menu-lessons.md) |
+| [PDF block and its in-app viewer](2026/09/20260901-pdf-block-viewer-todo.md) | [lessons](2026/09/20260901-pdf-block-viewer-lessons.md) |
+| [Focus following — follow the presenter's view](2026/09/20260901-focus-following-todo.md) | [lessons](2026/09/20260901-focus-following-lessons.md) |
+| [Editor structure — audit and refactoring plan](2026/09/20260901-editor-structure-audit-todo.md) | [lessons](2026/09/20260901-editor-structure-audit-lessons.md) |
 
 ## 2026-08
 
 | Task | Lessons |
 | :--- | :--- |
+| [Chat file attachments](2026/08/20260831-chat-file-attachments-todo.md) | [lessons](2026/08/20260831-chat-file-attachments-lessons.md) |
+| [Open a document and edit it together](2026/08/20260829-block-editor-todo.md) | [lessons](2026/08/20260829-block-editor-lessons.md) |
+| [Gate Yorkie behind the workspace session](2026/08/20260828-yorkie-auth-webhook-todo.md) | [lessons](2026/08/20260828-yorkie-auth-webhook-lessons.md) |
+| [Workspace entry and home](2026/08/20260826-entry-and-home-todo.md) | [lessons](2026/08/20260826-entry-and-home-lessons.md) |
+| [Connected-user list](2026/08/20260825-connected-user-list-todo.md) | [lessons](2026/08/20260825-connected-user-list-lessons.md) |
 | [Docs: move persistence and history from Git to Yorkie + MongoDB](2026/08/20260824-persistence-on-yorkie-mongo-todo.md) | [lessons](2026/08/20260824-persistence-on-yorkie-mongo-lessons.md) |
 | [Chat service — Version A, text slice](2026/08/20260812-chat-service-todo.md) | [lessons](2026/08/20260812-chat-service-lessons.md) |
 | [Host / Guest entry](2026/08/20260809-host-guest-entry-todo.md) | [lessons](2026/08/20260809-host-guest-entry-lessons.md) |

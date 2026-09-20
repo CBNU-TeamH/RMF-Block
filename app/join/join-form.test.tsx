@@ -30,6 +30,15 @@ async function openTakeoverDialog(user: ReturnType<typeof userEvent.setup>) {
   await screen.findByRole("button", { name: "계속" });
 }
 
+describe("JoinForm — pre-hydration fallback", () => {
+  it("carries no name attribute that a native form submit could leak into a URL", () => {
+    render(<JoinForm />);
+
+    assert.equal(screen.getByLabelText("닉네임").hasAttribute("name"), false);
+    assert.equal(screen.getByLabelText("워크스페이스 비밀번호").hasAttribute("name"), false);
+  });
+});
+
 describe("JoinForm — takeover dialog", () => {
   it("blocks dismissing while a forced join is in flight", async () => {
     const user = userEvent.setup();

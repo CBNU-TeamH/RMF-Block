@@ -24,30 +24,10 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
-| [UC-023: rename, move and delete a document, from the UI](active/20260914-document-rename-move-delete-todo.md) | [lessons](active/20260914-document-rename-move-delete-lessons.md) |
-| [Presenter pointer — fading laser pointer](active/20260913-presenter-pointer-todo.md) | [lessons](active/20260913-presenter-pointer-lessons.md) |
-| [`pnpm dev` turns every LAN guest away at the join form](active/20260913-dev-lan-origin-todo.md) | [lessons](active/20260913-dev-lan-origin-lessons.md) |
-| [Presenter marks — block-anchored freehand underline and highlight](active/20260912-presenter-marks-todo.md) | [lessons](active/20260912-presenter-marks-lessons.md) |
-| [Server-component Tier 1 tests (issue #66, C4 server components)](active/20260910-server-component-tests-todo.md) | [lessons](active/20260910-server-component-tests-lessons.md) |
-| [Ctrl+Z: undo and redo, per person](active/20260908-undo-redo-todo.md) | [lessons](active/20260908-undo-redo-lessons.md) |
-| [The document tree: sub-documents, rename, move, delete, and the link block](active/20260908-document-tree-todo.md) | [lessons](active/20260908-document-tree-lessons.md) |
-| [Make the PR-prep steps hard to skip by accident](active/20260907-pr-review-workflow-todo.md) | [lessons](active/20260907-pr-review-workflow-lessons.md) |
-| [Pasting into blocks, and the image and file legs of FR-022-14](active/20260907-paste-and-file-blocks-todo.md) | [lessons](active/20260907-paste-and-file-blocks-lessons.md) |
-| [List nesting with Tab, and a placeholder that reveals the `/` menu](active/20260907-list-indent-and-placeholder-todo.md) | [lessons](active/20260907-list-indent-and-placeholder-lessons.md) |
-| [Bring the comment budget down, starting with `lib/presence/types.ts`](active/20260905-comment-budget-todo.md) | [lessons](active/20260905-comment-budget-lessons.md) |
-| [Verify scripts — ownership, comment budget, hooks, `verify:docs`](active/20260904-verify-scripts-todo.md) | [lessons](active/20260904-verify-scripts-lessons.md) |
-| [Track D — wire Phase 1's rules into AGENTS.md — todo](active/20260904-agents-md-todo.md) | [lessons](active/20260904-agents-md-lessons.md) |
-| [AGENTS.md doc-routing table: spell out tasks/active, tasks/archive — todo](active/20260904-agents-md-tasks-link-todo.md) | [lessons](active/20260904-agents-md-tasks-link-lessons.md) |
-| [Tool alignment — skills/ as an install manifest](active/20260903-skills-manifest-todo.md) | [lessons](active/20260903-skills-manifest-lessons.md) |
-| [The `/` block menu, and the divider it can finally create](active/20260902-slash-menu-todo.md) | [lessons](active/20260902-slash-menu-lessons.md) |
-| [PDF block and its in-app viewer](active/20260901-pdf-block-viewer-todo.md) | [lessons](active/20260901-pdf-block-viewer-lessons.md) |
-| [Focus following — follow the presenter's view](active/20260901-focus-following-todo.md) | [lessons](active/20260901-focus-following-lessons.md) |
-| [Editor structure — audit and refactoring plan](active/20260901-editor-structure-audit-todo.md) | [lessons](active/20260901-editor-structure-audit-lessons.md) |
-| [Chat file attachments](active/20260831-chat-file-attachments-todo.md) | [lessons](active/20260831-chat-file-attachments-lessons.md) |
-| [Open a document and edit it together](active/20260829-block-editor-todo.md) | [lessons](active/20260829-block-editor-lessons.md) |
-| [Gate Yorkie behind the workspace session](active/20260828-yorkie-auth-webhook-todo.md) | [lessons](active/20260828-yorkie-auth-webhook-lessons.md) |
-| [Workspace entry and home](active/20260826-entry-and-home-todo.md) | [lessons](active/20260826-entry-and-home-lessons.md) |
-| [Connected-user list](active/20260825-connected-user-list-todo.md) | [lessons](active/20260825-connected-user-list-lessons.md) |
+| [Takeover misses a device that connects its socket after revoke()](active/20260917-ws-revoke-race-todo.md) | [lessons](active/20260917-ws-revoke-race-lessons.md) |
+| [Reject unauthenticated WebSocket upgrades](active/20260917-unauthenticated-workspace-socket-todo.md) | [lessons](active/20260917-unauthenticated-workspace-socket-lessons.md) |
+| [Join form leaks the workspace password via a GET fallback](active/20260917-join-password-leak-todo.md) | [lessons](active/20260917-join-password-leak-lessons.md) |
+| [ADR maintenance: fix a cross-reference gap, add 4 new ADRs](active/20260917-adr-maintenance-todo.md) | [lessons](active/20260917-adr-maintenance-lessons.md) |
 
 ## Archive
 
