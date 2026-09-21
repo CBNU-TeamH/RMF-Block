@@ -3,7 +3,7 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "RMF-Block 세부 런타임 아키텍처",
-    "output": "rmf-block-runtime.html",
+    "output": "rmf-block-runtime-detail.html",
     "animation": "trace",
     "quality_profile": "showcase",
     "repository": {
