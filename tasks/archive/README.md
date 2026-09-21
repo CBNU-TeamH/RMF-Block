@@ -8,11 +8,16 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Repo doc consistency sweep + tasks/active archiving](2026/09/20260921-repo-doc-sync-todo.md) | [lessons](2026/09/20260921-repo-doc-sync-lessons.md) |
 | [Runtime architecture visualization](2026/09/20260918-runtime-architecture-visualization-todo.md) | [lessons](2026/09/20260918-runtime-architecture-visualization-lessons.md) |
 | [Harness sub-agent subdiagrams](2026/09/20260918-harness-subagent-subdiagrams-todo.md) | [lessons](2026/09/20260918-harness-subagent-subdiagrams-lessons.md) |
 | [Harness review lenses](2026/09/20260918-harness-review-lenses-todo.md) | [lessons](2026/09/20260918-harness-review-lenses-lessons.md) |
 | [Harness architecture visualization](2026/09/20260918-harness-architecture-visualization-todo.md) | [lessons](2026/09/20260918-harness-architecture-visualization-lessons.md) |
 | [Architecture detail and guided story](2026/09/20260918-architecture-detail-story-todo.md) | [lessons](2026/09/20260918-architecture-detail-story-lessons.md) |
+| [Takeover misses a device that connects its socket after revoke()](2026/09/20260917-ws-revoke-race-todo.md) | [lessons](2026/09/20260917-ws-revoke-race-lessons.md) |
+| [Reject unauthenticated WebSocket upgrades](2026/09/20260917-unauthenticated-workspace-socket-todo.md) | [lessons](2026/09/20260917-unauthenticated-workspace-socket-lessons.md) |
+| [Join form leaks the workspace password via a GET fallback](2026/09/20260917-join-password-leak-todo.md) | [lessons](2026/09/20260917-join-password-leak-lessons.md) |
+| [ADR maintenance: fix a cross-reference gap, add 4 new ADRs](2026/09/20260917-adr-maintenance-todo.md) | [lessons](2026/09/20260917-adr-maintenance-lessons.md) |
 | [UC-023: rename, move and delete a document, from the UI](2026/09/20260914-document-rename-move-delete-todo.md) | [lessons](2026/09/20260914-document-rename-move-delete-lessons.md) |
 | [Presenter pointer — fading laser pointer](2026/09/20260913-presenter-pointer-todo.md) | [lessons](2026/09/20260913-presenter-pointer-lessons.md) |
 | [`pnpm dev` turns every LAN guest away at the join form](2026/09/20260913-dev-lan-origin-todo.md) | [lessons](2026/09/20260913-dev-lan-origin-lessons.md) |

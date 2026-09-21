@@ -2,12 +2,14 @@
 
 - **Status**: All four layers landed — component tests (#39/#89), server-component Tier 1 (#91),
   and route handlers (#93). Only server-component Tier 2 (extract gate/join logic into `lib/`)
-  remains open — see [issue #66](https://github.com/CBNU-TeamH/RMF-Block/issues/66).
+  remains open — see [issue #112](https://github.com/CBNU-TeamH/RMF-Block/issues/112), split off
+  from #66 once #66's other three layers closed it without covering Tier 2.
 - **Owns**: none — this is process/strategy, not a module's design rationale. The four layers
   below name which existing design doc still owns *why* each module behaves the way it does; this
   document only says *where a new test for it belongs*.
-- **Related**: [issue #66](https://github.com/CBNU-TeamH/RMF-Block/issues/66) (the measured
-  layer/line-count breakdown lives there, not duplicated here since it will drift);
+- **Related**: [issue #66](https://github.com/CBNU-TeamH/RMF-Block/issues/66) (closed — the
+  measured layer/line-count breakdown that motivated this doc lives there); [issue
+  #112](https://github.com/CBNU-TeamH/RMF-Block/issues/112) (Tier 2, still open);
   [ADR-004](adr/004-test-runner-migration.md) (why Vitest, why `pool: "forks"`, why happy-dom);
   [`docs/conventions.md`](conventions.md) (the Node type-stripping constraint `server/index.mts`
   and every `lib/`/`server/` test run under)

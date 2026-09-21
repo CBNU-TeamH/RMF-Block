@@ -167,8 +167,9 @@ One requirement, two halves — the tree half is served here, the roster half is
 | Method | Path | Purpose | Auth | Traceability | Status |
 | --- | --- | --- | --- | --- | --- |
 | `POST` | `/api/documents` | Create a document or folder, resolving name collisions | guest | FR-021-01~05 | ✅ |
-| `PATCH` | `/api/documents/:id` | Rename or move to another folder | guest | FR-023-01~03 | |
-| `DELETE` | `/api/documents/:id` | Delete, cascading to child documents | guest | FR-023-04~06 | |
+| `GET` | `/api/documents/:id` | One document's catalogue row — what a `doc-link` block reads to show a name | guest | — | ✅ |
+| `PATCH` | `/api/documents/:id` | Rename or move to another folder | guest | FR-023-01~03 | ✅ |
+| `DELETE` | `/api/documents/:id` | Delete, cascading to child documents | guest | FR-023-04~06 | ✅ |
 | `POST` | `/api/documents/:id/files` | Upload a file to embed as a block | guest | FR-022-13/14 | ✅ |
 
 Tree mutations are relayed to other clients over the workspace WebSocket (§4), not polled — FR-021-06 and FR-023-07 both require realtime reflection in every client's tree.

@@ -74,6 +74,7 @@ Which document to open for which job.
 | Requirements · module design · ADRs · UI wireframes ([`docs/ui/`](docs/ui/)) | [`docs/`](docs/) |
 | Code conventions | [`docs/conventions.md`](docs/conventions.md) |
 | Test strategy | [`docs/testing.md`](docs/testing.md) |
+| How each NFR-PER item gets measured (tool, rig, clock, threshold) | [`PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) |
 | Lint / format config | [`eslint.config.mjs`](eslint.config.mjs) |
 | Open work and its status | [`tasks/`](tasks/) (`tasks/active/`, `tasks/archive/`) |
 | The overall plan | [`ROADMAP.md`](ROADMAP.md) |
@@ -86,7 +87,7 @@ Which document to open for which job.
 ## 5. Team conventions
 
 - **Commit prefixes**: `feat:`, `fix:`, `refactor:`, `test:`, `chore:`, `docs:`.
-- **Doc language**: English. The exception is [`docs/SRS-ko.md`](docs/SRS-ko.md), the team's agreed requirements document, which stays in Korean.
+- **Doc language**: English. The exception is [`docs/SRS-ko.md`](docs/SRS-ko.md), the team's agreed requirements document, which stays in Korean; [`PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) is also Korean today but pending translation, not a standing exception.
 - **Never commit secrets or credentials.**
 - **Do not change agreed documents alone** — e.g. [`docs/SRS-ko.md`](docs/SRS-ko.md) changes only after the team agrees.
 
@@ -111,7 +112,6 @@ Only what is **still open**. Decisions already settled are recorded where they a
 list, and the ADRs hold the reasoning. Keeping settled items here as ticked boxes just made this
 section the third place to look.
 
-- [ ] Set the load-test baseline that `docs/SRS-ko.md` §2.4 defers. Blocks nothing today; NFR-PER-001/006 cannot be verified without it (`ROADMAP.md` Phase 5).
 - [ ] Decide block/text color and styling (block background/text color, and whether it extends to inline text ranges) — not in `docs/SRS-ko.md` today, tracked as issue #6. Deferring is low-risk: block-level color is an additive `content` field per type, and inline color can ride `yorkie.Text`'s native range-style attributes without changing the block schema, so it doesn't block finishing the base 12-type schema in [`docs/design/document-editing.md`](docs/design/document-editing.md).
-- [ ] Decide what triggers the App/WS Server to call Yorkie's `createRevision` — Yorkie itself never auto-snapshots, so a revision is only ever created by an explicit call; the open question is what event or cadence in the app should make that call. No FR or UC covers version history today, so nothing forces the answer yet — see issue #23.
+- [ ] Decide whether the App/WS Server should additionally create *named* revisions on user action — Yorkie's own auto-revision (`autoRevisionEnabled`/`snapshotInterval`/`snapshotThreshold`) already fires on every snapshot with zero app code, but a "before restore" safety revision must still be app-created, since `restoreRevision` doesn't make one. No FR or UC covers version history today, so nothing forces the answer yet — see issue #23.
 - [ ] Promote `comment-budget` from a local-only signal to a required CI check — `scripts/lib/promotion-date.mjs` names 2026-09-23 as the earliest date. Blocks nothing today; the promotion itself, and the still-unmeasured `/code-review` citation, S-1..S-5, and review-cost criteria, are tracked in issue #92 (split off from #65, which closed on its actually-shipped scope).

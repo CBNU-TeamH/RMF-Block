@@ -64,7 +64,7 @@ The wire protocol is Yorkie's own client SDK — not ours to design. What we do 
 
 ### (b) Client ↔ App/WS Server (API groups)
 
-Transport is REST + WebSocket. Grouped by concern; full request/response schemas are written when each group's module is built.
+Transport is REST + WebSocket. Grouped by concern; full request/response schemas are written when each group's module is built. Both WebSocket upgrade paths (chat and workspace) require a live session or the host secret to complete at all — an unauthenticated client gets a 401 before the handshake, never reaching the hub ([ADR-006](../adr/006-workspace-chat-socket-auth.md)).
 
 This used to cite SOIR001, which is misleading enough to be worth naming: SOIR001 requires realtime sync over "WebSocket 기반 실시간 통신", but document changes and presence never cross this boundary — they go straight from the browser to Yorkie over Connect / gRPC-Web on ordinary HTTP, with `WatchDocument` as a server-streaming response rather than a socket. REST and WebSocket are what *this* boundary carries; the socket's whole traffic today is `session:revoked` plus chat. `docs/SRS-ko.md` is a team-agreed document and changes only with the team's agreement (`AGENTS.md` §5); SOIR001's wording was corrected under that agreement — [issue #36](https://github.com/CBNU-TeamH/RMF-Block/issues/36).
 
@@ -92,7 +92,7 @@ What crosses this boundary is version history only, through Yorkie's revision AP
 
 **Decided:** the App/WS Server does not keep a `Watch` subscription on documents — the only thing that required one was the deleted delayed-write trigger, and Mongo now provides durability directly.
 
-**Open — decide before building this:** `createRevision` is always an explicit call (Yorkie never snapshots on its own), so what remains open is which app-side event or cadence should trigger it (issue #23).
+**Open — decide before building this:** Yorkie's own auto-revision already fires without any app code — measured 2026-09-21 against this project's stack, the default Yorkie project runs with `autoRevisionEnabled` on and `snapshotInterval`/`snapshotThreshold` at 500, so a revision is recorded every time Yorkie snapshots a document. What remains open is whether the app should additionally create *named* revisions on a user action, and the fact that a "before restore" safety revision has to be app-created, since `restoreRevision` does not make one (issue #23).
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 
@@ -132,7 +132,7 @@ address.
 | --- | --- |
 | Block occupancy ≠ edit lock (SIR003, FR-022-06) | What triggers a `createRevision` call (ADR-002, issue #23) |
 | Yorkie owns realtime sync **and** document persistence/history (ADR-002) | Presenter/follower session state model |
-| The server keeps **no** Yorkie `Watch` subscription (ADR-002) | Load-test baseline (SRS §2.4 — `AGENTS.md` §7) |
+| The server keeps **no** Yorkie `Watch` subscription (ADR-002) | Load-test baseline *numbers* (SRS §2.4) — how to measure them is settled in [`PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../../PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) |
 | MongoDB is Yorkie's store alone; the app never connects to it (ADR-002) | |
 | App state lives in `.data/` JSON, not in Yorkie or Mongo — chat today, workspace and auth to follow | |
 | Component boundaries and API groups (this doc) | |
