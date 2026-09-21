@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
-import { MAX_UPLOAD_BYTES, detectImageType, looksLikePdf, readUpload } from "./upload.ts";
+import {
+  MAX_UPLOAD_BYTES,
+  MAX_UPLOAD_REQUEST_BYTES,
+  detectImageType,
+  looksLikePdf,
+  readUpload,
+} from "./upload.ts";
 
 /**
  * `fetch` sets `content-length` for a `FormData` body and `new Request(…)` does
@@ -49,9 +55,43 @@ describe("readUpload", () => {
   it("refuses an oversized body before parsing it", async () => {
     const result = await readUpload(
       await upload(new File(["hi"], "a.pdf"), {
-        "content-length": String(MAX_UPLOAD_BYTES + 1),
+        "content-length": String(MAX_UPLOAD_REQUEST_BYTES + 1),
       }),
     );
+
+    assert.equal(result.ok, false);
+    assert.equal(!result.ok && result.status, 413);
+  });
+
+  it("lets a body declared at exactly the request ceiling through to parsing", async () => {
+    // The other limit this function carries, at exactly its value. Declared
+    // synthetically: what is under test is the pre-parse check, not whether a
+    // real body of that length can be built.
+    const result = await readUpload(
+      await upload(new File(["hi"], "a.pdf"), {
+        "content-length": String(MAX_UPLOAD_REQUEST_BYTES),
+      }),
+    );
+
+    assert.equal(result.ok, true);
+  });
+
+  it("accepts a file whose own size is exactly the limit", async () => {
+    // The boundary the error message promises. Multipart framing rides on top of
+    // the file, so this request declares more than `MAX_UPLOAD_BYTES` while the
+    // file inside it does not exceed the limit at all (#57).
+    const exact = new File([new Uint8Array(MAX_UPLOAD_BYTES)], "a.pdf");
+    const result = await readUpload(await upload(exact));
+
+    assert.equal(result.ok, true);
+    assert.equal(result.ok && result.file.size, MAX_UPLOAD_BYTES);
+  });
+
+  it("refuses a file one byte past the limit", async () => {
+    // The other side of the same boundary, and it is the file's own size that
+    // decides — this body is well inside what the pre-parse check allows.
+    const over = new File([new Uint8Array(MAX_UPLOAD_BYTES + 1)], "a.pdf");
+    const result = await readUpload(await upload(over));
 
     assert.equal(result.ok, false);
     assert.equal(!result.ok && result.status, 413);

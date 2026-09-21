@@ -79,9 +79,21 @@ describe("attachmentHeaders", () => {
   });
 
   it("carries the original name, percent-encoded", () => {
+    // Spelled out rather than built with `encodeURIComponent`: expressing the
+    // expectation with the function under test restates the implementation and
+    // passes whatever it does, which is how the parentheses below went unnoticed.
     assert.equal(
       attachmentHeaders("보고서 (최종).pdf").get("Content-Disposition"),
-      `attachment; filename*=UTF-8''${encodeURIComponent("보고서 (최종).pdf")}`,
+      "attachment; filename*=UTF-8''%EB%B3%B4%EA%B3%A0%EC%84%9C%20%28%EC%B5%9C%EC%A2%85%29.pdf",
+    );
+  });
+
+  it("encodes the four characters encodeURIComponent leaves but RFC 8187 forbids", () => {
+    // `'`, `(`, `)` and `*` are not `attr-char`, so emitting them raw makes the
+    // header value malformed rather than merely ugly.
+    assert.equal(
+      attachmentHeaders("report(final)'s copy*.pdf").get("Content-Disposition"),
+      "attachment; filename*=UTF-8''report%28final%29%27s%20copy%2A.pdf",
     );
   });
 
@@ -123,9 +135,19 @@ describe("inlineHeaders", () => {
   });
 
   it("carries the original name, so the viewer's Save button uses it", () => {
+    // Literal for the same reason as its `attachment` counterpart above.
     assert.equal(
       inlineHeaders("application/pdf", "보고서 (최종).pdf").get("Content-Disposition"),
-      `inline; filename*=UTF-8''${encodeURIComponent("보고서 (최종).pdf")}`,
+      "inline; filename*=UTF-8''%EB%B3%B4%EA%B3%A0%EC%84%9C%20%28%EC%B5%9C%EC%A2%85%29.pdf",
+    );
+  });
+
+  it("encodes the RFC 8187 characters here too, not only on the download path", () => {
+    // Two call sites, two regression points: PR #54 routed the preview
+    // `<iframe>` through the same helper, so this path carries the bug as well.
+    assert.equal(
+      inlineHeaders("application/pdf", "report(final)'s copy*.pdf").get("Content-Disposition"),
+      "inline; filename*=UTF-8''report%28final%29%27s%20copy%2A.pdf",
     );
   });
 

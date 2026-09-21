@@ -40,10 +40,16 @@ export function attachmentHeaders(fileName: string): Headers {
   return baseHeaders("application/octet-stream", `attachment; ${dispositionName(fileName)}`);
 }
 
-/** RFC 5987 `filename*`, percent-encoded, with line terminators stripped first
- *  so a crafted name cannot inject a header. */
+/** RFC 8187 `filename*`, percent-encoded, with line terminators stripped first
+ *  so a crafted name cannot inject a header. `encodeURIComponent` leaves `'`,
+ *  `(`, `)` and `*` alone, and none of the four is an `attr-char`, so they are
+ *  encoded here rather than emitted raw into the header value. */
 function dispositionName(fileName: string): string {
   const safe = fileName.replace(/[\r\n]/g, "").trim() || "file";
+  const encoded = encodeURIComponent(safe).replace(
+    /['()*]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 
-  return `filename*=UTF-8''${encodeURIComponent(safe)}`;
+  return `filename*=UTF-8''${encoded}`;
 }

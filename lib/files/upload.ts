@@ -7,6 +7,18 @@
  *  workspace `docs/SRS-ko.md` §2.4 sizes. */
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
+/** What the pre-parse check allows on top of the file itself. Multipart framing
+ *  — the boundary lines, each part's headers, the CRLFs — is carried by
+ *  `content-length` but is not part of the file, so measuring the declared
+ *  length against `MAX_UPLOAD_BYTES` rejected a file that was exactly at the
+ *  limit before its own size was ever read (#57). Generous next to the framing a
+ *  one-field form actually costs, and still small enough that the check keeps
+ *  bounding what `formData()` will buffer. */
+const MULTIPART_OVERHEAD_BYTES = 64 * 1024;
+
+/** The ceiling for the whole request body, as opposed to the file inside it. */
+export const MAX_UPLOAD_REQUEST_BYTES = MAX_UPLOAD_BYTES + MULTIPART_OVERHEAD_BYTES;
+
 export type UploadResult =
   | { ok: true; file: File }
   | { ok: false; status: 400 | 411 | 413; error: string };
@@ -21,9 +33,8 @@ export async function readUpload(request: Request): Promise<UploadResult> {
   if (!Number.isFinite(declared) || declared <= 0) {
     return { ok: false, status: 411, error: "업로드 크기를 알 수 없습니다." };
   }
-  // The length is still only the uploader's claim about the whole body, so the
-  // file's own size is checked again after parsing.
-  if (declared > MAX_UPLOAD_BYTES) return tooLarge();
+  // Bounds only what `formData()` buffers; `file.size` below is the verdict.
+  if (declared > MAX_UPLOAD_REQUEST_BYTES) return tooLarge();
 
   let form: FormData;
   try {
