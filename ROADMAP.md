@@ -56,9 +56,9 @@ Management features layered on top of an already-working workspace and editor �
 
 ## Phase 5 — Hardening
 
-- Load-test baseline for the 8-user assumption (NFR-PER-001/006) — open item, `AGENTS.md` §7.
+- Load-test baseline for the 8-user assumption (NFR-PER-001/006). How each NFR-PER item is measured — tool, rig, clock, pass threshold — is settled in [`PERFORMANCE-QUANTIFICATION-CRITERIA.md`](PERFORMANCE-QUANTIFICATION-CRITERIA.md); what remains here is running it and recording the numbers.
 - Security pass: input validation, upload restrictions, unauthorized-access checks (NFR-SEC-003/004/005).
 - Crash/restart recovery verification (NFR-SAF-003, NFR-REL-002) — against Yorkie/MongoDB for document content and `.data/` for app state, the two stores ADR-002 leaves.
-- Close out the remaining `AGENTS.md` §7 item that belongs here: the load-test baseline above. The other two open items — block/text colour (#6) and what triggers `createRevision` (#23) — are design decisions, not hardening, and land with the modules that need them.
+- The load-test baseline above is the one piece of hardening that no longer has an `AGENTS.md` §7 entry — its criteria are written, so only the measurement is left. The §7 items that remain — block/text colour (#6) and what triggers `createRevision` (#23) — are design decisions, not hardening, and land with the modules that need them.
 
 **Exit criteria**: NFRs in SRS §3.4 are verified, not just assumed.
