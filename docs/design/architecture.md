@@ -92,7 +92,7 @@ What crosses this boundary is version history only, through Yorkie's revision AP
 
 **Decided:** the App/WS Server does not keep a `Watch` subscription on documents — the only thing that required one was the deleted delayed-write trigger, and Mongo now provides durability directly.
 
-**Open — decide before building this:** `createRevision` is always an explicit call (Yorkie never snapshots on its own), so what remains open is which app-side event or cadence should trigger it (issue #23).
+**Open — decide before building this:** Yorkie's own auto-revision already fires without any app code — measured 2026-09-21 against this project's stack, the default Yorkie project runs with `autoRevisionEnabled` on and `snapshotInterval`/`snapshotThreshold` at 500, so a revision is recorded every time Yorkie snapshots a document. What remains open is whether the app should additionally create *named* revisions on a user action, and the fact that a "before restore" safety revision has to be app-created, since `restoreRevision` does not make one (issue #23).
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 
