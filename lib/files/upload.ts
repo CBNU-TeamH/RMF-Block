@@ -7,16 +7,10 @@
  *  workspace `docs/SRS-ko.md` §2.4 sizes. */
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
-/** What the pre-parse check allows on top of the file itself. Multipart framing
- *  — the boundary lines, each part's headers, the CRLFs — is carried by
- *  `content-length` but is not part of the file, so measuring the declared
- *  length against `MAX_UPLOAD_BYTES` rejected a file that was exactly at the
- *  limit before its own size was ever read (#57). Generous next to the framing a
- *  one-field form actually costs, and still small enough that the check keeps
- *  bounding what `formData()` will buffer. */
 const MULTIPART_OVERHEAD_BYTES = 64 * 1024;
 
-/** The ceiling for the whole request body, as opposed to the file inside it. */
+/** The whole request body's ceiling, as opposed to the file inside it. Why it is
+ *  a separate number: `docs/design/api.md` §1, "Two ceilings, not one" (#57). */
 export const MAX_UPLOAD_REQUEST_BYTES = MAX_UPLOAD_BYTES + MULTIPART_OVERHEAD_BYTES;
 
 export type UploadResult =

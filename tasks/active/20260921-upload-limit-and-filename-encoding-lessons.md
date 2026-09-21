@@ -25,6 +25,13 @@
   before keeping them was worth the two minutes: it is what proved the `(`/`)` test
   above was not already covering #56.
 
+- **`comment-budget` reports a file the moment you touch it, at whatever ratio it already had.**
+  `lib/files/upload.ts` measured **33.8%** against a 25% budget *before* this task — it had simply
+  never been reported, because the script only looks at files changed against the merge base. This
+  change pushed it to 38.2%, and moving the new rationale into `docs/design/api.md` brought it back
+  to 33.7%. Getting it under 25% would mean rewriting rationale comments this task did not author,
+  which `AGENTS.md` §3 ("surgical changes") argues against.
+
 ## Worth extracting
 
 - **A test that builds its expected value with the function under test is not a test.**
@@ -35,3 +42,9 @@
 - **When one constant gates two different checks, splitting it is the fix.** Raising it
   would have let a genuinely oversized file through. Worth a look wherever a limit is
   read in more than one place.
+- **`comment-budget`'s promotion (#92, earliest 2026-09-23) needs the existing over-budget
+  files counted first.** Because the script reports only changed files, today's clean runs say
+  nothing about how many files are already over. Under `--strict` the first PR to touch any of
+  them fails CI on comments it did not write — the author's only ways out being to rewrite
+  someone else's rationale or to not touch the file. Worth measuring the whole tree before the
+  promotion date rather than discovering the count one PR at a time.
