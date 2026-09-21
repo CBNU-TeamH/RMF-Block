@@ -25,9 +25,9 @@
       },
       {
         "id": "access-control",
-        "label": "Yorkie 접근 제어",
-        "focus": ["workspace_ui", "app_server", "session_registry", "yorkie_server"],
-        "note": "앱 세션을 좁은 Yorkie 토큰으로 교환하고 webhook에서 다시 검증합니다."
+        "label": "Yorkie와 WebSocket 접근 제어",
+        "focus": ["workspace_ui", "app_server", "session_registry", "ws_hub", "yorkie_server"],
+        "note": "앱 세션을 좁은 Yorkie 토큰으로 교환하고 webhook에서 다시 검증합니다. WebSocket 업그레이드(채팅·워크스페이스 둘 다)도 같은 세션 또는 호스트 시크릿 없이는 핸드셰이크 전에 401로 거부됩니다 (ADR-006, #107/#110)."
       }
     ]
   },
@@ -80,9 +80,15 @@
       "sources": [
         {
           "path": "server/index.mts",
-          "line": 28,
-          "end_line": 73,
+          "line": 37,
+          "end_line": 84,
           "label": "HTTP와 WebSocket 진입점"
+        },
+        {
+          "path": "lib/auth/session-cookie.ts",
+          "line": 44,
+          "end_line": 59,
+          "label": "WS 업그레이드 인증 게이트 (ADR-006)"
         },
         {
           "path": "app/api/auth/yorkie-token/route.ts",
@@ -104,13 +110,13 @@
       "id": "ws_hub",
       "type": "messagebus",
       "label": "WebSocket Hub",
-      "sublabel": "채팅 · 문서 트리 · 세션 해제",
+      "sublabel": "채팅 · 문서 트리 · 세션 해제 (인증된 연결만 등록)",
       "sources": [
         {
           "path": "server/ws-hub.mts",
           "line": 18,
-          "end_line": 79,
-          "label": "연결 등록과 broadcast"
+          "end_line": 78,
+          "label": "연결 등록, broadcast, revoke"
         }
       ],
       "pos": [810, 110],
@@ -238,7 +244,7 @@
       "id": "ui_opens_socket",
       "from": "workspace_ui",
       "to": "ws_hub",
-      "label": "WebSocket: 알림",
+      "label": "WebSocket: 알림 (세션/호스트 시크릿 필요, 실패 시 401)",
       "variant": "dashed"
     },
     {
@@ -316,7 +322,8 @@
       "title": "보안 경계",
       "items": [
         "workspace session은 메모리에만 존재하며 컨테이너 재시작으로 모두 폐기",
-        "Yorkie는 App/WS Server의 auth webhook으로 토큰과 세션을 검증"
+        "Yorkie는 App/WS Server의 auth webhook으로 토큰과 세션을 검증",
+        "두 WebSocket 업그레이드 경로 모두 핸드셰이크 전에 세션/호스트 시크릿을 요구 — 실패하면 wsHub에 등록조차 되지 않음 (ADR-006)"
       ]
     }
   ]

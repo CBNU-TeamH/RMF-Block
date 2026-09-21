@@ -21,10 +21,12 @@ code-comment-compliance agents — can check against. This document is that rule
 
 The five shapes below were not chosen. They were derived by classifying every open bug in this
 repo (excluding the meta-issue `#39`, which is about the harness itself, not a shape) into
-buckets. Five buckets cover 5 of 7 — 71%. The two that don't fit, `#37` (a reconnect path that
-was never built) and `#26` (a connection-ordering race), are left out on purpose: a rulebook
-that explains every bug prevents none, and a shape-rule for "sometimes things are concurrent" is
-not a rule anyone could apply.
+buckets. Five buckets cover 5 of 6 — 83%. The one that doesn't fit, `#37` (a reconnect path that
+was never built), is left out on purpose: a rulebook that explains every bug prevents none, and a
+shape-rule for a path that doesn't exist yet is not a rule anyone could apply. (`#26`, a
+connection-ordering race, was the other bug that didn't fit this classification when it was
+written — closed 2026-09-20 by #110's `isSessionValid` predicate in `WsHub.handleUpgrade`, so it
+dropped out of the open-bug count rather than needing a shape.)
 
 ## The five forbidden shapes
 

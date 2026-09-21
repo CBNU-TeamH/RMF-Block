@@ -19,8 +19,8 @@
 - [x] `join()` reads values via refs, not `FormData`; hydrated submit behavior (success, 400/401/409/500 handling, takeover dialog, focus management) unchanged.
 - [x] Regression test added (`app/join/join-form.test.tsx`) asserting neither input has a `name` attribute.
 - [x] `pnpm lint`, `pnpm test` (560 tests), `pnpm build` all pass.
-- [ ] Manual container check (`pnpm docker:up`): reproduce a pre-hydration submit and confirm the resulting request carries no query string.
-- [ ] `/code-review low` and `/simplify` run per `AGENTS.md` §6 pre-PR checklist.
+- [x] Manual container check (`pnpm docker:up`): reproduce a pre-hydration submit and confirm the resulting request carries no query string.
+- [x] `/code-review low` and `/simplify` run per `AGENTS.md` §6 pre-PR checklist.
 
 ## Cross-cutting
 
@@ -30,4 +30,8 @@
 
 ## Review
 
-Filled in once the PR is up.
+Shipped as planned via PR #109 (merged). The container smoke test (a required CI check) grepped
+for `name="nickname"` to detect the join screen and broke against this PR's own fix — caught and
+corrected in a follow-up commit switching the marker to `autoComplete="nickname"`, confirming the
+container check ran and the fix works end-to-end, not just in unit tests. These two boxes were
+left unchecked after merge; backfilled now while archiving.

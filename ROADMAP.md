@@ -36,6 +36,8 @@ Management features layered on top of an already-working workspace and editor �
 
 **Exit criteria**: a host can fully administer a workspace and its document tree without touching the block editor itself.
 
+**Note (2026-09-21):** UC-021/UC-023 (document tree) and workspace restore-on-restart shipped; UC-011 (guest kick, password change) has not — no route exists under `app/api/workspace/` for either yet. Phase 3 and Phase 4 below both shipped substantially ahead of that gap, so the phase numbers are priority order, not a strict gate.
+
 ## Phase 3 — Collaboration awareness
 
 - Focus following / presenter mode (UC-030) — the most complex feature after the core editor: session state, follower input lock, presenter tools, pause/resume.
