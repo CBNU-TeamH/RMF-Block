@@ -12,6 +12,7 @@ import {
   beforeRestoreLabel,
   groupRevisionsByDay,
   isOldestPage,
+  reservedLabelReason,
   toRevisionEntries,
 } from "@/lib/documents/revisions";
 import type { RevisionEntry } from "@/lib/documents/revisions";
@@ -186,11 +187,17 @@ function HistoryPanel({
   );
 
   /**
-   * Takes the undo-me revision first, then writes the old blocks back. If
-   * that revision fails the restore is abandoned: an irreversible restore is
-   * worse than none. `getRevision` fetches an already-existing past revision
-   * and depends on neither `sync()` nor the new revision `createRevision`
-   * makes, so it runs alongside them rather than after.
+   * Fetch and parse the target first, then take the undo-me revision, then
+   * apply. Order is the whole point: a revision cannot be deleted, so a
+   * "before restore" one left behind by a restore that then failed to fetch or
+   * parse is permanent litter in the list. Parsing first also means the only
+   * thing left after `createRevision` succeeds is a local write that cannot
+   * fail — an irreversible restore is worse than none.
+   *
+   * This is deliberately *not* parallelised. `getRevision` really is
+   * independent of `sync`/`createRevision` and overlapping them would save a
+   * round trip, but `Promise.all` cannot cancel the revision-creating branch
+   * once the fetch fails, which is the case this ordering exists to prevent.
    *
    * Open to everyone, not just the host: a guest can already replace every
    * block by hand, so restoring grants no capability they lack, and the
@@ -201,11 +208,13 @@ function HistoryPanel({
   const restore = useCallback(
     (entry: RevisionEntry) =>
       withBusy(async (doc) => {
-        const [, full] = await Promise.all([
-          client.sync().then(() => client.createRevision(doc, beforeRestoreLabel(entry.id), nickname)),
-          client.getRevision(doc, entry.id),
-        ]);
-        onRestore(readRevisionBlocks(full.snapshot));
+        const full = await client.getRevision(doc, entry.id);
+        const blocks = readRevisionBlocks(full.snapshot);
+
+        await client.sync();
+        await client.createRevision(doc, beforeRestoreLabel(entry.id), nickname);
+
+        onRestore(blocks);
       }, "복원하지 못했습니다. 문서는 그대로입니다."),
     [client, nickname, onRestore, withBusy],
   );
@@ -549,6 +558,10 @@ function PromptDialog({
   }, []);
 
   const restoring = prompt.kind === "restore";
+  const trimmed = label.trim();
+  // Checked as they type, not on submit — the name is permanent once stored,
+  // so the refusal should arrive before the button looks pressable.
+  const reserved = trimmed === "" ? null : reservedLabelReason(trimmed);
 
   return (
     <dialog
@@ -581,6 +594,11 @@ function PromptDialog({
             placeholder="예: 제출 전 최종"
             className="mt-3 w-full rounded-md border border-ink bg-paper px-2 py-1 text-[13px] text-ink"
           />
+          {reserved ? (
+            <p role="alert" className="mt-2 text-[12px] font-medium text-red-600">
+              {reserved}
+            </p>
+          ) : null}
         </>
       )}
 
@@ -590,11 +608,9 @@ function PromptDialog({
         </button>
         <button
           type="button"
-          disabled={busy || (!restoring && label.trim() === "")}
+          disabled={busy || (!restoring && (trimmed === "" || reserved !== null))}
           className={PRIMARY}
-          onClick={() =>
-            restoring ? onRestore(prompt.entry) : onName(label.trim())
-          }
+          onClick={() => (restoring ? onRestore(prompt.entry) : onName(trimmed))}
         >
           {busy ? "처리 중…" : restoring ? "복원" : "저장"}
         </button>

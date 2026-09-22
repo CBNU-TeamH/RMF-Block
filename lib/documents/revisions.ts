@@ -43,6 +43,26 @@ export function classifyRevision(label: string): RevisionKind {
   return "named";
 }
 
+/**
+ * Whether a person may save under this name.
+ *
+ * `classifyRevision` reads the label and nothing else, so a manual save called
+ * `snapshot-7` would come back as an automatic one — hidden behind the default
+ * filter, titled 자동 저장, indistinguishable from Yorkie's own. Refused at the
+ * point of entry rather than mangled into a namespace, because the stored
+ * label is what the reader sees and there is no API to correct it later.
+ */
+export function reservedLabelReason(label: string): string | null {
+  if (AUTOMATIC_LABEL.test(label)) {
+    return "`snapshot-숫자`는 자동 저장이 쓰는 이름입니다. 다른 이름을 지어 주세요.";
+  }
+  if (label.startsWith(BEFORE_RESTORE_PREFIX)) {
+    return `'${BEFORE_RESTORE_PREFIX}'로 시작하는 이름은 복원 기록이 쓰는 형식입니다.`;
+  }
+
+  return null;
+}
+
 /** Yorkie's summaries as entries, newest first — sorted here because
  *  `listRevisions` takes an `isForward` flag, so order is the caller's. */
 export function toRevisionEntries(

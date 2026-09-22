@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
 import {
+  BEFORE_RESTORE_PREFIX,
   REVISION_PAGE_SIZE,
   beforeRestoreLabel,
   classifyRevision,
   groupRevisionsByDay,
   isOldestPage,
+  reservedLabelReason,
   toRevisionEntries,
 } from "./revisions.ts";
 
@@ -39,6 +41,33 @@ describe("classifyRevision", () => {
   it("does not read a user's label as automatic just because it starts that way", () => {
     // `snapshot-27 (검토본)` is a name someone could plausibly type.
     assert.equal(classifyRevision("snapshot-27 (검토본)"), "named");
+  });
+});
+
+describe("reservedLabelReason", () => {
+  /** The point of the check: `classifyRevision` reads the label and nothing
+   *  else, so these names would come back as something the person did not
+   *  save — and a stored label cannot be corrected afterwards. */
+  it("refuses the two formats the app reads as system revisions", () => {
+    assert.ok(reservedLabelReason("snapshot-7"));
+    assert.ok(reservedLabelReason("snapshot-0"));
+    assert.ok(reservedLabelReason(beforeRestoreLabel("abc123")));
+    assert.ok(reservedLabelReason(`${BEFORE_RESTORE_PREFIX}anything`));
+  });
+
+  it("allows a name that merely resembles one", () => {
+    for (const label of ["snapshot-27 (검토본)", "제출 전 최종", "snapshot", "snapshot-", "v1"]) {
+      assert.equal(reservedLabelReason(label), null, JSON.stringify(label));
+    }
+  });
+
+  /** Every refused label must also be one `classifyRevision` would have
+   *  mislabelled — otherwise the check is refusing names for no reason. */
+  it("refuses exactly what would not classify as named", () => {
+    for (const label of ["snapshot-7", beforeRestoreLabel("x")]) {
+      assert.notEqual(classifyRevision(label), "named", label);
+      assert.ok(reservedLabelReason(label), label);
+    }
   });
 });
 
