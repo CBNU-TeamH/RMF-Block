@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createText } from "@/lib/blocks/create";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot } from "@/lib/blocks/document";
+import { editBlockText, type BlockArray } from "@/lib/blocks/operations";
 import {
   blockIndexFromEditPath,
   touchesBlockList,
@@ -262,9 +263,9 @@ export function useBlockDocument(
       root.blocks = next.map(toStoredBlock);
     });
     doc.update((root: BlockDocumentRoot) => {
-      next.forEach((block, index) => {
+      next.forEach((block) => {
         const text = "text" in block ? block.text : "";
-        if (text) root.blocks[index]?.content?.text?.edit(0, 0, text);
+        if (text) editBlockText(root.blocks as BlockArray, block.id, 0, 0, text);
       });
     });
 
