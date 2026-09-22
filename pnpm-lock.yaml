@@ -5,17 +5,17 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@yorkie-js/sdk@0.7.13':
-    hash: fb2705c4a6ee58316a0a3eb4b34e06c22dabba977d78a6777e17cfea3e53c8a3
-    path: patches/@yorkie-js__sdk@0.7.13.patch
+  '@yorkie-js/sdk@0.7.23':
+    hash: b36442852949d2dc78a30c9781089c67df1bada6cce50aa96870b4c336d678bd
+    path: patches/@yorkie-js__sdk@0.7.23.patch
 
 importers:
 
   .:
     dependencies:
       '@yorkie-js/sdk':
-        specifier: 0.7.13
-        version: 0.7.13(patch_hash=fb2705c4a6ee58316a0a3eb4b34e06c22dabba977d78a6777e17cfea3e53c8a3)
+        specifier: 0.7.23
+        version: 0.7.23(patch_hash=b36442852949d2dc78a30c9781089c67df1bada6cce50aa96870b4c336d678bd)
       next:
         specifier: 16.2.12
         version: 16.2.12(@babel/core@7.29.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -980,11 +980,11 @@ packages:
   '@vitest/spy@5.0.0':
     resolution: {integrity: sha512-uy+luWBAPw9XfthoHi5AkfHUnuPYEESjl0p/r+meoBnU8bxg5GDQ3Ey8MjcJ6sqahkL4PFyrvfMJJBw7LbU06g==}
 
-  '@yorkie-js/schema@0.7.13':
-    resolution: {integrity: sha512-P7QdEqL4e+jTVIMCyf3NZt1i0OOK2v8wMuby2duz7HgfmJ1HAHc4baZX93dpTIv38sGrMf4OKB9uZ12kCfLdeA==}
+  '@yorkie-js/schema@0.7.23':
+    resolution: {integrity: sha512-07oTIa/gfl1vB5xjPBy/LF5OOaRYfCoXns6XxOsKHLXOoRhrbgNrVkY3lTHX8hDDbpyoexErfTwWoJp0/zkMrQ==}
 
-  '@yorkie-js/sdk@0.7.13':
-    resolution: {integrity: sha512-Ql3IrKc2ym9pCoArJiQGZ9HG1ilnmO765Hg8oj11KqlvP4gXTiSaD3QmhZafMadp0ISAwXaQuNnPBbfdamfvXg==}
+  '@yorkie-js/sdk@0.7.23':
+    resolution: {integrity: sha512-z+m00o57yHwKCCA7SO+rboOiBM2vI/CPnLJ1Fm7e9gvrAvtkUhlMStN46K+jVejBnm2XVKiNRSJI1AH1ZwnHVg==}
     engines: {node: ^20.19.0 || >=22.12.0, npm: '>=7.1.0', pnpm: '>=9.6.0'}
 
   acorn-jsx@5.3.2:
@@ -3424,14 +3424,14 @@ snapshots:
 
   '@vitest/spy@5.0.0': {}
 
-  '@yorkie-js/schema@0.7.13': {}
+  '@yorkie-js/schema@0.7.23': {}
 
-  '@yorkie-js/sdk@0.7.13(patch_hash=fb2705c4a6ee58316a0a3eb4b34e06c22dabba977d78a6777e17cfea3e53c8a3)':
+  '@yorkie-js/sdk@0.7.23(patch_hash=b36442852949d2dc78a30c9781089c67df1bada6cce50aa96870b4c336d678bd)':
     dependencies:
       '@bufbuild/protobuf': 2.13.0
       '@connectrpc/connect': 2.1.2(@bufbuild/protobuf@2.13.0)
       '@connectrpc/connect-web': 2.1.2(@bufbuild/protobuf@2.13.0)(@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.13.0))
-      '@yorkie-js/schema': 0.7.13
+      '@yorkie-js/schema': 0.7.23
 
   acorn-jsx@5.3.2(acorn@8.17.0):
     dependencies:

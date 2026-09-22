@@ -44,7 +44,7 @@ services:
         condition: service_healthy
 
   yorkie:
-    image: yorkieteam/yorkie:0.7.13
+    image: yorkieteam/yorkie:0.7.23
     container_name: rmf-yorkie
     # Yorkie owns document persistence and version history (ADR-002), so it runs
     # against MongoDB rather than its in-memory MemDB. Without this flag every
