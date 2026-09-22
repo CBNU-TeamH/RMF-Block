@@ -249,6 +249,28 @@ export function useBlockDocument(
     handlersRef.current.get(blockId)?.(patch);
   }, []);
 
+  /** Replaces every block, which is how a revision is restored — and why the
+   *  app restores rather than calling `client.restoreRevision`:
+   *  `docs/design/version-history.md`. Two updates because a `yorkie.Text`
+   *  cannot be edited before it is in the tree. The read afterwards is not
+   *  optional: a local change never comes back through `doc.subscribe`. */
+  const replaceBlocks = useCallback((next: Array<Block>) => {
+    const doc = docRef.current;
+    if (!doc) return;
+
+    doc.update((root: BlockDocumentRoot) => {
+      root.blocks = next.map(toStoredBlock);
+    });
+    doc.update((root: BlockDocumentRoot) => {
+      next.forEach((block, index) => {
+        const text = "text" in block ? block.text : "";
+        if (text) root.blocks[index]?.content?.text?.edit(0, 0, text);
+      });
+    });
+
+    setBlocks(readBlocks(doc.getRoot().blocks));
+  }, []);
+
   return {
     blocks,
     setBlocks,
@@ -256,6 +278,7 @@ export function useBlockDocument(
     docRef,
     registerRemoteHandler,
     patchBlockText,
+    replaceBlocks,
     history,
     occupantByBlock,
     setActiveBlockId,

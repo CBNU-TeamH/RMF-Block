@@ -51,6 +51,7 @@ import { InkOverlay } from "./ink-overlay";
 import { PdfBlockView } from "./pdf-block";
 import { TextBlockView, type BlockVariant } from "./text-block";
 import { useBlockDocument } from "./use-block-document";
+import { VersionHistory } from "./version-history";
 import { useFocusPresence } from "./use-focus-presence";
 import { useFileUpload } from "./use-file-upload";
 
@@ -119,6 +120,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     docRef,
     registerRemoteHandler,
     patchBlockText,
+    replaceBlocks,
     history,
     occupantByBlock,
     setActiveBlockId,
@@ -802,7 +804,19 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     // whose last block is short leaves most of the page empty, and that empty
     // space is where a file naturally gets dropped. A drop that lands on a
     // block stops there (`handleDrop`) and lands at the pointer instead.
-    <div
+    <>
+      {/* A document-level action, not a block-level one — the argument against
+          a block toolbar further down does not reach it. */}
+      <div className="flex flex-none items-center gap-2">
+        <span className="flex-1" />
+        <VersionHistory
+          client={client}
+          docRef={docRef}
+          nickname={nickname}
+          onRestore={replaceBlocks}
+        />
+      </div>
+      <div
       ref={scrollContainerRef}
       data-focus-scroll
       // `relative` makes this each block's `offsetParent` — the space
@@ -1094,6 +1108,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           </div>
         </div>
       ) : null}
-    </div>
+      </div>
+    </>
   );
 }
