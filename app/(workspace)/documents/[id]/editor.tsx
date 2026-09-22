@@ -679,12 +679,27 @@ export function DocumentEditor({
     applyEdit((_root, blocks) => moveBlockAfter(blocks, destination.afterId, draggedBlockId));
   };
 
+  // `name` is a plain prop, so the title needs neither `client` nor `blocks` —
+  // only the trigger below it does. Keeping it out of these two early returns
+  // is what stops it from disappearing during the connection window.
+  const title = <h1 className="text-[22px] font-bold text-ink">{name}</h1>;
+
   if (failed) {
-    return <p className="text-sm text-red-600">문서를 열지 못했습니다. 새로고침해 주세요.</p>;
+    return (
+      <>
+        <div className="flex flex-none items-center gap-2">{title}</div>
+        <p className="text-sm text-red-600">문서를 열지 못했습니다. 새로고침해 주세요.</p>
+      </>
+    );
   }
 
   if (!client || blocks === null) {
-    return <p className="text-sm text-ink-faint">여는 중…</p>;
+    return (
+      <>
+        <div className="flex flex-none items-center gap-2">{title}</div>
+        <p className="text-sm text-ink-faint">여는 중…</p>
+      </>
+    );
   }
 
   const listNumbers = orderedListNumbers(blocks);
@@ -816,9 +831,10 @@ export function DocumentEditor({
     <>
       {/* The title lives here, not in `page.tsx`, so it can share a row with a
           document-level action that needs `client`/`docRef` — both only exist
-          once this component's own hooks have run. */}
+          once this component's own hooks have run (the title itself does not,
+          which is why the two early returns above render it on their own). */}
       <div className="flex flex-none items-center gap-2">
-        <h1 className="text-[22px] font-bold text-ink">{name}</h1>
+        {title}
         <span className="flex-1" />
         <VersionHistory
           client={client}
