@@ -51,15 +51,27 @@ boundary anyway: a guest holds an activated client in the browser and can call
 
 ### 2. Webhook guard — the permission boundary
 
-- **What**: `RestoreRevision` becomes host-only; the other three require only a live session.
-- **Files**: `lib/yorkie-admin.ts` (`GUARDED_METHODS`),
-  `app/api/internal/yorkie/auth/route.ts`, plus a new `route.test.ts`.
-- **Reuse**: the route's existing `allow()` / `deny()` helpers and `HOST_SESSION_PREFIX`. Response
-  shape is strict — 200+allowed, 401+refused, 403+refused, and nothing else; `200` with
-  `allowed:false` is a malfunction, not a refusal (`docs/design/api.md:298-302`).
-- **Done**: a guest's `RestoreRevision` is refused and a host's is allowed, both asserted; adding
-  the four names to `GUARDED_METHODS` alone is shown to change nothing (the handler never read
-  `body.method` before this).
+> **Superseded mid-task.** This milestone was written to make `RestoreRevision` host-only, which
+> is not what shipped: restore is available to every live session, and who did it is recorded by
+> attribution instead (`docs/design/version-history.md`, "Who may restore"). The reasoning for the
+> reversal is in this task's lessons doc — restricting a guest bought nothing, because a guest can
+> already replace every block by hand, and the before-restore revision makes a wrong restore
+> recoverable anyway. **Do not reintroduce role-based authorization here.** What is written below
+> is what the milestone became.
+
+- **What**: Yorkie asks the webhook about all four revision methods, so a revoked session can no
+  longer read or write history. No role check — the policy is "is this session live", which is
+  what the handler already answered.
+- **Files**: `lib/yorkie-admin.ts` (`GUARDED_METHODS`) only. The handler
+  (`app/api/internal/yorkie/auth/route.ts`) needed no change, so
+  `docs/testing.md:141-143`'s exemption for that self-authenticating route still holds and no
+  `route.test.ts` was added.
+- **Reuse**: the route's existing `allow()` / `deny()` helpers. Response shape is strict —
+  200+allowed, 401+refused, 403+refused, and nothing else; `200` with `allowed:false` is a
+  malfunction, not a refusal (`docs/design/api.md:298-302`).
+- **Done**: measured in the container, both directions — the app's own issued token succeeds on all
+  four revision methods, a token the app never issued is refused `unauthenticated`. The method
+  spellings were confirmed against `UpdateProject`, which rejects an unknown name outright.
 
 ### 3. A host signal the client can see
 

@@ -1,7 +1,7 @@
 # Version History
 
 - **Status**: In progress (WBS 6.5). The mechanism below is measured, not assumed — see
-  [Measured behaviour](#measured-behaviour). No FR or UC covers version history yet; that gap is
+  [Verification](#verification). No FR or UC covers version history yet; that gap is
   [issue #23](https://github.com/CBNU-TeamH/RMF-Block/issues/23) and needs team agreement before
   `docs/SRS-ko.md` changes (`AGENTS.md` §5), so nothing here claims a requirement number beyond
   SOIR003.
