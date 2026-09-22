@@ -157,6 +157,24 @@ Cost of the reversal: the client-side `isHost` signal (`PresenceState.isHost`, t
 `layout.tsx`'s existing `role`-cookie check) had exactly one consumer, this button. Removed it
 rather than leave it unused — nothing else in the codebase reads presence-context `isHost` today.
 
+### Two-client live check: peer convergence and undo safety after `replaceBlocks`
+
+The last unmeasured claim in the whole task: that restoring via two ordinary `doc.update()` calls
+(instead of `client.restoreRevision`) makes peers converge and leaves undo safe, "because it's just
+a normal edit." That reasoning had never been run against two real attached clients.
+
+Two Yorkie clients (A, B) on one document; A seeds two text blocks, both sync, B reads them; A
+mutates (edits one, adds a third block); both sync, B sees the mutation; A "restores" with the
+exact `replaceBlocks` pattern (empty-Text array replace, then a second `doc.update()` filling text).
+
+- **B converges.** After A's restore syncs, B's `root.blocks` matches A's exactly — ordinary
+  `remote-change` propagation, no special-casing needed anywhere.
+- **`doc.history.undo()` on A is fully reversible, in two presses.** The first press undoes the
+  second `doc.update()` (the text fill), leaving two blocks with empty text — a normal-looking
+  midpoint for a two-step compound edit, not corruption. The second press undoes the first
+  `doc.update()` (the array replace) and lands exactly back on the pre-restore state, including the
+  third block added after the mutation. No exception either time.
+
 ## What we would do differently
 
 - ...

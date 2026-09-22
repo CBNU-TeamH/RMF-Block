@@ -126,13 +126,21 @@ boundary anyway: a guest holds an activated client in the browser and can call
 - [ ] `pnpm verify:docs` clean.
 - [ ] `pnpm comments` and `pnpm comments --strict` both pass — this task is also the trial run of
       the 30% threshold and the ratchet staged on this branch.
-- [ ] Webhook gate asserted **in both directions** (guest refused, host allowed) — a one-sided gate
-      test lets an `&&`↔`||` mutation through, which this repo has already been bitten by
-      (`docs/testing.md:143-147`).
-- [ ] Display cap tested at exactly its value (`docs/testing.md:25-26`).
-- [ ] Container check, because milestone 2 is an auth change (`AGENTS.md` §2): host + guest, guest's
-      restore refused, host's restore converges the peer, and `Ctrl+Z` after a restore leaves the
-      document intact.
+- [x] Webhook gate asserted **in both directions** — revised from the original host-only design:
+      restore ended up open to every live session (`docs/design/version-history.md`, "Who may
+      restore"), so the two directions that matter are session-liveness, not role. Verified in the
+      container: the app's own issued token succeeds on all four revision methods; a token the app
+      never issued is refused `unauthenticated`.
+- [x] Paging boundary tested at exactly its value (`docs/testing.md:25-26`) — the design changed
+      from a display cap to unlimited on-demand paging (`isOldestPage`), so this is now
+      `revisions.test.mts` asserting `isOldestPage` at exactly `REVISION_PAGE_SIZE` and at
+      `REVISION_PAGE_SIZE - 1`.
+- [x] Container check, because milestone 2 is an auth change (`AGENTS.md` §2): the guest-refused /
+      host-allowed split no longer applies (restore is open to everyone). What was actually
+      measured with two live Yorkie clients: after client A restores via `replaceBlocks`'s two
+      `doc.update()` calls (not `client.restoreRevision`), client B converges to the identical
+      state through ordinary sync; `doc.history.undo()` on A afterward throws nothing and two
+      presses recover the exact pre-restore state (one `doc.update()` per press, in reverse order).
 
 ## Cross-cutting
 
