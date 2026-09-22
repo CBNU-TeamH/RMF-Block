@@ -114,6 +114,28 @@ describe("readRevisionBlocks", () => {
     assert.equal(blocks[0].type === "text" && blocks[0].text, "kept");
   });
 
+  it("drops an entry whose id cannot address a block", () => {
+    // `readBlocks` copies an id through without looking at it, and a restore
+    // writes these into the live document, where the id is the only handle.
+    const yson = `{"blocks":[{"type":"text"},{"id":"","type":"text"},{"id":7,"type":"text"},{"id":"b1","type":"text","content":{"text":Text([{"val":"kept"}])}}]}`;
+
+    const blocks = readRevisionBlocks(yson);
+
+    assert.equal(blocks.length, 1);
+    assert.equal(blocks[0].id, "b1");
+  });
+
+  it("keeps the first of a duplicated id and drops the rest", () => {
+    // `editBlockText` resolves by id, so a duplicate would pour the second
+    // block's text into the first.
+    const yson = `{"blocks":[{"id":"b1","type":"text","content":{"text":Text([{"val":"first"}])}},{"id":"b1","type":"text","content":{"text":Text([{"val":"second"}])}}]}`;
+
+    const blocks = readRevisionBlocks(yson);
+
+    assert.equal(blocks.length, 1);
+    assert.equal(blocks[0].type === "text" && blocks[0].text, "first");
+  });
+
   it("reads a block whose text node lost its value", () => {
     const yson = `{"blocks":[{"id":"b1","type":"text","content":{"text":Text([{"val":null},{"val":"tail"}])}}]}`;
 

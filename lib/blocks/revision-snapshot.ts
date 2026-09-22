@@ -100,7 +100,29 @@ export function readRevisionBlocks(snapshot: string): Array<Block> {
   const blocks = (parsed as { blocks?: unknown })?.blocks;
   if (!Array.isArray(blocks)) return [];
 
-  return readBlocks(blocks.map(flattenText));
+  return readBlocks(blocks.map(flattenText).filter(hasUsableId()));
+}
+
+/**
+ * Drops entries whose `id` cannot address a block.
+ *
+ * `readBlocks` copies an `id` through without looking at it, and a restore then
+ * writes these straight into the live document — where the id is the only
+ * handle anything has. A missing or non-string one leaves a block nothing can
+ * reach; a duplicate is worse, because `editBlockText` resolves by id and would
+ * quietly pour the second block's text into the first. Returns a fresh
+ * predicate per call so the `seen` set cannot leak between snapshots.
+ */
+function hasUsableId(): (block: ReadableBlock | null) => block is ReadableBlock {
+  const seen = new Set<string>();
+
+  return (block): block is ReadableBlock => {
+    if (!block || typeof block.id !== "string" || block.id === "") return false;
+    if (seen.has(block.id)) return false;
+
+    seen.add(block.id);
+    return true;
+  };
 }
 
 function flattenText(stored: unknown): ReadableBlock | null {
