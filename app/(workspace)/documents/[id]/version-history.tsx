@@ -1,7 +1,7 @@
 "use client";
 
 import type { Client, Document } from "@yorkie-js/sdk";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { BlockDocumentRoot } from "@/lib/blocks/document";
 import { orderedListNumbers } from "@/lib/blocks/list-numbering";
@@ -12,10 +12,11 @@ import {
   beforeRestoreLabel,
   groupRevisionsByDay,
   isOldestPage,
-  restoredFrom,
   toRevisionEntries,
 } from "@/lib/documents/revisions";
 import type { RevisionEntry } from "@/lib/documents/revisions";
+
+import { HEADING_CLASS } from "./text-block";
 
 /** What a document used to say, and putting it back (SOIR003). The mechanism —
  *  and why a restore is written here rather than handed to Yorkie — is
@@ -147,35 +148,49 @@ function HistoryPanel({
     void loadPage(0);
   }, [loadPage]);
 
+  /** The scaffold `createNamed` and `restore` both need: resolve the attached
+   *  document, mark busy, close the prompt and refresh the list on success,
+   *  show `errorMessage` on any failure. Each caller supplies only what makes
+   *  it different — the work itself and its own error string. */
+  const withBusy = useCallback(
+    async (run: (doc: Document<BlockDocumentRoot>) => Promise<void>, errorMessage: string) => {
+      const doc = docRef.current;
+      if (!doc) return;
+
+      setBusy(true);
+      try {
+        await run(doc);
+        setPrompt(null);
+        reload();
+      } catch {
+        setError(errorMessage);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [docRef, reload],
+  );
+
   /** Names the document as it stands. Syncs first: a revision records what the
    *  server knows, so an unsynced call stores an empty snapshot and nothing
    *  reports it (`docs/design/version-history.md`). The description carries
    *  the actor's nickname, not a sentence — stored data stays raw, the Korean
    *  a reader sees is composed at render time, same as label classification. */
   const createNamed = useCallback(
-    async (label: string) => {
-      const doc = docRef.current;
-      if (!doc) return;
-
-      setBusy(true);
-      try {
+    (label: string) =>
+      withBusy(async (doc) => {
         await client.sync();
         await client.createRevision(doc, label, nickname);
-        setPrompt(null);
-        reload();
-      } catch {
-        setError("버전을 저장하지 못했습니다.");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [client, docRef, nickname, reload],
+      }, "버전을 저장하지 못했습니다."),
+    [client, nickname, withBusy],
   );
 
   /**
-   * Takes the undo-me revision first, then writes the old blocks back. If the
-   * first call fails the restore is abandoned: an irreversible restore is
-   * worse than none.
+   * Takes the undo-me revision first, then writes the old blocks back. If
+   * that revision fails the restore is abandoned: an irreversible restore is
+   * worse than none. `getRevision` fetches an already-existing past revision
+   * and depends on neither `sync()` nor the new revision `createRevision`
+   * makes, so it runs alongside them rather than after.
    *
    * Open to everyone, not just the host: a guest can already replace every
    * block by hand, so restoring grants no capability they lack, and the
@@ -184,26 +199,15 @@ function HistoryPanel({
    * description here, not from narrowing who is allowed to press the button.
    */
   const restore = useCallback(
-    async (entry: RevisionEntry) => {
-      const doc = docRef.current;
-      if (!doc) return;
-
-      setBusy(true);
-      try {
-        await client.sync();
-        await client.createRevision(doc, beforeRestoreLabel(entry.id), nickname);
-
-        const full = await client.getRevision(doc, entry.id);
+    (entry: RevisionEntry) =>
+      withBusy(async (doc) => {
+        const [, full] = await Promise.all([
+          client.sync().then(() => client.createRevision(doc, beforeRestoreLabel(entry.id), nickname)),
+          client.getRevision(doc, entry.id),
+        ]);
         onRestore(readRevisionBlocks(full.snapshot));
-        setPrompt(null);
-        reload();
-      } catch {
-        setError("복원하지 못했습니다. 문서는 그대로입니다.");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [client, docRef, nickname, onRestore, reload],
+      }, "복원하지 못했습니다. 문서는 그대로입니다."),
+    [client, nickname, onRestore, withBusy],
   );
 
   /** This panel is a plain overlay, not a `<dialog>`, so it has no native
@@ -220,10 +224,14 @@ function HistoryPanel({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [prompt, onClose]);
 
-  const shown = (entries ?? []).filter(
-    (entry) => includeAutomatic || entry.kind !== "automatic",
-  );
-  const days = groupRevisionsByDay(shown);
+  // Recomputed only when the list or the filter changes, not on every render
+  // this panel has — `selected`/`busy`/`prompt` change far more often.
+  const { shown, days } = useMemo(() => {
+    const shown = (entries ?? []).filter(
+      (entry) => includeAutomatic || entry.kind !== "automatic",
+    );
+    return { shown, days: groupRevisionsByDay(shown) };
+  }, [entries, includeAutomatic]);
 
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 p-6">
@@ -352,8 +360,10 @@ function titleOf(entry: RevisionEntry): string {
   if (entry.kind === "named") return entry.label;
   if (entry.kind === "automatic") return "자동 저장";
 
-  const target = restoredFrom(entry.label);
-  return target ? "복원 직전 상태" : "복원 전";
+  // `kind` alone disambiguates a before-restore entry — every such label came
+  // from `beforeRestoreLabel(entry.id)` with a real id, so there is no case to
+  // fall back from.
+  return "복원 직전 상태";
 }
 
 /** The selected revision, read-only. Not the editor's block views: all six of
@@ -453,14 +463,10 @@ function PreviewBlocks({ blocks }: { blocks: Array<Block> }) {
   );
 }
 
-const HEADING_SIZE = { 1: "text-[19px]", 2: "text-[16px]", 3: "text-[14px]" } as const;
-
 function PreviewBlock({ block, number }: { block: Block; number: number }) {
   switch (block.type) {
     case "heading":
-      return (
-        <p className={`font-bold text-ink ${HEADING_SIZE[block.level]}`}>{block.text}</p>
-      );
+      return <p className={`text-ink ${HEADING_CLASS[block.level]}`}>{block.text}</p>;
 
     case "text":
       return <p className="text-[13px] whitespace-pre-wrap text-ink">{block.text}</p>;

@@ -7,7 +7,6 @@ import {
   classifyRevision,
   groupRevisionsByDay,
   isOldestPage,
-  restoredFrom,
   toRevisionEntries,
 } from "./revisions.ts";
 
@@ -40,18 +39,6 @@ describe("classifyRevision", () => {
   it("does not read a user's label as automatic just because it starts that way", () => {
     // `snapshot-27 (검토본)` is a name someone could plausibly type.
     assert.equal(classifyRevision("snapshot-27 (검토본)"), "named");
-  });
-});
-
-describe("restoredFrom", () => {
-  it("recovers the revision a before-restore entry points at", () => {
-    assert.equal(restoredFrom(beforeRestoreLabel("abc123")), "abc123");
-  });
-
-  it("is null for any other kind, and for a prefix with nothing after it", () => {
-    assert.equal(restoredFrom("snapshot-3"), null);
-    assert.equal(restoredFrom("제출 전"), null);
-    assert.equal(restoredFrom(beforeRestoreLabel("")), null);
   });
 });
 

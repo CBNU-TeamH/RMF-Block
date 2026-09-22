@@ -43,13 +43,6 @@ export function classifyRevision(label: string): RevisionKind {
   return "named";
 }
 
-/** What a `before-restore:` label points at, or `null` for any other kind. */
-export function restoredFrom(label: string): string | null {
-  if (!label.startsWith(BEFORE_RESTORE_PREFIX)) return null;
-
-  return label.slice(BEFORE_RESTORE_PREFIX.length) || null;
-}
-
 /** Yorkie's summaries as entries, newest first — sorted here because
  *  `listRevisions` takes an `isForward` flag, so order is the caller's. */
 export function toRevisionEntries(

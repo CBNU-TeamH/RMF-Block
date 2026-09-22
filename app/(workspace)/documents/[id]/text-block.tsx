@@ -18,8 +18,11 @@ import type { BlockId, HeadingLevel } from "@/lib/blocks/types";
 
 /** Font weight/size by level — the only visual difference a heading has from
  * plain text (`types.ts`: styling for every other type comes from `type`
- * alone too, nothing here is heading-specific machinery). */
-const HEADING_CLASS: Record<HeadingLevel, string> = {
+ * alone too, nothing here is heading-specific machinery). Exported so the
+ * read-only revision preview (`version-history.tsx`) renders a heading the
+ * same size as the live editor does, rather than keeping its own table that
+ * could quietly drift from this one. */
+export const HEADING_CLASS: Record<HeadingLevel, string> = {
   1: "text-2xl font-bold",
   2: "text-xl font-bold",
   3: "text-lg font-semibold",
