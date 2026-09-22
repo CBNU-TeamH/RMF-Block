@@ -211,6 +211,15 @@ filename on disk, never the uploaded name** — a name is attacker-controlled an
 valid string. One store is shared with document files (FR-022-13/14) when those land, with an
 `origin` field recording which; FR-050-06 and FR-061-01 are queries over it.
 
+**Two ceilings, not one.** An upload is refused at 25 MB, and that number is about the *file*, which
+is what the error message says. The request carrying it is larger: `content-length` covers the whole
+`multipart/form-data` body — boundary lines, each part's headers, the CRLFs. So the declared length
+is measured against its own slightly higher ceiling, and only the parsed `file.size` is measured
+against 25 MB. The first check exists to bound what `formData()` will buffer, not to decide the
+verdict; collapsing them onto one constant is what made a file of exactly 25 MB fail
+([#57](https://github.com/CBNU-TeamH/RMF-Block/issues/57)), and raising that one constant instead
+would have admitted a genuinely oversized file.
+
 File responses are `Cache-Control: private`. They cross a LAN that may have caches of its own in front of them, and a file belongs to one workspace — `private` keeps a shared cache from holding one and serving it on.
 
 #### Why preview and download are two endpoints

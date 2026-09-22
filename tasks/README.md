@@ -22,7 +22,9 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 ## Active
 
-Nothing in progress.
+| Task | Lessons |
+| :--- | :--- |
+| [Upload size boundary and Content-Disposition filename encoding](active/20260921-upload-limit-and-filename-encoding-todo.md) | [lessons](active/20260921-upload-limit-and-filename-encoding-lessons.md) |
 
 ## Archive
 
