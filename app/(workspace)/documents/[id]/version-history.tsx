@@ -41,7 +41,7 @@ const TIME = new Intl.DateTimeFormat("ko-KR", {
 const KIND_LABEL = {
   automatic: "자동 저장",
   "before-restore": "복원 전",
-  named: "이름 지정",
+  named: "수동 저장",
 } as const;
 
 /** The dialog's two jobs, mutually exclusive by construction — the shape
@@ -206,6 +206,20 @@ function HistoryPanel({
     [client, docRef, nickname, onRestore, reload],
   );
 
+  /** This panel is a plain overlay, not a `<dialog>`, so it has no native
+   *  Escape handling of its own — same pattern as `document-row-menu.tsx`.
+   *  Skipped while `prompt` is open: the nested `<dialog>` already closes
+   *  itself on Escape (native `cancel`), and firing both at once would close
+   *  two layers on one keypress. */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || prompt) return;
+      onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [prompt, onClose]);
+
   const shown = (entries ?? []).filter(
     (entry) => includeAutomatic || entry.kind !== "automatic",
   );
@@ -228,8 +242,13 @@ function HistoryPanel({
             />
             자동 저장 포함
           </label>
+          {/* The panel has no live subscription — a revision another tab or
+              person creates while this is open needs a manual pull. */}
+          <button type="button" disabled={loading} className={BUTTON} onClick={reload}>
+            새로고침
+          </button>
           <button type="button" className={BUTTON} onClick={() => setPrompt({ kind: "name" })}>
-            이름 지정
+            수동 저장
           </button>
           <button type="button" aria-label="버전 히스토리 닫기" className={BUTTON} onClick={onClose}>
             ✕
@@ -544,9 +563,9 @@ function PromptDialog({
         </>
       ) : (
         <>
-          <p className="text-sm font-semibold text-ink">이 버전에 이름 지정</p>
+          <p className="text-sm font-semibold text-ink">지금 상태를 수동으로 저장할까요?</p>
           <p className="mt-2 text-[13px] text-ink-soft">
-            이름은 나중에 바꾸거나 지울 수 없습니다.
+            나중에 알아볼 수 있게 이름을 붙여 주세요. 한번 저장하면 이름은 바꾸거나 지울 수 없습니다.
           </p>
           <input
             autoFocus
