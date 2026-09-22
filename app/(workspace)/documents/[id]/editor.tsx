@@ -130,6 +130,7 @@ export function DocumentEditor({
     registerRemoteHandler,
     patchBlockText,
     replaceBlocks,
+    restoreCount,
     history,
     occupantByBlock,
     setActiveBlockId,
@@ -886,7 +887,11 @@ export function DocumentEditor({
         // block's own textarea has focus (`group-focus-within`), pure CSS —
         // no JS state tracking "which block is focused" needed.
         <div
-          key={block.id}
+          // `restoreCount` is in the key on purpose — a restore replaces every
+          // block's content wholesale, and a row reused across it would keep a
+          // textarea and a diff baseline describing the pre-restore text
+          // (`use-block-document.ts`, `replaceBlocks`).
+          key={`${block.id}:${restoreCount}`}
           data-block-id={block.id}
           className={`group relative ${
             block.id === draggedId ? "rounded-md bg-paper-2 opacity-50" : ""
