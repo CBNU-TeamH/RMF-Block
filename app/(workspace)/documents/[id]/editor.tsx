@@ -101,7 +101,16 @@ function indentOf(block: Block): number {
 /** One document's blocks and every edit made to them (FR-022-01~04, FR-022-09).
  *  Attaching and subscribing are `useBlockDocument`'s, following a presenter is
  *  `useFocusPresence`'s. The rules this holds to: `docs/design/document-editing.md`. */
-export function DocumentEditor({ documentId }: { documentId: string }) {
+export function DocumentEditor({
+  documentId,
+  name,
+}: {
+  documentId: string;
+  /** Rendered alongside the version-history trigger, which needs `client` and
+   *  `docRef` — both only exist once this component's own hooks run, so the
+   *  title moved in here rather than the button moving out to `page.tsx`. */
+  name: string;
+}) {
   const router = useRouter();
   const { client, members, memberId, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId } = useFocusFollow();
@@ -805,9 +814,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     // space is where a file naturally gets dropped. A drop that lands on a
     // block stops there (`handleDrop`) and lands at the pointer instead.
     <>
-      {/* A document-level action, not a block-level one — the argument against
-          a block toolbar further down does not reach it. */}
+      {/* The title lives here, not in `page.tsx`, so it can share a row with a
+          document-level action that needs `client`/`docRef` — both only exist
+          once this component's own hooks have run. */}
       <div className="flex flex-none items-center gap-2">
+        <h1 className="text-[22px] font-bold text-ink">{name}</h1>
         <span className="flex-1" />
         <VersionHistory
           client={client}

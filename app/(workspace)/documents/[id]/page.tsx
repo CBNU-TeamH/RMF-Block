@@ -22,7 +22,6 @@ export default async function DocumentPage({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <h1 className="text-[22px] font-bold text-ink">{document.name}</h1>
       {/* Keyed by the document it is showing, so opening a different one
        * gets a fresh editor rather than the same instance with the previous
        * document's `blocks` still rendered (and its `failed` still set, which
@@ -30,8 +29,9 @@ export default async function DocumentPage({
        * `document-list.tsx` navigates with `Link`/`router.push`, so without a
        * key React reuses this instance across that navigation and only the
        * prop changes — the case React's own "resetting all state when a prop
-       * changes" guidance names a key for. */}
-      <DocumentEditor key={document.id} documentId={document.id} />
+       * changes" guidance names a key for. The title moved inside — see
+       * `DocumentEditor`'s `name` prop. */}
+      <DocumentEditor key={document.id} documentId={document.id} name={document.name} />
     </div>
   );
 }
