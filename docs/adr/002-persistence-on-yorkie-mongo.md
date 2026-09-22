@@ -15,7 +15,7 @@ ADR-001's own third rejected alternative already contains the argument — "no d
 
 Two further facts settled this:
 
-- The Yorkie revision API (`createRevision` / `listRevisions` / `getRevision` / `restoreRevision`, snapshots in YSON) exists in the pinned `@yorkie-js/sdk@0.7.13`. History does not need to be built; it needs to be persisted.
+- The Yorkie revision API (`createRevision` / `listRevisions` / `getRevision` / `restoreRevision`, snapshots in YSON) exists in the pinned `@yorkie-js/sdk@0.7.23`. History does not need to be built; it needs to be persisted.
 - The Git path required a round-trippable Markdown mapping for every block type — a translation layer ADR-001 deferred to "its own module design". It was the largest unbuilt piece of the persistence design, and it bought nothing the revision API does not already provide.
 
 ## Decision

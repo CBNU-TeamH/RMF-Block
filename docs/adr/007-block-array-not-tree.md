@@ -62,6 +62,13 @@ per [ADR-001](001-realtime-sync.md)'s "no custom merge logic."
   `Text` at the destination, and that `Text` was empty — the original characters were not carried
   over, with no exception marking their loss.
 
+**Re-measured on `0.7.23` (2026-09-22), the first version bump since.** Both load-bearing
+properties above still hold: a move with a peer typing into the moved block converged on both
+clients with the edit intact, and re-parenting a `yorkie.Text` still produced an empty `Text` with
+no exception. Ten releases — including 0.7.18's "anchor Array.Add on the last node's position
+identity" — changed neither. Run by hand from a throwaway probe, which is the whole point of
+issue #42: nothing in CI would have told us.
+
 ## Consequences
 
 - **This choice is what makes undo/redo available at all today.** Yorkie's own guide lists

@@ -328,8 +328,9 @@ any document at all, and the rest are defence in depth. Method names come from
 `api/types/auth_webhook.go` — it is `WatchDocument`, singular, and an unknown name fails the
 update rather than being ignored.
 
-**The token-refresh question this section used to leave open is answered**: against the pinned
-`@yorkie-js/sdk@0.7.13`, the SDK calls `authTokenInjector` again whenever the webhook refuses and
+**The token-refresh question this section used to leave open is answered**: measured against
+`@yorkie-js/sdk@0.7.13` and not re-measured on the current `0.7.23` pin, the SDK calls
+`authTokenInjector` again whenever the webhook refuses and
 passes the refusal's own `reason` as its argument, then retries with what it gets back. So expiry
 needs no timer on either side, and `reason` is a channel rather than a log line — `"token expired"`
 means fetch another, `"session revoked"` means another will not help.
