@@ -121,6 +121,27 @@ rejected Tree for independently: re-parenting a `yorkie.Text` into a new Tree pa
 it, no exception. Net: Tree trades one loud failure (bug 1) for a live-editing data-loss bug ADR-007
 already found, while keeping the quiet one (bug 2). Not adopted.
 
+### "The image looks like it loaded in later" — not a bug, a UTC/KST reading
+
+Testing the panel against the real `welcome` seed document (not a throwaway one), an automatic
+revision timestamped `16:29` appeared to show text only, with the image only showing up in a later
+one — looking like the image had been lazily added during some loading process, even though it was
+believed to already be in the document. Checked every revision's snapshot for `"type":"image"`:
+
+```
+2026-09-08T07:11Z (KST 16:11)  snapshot-501   70 blocks  no image
+2026-09-08T07:29Z (KST 16:29)  snapshot-1001  37 blocks  no image   <- the "16:29" one
+2026-09-12T07:17Z (KST 16:17)  snapshot-1501  40 blocks  HAS image <- four days later
+2026-09-12T07:39Z (KST 16:39)  snapshot-2001  40 blocks  HAS image
+```
+
+`16:29` is KST, not today — it's `snapshot-1001` from **2026-09-08**, four days before the image
+was genuinely added on 09-12. The panel was correct; two automatic revisions from very different
+real sessions were sitting close together in the list because `자동 저장 포함` was on and automatic
+entries vastly outnumber named ones, and the four-day gap between two visually-adjacent rows read
+as "just now." No code changed. Worth a UI note some day (a bigger date separator between distant
+automatic revisions, maybe), but not a defect in anything shipped.
+
 ### Restore was host-only, then wasn't
 
 Shipped it host-only first, reasoning that a single instantaneous whole-document rewrite deserved a
