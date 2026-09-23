@@ -95,6 +95,15 @@ describe("readRevisionBlocks", () => {
     assert.equal(blocks[0].type === "text" && blocks[0].text, "first");
   });
 
+  it("keeps a valid block whose id a dropped entry used first", () => {
+    const yson = `{"blocks":[{"id":"b1","type":"nonsense"},{"id":"b1","type":"text","content":{"text":Text([{"val":"kept"}])}}]}`;
+
+    const blocks = readRevisionBlocks(yson);
+
+    assert.equal(blocks.length, 1);
+    assert.equal(blocks[0].type === "text" && blocks[0].text, "kept");
+  });
+
   it("throws on a text node that lost its value, rather than silently dropping it", () => {
     // The old hand-rolled reader coerced a missing `val` to "" and kept going.
     // `yorkie.YSON.parse` treats it as invalid YSON grammar instead — a real
