@@ -1,90 +1,39 @@
+import { YSON } from "@yorkie-js/sdk";
+
 import { readBlocks } from "./document.ts";
 import type { ReadableBlock } from "./document.ts";
 import type { Block } from "./types.ts";
 
 /** Reads a Yorkie revision's YSON snapshot into blocks, for a read-only preview
- *  and as the source a restore writes back. Why this exists rather than
- *  `yorkie.YSON.parse`, and why the app restores instead of calling
- *  `restoreRevision`: `docs/design/version-history.md`. */
-
-/** The CRDT wrappers YSON puts around a value. Each holds JSON inside its
- *  parentheses, so dropping the wrapper leaves something `JSON.parse` reads.
- *  `Counter` trails `DedupCounter` because the shorter name is a prefix match. */
-const WRAPPERS = [
-  "Text(",
-  "Tree(",
-  "Int(",
-  "Long(",
-  "Date(",
-  "BinData(",
-  "DedupCounter(",
-  "Counter(",
-];
-
-/**
- * YSON to JSON, tracking string literals.
- *
- * That tracking is the whole point. Yorkie's own parser matches these wrappers
- * with regexes that cannot tell a `)` in someone's file name from the one that
- * closes `Text(`, which is why a snapshot containing `보고서 (최종).pdf` survives
- * the server's own restore as `보고서 (최종}.pdf`, and why one unbalanced `]` in a
- * paragraph makes `YSON.parse` throw.
- */
-export function ysonToJson(yson: string): string {
-  let out = "";
-  let inString = false;
-  let depth = 0;
-  // The paren depth each open wrapper sits at, so its closing paren is the one
-  // dropped and any other `)` is kept.
-  const wrappers: Array<number> = [];
-
-  for (let index = 0; index < yson.length; index += 1) {
-    const character = yson[index];
-
-    if (inString) {
-      out += character;
-      if (character === "\\") {
-        out += yson[index + 1] ?? "";
-        index += 1;
-      } else if (character === '"') {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (character === '"') {
-      inString = true;
-      out += character;
-      continue;
-    }
-
-    const wrapper = WRAPPERS.find((name) => yson.startsWith(name, index));
-    if (wrapper) {
-      depth += 1;
-      wrappers.push(depth);
-      index += wrapper.length - 1;
-      continue;
-    }
-
-    if (character === "(") {
-      depth += 1;
-    } else if (character === ")") {
-      if (wrappers[wrappers.length - 1] === depth) {
-        wrappers.pop();
-        depth -= 1;
-        continue;
-      }
-      depth -= 1;
-    }
-
-    out += character;
-  }
-
-  return out;
-}
+ *  and as the source a restore writes back. Why the app restores instead of
+ *  calling `restoreRevision`: `docs/design/version-history.md`. */
 
 /** One `yorkie.Text` node as the snapshot spells it. */
 type SnapshotTextNode = { val?: unknown };
+
+/**
+ * Undoes `YSON.parse`'s CRDT-typed wrappers, so the rest of this file can read
+ * the result as plain JSON.
+ *
+ * Uses the SDK's own `YSON.isInt`/`isLong`/`isText`/`isObject` guards rather
+ * than checking `.type` by hand, so this can't be confused by an ordinary
+ * stored block that also has a `type` field (e.g. `{ id, type: "text",
+ * content }` — `isObject` already excludes every wrapper shape, this one
+ * included). `lib/blocks/types.ts`'s `Block` union never stores a `Tree`,
+ * `Date`, `BinData`, `Counter` or `DedupCounter` value, so those wrapper kinds
+ * are left unhandled on purpose: a value of one of those kinds passes through
+ * un-recursed rather than guessing at an unwrap this schema never exercises.
+ */
+function unwrapYson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(unwrapYson);
+  if (YSON.isInt(value) || YSON.isLong(value)) return value.value;
+  if (YSON.isText(value)) return unwrapYson(value.nodes);
+  if (!YSON.isObject(value)) return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, val]) => [key, unwrapYson(val)]),
+  );
+}
 
 /**
  * A snapshot's blocks, in the shape the editor already renders.
@@ -96,7 +45,7 @@ type SnapshotTextNode = { val?: unknown };
  * `docs/design/api.md` §2 trusts none of it.
  */
 export function readRevisionBlocks(snapshot: string): Array<Block> {
-  const parsed: unknown = JSON.parse(ysonToJson(snapshot));
+  const parsed = unwrapYson(YSON.parse(snapshot));
   const blocks = (parsed as { blocks?: unknown })?.blocks;
   if (!Array.isArray(blocks)) return [];
 

@@ -38,9 +38,15 @@ safety revision.
 
 ## Why the app restores instead of calling `restoreRevision`
 
-`restoreRevision` has the server re-parse the snapshot and rebuild the document. That re-parse has
+`restoreRevision` has the server re-parse the snapshot and rebuild the document. That re-parse had
 two defects, both measured against `yorkieteam/yorkie:0.7.13` and reproduced identically on
-`0.7.17`, so neither is fixed by moving the pin.
+`0.7.17`. Only one survived the pin moving to `0.7.23`
+(`tasks/active/20260922-yorkie-0723-lessons.md`): the paren corruption below was fixed upstream in
+v0.7.19 ([yorkie-team/yorkie#1967](https://github.com/yorkie-team/yorkie/pull/1967)), but the
+`type`-key discriminator crash is unchanged. That alone still rules `restoreRevision` out for this
+schema — and the re-measurement found a second reason to keep the app-side restore that didn't
+exist before: `doc.history.undo()` after a `restoreRevision` now throws outright on 0.7.23, where
+0.7.13 merely left a stale reverse operation on the stack.
 
 **A `type` key inside an array element is read as a CRDT element discriminator.** Our stored block
 is `{ id, type, content }` and the blocks live in an array, so every document in this project hits
@@ -61,10 +67,13 @@ and starts trying to parse the object *as* a Text. `type` is the only key that d
 `documentId`, `blockId`, `val`, `nodes`, `attrs`, `children`, `value`, `Text`, `Tree` and `Counter`
 all restore cleanly.
 
-**A `)` inside any string becomes `}`.** The snapshot itself is correct; the corruption happens on
-the way back in, because the scan looking for the paren that closes `Text(` does not know when it
-is inside a string literal. `보고서 (최종).pdf` restores as `보고서 (최종}.pdf`. This one is worse than
-the first because it throws nothing.
+**A `)` inside any string became `}`, on 0.7.13/0.7.17.** The snapshot itself was correct; the
+corruption happened on the way back in, because the scan looking for the paren that closes `Text(`
+did not know when it was inside a string literal. `보고서 (최종).pdf` restored as `보고서 (최종}.pdf`,
+and this one was worse than the first because it threw nothing. Fixed upstream as of v0.7.19, and
+confirmed gone on the current `0.7.23` pin — but moot for this project either way, since the
+`type`-key crash above still stops `restoreRevision` before it would reach this code path on our
+schema.
 
 Renaming the stored discriminator to `kind` fixes the first defect and not the second. So the app
 does the restore itself: `getRevision` returns a correct snapshot, `revision-snapshot.ts` reads it,
@@ -164,7 +173,9 @@ decision above that none of them needs a narrower gate.
 Measured 2026-09-22 against `docker-compose.yml`'s stack (Yorkie 0.7.13 + MongoDB 8) with
 throwaway projects and probe scripts; the default project was read and never written. The
 isolating cases for both `restoreRevision` defects, the paging contract, and the automatic-revision
-label are recorded in `tasks/active/20260922-version-history-lessons.md`.
+label are recorded in `tasks/active/20260922-version-history-lessons.md`. Both defects were
+re-measured on the `0.7.23` pin during the yorkie-0.7.23 task, along with `doc.history.undo()`'s
+behaviour after a restore; see `tasks/active/20260922-yorkie-0723-lessons.md`.
 
 `lib/blocks/revision-snapshot.test.mts` asserts the reader against a snapshot captured from that
 running server rather than a hand-written one, because the characters the reader exists for — a

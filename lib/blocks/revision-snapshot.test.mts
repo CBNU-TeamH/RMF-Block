@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
-import { readRevisionBlocks, ysonToJson } from "./revision-snapshot.ts";
+import { readRevisionBlocks } from "./revision-snapshot.ts";
 
 /**
  * Captured from a running Yorkie 0.7.13 by `createRevision` + `getRevision`, not
@@ -10,51 +10,6 @@ import { readRevisionBlocks, ysonToJson } from "./revision-snapshot.ts";
  * snapshot carries JSON's own `\"` and `\\` escapes.
  */
 const REAL_SNAPSHOT = String.raw`{"blocks":[{"content":{"level":Int(2),"text":Text([{"val":"회의록 (9월)"}])},"id":"b1","type":"heading"},{"content":{"text":Text([{"val":"f(x) = [1] \"인용\" \\ 끝 ]"}])},"id":"b2","type":"text"},{"content":{"depth":Int(1),"style":"unordered","text":Text([{"val":"첫 항목"}])},"id":"b3","type":"list"},{"content":{"checked":true,"text":Text([{"val":"할 일 (확인)"}])},"id":"b4","type":"checklist"},{"id":"b5","type":"divider"},{"content":{"fileId":"f1","fileName":"보고서 (최종).pdf","size":Int(2048)},"id":"b6","type":"pdf"}]}`;
-
-describe("ysonToJson", () => {
-  it("turns a real snapshot into something JSON.parse accepts", () => {
-    const json = ysonToJson(REAL_SNAPSHOT);
-
-    assert.doesNotThrow(() => JSON.parse(json));
-  });
-
-  it("drops the wrapper and keeps its payload", () => {
-    assert.equal(ysonToJson(`{"a":Int(2)}`), `{"a":2}`);
-    assert.equal(ysonToJson(`{"t":Text([{"val":"hi"}])}`), `{"t":[{"val":"hi"}]}`);
-  });
-
-  it("leaves a parenthesis inside a string alone", () => {
-    // The bug this function exists for. Yorkie's own restore reads the `)` in
-    // a file name as the end of a `Text(` and rewrites it to `}`.
-    const yson = `{"n":"보고서 (최종).pdf","t":Text([{"val":"f(x) = y"}])}`;
-
-    assert.equal(
-      ysonToJson(yson),
-      `{"n":"보고서 (최종).pdf","t":[{"val":"f(x) = y"}]}`,
-    );
-  });
-
-  it("leaves an unbalanced bracket inside a string alone", () => {
-    // `yorkie.YSON.parse` throws on this one — its `Text(...)` pattern is
-    // bracket-counted and has no idea it is inside a string literal.
-    const yson = `{"t":Text([{"val":"close ] alone"}])}`;
-
-    assert.equal(ysonToJson(yson), `{"t":[{"val":"close ] alone"}]}`);
-  });
-
-  it("does not mistake an escaped quote for the end of a string", () => {
-    const yson = String.raw`{"t":Text([{"val":"say \"hi\" )"}])}`;
-
-    assert.equal(
-      ysonToJson(yson),
-      String.raw`{"t":[{"val":"say \"hi\" )"}]}`,
-    );
-  });
-
-  it("keeps a parenthesis that no wrapper opened", () => {
-    assert.equal(ysonToJson(`{"a":"(x)"}`), `{"a":"(x)"}`);
-  });
-});
 
 describe("readRevisionBlocks", () => {
   it("reads every block type in a real snapshot, in order", () => {
@@ -66,7 +21,11 @@ describe("readRevisionBlocks", () => {
     );
   });
 
-  it("preserves characters the server's own restore corrupts", () => {
+  it("preserves characters the server's own restore used to corrupt", () => {
+    // `yorkie.YSON.parse` used to throw on the bracket below and, separately,
+    // the server's `restoreRevision` used to rewrite the `)` in the file name
+    // to `}` — both fixed upstream (yorkie-team/yorkie#1967), and this is now a
+    // regression test for that fix rather than a test of a hand-rolled scanner.
     const blocks = readRevisionBlocks(REAL_SNAPSHOT);
     const text = blocks[1];
     const pdf = blocks[5];
@@ -136,11 +95,15 @@ describe("readRevisionBlocks", () => {
     assert.equal(blocks[0].type === "text" && blocks[0].text, "first");
   });
 
-  it("reads a block whose text node lost its value", () => {
+  it("throws on a text node that lost its value, rather than silently dropping it", () => {
+    // The old hand-rolled reader coerced a missing `val` to "" and kept going.
+    // `yorkie.YSON.parse` treats it as invalid YSON grammar instead — a real
+    // behaviour change from switching to the SDK's own parser. Both call sites
+    // (`version-history.tsx`'s preview `.catch()` and its `withBusy` wrapper
+    // around restore) already turn a thrown error into a visible failure
+    // state, so this is a stricter, still-safe default rather than a gap.
     const yson = `{"blocks":[{"id":"b1","type":"text","content":{"text":Text([{"val":null},{"val":"tail"}])}}]}`;
 
-    const [block] = readRevisionBlocks(yson);
-
-    assert.equal(block.type === "text" && block.text, "tail");
+    assert.throws(() => readRevisionBlocks(yson));
   });
 });
