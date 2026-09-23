@@ -4,8 +4,11 @@
 > 부하 테스트 기준("호스트 유저의 컴퓨팅 자원에 의존해서 이거는 부하 테스트를 적용 후 정리해야할 것
 > 같음")의 공백을 채운다. 팀 합의로 `AGENTS.md` §7의 해당 TODO는 이 문서로 대체되어 삭제됐다.
 >
-> 여기서 정의하는 것은 **"무엇을 어떤 조건에서 몇 번 재서 통과로 볼지"뿐이다.** 실제 측정 실행(부하
-> 테스트 자체)과 그 결과 숫자는 `ROADMAP.md` Phase 5의 일이며 이 파일의 범위 밖이다.
+> 이 문서는 두 질문에 답한다. ① NFR-PER 6개 항목을 **무엇을 어떤 조건에서 몇 번 재서 통과로 볼지**
+> (SRS 절대 기준). ② 같은 열화 네트워크에서 RMF-Block을 Notion/Google Docs와 **어떻게 공정하게
+> 비교할지** (도구 간 상대 비교 — 맨 뒤 "경쟁 도구 대비 네트워크 열화 시나리오 검증"). 두 질문은 따로
+> 채점한다. 실제 측정 실행(부하 테스트 자체)과 그 결과 숫자는 `ROADMAP.md` Phase 5의 일이며 이 파일의
+> 범위 밖이다.
 >
 > `docs/SRS-ko.md` 본문은 이 파일에서 수정하지 않는다 — §2.4의 해당 메모를 이 기준으로 교체하는 건
 > 팀 합의가 필요한 별도 작업이다 (`AGENTS.md` §5).
@@ -23,7 +26,7 @@
 
 이 프로젝트는 페이지 로딩이 아니라 **LAN 내 실시간 동기화 지연**이 핵심이라 Slow 3G·번들 사이즈
 같은 조건은 그대로 옮길 수 없다. 대신 "도구를 대상에 맞추기 / 조건 고정 / 반복 평균 / before-after
-표"라는 방법론 자체를 아래 6개 항목에 적용한다.
+표"라는 방법론 자체를 아래 6개 항목과 경쟁 도구 비교에 적용한다.
 
 ## 측정 클래스 — 방법을 결정하는 것은 "인과가 몇 대의 머신에 걸쳐 있는가"
 
@@ -248,22 +251,45 @@ RMF-Block 서버는 호스트의 LAN 안에 있고, Notion/Google Docs는 반드
 와이파이에 붙어 있어도 RMF-Block 트래픽은 "기기 → AP → LAN 서버"만 혼잡 구간을 지나가는 반면
 Notion/Google Docs는 "기기 → AP → 도서관 업링크 → 인터넷 → 클라우드"까지 전부 지나간다. 이 실험은
 그 구조적 차이가 실제 체감 성능 차이로 이어지는지 검증하는 것이지 우연한 비교가 아니다 — 보고서·
-발표에 이 문장을 그대로 명시해야 결과 해석이 정확해진다.
+발표에 이 문장을 그대로 명시해야 결과 해석이 정확해진다. 선행 연구도 같은 단서를 단다 — Google Docs와
+자체 에디터(MUTE)를 같은 방법으로 잰 [Dang & Ignat (IFIP Networking 2016)](https://ieeexplore.ieee.org/document/7497258/)은
+"MUTE는 로컬 서버, Google Docs는 원격 서버에서 쟀으므로 차이의 일부는 구조 때문"이라고 명시한다.
+
+두 가지를 함께 적는다:
+
+- **구조적 이점(업링크·인터넷 구간)은 실측(아래 A)에서만 드러난다.** 에뮬레이션(아래 B)은 세 도구에
+  같은 열화를 더하므로 AP 구간 열화에 대한 내성만 비교한다 — 업링크 혼잡은 재현하지 않는다.
+- 따라서 결론도 둘로 나눈다: "실측 도서관 조건에서 X가 더 빨랐다"(A)와 "같은 AP 구간 열화에서 X가 더
+  잘 버텼다"(B). B의 결과를 A의 주장처럼 쓰지 않는다.
 
 ### 조건 재현 방법 두 가지
 
-**A. 실측 후 재현 (in-situ measurement, 권장)** — 시험기간 도서관에서 `ping`/`iperf3`로 실제
-RTT·jitter·packet loss·대역폭을 재고, 그 숫자를 아래 도구 파라미터에 그대로 넣는다. "측정 조건을
-문서에 고정한다"는 위 공통 측정 원칙 그대로 — 임의의 숫자를 쓰면 재현 불가능하다.
+**A. 실측 (in-situ measurement, 권장)** — 시험기간 도서관에서 `ping`/`iperf3`로 실제 RTT·jitter·packet
+loss·대역폭을 잰다. `ping`은 **LAN 서버와 클라우드 쪽(예: 각 서비스 도메인) 양쪽에** 대해 잰다 — 두 값의
+차이가 위에서 말한 구조적 차이의 크기다. 숫자는 그 회차의 측정 조건으로 남기고, B의 파라미터로도
+그대로 쓴다. "측정 조건을 문서에 고정한다"는 위 공통 측정 원칙 그대로 — 임의의 숫자를 쓰면 재현
+불가능하다.
 
-**B. 통제된 네트워크 에뮬레이션** — 노드별로 적용 지점이 다르다:
+**B. 통제된 네트워크 에뮬레이션** — **세 도구에 똑같이 걸리는 지점에만** 적용한다. 즉 측정 클라이언트
+머신 자체이거나, 모든 트래픽이 지나는 Linux 게이트웨이(AP 뒤에 둔 라우터)다:
 
-| 노드 | 도구 |
-|---|---|
-| 서버(App/WS Server, Linux) | [`tc netem`](https://oneuptime.com/blog/post/2026-03-04-simulate-network-latency-packet-loss-tc-netem-rhel-9/view) — 지연·손실·jitter·순서뒤섞임까지 제어 |
-| Windows 클라이언트 | [Clumsy](https://webrtc.ventures/2024/06/how-do-you-simulate-unstable-networks-for-testing-live-event-streaming-applications/) |
-| macOS 클라이언트 | [Network Link Conditioner](https://www.avanderlee.com/debugging/network-link-conditioner-utility/) (Apple 무료 제공) |
-| 도구 설치 불가 환경(도서관 공용 PC 등) | [Chrome DevTools Custom throttling profile](https://developer.chrome.com/docs/devtools/settings/throttling) — 그 탭 트래픽만 latency/packet loss %/대역폭 개별 설정 |
+| 적용 지점 | 도구 | 비고 |
+|---|---|---|
+| Linux 게이트웨이 또는 Linux 클라이언트 | [`tc netem`](https://oneuptime.com/blog/post/2026-03-04-simulate-network-latency-packet-loss-tc-netem-rhel-9/view) | 지연·손실·jitter·순서뒤섞임까지 제어 |
+| Windows 클라이언트 | [Clumsy](https://webrtc.ventures/2024/06/how-do-you-simulate-unstable-networks-for-testing-live-event-streaming-applications/) | 패킷 단위 지연·손실 |
+| macOS 클라이언트 | [Network Link Conditioner](https://www.avanderlee.com/debugging/network-link-conditioner-utility/) (Apple 무료 제공) | 패킷 단위 지연·손실 |
+| 도구 설치 불가 환경 | [Chrome DevTools custom throttling profile](https://developer.chrome.com/docs/devtools/settings/throttling) | **지연·대역폭만** 쓴다 — 아래 참고 |
+
+- **RMF 서버(App/WS Server, Yorkie)에 `tc netem`을 거는 방식은 경쟁 비교에 쓰지 않는다.** RMF-Block만
+  느려지고 Notion/Google Docs는 영향을 받지 않아 비교가 한쪽으로 기운다. RMF-Block 단독 NFR 측정에서
+  조건을 재현할 때만 쓴다.
+- **DevTools throttling의 한계**: 그 탭의 트래픽에만 걸리고, WebSocket은 Chrome 99부터
+  throttling된다([Network reference](https://developer.chrome.com/docs/devtools/network/reference/)).
+  다만 **요청 단위** 모델이라 TCP 핸드셰이크·재전송·패킷 손실을 재현하지 않는다
+  ([3perf](https://3perf.com/blog/chrome-throttling/)). custom profile의 packet loss 필드도 공식 문서가
+  **WebRTC용**으로 설명하므로, WebSocket·HTTP 스트림을 쓰는 세 도구에는 손실을 OS 수준 도구(위 표)로 넣는다.
+- 세 도구 모두 **웹 버전**으로 잰다 — 데스크톱 앱은 DevTools throttling과 아래 하네스의 스크립트 주입이
+  닿지 않는다.
 
 A로 잰 실측값을 B의 파라미터로 주입하는 조합이 가장 신뢰도 높다.
 
@@ -272,7 +298,7 @@ A로 잰 실측값을 B의 파라미터로 주입하는 조합이 가장 신뢰�
 | 시나리오 | RTT 추가 | packet loss | 비고/근거 |
 |---|---|---|---|
 | 기준선(혼잡 없음) | +0ms | 0% | 새벽 시간대 빈 도서관 또는 유선 |
-| 경도 혼잡 | +20~50ms | ~1% | 일반 캠퍼스 WiFi 실측 P90 대역 — [Tsinghua 캠퍼스 대규모 WiFi 지연 연구](https://dl.acm.org/doi/10.1145/2906388.2906393)(47,000+ 기기, P90 ~20ms/P99 ~250ms) |
+| 경도 혼잡 | +20~50ms | ~1% | 지연: 캠퍼스 WiFi 구간 지연 실측 — [Tsinghua WiFiSeer (MobiSys '16)](https://dl.acm.org/doi/10.1145/2906388.2906393)(47,000+ 기기, P90 ~20ms/P99 ~250ms). 손실 ~1%는 이 연구가 뒷받침하지 않는 가정값 → **A(실측)로 확인** |
 | 중도 혼잡 — **시험기간 도서관 목표값** | 실측값(A) 우선, 없으면 +100~150ms | 웹 검색상 공용 WiFi 혼잡 실측치로 수 %대 손실률이 언급되나 1차 출처 특정 안 됨 → **A(실측)로 직접 확인 권장** |
 | 고도 혼잡(최악) | +300ms 이상 | 10%+ | [Chrome DevTools "Slow 3G" 계열 프리셋](https://www.debugbear.com/blog/chrome-devtools-network-throttling) 기준선에서 loss 추가 |
 
@@ -280,39 +306,64 @@ A로 잰 실측값을 B의 파라미터로 주입하는 조합이 가장 신뢰�
 
 "애국가 1·2절 교대 입력" 하나만으로는 순차 편집 패턴밖에 못 본다. 아래 5개를 세트로 구성해 각기
 다른 협업 패턴을 커버한다 — 전부 세 도구(RMF-Block/Notion/Google Docs) 동일 조건에서 반복 가능한
-것만 골랐다. 각 태스크는 세 도구 모두에서 반복하고, 텍스트 길이·구조는 도구 간 고정한다.
+것만 골랐다. 각 태스크는 세 도구 모두에서 반복하고, 텍스트 길이·구조와 각 사용자가 입력할 문안은
+도구 간 고정한다.
 
 | # | 태스크 | 관찰 대상 |
 |---|---|---|
 | 1 | **순차 교대 입력**(원안 — 애국가 1·2절, A/B가 한 줄씩). 1절은 A 선공/B 후공, 2절은 B 선공/A 후공으로 **순서 카운터밸런싱**해 타자 속도 편차를 상쇄한다(within-subjects counterbalancing) | 기본 전파 지연·체감 완료 시간 |
 | 2 | **동시 충돌 편집** — 같은 문단/같은 줄을 A·B가 동시에 수정 | 충돌 해소·병합 동작 — CRDT(RMF-Block) vs Google Docs의 OT vs Notion 자체 알고리즘이 혼잡 네트워크에서 다르게 깨지는지 |
-| 3 | **자유 동시 편집** — 턴 강제 없이 각자 원하는 위치에 5분간 자유롭게 타이핑해 문서 하나를 공동 완성 | 순서를 강제하지 않는 실제 사용 패턴에 더 가까운 지연·충돌 빈도 |
-| 4 | **파일/이미지 삽입 포함** — 텍스트 입력 중간에 이미지 1~2개 첨부 | 텍스트보다 무거운 payload가 혼잡 네트워크에서 업로드·동기화에 걸리는 시간 |
-| 5 | **편집 중 단절→재연결** — 편집 도중 한쪽 클라이언트만 네트워크를 30초 끊었다가 복구 | 재동기화 시간·데이터 유실 여부 — RMF-Block의 30초 grace period(FR-022-12)와 직접 비교 가능한 유일한 태스크. 세 도구 모두 오프라인 편집 후 재연결 시 병합 동작이 달라 회복력 비교에 적합 |
+| 3 | **자유 동시 편집** — 턴 강제 없이 각자 원하는 위치에 5분간 자유롭게 타이핑해 문서 하나를 공동 완성 | 순서를 강제하지 않는 실제 사용 패턴에 더 가까운 지연·유실·중복 |
+| 4 | **파일/이미지 삽입 포함** — 텍스트 입력 중간에 이미지 1~2개 첨부(세 도구 모두 같은 파일) | 텍스트보다 무거운 payload가 혼잡 네트워크에서 업로드·동기화에 걸리는 시간 |
+| 5 | **편집 중 단절→재연결** — 편집 도중 한쪽 클라이언트만 네트워크를 **20초** 끊었다가 복구(선택: 40초 회차 추가) | 재동기화 시간·데이터 유실 여부. RMF-Block은 끊긴 동안에도 편집을 이어가고 재연결 시 재동기화하며(FR-022-12), 그 유예 시간은 30초다(`docs/SRS-ko.md` UC-022 비고). 30초는 경계값과 정확히 같아 판정이 모호하므로 경계 안(20초)을 기본으로, 경계 밖(40초)을 선택 회차로 둔다. 세 도구 모두 오프라인 편집 후 재연결 시 병합 동작이 달라 회복력 비교에 적합 |
 
 시나리오(위 표)마다 태스크 5개를 전부 돌리는 건 시간상 무리이므로, 태스크 1(원안)은 전 시나리오
 반복하고 태스크 2~5는 "중도 혼잡(도서관 목표값)" 시나리오 하나에서 3개 도구만 비교해도 된다 —
 어디까지 돌릴지는 팀이 시간 예산에 맞춰 정할 것(제안일 뿐, 팀 미합의).
 
+### 전파 지연 하네스 — 계측할 수 없는 도구를 같은 방법으로 재기
+
+Notion/Google Docs에는 클래스 B처럼 페이로드에 `t0`을 싣거나 에코 훅을 넣을 수 없다. 그래서 세 도구
+모두 **바깥에서** 같은 방법으로 잰다 — Dang & Ignat(2016)이 Google Docs·Etherpad 지연을 잰 방식이다:
+
+1. **Writer와 Reader를 같은 PC에서** 각자 별도 브라우저 창(도구마다 서로 다른 계정으로 로그인해 둔 별도
+   프로필)으로 띄운다. 두 창이 **한 머신의 시계**를 쓰므로 NTP도, 클록 스큐 대책도 필요 없다. 서버는
+   다른 호스트(RMF 서버 또는 클라우드)에 있으므로 공통 측정 원칙 2(물리 분리)도 충족한다.
+2. Playwright가 Writer 창에서 회차마다 고유한 **마커 문자열**을 입력하고, 마지막 키 입력 직후
+   `performance.timeOrigin + performance.now()`로 `t0`을 찍는다.
+3. Reader 창에는 Playwright로 스크립트를 주입해 둔다(`page.addInitScript`). 문서 영역의
+   `MutationObserver`가 마커의 등장을 감지하면 이중 rAF 뒤 같은 식으로 `t1`을 찍는다. 이미지(태스크 4)는
+   `<img>`의 `load` 이벤트 뒤 이중 rAF로 찍는다.
+4. `t1 - t0`이 그 마커의 전파 지연이다. 마커는 일정 간격(예: 2초)으로 회차당 수십 개를 넣는다.
+
+- **RMF-Block도 이 하네스로 잰다.** 클래스 B의 내부 훅으로 잰 숫자를 Notion/Google Docs의 하네스 숫자와
+  한 표에 놓으면 측정 방법이 달라 비교가 성립하지 않는다.
+- 두 창 모두 화면에 보이도록 나란히 배치한다 — 가려진 창도 rAF가 멈출 수 있다. Chromium은
+  `--disable-backgrounding-occluded-windows --disable-renderer-backgrounding`로 띄운다.
+- 동시 사용자 부하를 더하려면 논문처럼 무작위 문자열만 입력하는 **DummyWriter**를 추가한다(8명 규모는
+  NFR-PER-001과 맞춘다).
+
 ### 측정 지표
 
-| 지표 | 방법 | 근거 |
+| 지표 | 방법 | 역할/근거 |
 |---|---|---|
-| 총 소요시간 | 시작~완료 스톱워치 | 주 판정 지표 |
-| 줄 단위 전파 지연 | 클래스 B 방식(이중 rAF, 송신측 `t0`/수신측 `t1`) 재사용 | 진단용 — "왜 차이 나는지" 설명 |
-| 충돌/중복 입력 횟수 | 같은 줄을 두 사용자가 동시에 건드린 횟수 (태스크 2·3) | [협업 에디터 지연 효과 연구](https://link.springer.com/chapter/10.1007/978-3-319-10831-5_29) (Etherpad 기반, collision/redundancy 지표) |
-| 파일 업로드 반영 지연 | 첨부 시작~상대 화면에 표시 완료까지(태스크 4, 줄 단위 전파 지연과 동일 방식으로 측정) | RMF-Block 고유 파일 블록 기능(FR-022-13/14) 포함 검증 |
-| 재연결·끊김 횟수 / 재동기화 시간 | 세션 중 WS/네트워크 드롭 여부 및 복구까지 걸린 시간 (태스크 5) | NFR-PER-001 판정 기준과 동일 방식, RMF-Block은 FR-022-12(30초 grace period)와 비교 |
-| (선택) 체감 사용성 | SUS 설문 또는 NASA-TLX 워크로드 설문 | 협업 에디터 사용자 연구에서 표준적으로 쓰이는 정성 지표 — 참고: [Google Docs가 동시 사용자 10명 초과 시 지연 급증](https://ieeexplore.ieee.org/document/7497258/)한다는 실측 사례 |
-
-판정은 뺄셈 값(줄 단위 지연)이 아니라 최종 소요시간을 주 지표로 쓰고, 줄 단위 지연은 진단용으로만
-쓴다 — 클래스 B "뺄셈은 판정용이 아니라 진단용" 원칙과 동일.
+| **전파 지연** | 위 하네스(Writer/Reader, 같은 PC) | **주 판정 지표.** 방법 근거: [Dang & Ignat, "Performance of real-time collaborative editors at large scale: User perspective" (IFIP Networking 2016)](https://ieeexplore.ieee.org/document/7497258/) — Google Docs는 동시 사용자 10명 안팎까지는 양호하고 그 이후 지연이 불안정해졌다 |
+| 파일 업로드 반영 지연 | 첨부 시작~상대 화면에 이미지 표시 완료(태스크 4, 하네스 3단계의 `<img>` 방식) | RMF-Block 파일 블록 기능(FR-022-13/14) 포함 검증 |
+| 유실/중복 | 각 사용자가 입력하기로 한 문안이 최종본에 **정확히 한 번** 나타나는지 대조해 유실 수·중복 수를 센다(태스크 2·3) | 결과(최종 문서)의 품질을 본다 — "같은 줄을 동시에 건드린 횟수"는 사용자 행동을 세는 것이라 도구 차이를 보여주지 않는다. 참고: [Ignat et al., "Studying the Effect of Delay on Group Performance in Collaborative Editing" (CDVE 2014)](https://link.springer.com/chapter/10.1007/978-3-319-10831-5_29) — Etherpad에 지연을 주입하고 최종 문서의 redundancy·error rate로 영향을 쟀다 |
+| 재연결·끊김 횟수 / 재동기화 시간 | 세션 중 드롭 여부 및 복구까지 걸린 시간(태스크 5) | NFR-PER-001과 같은 방식으로 관측. RMF-Block은 UC-022의 30초 유예와 대조 |
+| 총 소요시간(사람) | 사람 참가자가 태스크 시작~완료를 스톱워치로 잰 값 | **보조 지표(체감).** 사람의 타자·반응 편차가 수십~수백 ms 수준의 네트워크 차이를 덮으므로 판정에 쓰지 않는다. 태스크 1의 카운터밸런싱은 유지 |
+| (선택) 체감 사용성 | SUS 설문 또는 NASA-TLX 워크로드 설문 | 협업 에디터 사용자 연구에서 널리 쓰이는 정성 지표 |
 
 ### 반복·통계
 
-위 공통 측정 원칙을 그대로 따른다: 조건을 고정하고, 가능한 만큼 반복(현실적으로 20회는 무리이므로
-최소 5~10회 목표) 후 p95를 병기하며, "RMF-Block vs Notion vs Google Docs" 표로 제시한다. 단일 실행값은
-근거로 인정하지 않는다는 원칙도 동일하게 적용.
+공통 측정 원칙 3("20회 이상, p95")을 지표별로 이렇게 적용한다:
+
+- **전파 지연(하네스)**: 회차당 마커 샘플이 수십 개 나오므로, 회차를 5~10회 반복하고 **샘플을 풀링해
+  p95**를 낸다(풀링 샘플 20개 이상 — 원칙 3의 조건 충족). 회차별 p95도 함께 기록해 회차 간 편차를 본다.
+- **총 소요시간(사람)**: 사람이 하는 회차는 현실적으로 5~10회가 한계라 p95가 사실상 최댓값이 된다 —
+  **원칙 3의 예외로** 중앙값 + 최소/최대를 쓰고 원자료를 전부 병기한다.
+- 결과는 "RMF-Block vs Notion vs Google Docs" 표로 시나리오별로 제시한다. 단일 실행값은 근거로 인정하지
+  않는다는 원칙은 그대로 적용한다.
 
 ## Vitest가 맡는 것 / 맡지 않는 것
 
