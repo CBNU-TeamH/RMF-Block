@@ -37,6 +37,24 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  # Fails only a file this PR pushed over the budget (docs/conventions.md). The
+  # script is stdlib only, so no install. `fetch-depth: 0` because the merge
+  # base needs main's history — a shallow clone has none, and --strict fails.
+  comments:
+    name: comment budget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: node scripts/comment-budget.mjs --strict
+
   # `pnpm test` runs against no server at all, so nothing in it can notice the
   # SDK changing under us. The 0.7.13 → 0.7.23 bump is the proof: all 571 tests
   # passed unmodified while two measured SDK behaviours moved. This job is the
