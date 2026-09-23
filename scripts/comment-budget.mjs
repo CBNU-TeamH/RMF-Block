@@ -1,29 +1,32 @@
 #!/usr/bin/env node
 // Comment ratio for .ts/.tsx files changed against the merge base, for files
 // past SMALL_FILE_FLOOR — smaller ones are exempt (see docs/conventions.md,
-// "the real floor is content, and it binds on small files only"). A routing
-// signal, not a gate: exceeding the threshold means "this file's comments
-// outgrew the file — move the rationale to docs/", not "fix this before you
-// can commit." See docs/conventions.md for what may stay inline.
+// "the real floor is content, and it binds on small files only"). Exceeding the
+// threshold means "this file's comments outgrew the file — move the rationale
+// to docs/". See docs/conventions.md for what may stay inline.
 //
-// Always exits 0. Pass --strict to make an over-threshold file a real
-// failure — that flag is for the promotion this script earns on
-// COMMENT_BUDGET_PROMOTION_DATE (scripts/lib/promotion-date.mjs), not for
-// day-to-day use; nothing wires it in yet.
+// Exits 0 by default. CI runs it with --strict, which fails only the files this
+// change made worse (see `worsenedAgainst`) — and fails outright when there is
+// no merge base, since a gate that cannot see its base would pass everything.
 
 import { execFileSync } from "node:child_process";
 
-import { promotionNotice } from "./lib/promotion-date.mjs";
-
-const THRESHOLD = 0.25;
-// #75: below this many code lines the 25% ratio fails regardless of quality — measured
-// (docs/conventions.md, "the real floor is content, and it binds on small files only"): 0% of
-// files over this line failed after #74's cleanup; 76-88% of files at or under it did. Exempt
-// them rather than asking every small file's author to re-argue the same case per PR.
+// Arafat & Riehle (ICSE 2009 NIER) measured 5,229 active open source projects on this exact
+// definition — comment lines over comment+source lines — and found mean 18.67%, median 16.74%.
+// This repo's own median is 20.0%. A 25% threshold therefore sat at our p75 and at roughly the
+// top third of open source generally: it cut through the middle of ordinary code rather than
+// separating anything. 30% is the first point clearly outside the pack.
+const THRESHOLD = 0.3;
+// #75: below this many code lines the ratio fails regardless of quality — measured against the
+// then-25% budget (docs/conventions.md, "the real floor is content, and it binds on small files
+// only"): 0% of files over this line failed after #74's cleanup; 76-88% of files at or under it
+// did. Exempt them rather than asking every small file's author to re-argue the same case per PR.
+// The same effect is in the paper above: commits under 100 source lines average 25.1% density,
+// converging to 22.2% by 80-100 lines — small bodies are structurally comment-dense.
 const SMALL_FILE_FLOOR = 40;
 
 function git(args) {
-  return execFileSync("git", args, { encoding: "utf8" }).trim();
+  return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 }
 
 // Locally `origin` is this repo's fork and `upstream` is canonical; in CI,
@@ -73,7 +76,7 @@ function ratioFromSource(source) {
     }
   }
   const total = code + comment;
-  return total === 0 ? null : { code, ratio: comment / total };
+  return total === 0 ? null : { code, comment, ratio: comment / total };
 }
 
 // The committed content at HEAD — `git show HEAD:path`, not the working tree,
@@ -103,9 +106,26 @@ function ratioForStaged(path) {
   return ratioFromSource(source);
 }
 
+/** Whether this change is what pushed the file over, rather than inheriting a
+ *  file that was already over. Both conditions are needed: the ratio alone
+ *  rises when code is deleted and no comment is touched, and deleting code is
+ *  what `AGENTS.md` §3 asks for — it must not fail the gate. A file absent from
+ *  the base is new, so the budget applies to it in full. */
+function worsenedAgainst(base, path, measured) {
+  let source;
+  try {
+    source = git(["show", `${base}:${path}`]);
+  } catch {
+    return true;
+  }
+  const before = ratioFromSource(source);
+  if (before === null) return true;
+  return measured.ratio > before.ratio && measured.comment > before.comment;
+}
+
 export function run({ strict = false, staged = false, base = resolveMergeBase() } = {}) {
   if (!base) {
-    return { base: null, over: [], strict, failed: false };
+    return { base: null, over: [], strict, failed: strict };
   }
   const diffArgs = staged
     ? ["diff", "--name-only", "--diff-filter=ACMR", "--cached", base, "--", "*.ts", "*.tsx"]
@@ -117,10 +137,13 @@ export function run({ strict = false, staged = false, base = resolveMergeBase() 
   for (const path of changed) {
     const measured = ratioFor(path);
     if (measured === null || measured.code <= SMALL_FILE_FLOOR) continue;
-    if (measured.ratio > THRESHOLD) over.push({ path, ratio: measured.ratio });
+    if (measured.ratio <= THRESHOLD) continue;
+    // Still reported either way — the routing signal is "this file's comments
+    // outgrew it", which is true of an inherited one too. Only the gate ratchets.
+    over.push({ path, ratio: measured.ratio, worsened: worsenedAgainst(base, path, measured) });
   }
 
-  return { base, over, strict, failed: strict && over.length > 0 };
+  return { base, over, strict, failed: strict && over.some((file) => file.worsened) };
 }
 
 function main() {
@@ -129,22 +152,21 @@ function main() {
   const { base, over, failed } = run({ strict, staged });
 
   if (base === null) {
-    console.log("No merge base found (upstream/main, origin/main, main all unavailable) — skipping.");
-    process.exitCode = 0;
+    console.log(
+      `No merge base found (upstream/main, origin/main, main all unavailable) — ${strict ? "failing under --strict" : "skipping"}.`,
+    );
+    process.exitCode = failed ? 1 : 0;
     return;
   }
 
   if (over.length === 0) {
     console.log(`Comment budget clean against ${base} — no changed .ts/.tsx file exceeds ${THRESHOLD * 100}%.`);
   } else {
-    console.log(`Files over the ${THRESHOLD * 100}% comment budget (move this to docs/, not a failure):`);
-    for (const { path, ratio } of over) {
-      console.log(`  ${(ratio * 100).toFixed(1)}%  ${path}`);
+    console.log(`Files over the ${THRESHOLD * 100}% comment budget (move the rationale to docs/):`);
+    for (const { path, ratio, worsened } of over) {
+      console.log(`  ${(ratio * 100).toFixed(1)}%  ${path}${worsened ? "" : "  (inherited — --strict lets this pass)"}`);
     }
   }
-
-  const notice = promotionNotice();
-  if (notice) console.log(`\n${notice}`);
 
   process.exitCode = failed ? 1 : 0;
 }
