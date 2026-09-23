@@ -14,11 +14,14 @@
  */
 import yorkie from "@yorkie-js/sdk";
 
+import { createReporter, requireReachable } from "./lib/verify-report.mjs";
+
 const APP = process.env.APP ?? "http://localhost:3000";
 const RPC = process.env.RPC ?? "http://localhost:8080";
 const PASSWORD = process.env.PASSWORD ?? "test1234";
 
-let failures = 0;
+const reporter = createReporter({ labelWidth: 42, expectedWidth: 8 });
+const { report } = reporter;
 
 // The SDK prints the whole error object when a connection is refused, and half
 // this script's cases refuse on purpose — so the expected noise would bury the
@@ -33,14 +36,6 @@ const quiet = async (run) => {
     console.error = realConsoleError;
   }
 };
-
-function report(label, expected, actual) {
-  const ok = expected === actual;
-  if (!ok) failures += 1;
-  console.log(
-    `  ${ok ? "✅" : "❌"} ${label.padEnd(42)} 기대=${String(expected).padEnd(8)} 실제=${actual}`,
-  );
-}
 
 /** Attaches a client and says whether it got in, without leaking one on failure. */
 function canReachYorkie(token) {
@@ -100,17 +95,10 @@ async function tokenFor(cookie) {
 }
 
 // Fail early rather than reporting every case as "blocked" because nothing is up.
-for (const [name, url] of [
+await requireReachable([
   ["Yorkie", `${RPC}/yorkie.v1.YorkieService/health`],
   ["app", `${APP}/join`],
-]) {
-  try {
-    await fetch(url);
-  } catch {
-    console.error(`\n  ${name} is not reachable. Start it and try again.\n`);
-    process.exit(2);
-  }
-}
+]);
 
 console.log("\n① 서버를 거치지 않고 Yorkie에 직접 (토큰 없음)");
 report("SDK로 바로 attach", false, await canReachYorkie(undefined));
@@ -131,9 +119,9 @@ report("세션으로 토큰 발급", 200, issued.status);
 report("발급받은 토큰으로 attach", true, await canReachYorkie(issued.token));
 
 console.log(
-  failures === 0
+  reporter.failures === 0
     ? "\n  모두 기대대로입니다.\n"
-    : `\n  ${failures}건이 기대와 다릅니다.\n`,
+    : `\n  ${reporter.failures}건이 기대와 다릅니다.\n`,
 );
 
-process.exit(failures === 0 ? 0 : 1);
+process.exit(reporter.failures === 0 ? 0 : 1);

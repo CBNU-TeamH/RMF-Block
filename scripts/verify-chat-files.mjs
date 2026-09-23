@@ -15,19 +15,13 @@
  * Every case prints what it expected and what happened, and the process exits
  * non-zero if any of them disagree.
  */
+import { createReporter } from "./lib/verify-report.mjs";
 
 const APP = process.env.APP ?? "http://localhost:3000";
 const PASSWORD = process.env.PASSWORD ?? "test1234";
 
-let failures = 0;
-
-function report(label, expected, actual) {
-  const ok = expected === actual;
-  if (!ok) failures += 1;
-  console.log(
-    `  ${ok ? "✅" : "❌"} ${label.padEnd(46)} 기대=${String(expected).padEnd(24)} 실제=${actual}`,
-  );
-}
+const reporter = createReporter({ expectedWidth: 24 });
+const { report } = reporter;
 
 /** Joins the workspace and returns the session cookie every later call carries. */
 async function joinAsGuest() {
@@ -167,8 +161,8 @@ const anonUpload = await fetch(`${APP}/api/chat/files`, { method: "POST", body: 
 report("세션 없는 업로드", 401, anonUpload.status);
 
 console.log(
-  failures === 0
+  reporter.failures === 0
     ? "\n전부 통과 — 업로드된 바이트가 이 오리진에서 실행될 수 있는 경로가 없습니다.\n"
-    : `\n${failures}건 불일치.\n`,
+    : `\n${reporter.failures}건 불일치.\n`,
 );
-process.exit(failures === 0 ? 0 : 1);
+process.exit(reporter.failures === 0 ? 0 : 1);

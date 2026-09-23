@@ -27,24 +27,14 @@
  */
 import yorkie from "@yorkie-js/sdk";
 
+import { createReporter, requireReachable } from "./lib/verify-report.mjs";
+
 const RPC = process.env.RPC ?? "http://localhost:8080";
 
-let failures = 0;
+const reporter = createReporter();
+const { report } = reporter;
 
-function report(label, expected, actual) {
-  const ok = expected === actual;
-  if (!ok) failures += 1;
-  console.log(
-    `  ${ok ? "✅" : "❌"} ${label.padEnd(46)} 기대=${String(expected).padEnd(10)} 실제=${actual}`,
-  );
-}
-
-try {
-  await fetch(`${RPC}/yorkie.v1.YorkieService/health`);
-} catch {
-  console.error(`\n  Yorkie is not reachable at ${RPC}. Start it and try again.\n`);
-  process.exit(2);
-}
+await requireReachable([["Yorkie", `${RPC}/yorkie.v1.YorkieService/health`]]);
 
 async function admin(method, body, token) {
   const response = await fetch(`http://${new URL(RPC).host}/yorkie.v1.AdminService/${method}`, {
@@ -90,32 +80,51 @@ const block = (id) => ({ id, type: "text", content: { text: new yorkie.Text() } 
 const textsOf = (doc) => doc.getRoot().blocks.map((b) => b.content.text.toString());
 const idsOf = (doc) => doc.getRoot().blocks.map((b) => b.id).join(",");
 
-const key = `inv-${Date.now()}`;
-
-console.log("\n① 배열 안에 중첩된 yorkie.Text 는 살아 있는 CRDT다");
-{
-  const [a, b] = [await client(), await client()];
+/** The setup every two-client case below starts from: two fresh clients on
+ *  the same document key, `seed` building `dA`'s side, then `dB` brought up
+ *  to date with it. Cases ①–③ differ only in what `seed` does and what they
+ *  assert afterward. */
+async function twoClientsSeeded(key, seed) {
+  const [a, b] = await Promise.all([client(), client()]);
   const dA = new yorkie.Document(key);
   const dB = new yorkie.Document(key);
   await a.attach(dA);
-
-  dA.update((root) => {
-    root.blocks = [block("b1"), block("b2"), block("b3")];
-  });
-  // Two calls: a `Text` cannot be edited in the same update that creates it.
-  dA.update((root) => {
-    root.blocks[0].content.text.edit(0, 0, "first");
-    root.blocks[1].content.text.edit(0, 0, "second");
-    root.blocks[2].content.text.edit(0, 0, "third");
-  });
+  await seed(dA);
   await a.sync();
   await settle();
+  await b.attach(dB);
+  await settle();
+  return { a, b, dA, dB };
+}
+
+/** Publishes both clients' pending local changes and lets each round trip to
+ *  the other. Twice because a `sync()` publishes but does not wait for the
+ *  peer to receive it — the second pass is what the peer's own sync answers. */
+async function syncBothTwice(a, b) {
+  await Promise.all([a.sync(), b.sync()]);
+  await settle();
+  await Promise.all([a.sync(), b.sync()]);
+  await settle();
+}
+
+console.log("\n① 배열 안에 중첩된 yorkie.Text 는 살아 있는 CRDT다");
+{
+  const key = `inv-nested-${Date.now()}`;
+  const { a, b, dA, dB } = await twoClientsSeeded(key, async (dA) => {
+    dA.update((root) => {
+      root.blocks = [block("b1"), block("b2"), block("b3")];
+    });
+    // A second call: a `Text` cannot be edited in the same update that creates it.
+    dA.update((root) => {
+      root.blocks[0].content.text.edit(0, 0, "first");
+      root.blocks[1].content.text.edit(0, 0, "second");
+      root.blocks[2].content.text.edit(0, 0, "third");
+    });
+  });
 
   // The attach is the case: a second client must receive a working `Text`,
   // not an inert JSON object. wafflebase carries a warning that a nested
   // `Tree` degrades exactly that way.
-  await b.attach(dB);
-  await settle();
   report("두 번째 클라이언트가 Text 를 받는다", "first", textsOf(dB)[0]);
 
   dB.update((root) => {
@@ -137,18 +146,11 @@ console.log("\n① 배열 안에 중첩된 yorkie.Text 는 살아 있는 CRDT다
 
 console.log("\n② 동시 moveAfter 가 수렴한다 (yorkie-team/yorkie#676)");
 {
-  const [a, b] = [await client(), await client()];
-  const moveKey = `inv-move-${Date.now()}`;
-  const dA = new yorkie.Document(moveKey);
-  const dB = new yorkie.Document(moveKey);
-  await a.attach(dA);
-  dA.update((root) => {
-    root.blocks = [block("m1"), block("m2"), block("m3")];
+  const { a, b, dA, dB } = await twoClientsSeeded(`inv-move-${Date.now()}`, async (dA) => {
+    dA.update((root) => {
+      root.blocks = [block("m1"), block("m2"), block("m3")];
+    });
   });
-  await a.sync();
-  await settle();
-  await b.attach(dB);
-  await settle();
 
   // Each side's reference element is the element the other is moving — the
   // shape #676 reported as non-converging.
@@ -158,12 +160,7 @@ console.log("\n② 동시 moveAfter 가 수렴한다 (yorkie-team/yorkie#676)");
   dB.update((root) => {
     root.blocks.moveAfter(root.blocks.getElementByIndex(0).getID(), root.blocks.getElementByIndex(2).getID());
   });
-  await a.sync();
-  await b.sync();
-  await settle();
-  await a.sync();
-  await b.sync();
-  await settle();
+  await syncBothTwice(a, b);
 
   report("양쪽이 같은 순서로 수렴한다", idsOf(dA), idsOf(dB));
   report("블록이 사라지지 않는다", 3, dA.getRoot().blocks.length);
@@ -171,21 +168,14 @@ console.log("\n② 동시 moveAfter 가 수렴한다 (yorkie-team/yorkie#676)");
 
 console.log("\n③ 이동이 옮겨진 블록의 텍스트를 보존한다 (동시 편집 포함)");
 {
-  const [a, b] = [await client(), await client()];
-  const keepKey = `inv-keep-${Date.now()}`;
-  const dA = new yorkie.Document(keepKey);
-  const dB = new yorkie.Document(keepKey);
-  await a.attach(dA);
-  dA.update((root) => {
-    root.blocks = [block("k1"), block("k2"), block("k3")];
+  const { a, b, dA, dB } = await twoClientsSeeded(`inv-keep-${Date.now()}`, async (dA) => {
+    dA.update((root) => {
+      root.blocks = [block("k1"), block("k2"), block("k3")];
+    });
+    dA.update((root) => {
+      root.blocks[0].content.text.edit(0, 0, "moved");
+    });
   });
-  dA.update((root) => {
-    root.blocks[0].content.text.edit(0, 0, "moved");
-  });
-  await a.sync();
-  await settle();
-  await b.attach(dB);
-  await settle();
 
   // A moves the block to the end while B types into that same block. This is
   // the property `Tree` cannot offer while `move` is unimplemented — FR-022-04.
@@ -195,12 +185,7 @@ console.log("\n③ 이동이 옮겨진 블록의 텍스트를 보존한다 (동�
   dB.update((root) => {
     root.blocks[0].content.text.edit(5, 5, "-typed");
   });
-  await a.sync();
-  await b.sync();
-  await settle();
-  await a.sync();
-  await b.sync();
-  await settle();
+  await syncBothTwice(a, b);
 
   report("이동 후 순서가 수렴한다", idsOf(dA), idsOf(dB));
   report("옮겨진 블록의 텍스트가 남아 있다", true, textsOf(dA).some((t) => t.startsWith("moved")));
@@ -276,10 +261,10 @@ for (const created of clients) {
 }
 
 console.log(
-  failures === 0
+  reporter.failures === 0
     ? "\n  모두 기대대로입니다 — ADR-007 의 전제가 이 버전에서도 유효합니다.\n"
-    : `\n  ${failures}건이 기대와 다릅니다. SDK 동작이 바뀌었다는 뜻이므로,` +
+    : `\n  ${reporter.failures}건이 기대와 다릅니다. SDK 동작이 바뀌었다는 뜻이므로,` +
         " 코드를 고치기 전에 docs/adr/007-block-array-not-tree.md 를 다시 읽으십시오.\n",
 );
 
-process.exit(failures === 0 ? 0 : 1);
+process.exit(reporter.failures === 0 ? 0 : 1);
