@@ -58,8 +58,11 @@ which this task updates in place.
 
 ## Cross-cutting
 
-- After merge, `comment budget` must be added to ruleset 20220373's required checks — until then
-  a red run does not block merging. Owner action, confirmed with the user first.
+- Ruleset 20220373 after merge (2026-09-23, confirmed with the user): `yorkie invariants` was added
+  to the required checks (pinned to GitHub Actions, `integration_id: 15368`). `comment budget` was
+  deliberately **not** added — nothing in the code is broken by an over-budget comment, so it stays
+  a signal rather than a merge block. The docs that had said "required" were corrected in the
+  wrap-up PR.
 - Out of scope: the six files already over 30% on `upstream/main` (`lib/focus/ink.ts` 47.2%,
   `lib/presence/occupancy.ts`, `lib/files/upload.ts`, `ink-overlay.tsx`, `lib/documents/tree.ts`,
   `use-block-document.ts` 30.9%) — the ratchet passes them; tidying them is its own PR.
@@ -68,4 +71,11 @@ which this task updates in place.
 
 ## Review
 
-Filled in at the end.
+- **Shipped (#119)**: the `comment budget` CI job at 30% with a ratchet. It fails only a file this PR
+  pushed over or made worse, compares a rename at its old path, and fails on a missing merge base.
+  The pre-push hook runs the same command, and the promotion-date reminder is gone.
+- **Changed after merge**: the job is not a required check. See Cross-cutting.
+  `yorkie invariants` became required instead.
+- **Stays open**: #92's three review-quality criteria (`/code-review` citing `docs/conventions.md`,
+  S-1..S-5, review cost), tracked in `AGENTS.md` §7. So does the tidy-up of the six inherited
+  over-budget files.

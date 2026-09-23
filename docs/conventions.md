@@ -253,9 +253,10 @@ concluding it did not, check in this order:
 Only a file that survives all three and is still over budget is honestly over budget, and it
 stays that way: the next PR that touches it without adding comment lines passes.
 
-That is the ratchet the `comment budget` CI job runs (`--strict`, required on `main` since
-2026-09-23). It fails a changed file only when it is over the threshold, its ratio rose against
-the merge base, *and* its comment lines grew — so deleting code from an inherited file never fails,
+That is the ratchet the `comment budget` CI job runs (`--strict`, on every PR since 2026-09-23 —
+not a required check, so a red run flags the PR rather than blocking its merge). It fails a
+changed file only when it is over the threshold, its ratio rose against the merge base, *and* its
+comment lines grew — so deleting code from an inherited file never fails,
 and neither does touching or renaming one (a rename is compared at its old path). A new file has no
 base and gets the budget in full. When the job fails, the way out is the three steps above, applied
 to the comments this PR added; there is no override. The pre-push hook runs the same command, so

@@ -22,6 +22,7 @@ All run on this PR.
 
 - [ ] `lint · test · build` — ✅
 - [ ] `container smoke test` — ✅ (or explicit skip reason below)
+- [ ] `yorkie invariants` — ✅
 - [ ] `comment budget` — ✅ (a red run means this PR grew comments in a file over 30% — see `docs/conventions.md`)
 
 Skip reason (if applicable):
