@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Promote comment-budget to a required CI check](active/20260923-comment-budget-ci-todo.md) | [lessons](active/20260923-comment-budget-ci-lessons.md) |
 | [Upgrade Yorkie 0.7.13 → 0.7.23](active/20260922-yorkie-0723-todo.md) | [lessons](active/20260922-yorkie-0723-lessons.md) |
 | [Document version history on Yorkie's Revision API](active/20260922-version-history-todo.md) | [lessons](active/20260922-version-history-lessons.md) |
 | [Upload size boundary and Content-Disposition filename encoding](active/20260921-upload-limit-and-filename-encoding-todo.md) | [lessons](active/20260921-upload-limit-and-filename-encoding-lessons.md) |

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Run before starting work (AGENTS.md §2, step 0) and whenever the docs might
-// have drifted. Checks four things:
+// have drifted. Checks three things:
 //
 //   (a) doc ownership — via verify-doc-ownership.mjs. Fails on a dead
 //       reference, a duplicate claim, or a doc missing its Owns line. Coverage
@@ -13,9 +13,8 @@
 //   (c) dead links — every markdown link and backtick-quoted repo-relative
 //       path inside docs/**/*.md, AGENTS.md, and tasks/active/*.md actually
 //       exists on disk. Anchors and external URLs are skipped.
-//   (d) the comment-budget promotion notice, shared with comment-budget.mjs.
 //
-// Exit 1 if (a) or (c) fail. (b) and (d) are informational.
+// Exit 1 if (a) or (c) fail. (b) is informational.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
@@ -23,7 +22,6 @@ import { dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { checkOwnership } from "./verify-doc-ownership.mjs";
-import { promotionNotice } from "./lib/promotion-date.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([a-zA-Z]):/, "$1:");
 
@@ -276,9 +274,6 @@ function main() {
     for (const line of lines) console.log(line.startsWith("  ") ? line : `  ${line}`);
     if (sectionFailed) failed = true;
   }
-
-  const notice = promotionNotice();
-  if (notice) console.log(`\n${notice}`);
 
   process.exitCode = failed ? 1 : 0;
 }
