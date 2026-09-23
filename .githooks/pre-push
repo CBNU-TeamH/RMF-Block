@@ -10,5 +10,10 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
+# The same command CI's `comment budget` job runs, first because it takes under
+# a second. Without an `upstream` remote a stale `origin/main` widens the diff
+# to other people's changes — `git fetch` fixes that; CI has the final say.
+node scripts/comment-budget.mjs --strict
+
 node_modules/.bin/vitest run
 node_modules/.bin/next build

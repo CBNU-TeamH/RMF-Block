@@ -258,7 +258,8 @@ That is the ratchet the `comment budget` CI job runs (`--strict`, required on `m
 the merge base, *and* its comment lines grew — so deleting code from an inherited file never fails,
 and neither does touching or renaming one (a rename is compared at its old path). A new file has no
 base and gets the budget in full. When the job fails, the way out is the three steps above, applied
-to the comments this PR added; there is no override. Locally, `pnpm comments --strict` answers the same question before a push does.
+to the comments this PR added; there is no override. The pre-push hook runs the same command, so
+the answer usually arrives before CI's does.
 
 What tracks the problem better than the ratio is the size of the *blocks*: a comment of eight
 lines or more is nearly always design rationale that belongs in `docs/`. One caution, learned the
