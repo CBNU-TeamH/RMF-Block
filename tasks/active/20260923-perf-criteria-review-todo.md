@@ -19,11 +19,11 @@
 - **Files**: the doc only.
 - **Reuse**: nothing new — rewrites existing sections.
 - **Done**:
-  - [ ] Class B's "server clock + ack" alternative is scoped to NFR-PER-004 (chat over the App WS). NFR-PER-002/005 go straight to Yorkie (`app/(workspace)/presence-provider.tsx`), so they get a sender-clock round-trip echo instead.
-  - [ ] How `t0` gets attached is split by path: chat payload, a block-edit marker string, the scroll value itself.
-  - [ ] The NTP procedure orders "sync → confirm → then (re)load pages", because `timeOrigin` is fixed at load. A measured tab must be in the foreground.
-  - [ ] NFR-PER-001 observes Yorkie stream disconnects (`doc.subscribe("connection")`) as well as the app WS. Only unexpected 4xx/5xx count as errors. The p95 wording goes, the 0/20 rule gets its rule-of-three reading, and the cost is stated.
-  - [ ] NFR-PER-006 is judged on the Chrome Task Manager memory footprint, sampled periodically, not on a heap snapshot.
+  - [x] Class B's "server clock + ack" alternative is scoped to NFR-PER-004 (chat over the App WS). NFR-PER-002/005 go straight to Yorkie (`app/(workspace)/presence-provider.tsx`), so they get a sender-clock round-trip echo instead.
+  - [x] How `t0` gets attached is split by path: chat payload, a block-edit marker string, the scroll value itself.
+  - [x] The NTP procedure orders "sync → confirm → then (re)load pages", because `timeOrigin` is fixed at load. A measured tab must be in the foreground.
+  - [x] NFR-PER-001 observes Yorkie stream disconnects (`doc.subscribe("connection")`) as well as the app WS. Only unexpected 4xx/5xx count as errors. The p95 wording goes, the 0/20 rule gets its rule-of-three reading, and the cost is stated.
+  - [x] NFR-PER-006 is judged on the Chrome Task Manager memory footprint, sampled periodically, not on a heap snapshot.
 
 ### 3. Make the competitive benchmark measurable and fair
 
@@ -31,19 +31,19 @@
 - **Files**: the doc only.
 - **Reuse**: the Writer/Reader method from Dang & Ignat (IFIP Networking 2016).
 - **Done**:
-  - [ ] The primary metric is automated Writer/Reader propagation delay, with Writer and Reader on the same PC. Human total task time becomes secondary.
-  - [ ] Server-side `tc netem` is excluded from the comparison. Emulation is applied at the client or a shared gateway, and the doc says it reproduces only AP-segment congestion.
-  - [ ] DevTools throttling limits are stated: request-level, and its loss parameters are for WebRTC.
-  - [ ] Repetition and statistics no longer contradict common principle 3.
-  - [ ] Citations fixed: the 30 s grace period lives in the UC-022 note; Tsinghua supports latency only; the Etherpad study measures redundancy and error rate; the Google Docs delay paper moves off the SUS row.
-  - [ ] The collision/duplication metric is redefined against the final document.
-  - [ ] The preface covers both questions the doc answers.
+  - [x] The primary metric is automated Writer/Reader propagation delay, with Writer and Reader on the same PC. Human total task time becomes secondary.
+  - [x] Server-side `tc netem` is excluded from the comparison. Emulation is applied at the client or a shared gateway, and the doc says it reproduces only AP-segment congestion.
+  - [x] DevTools throttling limits are stated: request-level, and its loss parameters are for WebRTC.
+  - [x] Repetition and statistics no longer contradict common principle 3.
+  - [x] Citations fixed: the 30 s grace period lives in the UC-022 note; Tsinghua supports latency only; the Etherpad study measures redundancy and error rate; the Google Docs delay paper moves off the SUS row.
+  - [x] The collision/duplication metric is redefined against the final document.
+  - [x] The preface covers both questions the doc answers.
 
 ## Acceptance
 
-- [ ] `pnpm verify:docs` clean
-- [ ] `grep -rn "PERFORMANCE-QUANTIFICATION" --exclude-dir=node_modules --exclude-dir=.git .` shows only `docs/` paths
-- [ ] Each review finding (1–11) maps to a commit on this branch
+- [x] `pnpm verify:docs` clean
+- [x] `grep -rn "PERFORMANCE-QUANTIFICATION" --exclude-dir=node_modules --exclude-dir=.git .` shows only `docs/` paths
+- [x] Each review finding (1–11) maps to a commit on this branch
 
 ## Cross-cutting
 
@@ -52,4 +52,10 @@
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+- **Shipped**: all three milestones, one commit each after the task-doc commit — the move (a pure
+  rename), the NFR-PER gaps, the competitive rework. Every review finding (1–11) is in one of the last two.
+- **Changed from the plan**: none in scope. Research changed two details. DevTools throttling *does*
+  cover WebSockets since Chrome 99, so the finding narrowed to "request-level, and its loss fields
+  are for WebRTC". Dang & Ignat (2016) supplied a ready method for tools we cannot instrument.
+- **Not done here**: the harness itself and every number — still `ROADMAP.md` Phase 5. The doc's
+  Korean → English translation stays pending (`AGENTS.md` §5).
