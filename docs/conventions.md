@@ -204,8 +204,9 @@ Two rules follow:
 
 ### The comment budget is a ratio, and a ratio has a floor — a low one
 
-`scripts/comment-budget.mjs` flags a file whose comments exceed 25% of its lines. That threshold
-is reachable for most files and genuinely unreachable for a few. The difference is worth stating
+`scripts/comment-budget.mjs` flags a file whose comments exceed 30% of its lines — 25% until
+2026-09-23; its `THRESHOLD` comment says why it moved, and the figures below were measured against
+the old line. That threshold is reachable for most files and genuinely unreachable for a few. The difference is worth stating
 precisely, because an earlier version of this section got it wrong and the error is instructive.
 
 The arithmetic is real: a 25% budget on *N* code lines allows *N/3* comment lines, and a small
@@ -231,14 +232,14 @@ import a client component). Two lines over, and correct there — no amount of t
 floor this low.
 
 [`#75`](https://github.com/CBNU-TeamH/RMF-Block/issues/75) measured where that population actually
-sits: after #74's cleanup, every file over 40 code lines passed the 25% budget; the files still
+sits: after #74's cleanup, every file over 40 code lines passed the then-25% budget; the files still
 failing were all at or under that line (88% of ≤20-line files, 76% of 21–40-line files). Below 40
 code lines the ratio is measuring file size, not commenting — so `scripts/comment-budget.mjs`
 exempts a file at or under that floor from the check entirely, rather than asking its author to
 re-argue the same three-line-comment case in every PR that happens to touch it.
 
-So: **the budget routes, it does not adjudicate, and it only applies past the floor.** Over budget
-on a file above 40 code lines means "look at whether the rationale outgrew the code." Before
+So: **the budget only applies past the floor, and CI only fails what a PR made worse.** Over
+budget on a file above 40 code lines means "look at whether the rationale outgrew the code." Before
 concluding it did not, check in this order:
 
 1. **Is the prose restating a document the comment already cites?** Cut it to the citation. A
@@ -249,14 +250,15 @@ concluding it did not, check in this order:
 3. **Is this design rationale at all?** Then it belongs in `docs/design/`, and the code keeps
    kind 4's one-line pointer.
 
-Only a file that survives all three and is still over budget is honestly over budget. Say so in
-the PR and leave it — that is a passing result, not a deferred one.
+Only a file that survives all three and is still over budget is honestly over budget, and it
+stays that way: the next PR that touches it without adding comment lines passes.
 
-The exemption is what closes the "zero false positives" criterion in #65's gate. The promotion
-date (2026-09-23, `scripts/lib/promotion-date.mjs`) stays a reminder rather than an automatic
-trigger — whether to wire `--strict` into CI when it fires is still a call for whoever reviews the
-notice, informed by how the citation and review-cost criteria measure on real tasks between now
-and then.
+That is the ratchet the `comment budget` CI job runs (`--strict`, required on `main` since
+2026-09-23). It fails a changed file only when it is over the threshold, its ratio rose against
+the merge base, *and* its comment lines grew — so deleting code from an inherited file never fails,
+and neither does touching one. A new file has no base and gets the budget in full. When the job
+fails, the way out is the three steps above, applied to the comments this PR added; there is no
+override. Locally, `pnpm comments --strict` answers the same question before a push does.
 
 What tracks the problem better than the ratio is the size of the *blocks*: a comment of eight
 lines or more is nearly always design rationale that belongs in `docs/`. One caution, learned the
