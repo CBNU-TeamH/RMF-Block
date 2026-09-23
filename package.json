@@ -21,7 +21,7 @@
     "tasks:archive": "bash scripts/tasks-archive.sh"
   },
   "dependencies": {
-    "@yorkie-js/sdk": "0.7.13",
+    "@yorkie-js/sdk": "0.7.23",
     "next": "16.2.12",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -47,7 +47,7 @@
   },
   "pnpm": {
     "patchedDependencies": {
-      "@yorkie-js/sdk@0.7.13": "patches/@yorkie-js__sdk@0.7.13.patch"
+      "@yorkie-js/sdk@0.7.23": "patches/@yorkie-js__sdk@0.7.23.patch"
     }
   }
 }

@@ -62,5 +62,5 @@ though that looks like the obvious first thing to reach for.
   side of the trade this ADR takes on.
 - Not yet measured: composition survival at a network delay long enough that several remote edits
   queue before `compositionend` fires, and behavior with more than two concurrent composers on one
-  block. Neither is expected to change this decision; both are issue #42 material if its
-  measurement harness is ever built.
+  block. Neither is expected to change this decision; both are cases to add to
+  `scripts/verify-yorkie-invariants.mjs`, the harness issue #42 asked for.

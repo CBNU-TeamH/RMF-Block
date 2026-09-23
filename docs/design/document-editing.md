@@ -187,13 +187,15 @@ Run against `yorkieteam/yorkie:0.7.13` on `mongo:8` with the pinned
 Not yet verified: convergence under more than two concurrent movers, and
 `moveAfter` interleaved with a concurrent delete of the reference block.
 
-**None of the above is reproducible from this repository.** Every measurement
-here was taken with throwaway scripts against containers started by hand, and
-they are gone. A reader who doubts a number, or a future SDK bump that needs
-these rerun, has nothing to run — the claims are only as good as this document's
-word. Committing the harness is tracked as
-[#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42); the two unverified
-cases belong in it rather than in another set of throwaway scripts.
+**The load-bearing measurements above are now reproducible; the rest are not.**
+The four ADR-007 invariants live in `scripts/verify-yorkie-invariants.mjs` and
+run as the `yorkie invariants` CI job on every PR
+([#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42)) — not yet a *required*
+check on `main`, which needs a separate branch-protection change — so a reader
+who doubts one of those numbers, or a future SDK bump, has something to run. Everything else on this page was taken with throwaway scripts against
+containers started by hand and is gone — those claims are still only as good as
+this document's word, and the two unverified cases belong in the same script
+rather than in another set of throwaway scripts.
 
 That matters more than usual here, because these measurements are load-bearing.
 They are why every block's text is wrapped (`content = { text }`) and why blocks
@@ -422,8 +424,8 @@ than a bare string.
 
 **Not yet measured**: composition survival at a network delay long enough that several remote
 edits queue before `compositionend` fires, and behaviour with more than two concurrent
-composers on one block. Neither is expected to change the surface decision; both are `#42`
-material if `#42`'s harness ever gets built.
+composers on one block. Neither is expected to change the surface decision; both are cases to add
+to `scripts/verify-yorkie-invariants.mjs`, which `#42` built for exactly this.
 
 ### Subscribing to remote changes
 
