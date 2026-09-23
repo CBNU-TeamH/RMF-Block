@@ -56,3 +56,30 @@ describe("VersionHistory — closing on Escape", () => {
     assert.equal(trigger.getAttribute("aria-expanded"), "true");
   });
 });
+
+describe("VersionHistory — restoring an empty revision", () => {
+  /** `readRevisionBlocks` reads `{}` — what `createRevision` stores before a
+   *  sync — as no blocks. Restoring that would empty the live document. */
+  it("offers no restore for a revision with no blocks", async () => {
+    const user = userEvent.setup();
+    const client = {
+      listRevisions: vi
+        .fn()
+        .mockResolvedValue([{ id: "r1", label: "빈 버전", description: "", createdAt: new Date() }]),
+      getRevision: vi.fn().mockResolvedValue({ snapshot: "{}" }),
+      createRevision: vi.fn(),
+      sync: vi.fn(),
+    } as unknown as Client;
+    const docRef = { current: {} } as React.RefObject<Document<BlockDocumentRoot> | null>;
+    render(<VersionHistory client={client} docRef={docRef} nickname="테스터" onRestore={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "버전 히스토리" }));
+    await user.click(await screen.findByRole("button", { name: /빈 버전/ }));
+    await screen.findByText("이 버전은 비어 있습니다.");
+
+    assert.equal(
+      (screen.getByRole("button", { name: "이 버전으로 복원" }) as HTMLButtonElement).disabled,
+      true,
+    );
+  });
+});

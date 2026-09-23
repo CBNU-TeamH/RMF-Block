@@ -435,7 +435,7 @@ function Preview({
             is what makes this safe to leave open. */}
         <button
           type="button"
-          disabled={busy || blocks === null}
+          disabled={busy || blocks === null || blocks.length === 0}
           className={PRIMARY}
           onClick={() => onAskRestore(entry)}
         >
