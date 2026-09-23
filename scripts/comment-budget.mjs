@@ -26,6 +26,13 @@ const THRESHOLD = 0.3;
 const SMALL_FILE_FLOOR = 40;
 
 function git(args) {
+  return execFileSync("git", args, { encoding: "utf8" }).trim();
+}
+
+// Swallows stderr for calls whose failure is expected control flow (a ref that
+// doesn't exist yet, a path absent at that revision) — the caller's catch
+// already explains the case, so git's own "fatal:" line would just be noise.
+function gitQuiet(args) {
   return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 }
 
@@ -36,12 +43,12 @@ function git(args) {
 function resolveMergeBase() {
   for (const ref of ["upstream/main", "origin/main", "main"]) {
     try {
-      git(["rev-parse", "--verify", "--quiet", ref]);
+      gitQuiet(["rev-parse", "--verify", "--quiet", ref]);
     } catch {
       continue;
     }
     try {
-      return git(["merge-base", ref, "HEAD"]);
+      return gitQuiet(["merge-base", ref, "HEAD"]);
     } catch {
       continue;
     }
@@ -79,17 +86,22 @@ function ratioFromSource(source) {
   return total === 0 ? null : { code, comment, ratio: comment / total };
 }
 
-// The committed content at HEAD — `git show HEAD:path`, not the working tree,
-// so an uncommitted edit sitting on top of a committed file can't leak into a
-// base..HEAD comparison.
-function ratioForCommitted(path) {
+// A file's ratio at a given revision — `git show rev:path`. Returns null when
+// the path doesn't exist there (deleted, or not yet born at that revision).
+function ratioAt(rev, path) {
   let source;
   try {
-    source = git(["show", `HEAD:${path}`]);
+    source = gitQuiet(["show", `${rev}:${path}`]);
   } catch {
-    return null; // deleted in this diff — nothing to measure
+    return null;
   }
   return ratioFromSource(source);
+}
+
+// The committed content at HEAD, not the working tree, so an uncommitted edit
+// sitting on top of a committed file can't leak into a base..HEAD comparison.
+function ratioForCommitted(path) {
+  return ratioAt("HEAD", path); // null: deleted in this diff — nothing to measure
 }
 
 // The *staged* version of a file — `git show :path` reads the index, not the
@@ -97,13 +109,7 @@ function ratioForCommitted(path) {
 // measured has not reached HEAD yet, so diffing base..HEAD would miss it
 // entirely and silently check a stale, already-committed diff instead.
 function ratioForStaged(path) {
-  let source;
-  try {
-    source = git(["show", `:${path}`]);
-  } catch {
-    return null; // deleted in the index — nothing to measure
-  }
-  return ratioFromSource(source);
+  return ratioAt("", path); // null: deleted in the index — nothing to measure
 }
 
 /** Whether this change is what pushed the file over, rather than inheriting a
@@ -112,13 +118,7 @@ function ratioForStaged(path) {
  *  what `AGENTS.md` §3 asks for — it must not fail the gate. A file absent from
  *  the base is new, so the budget applies to it in full. */
 function worsenedAgainst(base, path, measured) {
-  let source;
-  try {
-    source = git(["show", `${base}:${path}`]);
-  } catch {
-    return true;
-  }
-  const before = ratioFromSource(source);
+  const before = ratioAt(base, path);
   if (before === null) return true;
   return measured.ratio > before.ratio && measured.comment > before.comment;
 }
