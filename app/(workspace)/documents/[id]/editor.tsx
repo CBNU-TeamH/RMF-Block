@@ -51,6 +51,7 @@ import { InkOverlay } from "./ink-overlay";
 import { PdfBlockView } from "./pdf-block";
 import { TextBlockView, type BlockVariant } from "./text-block";
 import { useBlockDocument } from "./use-block-document";
+import { VersionHistory } from "./version-history";
 import { useFocusPresence } from "./use-focus-presence";
 import { useFileUpload } from "./use-file-upload";
 
@@ -100,7 +101,16 @@ function indentOf(block: Block): number {
 /** One document's blocks and every edit made to them (FR-022-01~04, FR-022-09).
  *  Attaching and subscribing are `useBlockDocument`'s, following a presenter is
  *  `useFocusPresence`'s. The rules this holds to: `docs/design/document-editing.md`. */
-export function DocumentEditor({ documentId }: { documentId: string }) {
+export function DocumentEditor({
+  documentId,
+  name,
+}: {
+  documentId: string;
+  /** Rendered alongside the version-history trigger, which needs `client` and
+   *  `docRef` — both only exist once this component's own hooks run, so the
+   *  title moved in here rather than the button moving out to `page.tsx`. */
+  name: string;
+}) {
   const router = useRouter();
   const { client, members, memberId, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId } = useFocusFollow();
@@ -119,6 +129,8 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     docRef,
     registerRemoteHandler,
     patchBlockText,
+    replaceBlocks,
+    restoreCount,
     history,
     occupantByBlock,
     setActiveBlockId,
@@ -668,12 +680,27 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     applyEdit((_root, blocks) => moveBlockAfter(blocks, destination.afterId, draggedBlockId));
   };
 
+  // `name` is a plain prop, so the title needs neither `client` nor `blocks` —
+  // only the trigger below it does. Keeping it out of these two early returns
+  // is what stops it from disappearing during the connection window.
+  const title = <h1 className="text-[22px] font-bold text-ink">{name}</h1>;
+
   if (failed) {
-    return <p className="text-sm text-red-600">문서를 열지 못했습니다. 새로고침해 주세요.</p>;
+    return (
+      <>
+        <div className="flex flex-none items-center gap-2">{title}</div>
+        <p className="text-sm text-red-600">문서를 열지 못했습니다. 새로고침해 주세요.</p>
+      </>
+    );
   }
 
   if (!client || blocks === null) {
-    return <p className="text-sm text-ink-faint">여는 중…</p>;
+    return (
+      <>
+        <div className="flex flex-none items-center gap-2">{title}</div>
+        <p className="text-sm text-ink-faint">여는 중…</p>
+      </>
+    );
   }
 
   const listNumbers = orderedListNumbers(blocks);
@@ -802,7 +829,22 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
     // whose last block is short leaves most of the page empty, and that empty
     // space is where a file naturally gets dropped. A drop that lands on a
     // block stops there (`handleDrop`) and lands at the pointer instead.
-    <div
+    <>
+      {/* The title lives here, not in `page.tsx`, so it can share a row with a
+          document-level action that needs `client`/`docRef` — both only exist
+          once this component's own hooks have run (the title itself does not,
+          which is why the two early returns above render it on their own). */}
+      <div className="flex flex-none items-center gap-2">
+        {title}
+        <span className="flex-1" />
+        <VersionHistory
+          client={client}
+          docRef={docRef}
+          nickname={nickname}
+          onRestore={replaceBlocks}
+        />
+      </div>
+      <div
       ref={scrollContainerRef}
       data-focus-scroll
       // `relative` makes this each block's `offsetParent` — the space
@@ -845,7 +887,11 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
         // block's own textarea has focus (`group-focus-within`), pure CSS —
         // no JS state tracking "which block is focused" needed.
         <div
-          key={block.id}
+          // `restoreCount` is in the key on purpose — a restore replaces every
+          // block's content wholesale, and a row reused across it would keep a
+          // textarea and a diff baseline describing the pre-restore text
+          // (`use-block-document.ts`, `replaceBlocks`).
+          key={`${block.id}:${restoreCount}`}
           data-block-id={block.id}
           className={`group relative ${
             block.id === draggedId ? "rounded-md bg-paper-2 opacity-50" : ""
@@ -1094,6 +1140,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           </div>
         </div>
       ) : null}
-    </div>
+      </div>
+    </>
   );
 }

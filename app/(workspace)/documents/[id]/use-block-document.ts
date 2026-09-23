@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createText } from "@/lib/blocks/create";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot } from "@/lib/blocks/document";
+import { editBlockText, type BlockArray } from "@/lib/blocks/operations";
 import {
   blockIndexFromEditPath,
   touchesBlockList,
@@ -30,6 +31,8 @@ export function useBlockDocument(
   nickname: string,
 ) {
   const [blocks, setBlocks] = useState<Array<Block> | null>(null);
+  /** Bumped by `replaceBlocks`, and part of every row's key — see there. */
+  const [restoreCount, setRestoreCount] = useState(0);
   /** How deep the undo stack was once this document was ready — see where it is
    *  set. `canUndo` alone would let a person undo the document out of existence. */
   const undoFloorRef = useRef(0);
@@ -249,6 +252,31 @@ export function useBlockDocument(
     handlersRef.current.get(blockId)?.(patch);
   }, []);
 
+  /** Replaces every block, which is how a revision is restored — and why the
+   *  app restores rather than calling `client.restoreRevision`:
+   *  `docs/design/version-history.md`. Two updates because a `yorkie.Text`
+   *  cannot be edited before it is in the tree. The read afterwards is not
+   *  optional: a local change never comes back through `doc.subscribe`. */
+  const replaceBlocks = useCallback((next: Array<Block>) => {
+    const doc = docRef.current;
+    if (!doc) return;
+
+    doc.update((root: BlockDocumentRoot) => {
+      root.blocks = next.map(toStoredBlock);
+    });
+    doc.update((root: BlockDocumentRoot) => {
+      next.forEach((block) => {
+        const text = "text" in block ? block.text : "";
+        if (text) editBlockText(root.blocks as BlockArray, block.id, 0, 0, text);
+      });
+    });
+
+    setBlocks(readBlocks(doc.getRoot().blocks));
+    // Remounts every row: a reused one keeps its pre-restore text and diff
+    // baseline (`docs/design/version-history.md`, "Why the app restores").
+    setRestoreCount((count) => count + 1);
+  }, []);
+
   return {
     blocks,
     setBlocks,
@@ -256,6 +284,8 @@ export function useBlockDocument(
     docRef,
     registerRemoteHandler,
     patchBlockText,
+    replaceBlocks,
+    restoreCount,
     history,
     occupantByBlock,
     setActiveBlockId,

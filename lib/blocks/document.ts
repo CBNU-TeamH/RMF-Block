@@ -21,6 +21,21 @@ export type StoredBlock = {
   content?: StoredContent;
 };
 
+/** What reading a block needs, which is less than editing one needs: anything
+ *  that answers `toString()` will do for the text. A `yorkie.Text` does, and so
+ *  does the plain string a revision snapshot carries (`revision-snapshot.ts`),
+ *  so one reader serves both. Storage stays `StoredBlock` — this widens the
+ *  input to `readBlocks`, not what the document may hold. */
+export type ReadableBlock = {
+  id: string;
+  type: BlockType;
+  content?: ReadableContent;
+};
+
+export type ReadableContent = Omit<StoredContent, "text"> & {
+  text?: { toString(): string };
+};
+
 /** The union of every field any block type can hold, all optional. */
 export type StoredContent = {
   text?: Text;
@@ -64,14 +79,14 @@ export function listDepth(value: unknown): number {
   return Math.min(Math.max(0, depth), MAX_LIST_DEPTH);
 }
 
-const textOf = (content: StoredContent | undefined): string =>
+const textOf = (content: ReadableContent | undefined): string =>
   content?.text?.toString() ?? "";
 
 /** The strict shape the UI reads — the only place a missing field is decided
  *  about. Falls back rather than throwing: a racing conversion should cost a
  *  heading its level, not cost the reader the document. An unknown `type` is
  *  dropped from the read, not from the document. */
-export function readBlocks(blocks: Array<StoredBlock | null>): Array<Block> {
+export function readBlocks(blocks: Array<ReadableBlock | null>): Array<Block> {
   const result: Array<Block> = [];
 
   for (const stored of blocks) {
@@ -85,7 +100,7 @@ export function readBlocks(blocks: Array<StoredBlock | null>): Array<Block> {
 /** `null` is dropped like any other malformed entry. `JSONArray` accepts it as
  *  an element and the LAN can write one (`docs/design/api.md` §2); destructuring
  *  first threw before the per-block resilience ever applied. */
-function readBlock(stored: StoredBlock | null): Block | null {
+function readBlock(stored: ReadableBlock | null): Block | null {
   if (!stored) return null;
 
   const { id, content } = stored;

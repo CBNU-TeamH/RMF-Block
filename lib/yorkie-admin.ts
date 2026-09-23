@@ -13,13 +13,21 @@ const ADMIN_PASSWORD = "admin";
 const DEFAULT_PROJECT_ID = "000000000000000000000000";
 
 /** Which operations Yorkie should ask about (`docs/design/api.md` §2). Names come
- *  from `api/types/auth_webhook.go`; an unknown one fails the update. */
+ *  from `api/types/auth_webhook.go`; an unknown one fails the update — which is
+ *  how the four revision names below were confirmed rather than assumed, since
+ *  this vocabulary is not the RPC one (`PushPull` here, `PushPullChanges` on the
+ *  wire). Revision reads are open to every live session on purpose:
+ *  `docs/design/version-history.md`, "Who may restore". */
 const GUARDED_METHODS = [
   "ActivateClient",
   "AttachDocument",
   "DetachDocument",
   "PushPull",
   "WatchDocument",
+  "CreateRevision",
+  "GetRevision",
+  "ListRevisions",
+  "RestoreRevision",
 ];
 
 export class YorkieAdminError extends Error {}
