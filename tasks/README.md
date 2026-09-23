@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Performance criteria doc — apply review findings and move under docs/](active/20260923-perf-criteria-review-todo.md) | [lessons](active/20260923-perf-criteria-review-lessons.md) |
 | [Promote comment-budget to a required CI check](active/20260923-comment-budget-ci-todo.md) | [lessons](active/20260923-comment-budget-ci-lessons.md) |
 | [Upgrade Yorkie 0.7.13 → 0.7.23](active/20260922-yorkie-0723-todo.md) | [lessons](active/20260922-yorkie-0723-lessons.md) |
 | [Document version history on Yorkie's Revision API](active/20260922-version-history-todo.md) | [lessons](active/20260922-version-history-lessons.md) |
