@@ -54,7 +54,32 @@ already does that explicitly and does not need it.
   to have changed would have missed it — and it is the one that would have shipped a crash.
 - **Ten releases, zero test changes.** All 571 tests passed unmodified, which says the tests do not
   reach the SDK behaviours that actually moved. ④ and ⑤ both changed and nothing went red. Issue
-  #42's harness is the gap, and this upgrade is the second task to name it.
+  #42's harness was the gap, and this upgrade was the second task to name it — so this time it got
+  built (`scripts/verify-yorkie-invariants.mjs`, the `yorkie invariants` CI job) rather than named
+  a third time.
+
+### The harness, and why it is a script rather than a test
+
+`pnpm test` is vitest against no server, so the behaviours worth guarding are unreachable from it.
+Rather than teach the suite to start containers, this follows what the repo already does twice
+over — `verify-auth.mjs` and `verify-chat-files.mjs` are node scripts that print expected vs actual
+and exit non-zero. A third one costs no new concept.
+
+Two things were worth the extra few minutes:
+
+- **The harness was checked for its ability to fail.** Two expectations were inverted and the
+  script was confirmed to report both and exit 1. A green check that cannot go red is worse than no
+  check, because it is believed.
+- **One case asserts that something is still broken.** Re-parenting a `yorkie.Text` still empties
+  it silently, and `toStoredBlock` builds a fresh `Text` per block because of that. Written as an
+  invariant, an upstream fix makes CI fail — which is the correct alarm, since it means a
+  workaround can be deleted. Guard the shape of the decision, not just the happy path.
+
+Writing it also turned up a stale CI comment asserting the Yorkie image "can carry no healthcheck",
+which `docker-compose.yml` had already disproved in its own comment. Measured: `--wait` returns
+only once the healthcheck reports healthy, seven seconds from a cold start. The redundant probe was
+left in place — it checks from the runner's side of the network, which a healthcheck running inside
+the container cannot — but it no longer claims a false reason for existing.
 - **0.7.23 still declares neither `module` nor `exports`.** ADR-003 wrote that the patch "comes out
   as soon as upstream declares its own `exports`"; ten releases on, every bump just re-creates it
   under a new filename.
@@ -66,6 +91,10 @@ already does that explicitly and does not need it.
   wrong conclusion.
 - Re-measure the *adjacent* properties, not just the defect under review. ⑤ was on the list only
   because the plan enumerated all six; a check scoped to "did ② get fixed" would have passed.
+
+- Do not stop at recording a gap. The first draft of this task ended at "571 tests passed while two
+  SDK behaviours changed — issue #42 is the gap", which reads like diligence and is actually the
+  third time that sentence has been written in this repository without anything following it.
 
 ## Worth extracting
 

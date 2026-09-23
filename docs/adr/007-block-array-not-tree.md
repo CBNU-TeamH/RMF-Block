@@ -75,10 +75,17 @@ issue #42: nothing in CI would have told us.
   undo/redo as supported for Text, object, and array operations, and states Tree support is
   "under development." A document built on `yorkie.Tree` could not have this feature yet — an
   unplanned dividend of a decision made for unrelated reasons.
-- **The verification numbers above are load-bearing and unprotected by CI.** They are why every
-  block's text is wrapped in `content.text` and why blocks are an `Array` rather than a `Tree`. A
-  future SDK version could change either behavior with nothing in CI to say so; committing the
-  measurement harness is tracked as issue #42.
+- **The verification numbers above are load-bearing, and CI now holds them.** They are why every
+  block's text is wrapped in `content.text` and why blocks are an `Array` rather than a `Tree`.
+  They went unprotected until the 0.7.23 bump showed what that costs — every unit test passed
+  while two measured SDK behaviours changed, because `pnpm test` runs against no server.
+  `scripts/verify-yorkie-invariants.mjs` asserts all four against a live Yorkie and runs as the
+  `yorkie invariants` job on every PR (issue #42).
+
+  A failure there is not a bug in this repository; it is the SDK moving, and the fix starts by
+  re-reading this document. Case ④ is the unusual one — it asserts that re-parenting a CRDT
+  **still loses data silently**, because that is what `toStoredBlock` builds a fresh `Text` per
+  block to avoid. If upstream ever fixes it, that case fails on purpose and the workaround can go.
 - Everything that crosses a block boundary — splitting a block on Enter, merging on Backspace,
   selecting across blocks — is ours to build, and nesting is flattened to a `depth` number rather
   than a real parent-child relation.
