@@ -74,7 +74,7 @@ Which document to open for which job.
 | Requirements · module design · ADRs · UI wireframes ([`docs/ui/`](docs/ui/)) | [`docs/`](docs/) |
 | Code conventions | [`docs/conventions.md`](docs/conventions.md) |
 | Test strategy | [`docs/testing.md`](docs/testing.md) |
-| How each NFR-PER item gets measured (tool, rig, clock, threshold) | [`PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) |
+| How each NFR-PER item gets measured (tool, rig, clock, threshold) | [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) |
 | Lint / format config | [`eslint.config.mjs`](eslint.config.mjs) |
 | Open work and its status | [`tasks/`](tasks/) (`tasks/active/`, `tasks/archive/`) |
 | The overall plan | [`ROADMAP.md`](ROADMAP.md) |
@@ -87,7 +87,7 @@ Which document to open for which job.
 ## 5. Team conventions
 
 - **Commit prefixes**: `feat:`, `fix:`, `refactor:`, `test:`, `chore:`, `docs:`.
-- **Doc language**: English. The exception is [`docs/SRS-ko.md`](docs/SRS-ko.md), the team's agreed requirements document, which stays in Korean; [`PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) is also Korean today but pending translation, not a standing exception.
+- **Doc language**: English. The exception is [`docs/SRS-ko.md`](docs/SRS-ko.md), the team's agreed requirements document, which stays in Korean; [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) is also Korean today but pending translation, not a standing exception.
 - **Never commit secrets or credentials.**
 - **Do not change agreed documents alone** — e.g. [`docs/SRS-ko.md`](docs/SRS-ko.md) changes only after the team agrees.
 
