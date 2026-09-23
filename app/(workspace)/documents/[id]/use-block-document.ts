@@ -31,8 +31,7 @@ export function useBlockDocument(
   nickname: string,
 ) {
   const [blocks, setBlocks] = useState<Array<Block> | null>(null);
-  /** Bumped by `replaceBlocks`, and part of every row's key — see there for
-   *  what reusing a row across a restore would do to its diff baseline. */
+  /** Bumped by `replaceBlocks`, and part of every row's key — see there. */
   const [restoreCount, setRestoreCount] = useState(0);
   /** How deep the undo stack was once this document was ready — see where it is
    *  set. `canUndo` alone would let a person undo the document out of existence. */
@@ -273,15 +272,8 @@ export function useBlockDocument(
     });
 
     setBlocks(readBlocks(doc.getRoot().blocks));
-    // A restored block usually keeps its id, and the editor keys its rows by
-    // id — so React would reuse the mounted `TextBlockView`, whose textarea is
-    // uncontrolled (`defaultValue`) and whose `lastSyncedRef` diff baseline
-    // both still hold the pre-restore text. The row would show the old text
-    // and the next keystroke would diff against it, writing a patch at
-    // offsets the restored text does not have. Bumping this makes the rows
-    // remount, which is what `page.tsx` already does with `key={document.id}`
-    // when a *different* document replaces the current one — a restore
-    // replaces the content just as wholesale.
+    // Remounts every row: a reused one keeps its pre-restore text and diff
+    // baseline (`docs/design/version-history.md`, "Why the app restores").
     setRestoreCount((count) => count + 1);
   }, []);
 

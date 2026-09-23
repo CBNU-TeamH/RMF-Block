@@ -72,6 +72,11 @@ block to five lines and moving the argument into `docs/design/version-history.md
 this change made worse, stay silent about what it did not — and it ran end to end before the
 promotion date rather than after it.
 
+It caught the same file twice. `a9946f4`'s nine-line remount comment took it back to **33.0%**, and
+the new `lib/documents/revisions.ts` landed at **31.8%**; both went to `docs/design/version-history.md`
+during the CodeRabbit pass, leaving the file at **30.9%**, inherited. A clean run early in a task
+says nothing about the commits after it — run `--strict` again before pushing.
+
 Worth noting for whoever reads the numbers: the absolute threshold alone would have failed this
 file either way, since 30.5% is still over 30%. The ratchet is what makes the difference between a
 signal and a blocked PR.

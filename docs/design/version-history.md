@@ -92,6 +92,14 @@ Four consequences, all of them simplifications:
   server-side call the local undo stack would still hold reverse operations recorded against the
   pre-restore document.
 
+A restore also remounts every block row. A restored block usually keeps its id, and the editor keys
+its rows by id — so React would reuse the mounted `TextBlockView`, whose textarea is uncontrolled
+(`defaultValue`) and whose `lastSyncedRef` diff baseline both still hold the pre-restore text. The row
+would show the old text, and the next keystroke would diff against it and write a patch at offsets
+the restored text does not have. `replaceBlocks` bumps `restoreCount`, which is part of every row's
+key — the same move `page.tsx` makes with `key={document.id}` when a different document replaces the
+current one, since a restore replaces the content just as wholesale.
+
 What the app gives up is atomicity: two people restoring at once merge as CRDT edits rather than
 one server-side replace. For an eight-person LAN workspace that is acceptable, and the
 before-restore revision makes either outcome reversible.
@@ -119,6 +127,12 @@ revision, so a label is permanent and the Korean a reader sees is chosen at rend
 
 An unrecognised label reads as `named` rather than being dropped — a revision someone made by hand
 is the one kind that must not vanish from the list.
+
+The two reserved shapes are refused as manual save names (`reservedLabelReason`). Kind is read from
+the label alone, so a manual save called `snapshot-7` would come back as an automatic one — hidden
+behind the default filter, titled 자동 저장, indistinguishable from Yorkie's own. It is refused at
+the point of entry rather than mangled into a namespace, because the stored label is what the reader
+sees and there is no API to correct it later.
 
 ## Retention is paging, not truncation
 
