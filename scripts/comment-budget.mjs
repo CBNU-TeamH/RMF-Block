@@ -116,9 +116,10 @@ function ratioForStaged(path) {
  *  file that was already over. Both conditions are needed: the ratio alone
  *  rises when code is deleted and no comment is touched, and deleting code is
  *  what `AGENTS.md` §3 asks for — it must not fail the gate. A file absent from
- *  the base is new, so the budget applies to it in full. */
-function worsenedAgainst(base, path, measured) {
-  const before = ratioAt(base, path);
+ *  the base is new, so the budget applies to it in full; a renamed one is
+ *  compared at its old path. */
+function worsenedAgainst(base, basePath, measured) {
+  const before = ratioAt(base, basePath);
   if (before === null) return true;
   return measured.ratio > before.ratio && measured.comment > before.comment;
 }
@@ -128,19 +129,26 @@ export function run({ strict = false, staged = false, base = resolveMergeBase() 
     return { base: null, over: [], strict, failed: strict };
   }
   const diffArgs = staged
-    ? ["diff", "--name-only", "--diff-filter=ACMR", "--cached", base, "--", "*.ts", "*.tsx"]
-    : ["diff", "--name-only", "--diff-filter=ACMR", base, "HEAD", "--", "*.ts", "*.tsx"];
-  const changed = git(diffArgs).split("\n").filter(Boolean);
+    ? ["diff", "--name-status", "--diff-filter=ACMR", "--cached", base, "--", "*.ts", "*.tsx"]
+    : ["diff", "--name-status", "--diff-filter=ACMR", base, "HEAD", "--", "*.ts", "*.tsx"];
+  // `R<score>\told\tnew` for a rename, `<status>\tpath` otherwise.
+  const changed = git(diffArgs)
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [status, from, to] = line.split("\t");
+      return status.startsWith("R") ? { path: to, basePath: from } : { path: from, basePath: from };
+    });
   const ratioFor = staged ? ratioForStaged : ratioForCommitted;
 
   const over = [];
-  for (const path of changed) {
+  for (const { path, basePath } of changed) {
     const measured = ratioFor(path);
     if (measured === null || measured.code <= SMALL_FILE_FLOOR) continue;
     if (measured.ratio <= THRESHOLD) continue;
     // Still reported either way — the routing signal is "this file's comments
     // outgrew it", which is true of an inherited one too. Only the gate ratchets.
-    over.push({ path, ratio: measured.ratio, worsened: worsenedAgainst(base, path, measured) });
+    over.push({ path, ratio: measured.ratio, worsened: worsenedAgainst(base, basePath, measured) });
   }
 
   return { base, over, strict, failed: strict && over.some((file) => file.worsened) };

@@ -54,7 +54,7 @@ which this task updates in place.
 - [x] `pnpm verify:docs` clean.
 - [x] `pnpm comments --strict` passes on this branch.
 - [x] Milestone 1's four negative cases behave as stated.
-- [ ] `comment budget` job green on the PR and its log shows a resolved merge base.
+- [x] `comment budget` job green on the PR and its log shows a resolved merge base (`clean against 613876f`).
 
 ## Cross-cutting
 
