@@ -1,10 +1,14 @@
-import type { Client, Document } from "@yorkie-js/sdk";
-import yorkie from "@yorkie-js/sdk";
+import type { Client } from "@yorkie-js/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createText } from "@/lib/blocks/create";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot } from "@/lib/blocks/document";
 import { editBlockText, type BlockArray } from "@/lib/blocks/operations";
+import {
+  acquireBlockDocument,
+  releaseBlockDocument,
+  type BlockDocument,
+} from "@/lib/documents/attach-pool";
 import {
   blockIndexFromEditPath,
   touchesBlockList,
@@ -15,7 +19,6 @@ import {
   occupantsByBlock,
   sameOccupants,
   OCCUPANCY_TICK_MS,
-  type BlockPresence,
   type Occupant,
 } from "@/lib/presence/occupancy";
 
@@ -39,18 +42,13 @@ export function useBlockDocument(
   const [failed, setFailed] = useState(false);
   const [occupantByBlock, setOccupantByBlock] = useState<Map<BlockId, Occupant>>(new Map());
 
-  const docRef = useRef<Document<BlockDocumentRoot, BlockPresence> | null>(null);
+  const docRef = useRef<BlockDocument | null>(null);
   // Which block currently has focus, or none — a ref because it drives the
   // heartbeat interval, not a render.
   const focusedBlockIdRef = useRef<BlockId | null>(null);
   // Each mounted text block's "apply this to your textarea". Fed by remote
   // edits below and by the editor's own split/merge through `patchBlockText`.
   const handlersRef = useRef(new Map<BlockId, (patch: TextPatch) => void>());
-
-  // Chains one run's teardown in front of the next run's attach(), for React's
-  // Strict Mode double-invoke — why, and the `#32` it shares a shape with:
-  // `docs/design/document-editing.md`, "Attaching under React's Strict Mode".
-  const teardownRef = useRef<Promise<void>>(Promise.resolve());
 
   // `useCallback` so the identity really is stable for a block's lifetime, which
   // is what `text-block.tsx`'s effect already assumes of it.
@@ -65,7 +63,7 @@ export function useBlockDocument(
   // Shared by the heartbeat and `setActiveBlockId` — both publish the same
   // shape, so this is written once rather than twice with a drift risk.
   const publishActiveBlock = useCallback(
-    (doc: Document<BlockDocumentRoot, BlockPresence>, blockId: BlockId) => {
+    (doc: BlockDocument, blockId: BlockId) => {
       doc.update((_root, presence) => {
         presence.set({ activeBlockId: blockId, colorTag, nickname, updatedAt: Date.now() });
       });
@@ -76,26 +74,26 @@ export function useBlockDocument(
   useEffect(() => {
     if (!client) return;
 
-    const doc = new yorkie.Document<BlockDocumentRoot, BlockPresence>(documentId);
     let cancelled = false;
-    // Whether THIS run's attach() went through — independent of `cancelled`.
-    let attached = false;
     let unsubscribe: (() => void) | undefined;
     let unsubscribeOccupancy: (() => void) | undefined;
     let tick: ReturnType<typeof setInterval> | undefined;
 
-    // cleanup(N) runs before effect(N+1), so this holds the previous run's full
-    // teardown and attach() below waits for it.
-    const readyToAttach = teardownRef.current;
+    // Shared with any floating view of this document, and what makes Strict
+    // Mode's double-invoke safe: the second run's acquire lands before the
+    // first run's release, so the count goes 1→2→1 and nothing re-attaches
+    // (`docs/design/document-editing.md`, "Attaching under React's Strict Mode").
+    // Set only once THIS run's acquire went through — independent of `cancelled`.
+    let held: BlockDocument | undefined;
 
     const setup = (async () => {
-      await readyToAttach;
-      if (cancelled) return;
-
-      await client.attach(doc, {
-        initialPresence: { activeBlockId: null, colorTag, nickname, updatedAt: Date.now() },
+      const doc = await acquireBlockDocument(client, documentId, {
+        activeBlockId: null,
+        colorTag,
+        nickname,
+        updatedAt: Date.now(),
       });
-      attached = true;
+      held = doc;
       if (cancelled) return;
 
       // Two peers can both seed an empty document — a known `#42`-material race
@@ -193,18 +191,14 @@ export function useBlockDocument(
     return () => {
       cancelled = true;
 
-      // Own this run's teardown and publish it before any of it actually
-      // runs, so the next run's `readyToAttach` waits on exactly this.
-      const teardown = setup.finally(async () => {
+      void setup.finally(() => {
         unsubscribe?.();
         unsubscribeOccupancy?.();
         if (tick) clearInterval(tick);
-        if (docRef.current === doc) docRef.current = null;
-        // Only this run's own successful attach left something to release.
-        if (attached) await client.detach(doc).catch(() => undefined);
+        if (docRef.current === held) docRef.current = null;
+        // Only this run's own successful acquire holds a share to give back.
+        if (held) releaseBlockDocument(client, documentId);
       });
-
-      teardownRef.current = teardown;
     };
   }, [client, documentId, colorTag, nickname, publishActiveBlock]);
 
