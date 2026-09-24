@@ -195,14 +195,23 @@ export function useBlockDocument(
 
     return () => {
       cancelled = true;
+      // Now, not once setup settles: the pool hands the next run this same
+      // document, so a late identity check here would clear the next run's
+      // `docRef` and drop every edit after it.
+      docRef.current = null;
 
       void setup.finally(() => {
         unsubscribe?.();
         unsubscribeOccupancy?.();
         if (tick) clearInterval(tick);
-        if (docRef.current === held) docRef.current = null;
         // Only this run's own successful acquire holds a share to give back.
-        if (held) releaseBlockDocument(client, documentId);
+        if (!held) return;
+        // A floating view can keep the document attached after the editor
+        // leaves, so detaching no longer clears this browser's presence —
+        // without this, peers see the last focused block as occupied until
+        // `OCCUPANCY_TTL_MS` runs out.
+        held.update((_root, presence) => presence.set({ activeBlockId: null }));
+        releaseBlockDocument(client, documentId);
       });
     };
   }, [client, documentId, colorTag, nickname, publishActiveBlock]);
