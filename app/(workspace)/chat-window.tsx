@@ -1,18 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
-import {
-  BAR_HEIGHT,
-  applyGesture,
-  clamp,
-  defaultFrame,
-  parseFrame,
-  type Frame,
-  type GestureKind,
-} from "@/lib/chat/window-frame";
+import { BAR_HEIGHT, clamp, defaultFrame, parseFrame, type Frame } from "@/lib/chat/window-frame";
 
 import { ChatPanel } from "./chat-panel";
+import { BORDERS, useFrameGesture, viewport } from "./use-frame-gesture";
 
 /** The chat window and the bar that opens it. A floating window, not a rail —
  *  where chat wants to sit depends on what is under it. The title bar moves it,
@@ -23,8 +16,6 @@ import { ChatPanel } from "./chat-panel";
  *  viewer's convenience on one device, and the default answers fine when it
  *  throws or comes back empty. */
 const STORAGE_KEY = "rmf-chat-window";
-
-const viewport = () => ({ width: window.innerWidth, height: window.innerHeight });
 
 function readFrame(): Frame | null {
   try {
@@ -43,30 +34,9 @@ function writeFrame(frame: Frame): void {
   }
 }
 
-type Gesture = {
-  kind: GestureKind;
-  pointerX: number;
-  pointerY: number;
-  start: Frame;
-};
-
-/** The three resize borders. Invisible and found by the cursor changing, like a
- *  desktop window's — and wider than the 1px they sit on, because a border you
- *  have to hit precisely is a border you miss. */
-const BORDERS: Array<{ kind: GestureKind; className: string }> = [
-  { kind: "left", className: "top-8 bottom-0 left-0 w-1.5 cursor-ew-resize" },
-  { kind: "right", className: "top-8 right-0 bottom-0 w-1.5 cursor-ew-resize" },
-  { kind: "bottom", className: "right-0 bottom-0 left-0 h-1.5 cursor-ns-resize" },
-];
-
 export function ChatWindow({ me }: { me: string }) {
   const [open, setOpen] = useState(false);
   const [frame, setFrame] = useState<Frame | null>(null);
-
-  // State rather than a ref: it changes only when a gesture starts or ends,
-  // never per pointer move, and the effect below depending on it is what
-  // attaches and removes the listeners.
-  const [gesture, setGesture] = useState<Gesture | null>(null);
 
   // Resolved on first open, not during render: `window` does not exist while
   // this component renders on the server, and neither does the saved frame.
@@ -75,55 +45,9 @@ export function ChatWindow({ me }: { me: string }) {
     setOpen(true);
   }, []);
 
-  // Listeners go on the window, not the header: a pointer moving faster than
-  // React re-renders leaves the element behind, and a drag that stops when the
-  // cursor outruns the title bar is a drag that feels broken.
-  useEffect(() => {
-    if (!gesture) return undefined;
-
-    const move = (event: PointerEvent) =>
-      setFrame(
-        applyGesture(
-          gesture.kind,
-          gesture.start,
-          event.clientX - gesture.pointerX,
-          event.clientY - gesture.pointerY,
-          viewport(),
-        ),
-      );
-
-    // Saved when the gesture ends rather than on every move — one write per
-    // drag instead of one per frame.
-    const end = () => {
-      setGesture(null);
-      setFrame((current) => {
-        if (current) writeFrame(current);
-        return current;
-      });
-    };
-
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", end);
-
-    return () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", end);
-    };
-  }, [gesture]);
-
-  // A viewport that shrank below the window leaves it partly unreachable.
-  useEffect(() => {
-    const onResize = () =>
-      setFrame((current) => (current ? clamp(current, viewport()) : current));
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  const begin = (kind: Gesture["kind"]) => (event: React.PointerEvent) => {
-    if (!frame) return;
-    event.preventDefault();
-    setGesture({ kind, pointerX: event.clientX, pointerY: event.clientY, start: frame });
-  };
+  // Saved when the gesture ends rather than on every move — one write per
+  // drag instead of one per frame.
+  const begin = useFrameGesture(frame, setFrame, writeFrame);
 
   return (
     <>
