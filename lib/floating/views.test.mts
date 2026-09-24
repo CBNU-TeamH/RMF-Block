@@ -24,6 +24,21 @@ describe("openView", () => {
     assert.equal(openView(once, a, viewport), once);
   });
 
+  it("never lands a window on another after one has closed", () => {
+    const c = { documentId: "doc-1", blockId: "b-3" };
+    const three = openView(openView(openView([], a, viewport), b, viewport), c, viewport);
+    const reopened = openView(closeView(three, b), b, viewport);
+    const spots = reopened.map((view) => `${view.frame.x},${view.frame.y}`);
+    assert.equal(new Set(spots).size, 3, spots.join(" "));
+  });
+
+  it("still opens a window when a tiny viewport has no free slot", () => {
+    const tiny = { width: 300, height: 300 };
+    let views = openView([], a, tiny);
+    views = openView(views, b, tiny);
+    assert.equal(openView(views, { documentId: "d", blockId: "c" }, tiny).length, 3);
+  });
+
   it("steps each further window off the last one", () => {
     const [first, second] = openView(openView([], a, viewport), b, viewport);
     assert.notDeepEqual(first.frame, second.frame);

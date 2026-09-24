@@ -56,12 +56,24 @@ export function openView(
 ): Array<FloatingView> {
   if (views.some((view) => sameBlock(view, ref))) return views;
 
-  const step = views.length * CASCADE;
-  const frame = clamp(
-    { x: viewport.width - WIDTH - CASCADE - step, y: TOP + step, width: WIDTH, height: HEIGHT },
-    viewport,
-  );
-  return [...views, { ...ref, frame }];
+  const slot = (i: number) =>
+    clamp(
+      {
+        x: viewport.width - WIDTH - CASCADE - i * CASCADE,
+        y: TOP + i * CASCADE,
+        width: WIDTH,
+        height: HEIGHT,
+      },
+      viewport,
+    );
+  // The first slot no window still sits on — counting windows instead lands a
+  // new one exactly on another once an earlier one has closed. Capped: on a
+  // small viewport far slots clamp onto one spot and would never come free.
+  const taken = (frame: Frame) =>
+    views.some((view) => view.frame.x === frame.x && view.frame.y === frame.y);
+  let i = 0;
+  while (i < views.length && taken(slot(i))) i += 1;
+  return [...views, { ...ref, frame: slot(i) }];
 }
 
 export function closeView(views: Array<FloatingView>, ref: BlockRef): Array<FloatingView> {
