@@ -59,12 +59,12 @@ floating window share **one attachment per document key**.
 ## Acceptance
 
 - [x] `pnpm verify:fast`, `pnpm build`, `pnpm comments`, `pnpm verify:docs` pass.
-- [ ] FR-070-01: a text, image or PDF block opens in a floating window.
-- [ ] FR-070-02/03: the window stays over the shell across document navigation (and reload).
-- [ ] FR-070-04: a peer's edit to the block appears in the window live.
-- [ ] FR-070-05: deleting the block disables the window with the deletion notice.
-- [ ] FR-070-06: two or more windows open at once.
-- [ ] Opening a document under `pnpm dev` (Strict Mode) logs no attach errors.
+- [x] FR-070-01: a text, image or PDF block opens in a floating window.
+- [x] FR-070-02/03: the window stays over the shell across document navigation (and reload).
+- [x] FR-070-04: a peer's edit to the block appears in the window live.
+- [x] FR-070-05: deleting the block disables the window with the deletion notice.
+- [x] FR-070-06: two or more windows open at once.
+- [x] Opening a document under `pnpm dev` (Strict Mode) logs no attach errors.
 
 ## Cross-cutting
 
@@ -74,6 +74,34 @@ floating window share **one attachment per document key**.
 
 ## Review
 
-Milestones 1–4 are built, and the design is in `docs/design/floating-view.md`. Every acceptance
-item except the scripts still needs a check in the container, in a real browser with two peers.
-None has been run yet.
+Milestones 1–4 are built, and the design is in `docs/design/floating-view.md`.
+
+**Browser check (2026-09-24).** A Playwright script drove two users: host A and guest B in
+separate contexts, on headless Chromium 1228. It ran 35 checks covering scenarios 1–8: open,
+several windows, move and resize, image and PDF, navigation, live updates, deletion and reload.
+Results:
+
+- 35/35 against the container (`pnpm docker:up`), twice in a row.
+- 35/35 against `pnpm dev` under Strict Mode.
+- No `already attached`, `client not found` or `Cannot update a component` in either run.
+
+The script lives outside the repo and is not a CI job. Adding browser tests to the repo is a
+separate decision.
+
+The check found five bugs, fixed in `ab92cc9`, `1127191` and `c2a66dc`:
+
+- **A lingering occupant.** A peer kept seeing this browser on its last block for 30 s after
+  leaving a document that a floating view still held.
+- **Every edit dropped under Strict Mode.** A late `docRef` identity check cleared the next
+  effect run's ref.
+- **Drags and resizes stalled over a PDF.** Pointer capture does not hold across Chrome's PDF
+  viewer. This affected the chat window too.
+- **A fast drag stopped one move short** of the pointer.
+- **A reopened window landed exactly on another** one.
+
+Open: the first window opens top-right, over the 🪟 buttons of the top rows, so the next block
+cannot be floated until the window is moved. Where a window should first appear is a design
+call, not changed here.
+
+Not covered: Firefox and Safari, a second physical device on the LAN, and the PDF viewer's own
+rendering inside a window.
