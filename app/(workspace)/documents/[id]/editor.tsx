@@ -115,7 +115,7 @@ export function DocumentEditor({
   const router = useRouter();
   const { client, members, memberId, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId } = useFocusFollow();
-  const floating = useFloatingViews();
+  const openFloating = useFloatingViews();
   // Falls back to a neutral color/blank name before the roster carries this
   // browser's own entry yet — `useBlockDocument`'s attach doesn't wait on it.
   const me = useMemo(
@@ -963,7 +963,7 @@ export function DocumentEditor({
           {canFloat(block) ? (
             <button
               type="button"
-              onClick={() => floating.open({ documentId, blockId: block.id })}
+              onClick={() => openFloating({ documentId, blockId: block.id })}
               aria-label="플로팅 뷰로 열기"
               title="플로팅 뷰로 열기"
               className="absolute -right-6 top-0.5 text-[12px] text-ink-faint opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100"

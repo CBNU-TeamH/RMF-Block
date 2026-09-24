@@ -1,4 +1,4 @@
-import { clamp, parseFrame, type Frame, type Viewport } from "../chat/window-frame.ts";
+import { clamp, toFrame, type Frame, type Viewport } from "../chat/window-frame.ts";
 
 /** The floating views one viewer has open (UC-070), as arithmetic on a list.
  *  Kept in `localStorage` — which blocks this person pinned, and where, is
@@ -39,7 +39,7 @@ export function parseViews(raw: string | null): Array<FloatingView> {
   const views: Array<FloatingView> = [];
   for (const entry of value as Array<Record<string, unknown> | null>) {
     if (typeof entry?.documentId !== "string" || typeof entry.blockId !== "string") continue;
-    const frame = parseFrame(JSON.stringify(entry.frame ?? null));
+    const frame = toFrame(entry.frame);
     if (!frame) continue;
     const view = { documentId: entry.documentId, blockId: entry.blockId, frame };
     if (!views.some((open) => sameBlock(open, view))) views.push(view);

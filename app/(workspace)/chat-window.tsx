@@ -5,7 +5,8 @@ import { useCallback, useState } from "react";
 import { BAR_HEIGHT, clamp, defaultFrame, parseFrame, type Frame } from "@/lib/chat/window-frame";
 
 import { ChatPanel } from "./chat-panel";
-import { BORDERS, useFrameGesture, viewport } from "./use-frame-gesture";
+import { FloatingFrame } from "./floating-frame";
+import { useFrameGesture, viewport } from "./use-frame-gesture";
 
 /** The chat window and the bar that opens it. A floating window, not a rail —
  *  where chat wants to sit depends on what is under it. The title bar moves it,
@@ -52,47 +53,22 @@ export function ChatWindow({ me }: { me: string }) {
   return (
     <>
       {open && frame ? (
-        <section
-          aria-label="채팅"
-          style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}
-          className="fixed z-40 flex flex-col overflow-hidden rounded-lg border border-ink bg-paper shadow-[0_6px_24px_rgba(28,27,26,0.18)]"
-        >
-          <header
-            onPointerDown={begin("move")}
-            className="flex h-8 flex-none cursor-move touch-none items-center gap-2 border-b border-ink bg-paper-2 px-2.5 select-none"
-          >
+        <FloatingFrame
+          frame={frame}
+          begin={begin}
+          label="채팅"
+          title={
             <span className="font-mono text-[10px] tracking-wide text-ink-soft uppercase">
               채팅
             </span>
-            <span className="flex-1" />
-            <button
-              type="button"
-              // Inside the header, so pointerdown would bubble into
-              // `begin("move")` — a twitch would move and save the window from a
-              // control that is not for moving it.
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={() => setOpen(false)}
-              aria-label="채팅 닫기"
-              className="px-1 text-[13px] leading-none text-ink-faint"
-            >
-              ✕
-            </button>
-          </header>
-
+          }
+          closeLabel="채팅 닫기"
+          onClose={() => setOpen(false)}
+          className="z-40"
+          headerClassName="bg-paper-2"
+        >
           <ChatPanel me={me} />
-
-          {/* Pointer-only, and marked as such: dragging a border has no keyboard
-              equivalent yet. They come after the panel so they sit above it —
-              the border must win the pointer, not the message list under it. */}
-          {BORDERS.map((border) => (
-            <span
-              key={border.kind}
-              onPointerDown={begin(border.kind)}
-              aria-hidden
-              className={`absolute touch-none ${border.className}`}
-            />
-          ))}
-        </section>
+        </FloatingFrame>
       ) : null}
 
       {/* The height here is the same number `window-frame` keeps the window

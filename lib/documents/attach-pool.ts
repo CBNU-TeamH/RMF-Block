@@ -20,9 +20,10 @@ export function createAttachPool<D, I>(
   detach: (doc: D) => Promise<unknown>,
 ): AttachPool<D, I> {
   const live = new Map<string, { count: number; ready: Promise<D> }>();
-  // A detach still in flight. The next attach of that key waits for it —
-  // the server still marks the document Attached until it lands.
-  const closing = new Map<string, Promise<void>>();
+  // Each key's last detach. The next attach of that key waits for it — the
+  // server still marks the document Attached until it lands. Kept once settled:
+  // one resolved promise per key ever opened.
+  const tail = new Map<string, Promise<void>>();
 
   return {
     acquire(key, init) {
@@ -32,7 +33,7 @@ export function createAttachPool<D, I>(
         return entry.ready;
       }
 
-      const ready = (closing.get(key) ?? Promise.resolve()).then(() => attach(key, init));
+      const ready = (tail.get(key) ?? Promise.resolve()).then(() => attach(key, init));
       const created = { count: 1, ready };
       live.set(key, created);
       // A failed attach leaves nothing to release, so the next acquire retries.
@@ -52,14 +53,13 @@ export function createAttachPool<D, I>(
       live.delete(key);
       // Swallowed like the editor's detach always was: a client deactivating
       // underneath has already detached everything.
-      const done = entry.ready.then(detach).then(
-        () => undefined,
-        () => undefined,
+      tail.set(
+        key,
+        entry.ready.then(detach).then(
+          () => undefined,
+          () => undefined,
+        ),
       );
-      closing.set(key, done);
-      void done.then(() => {
-        if (closing.get(key) === done) closing.delete(key);
-      });
     },
   };
 }

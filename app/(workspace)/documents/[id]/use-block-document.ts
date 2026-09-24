@@ -96,6 +96,11 @@ export function useBlockDocument(
       held = doc;
       if (cancelled) return;
 
+      // A floating view may have attached first with its own initial presence,
+      // and a re-run after the roster lands never re-attaches — so this run's
+      // identity is set here rather than trusted to `acquire`.
+      doc.update((_root, presence) => presence.set({ colorTag, nickname }));
+
       // Two peers can both seed an empty document — a known `#42`-material race
       // (`docs/design/document-editing.md`).
       doc.update((root: BlockDocumentRoot) => {

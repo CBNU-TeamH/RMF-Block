@@ -98,20 +98,24 @@ export function parseFrame(raw: string | null): Frame | null {
   if (!raw) return null;
 
   try {
-    const value: unknown = JSON.parse(raw);
-    if (typeof value !== "object" || value === null) return null;
-
-    const frame = value as Record<string, unknown>;
-    const numbers = [frame.x, frame.y, frame.width, frame.height];
-    if (!numbers.every((n) => typeof n === "number" && Number.isFinite(n))) return null;
-
-    return {
-      x: frame.x as number,
-      y: frame.y as number,
-      width: frame.width as number,
-      height: frame.height as number,
-    };
+    return toFrame(JSON.parse(raw));
   } catch {
     return null;
   }
+}
+
+/** `parseFrame`'s check, for a frame nested in a larger saved object. */
+export function toFrame(value: unknown): Frame | null {
+  if (typeof value !== "object" || value === null) return null;
+
+  const frame = value as Record<string, unknown>;
+  const numbers = [frame.x, frame.y, frame.width, frame.height];
+  if (!numbers.every((n) => typeof n === "number" && Number.isFinite(n))) return null;
+
+  return {
+    x: frame.x as number,
+    y: frame.y as number,
+    width: frame.width as number,
+    height: frame.height as number,
+  };
 }

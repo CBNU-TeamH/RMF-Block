@@ -17,15 +17,6 @@ type Gesture = {
   start: Frame;
 };
 
-/** The three resize borders. Invisible and found by the cursor changing, like a
- *  desktop window's — and wider than the 1px they sit on, because a border you
- *  have to hit precisely is a border you miss. */
-export const BORDERS: Array<{ kind: GestureKind; className: string }> = [
-  { kind: "left", className: "top-8 bottom-0 left-0 w-1.5 cursor-ew-resize" },
-  { kind: "right", className: "top-8 right-0 bottom-0 w-1.5 cursor-ew-resize" },
-  { kind: "bottom", className: "right-0 bottom-0 left-0 h-1.5 cursor-ns-resize" },
-];
-
 /** `onEnd` gets the frame a gesture left behind — once per drag, not per move. */
 export function useFrameGesture(
   frame: Frame | null,
@@ -57,7 +48,8 @@ export function useFrameGesture(
     const end = () => {
       setGesture(null);
       setFrame((current) => {
-        if (current) onEnd(current);
+        // A click that never moved leaves the start frame in place.
+        if (current && current !== gesture.start) onEnd(current);
         return current;
       });
     };

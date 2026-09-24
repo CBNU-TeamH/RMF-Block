@@ -1,7 +1,7 @@
 "use client";
 
 import type { Client } from "@yorkie-js/sdk";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { readBlocks } from "@/lib/blocks/document";
 import { isTextBearing } from "@/lib/blocks/registry";
@@ -18,17 +18,17 @@ import {
   type FloatingView,
 } from "@/lib/floating/views";
 
+import { FloatingFrame } from "./floating-frame";
 import { useWorkspacePresence } from "./presence-provider";
-import { BORDERS, useFrameGesture, viewport } from "./use-frame-gesture";
+import { useFrameGesture, viewport } from "./use-frame-gesture";
 
 /** Floating views (UC-070): blocks pinned into windows over the workspace. The
  *  provider sits in the workspace layout, which never remounts across document
  *  navigation — that is all FR-070-03 takes. Each window is a read-only mirror
  *  of its block, sharing the editor's attachment when both show one document. */
 
-const FloatingViewsContext = createContext<{ open: (ref: BlockRef) => void }>({
-  open: () => undefined,
-});
+/** Opens a view of a block — the one thing the editor needs from here. */
+const FloatingViewsContext = createContext<(ref: BlockRef) => void>(() => undefined);
 
 export const useFloatingViews = () => useContext(FloatingViewsContext);
 
@@ -84,10 +84,8 @@ export function FloatingViewProvider({
     [update],
   );
 
-  const value = useMemo(() => ({ open }), [open]);
-
   return (
-    <FloatingViewsContext.Provider value={value}>
+    <FloatingViewsContext.Provider value={open}>
       {children}
       {views.map((view) => (
         <FloatingWindow
@@ -133,16 +131,24 @@ function useMirroredBlock(
         held = true;
         if (cancelled) return;
 
-        // ponytail: re-reads the whole list per change, O(n) — fine at 8 users;
-        // read the one entry if it ever shows up in a profile.
+        // Converts only this block; the find is still O(n) — fine at 8 users.
         const read = () => {
-          const block = readBlocks(doc.getRoot().blocks ?? []).find((b) => b.id === blockId);
+          const stored = (doc.getRoot().blocks ?? []).find((b) => b?.id === blockId);
+          const [block] = stored ? readBlocks([stored]) : [];
           setMirror(block ? { status: "ready", block } : { status: "deleted" });
         };
         read();
-        // Every change, local ones included: the editor's own edits reach the
-        // mirror through this same shared document.
-        unsubscribe = doc.subscribe(read);
+        // Content changes only, local ones included: the editor's own edits
+        // reach the mirror through this same shared document.
+        unsubscribe = doc.subscribe((event) => {
+          if (
+            event.type === "local-change" ||
+            event.type === "remote-change" ||
+            event.type === "snapshot"
+          ) {
+            read();
+          }
+        });
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -162,6 +168,7 @@ function useMirroredBlock(
   return mirror;
 }
 
+/** Title-bar names, for exactly the types `canFloat` admits. */
 const LABELS: Partial<Record<BlockType, string>> = {
   text: "텍스트",
   heading: "제목",
@@ -175,7 +182,7 @@ const LABELS: Partial<Record<BlockType, string>> = {
 
 /** The types a floating view can show — the editor offers the button only on these. */
 export function canFloat(block: Block): boolean {
-  return block.type in LABELS;
+  return isTextBearing(block) || block.type === "image" || block.type === "pdf";
 }
 
 function MirrorBody({ block }: { block: Block }) {
@@ -249,34 +256,21 @@ function FloatingWindow({
         : "원본 없음";
 
   return (
-    <section
-      aria-label={`플로팅 뷰: ${title}`}
-      style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}
-      className="fixed z-[35] flex flex-col overflow-hidden rounded-lg border border-ink bg-paper shadow-[0_6px_24px_rgba(28,27,26,0.18)]"
-    >
-      <header
-        onPointerDown={begin("move")}
-        className="flex h-8 flex-none cursor-move touch-none items-center gap-2 border-b border-ink bg-sky-soft px-2.5 select-none"
-      >
-        <span aria-hidden className="text-[11px]">
-          🪟
-        </span>
-        <span className="flex-1 truncate font-mono text-[10px] tracking-wide text-ink-soft">
+    <FloatingFrame
+      frame={frame}
+      begin={begin}
+      label={`플로팅 뷰: ${title}`}
+      title={
+        <span className="truncate font-mono text-[10px] tracking-wide text-ink-soft">
+          <span aria-hidden>🪟 </span>
           {title}
         </span>
-        <button
-          type="button"
-          // Same reason as the chat window's close: pointerdown here would
-          // otherwise start a move.
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => onClose({ documentId, blockId })}
-          aria-label="플로팅 뷰 닫기"
-          className="px-1 text-[13px] leading-none text-ink-faint"
-        >
-          ✕
-        </button>
-      </header>
-
+      }
+      closeLabel="플로팅 뷰 닫기"
+      onClose={() => onClose({ documentId, blockId })}
+      className="z-[35]"
+      headerClassName="bg-sky-soft"
+    >
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {mirror.status === "ready" ? <MirrorBody block={mirror.block} /> : null}
         {mirror.status === "deleted" ? (
@@ -286,15 +280,6 @@ function FloatingWindow({
           <p className="text-sm text-ink-faint">원본을 열 수 없습니다.</p>
         ) : null}
       </div>
-
-      {BORDERS.map((border) => (
-        <span
-          key={border.kind}
-          onPointerDown={begin(border.kind)}
-          aria-hidden
-          className={`absolute touch-none ${border.className}`}
-        />
-      ))}
-    </section>
+    </FloatingFrame>
   );
 }

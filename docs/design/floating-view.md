@@ -2,7 +2,7 @@
 
 - **Status**: Agreed 2026-09-24. Built for text-bearing, image and PDF blocks.
 - **Owns**: `lib/floating/`, `app/(workspace)/floating-views.tsx`,
-  `app/(workspace)/use-frame-gesture.ts`.
+  `app/(workspace)/floating-frame.tsx`, `app/(workspace)/use-frame-gesture.ts`.
 - **Related**: [`docs/SRS-ko.md`](../SRS-ko.md) UC-070, FR-070-01..06, SIR007;
   [`document-editing.md`](document-editing.md), "Attaching under React's Strict Mode" (the
   shared attachment); [`chat.md`](chat.md), "The floating window" (the geometry it reuses);
@@ -30,12 +30,14 @@ the document already open is the common case, so the editor and every window go 
 was ruled out. It would need its own token path (#50) and double every connection.
 
 A window attaches with `activeBlockId: null`. Occupancy already skips that, so a viewer is
-never drawn on anyone's block.
+never drawn on anyone's block. Initial presence only counts for whichever holder attaches
+first, so the editor sets its own `colorTag` and `nickname` once it has acquired the document.
 
 ## What the window shows
 
-The whole block list is re-read on every change to the shared document, local ones included,
-because the editor's own edits reach the mirror through that same document. A block that is
+The block is re-read on every content change to the shared document, local ones included,
+because the editor's own edits reach the mirror through that same document. Presence events
+are skipped. A block that is
 no longer there turns the window into "원본 블록이 삭제되었습니다." (FR-070-05). The window
 stays until closed, because an alert the person never saw vanish is an alert they miss. If the
 block comes back (an undo), the window picks it up again.
@@ -45,8 +47,9 @@ That is all FR-070-03 takes.
 
 ## Moving and resizing
 
-This is the chat window's behaviour: the same `lib/chat/window-frame.ts` arithmetic and the
-same pointer plumbing, now in `use-frame-gesture.ts`. The gesture captures the pointer,
+This is the chat window's behaviour: the same `lib/chat/window-frame.ts` arithmetic, the same
+pointer plumbing in `use-frame-gesture.ts`, and the same chrome (title bar, close button, resize
+borders) in `floating-frame.tsx`. The gesture captures the pointer,
 because a floating PDF's `<iframe>` would otherwise swallow the moves and strand the drag.
 Windows sit at `z-[35]`: above the chat bar, below the chat window.
 
