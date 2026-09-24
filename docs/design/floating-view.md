@@ -30,8 +30,17 @@ the document already open is the common case, so the editor and every window go 
 was ruled out. It would need its own token path (#50) and double every connection.
 
 A window attaches with `activeBlockId: null`. Occupancy already skips that, so a viewer is
-never drawn on anyone's block. Initial presence only counts for whichever holder attaches
-first, so the editor sets its own `colorTag` and `nickname` once it has acquired the document.
+never drawn on anyone's block. Sharing changes three things in the editor, all measured with the
+Playwright check:
+
+- **Identity is set after `acquire`.** Initial presence only counts for whichever holder
+  attaches first, and an effect re-run after the roster lands never re-attaches.
+- **`activeBlockId` is cleared on release.** Detaching used to clear it. With a floating view
+  still holding the document, peers otherwise kept seeing this browser on its last block until
+  the 30 s occupancy TTL.
+- **`docRef` is cleared in the cleanup itself, not once setup settles.** Every run now gets
+  the same document, so a late `docRef.current === held` check cleared the *next* run's ref.
+  Under Strict Mode that dropped every edit.
 
 ## What the window shows
 

@@ -34,10 +34,8 @@ export function useFrameGesture(
   useEffect(() => {
     if (!gesture) return undefined;
 
-    // An `<iframe>` under the pointer — a PDF, in the editor or in a floating
-    // view — takes the events for itself, and pointer capture does not hold
-    // across Chrome's PDF viewer: the gesture stalls. None of them needs the
-    // pointer while a window is being dragged.
+    // A PDF `<iframe>` under the pointer would take the moves and stall the
+    // gesture — `docs/design/floating-view.md`, "Moving and resizing".
     const frames = Array.from(document.querySelectorAll("iframe"));
     frames.forEach((frame) => (frame.style.pointerEvents = "none"));
 

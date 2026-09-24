@@ -96,9 +96,7 @@ export function useBlockDocument(
       held = doc;
       if (cancelled) return;
 
-      // A floating view may have attached first with its own initial presence,
-      // and a re-run after the roster lands never re-attaches — so this run's
-      // identity is set here rather than trusted to `acquire`.
+      // Not trusted to `acquire` — `docs/design/floating-view.md`.
       doc.update((_root, presence) => presence.set({ colorTag, nickname }));
 
       // Two peers can both seed an empty document — a known `#42`-material race
@@ -195,9 +193,7 @@ export function useBlockDocument(
 
     return () => {
       cancelled = true;
-      // Now, not once setup settles: the pool hands the next run this same
-      // document, so a late identity check here would clear the next run's
-      // `docRef` and drop every edit after it.
+      // Now, not once setup settles — `docs/design/floating-view.md`.
       docRef.current = null;
 
       void setup.finally(() => {
@@ -206,10 +202,7 @@ export function useBlockDocument(
         if (tick) clearInterval(tick);
         // Only this run's own successful acquire holds a share to give back.
         if (!held) return;
-        // A floating view can keep the document attached after the editor
-        // leaves, so detaching no longer clears this browser's presence —
-        // without this, peers see the last focused block as occupied until
-        // `OCCUPANCY_TTL_MS` runs out.
+        // A floating view may keep it attached — `docs/design/floating-view.md`.
         held.update((_root, presence) => presence.set({ activeBlockId: null }));
         releaseBlockDocument(client, documentId);
       });
