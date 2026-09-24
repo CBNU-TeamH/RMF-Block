@@ -34,11 +34,18 @@ export function useFrameGesture(
   useEffect(() => {
     if (!gesture) return undefined;
 
+    // An `<iframe>` under the pointer — a PDF, in the editor or in a floating
+    // view — takes the events for itself, and pointer capture does not hold
+    // across Chrome's PDF viewer: the gesture stalls. None of them needs the
+    // pointer while a window is being dragged.
+    const frames = Array.from(document.querySelectorAll("iframe"));
+    frames.forEach((frame) => (frame.style.pointerEvents = "none"));
+
     // The last frame this gesture produced, so `end` can hand it on without
     // calling out from inside a state updater — `onEnd` may set a parent's state.
     let last: Frame | null = null;
 
-    const move = (event: PointerEvent) => {
+    const follow = (event: PointerEvent) => {
       last = applyGesture(
         gesture.kind,
         gesture.start,
@@ -49,17 +56,22 @@ export function useFrameGesture(
       setFrame(last);
     };
 
-    const end = () => {
+    // The release point counts too: a fast drag can let go before its last
+    // move was delivered, and the window would stop short of the pointer.
+    const end = (event: PointerEvent) => {
       setGesture(null);
+      const moved = event.clientX !== gesture.pointerX || event.clientY !== gesture.pointerY;
+      if (moved) follow(event);
       // A click that never moved has nothing to save.
       if (last) onEnd(last);
     };
 
-    window.addEventListener("pointermove", move);
+    window.addEventListener("pointermove", follow);
     window.addEventListener("pointerup", end);
 
     return () => {
-      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointermove", follow);
+      frames.forEach((frame) => (frame.style.pointerEvents = ""));
       window.removeEventListener("pointerup", end);
     };
   }, [gesture, setFrame, onEnd]);
@@ -75,9 +87,6 @@ export function useFrameGesture(
   return (kind: GestureKind) => (event: React.PointerEvent) => {
     if (!frame) return;
     event.preventDefault();
-    // Captured, so an `<iframe>` under the pointer — a floating PDF — cannot
-    // swallow the moves and strand the drag.
-    event.currentTarget.setPointerCapture(event.pointerId);
     setGesture({ kind, pointerX: event.clientX, pointerY: event.clientY, start: frame });
   };
 }

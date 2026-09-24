@@ -49,8 +49,10 @@ That is all FR-070-03 takes.
 
 This is the chat window's behaviour: the same `lib/chat/window-frame.ts` arithmetic, the same
 pointer plumbing in `use-frame-gesture.ts`, and the same chrome (title bar, close button, resize
-borders) in `floating-frame.tsx`. The gesture captures the pointer,
-because a floating PDF's `<iframe>` would otherwise swallow the moves and strand the drag.
+borders) in `floating-frame.tsx`. While a gesture runs,
+every `<iframe>` on the page has `pointer-events: none`, because a PDF under the pointer would
+otherwise take the moves for itself and stall the drag. Pointer capture was tried first and does
+not hold across Chrome's PDF viewer (measured with Playwright).
 Windows sit at `z-[35]`: above the chat bar, below the chat window.
 
 ## Not built
