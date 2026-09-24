@@ -34,24 +34,25 @@ export function useFrameGesture(
   useEffect(() => {
     if (!gesture) return undefined;
 
-    const move = (event: PointerEvent) =>
-      setFrame(
-        applyGesture(
-          gesture.kind,
-          gesture.start,
-          event.clientX - gesture.pointerX,
-          event.clientY - gesture.pointerY,
-          viewport(),
-        ),
+    // The last frame this gesture produced, so `end` can hand it on without
+    // calling out from inside a state updater — `onEnd` may set a parent's state.
+    let last: Frame | null = null;
+
+    const move = (event: PointerEvent) => {
+      last = applyGesture(
+        gesture.kind,
+        gesture.start,
+        event.clientX - gesture.pointerX,
+        event.clientY - gesture.pointerY,
+        viewport(),
       );
+      setFrame(last);
+    };
 
     const end = () => {
       setGesture(null);
-      setFrame((current) => {
-        // A click that never moved leaves the start frame in place.
-        if (current && current !== gesture.start) onEnd(current);
-        return current;
-      });
+      // A click that never moved has nothing to save.
+      if (last) onEnd(last);
     };
 
     window.addEventListener("pointermove", move);

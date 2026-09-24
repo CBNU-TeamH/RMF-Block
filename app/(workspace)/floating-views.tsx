@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { readBlocks } from "@/lib/blocks/document";
 import { isTextBearing } from "@/lib/blocks/registry";
 import type { Block, BlockType } from "@/lib/blocks/types";
-import type { Frame } from "@/lib/chat/window-frame";
+import { clamp, type Frame } from "@/lib/chat/window-frame";
 import { acquireBlockDocument, releaseBlockDocument } from "@/lib/documents/attach-pool";
 import {
   STORAGE_KEY,
@@ -62,8 +62,10 @@ export function FloatingViewProvider({
 
   // After mount, not during render: the server has no `localStorage`.
   useEffect(() => {
+    // Clamped like the chat window's saved frame: the viewport may have shrunk
+    // since these were saved.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- a one-time read of browser-only state
-    setViews(readViews());
+    setViews(readViews().map((view) => ({ ...view, frame: clamp(view.frame, viewport()) })));
   }, []);
 
   const update = useCallback((change: (views: Array<FloatingView>) => Array<FloatingView>) => {
