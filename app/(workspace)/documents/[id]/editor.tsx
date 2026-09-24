@@ -851,10 +851,11 @@ export function DocumentEditor({
       data-focus-scroll
       // `relative` makes this each block's `offsetParent` — the space
       // `lib/focus/dom.ts` reads `offsetTop` in.
-      // `-ml-4 pl-4` is one thing: a non-`visible` overflow on one axis computes
-      // the other to `auto`, so `overflow-y-auto` would clip the drag handle at
-      // `-left-4`. Delete either half and the handle silently stops appearing.
-      className="relative -ml-4 flex min-h-0 flex-1 flex-col overflow-y-auto pl-4"
+      // `-ml-4 pl-4` and `-mr-6 pr-6` are one thing each: a non-`visible`
+      // overflow on one axis computes the other to `auto`, so `overflow-y-auto`
+      // would clip the drag handle at `-left-4` and the 🪟 button at `-right-6`.
+      // Delete either half and that control silently stops appearing.
+      className="relative -mr-6 -ml-4 flex min-h-0 flex-1 flex-col overflow-y-auto pr-6 pl-4"
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes("Files")) {
           event.preventDefault();

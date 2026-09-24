@@ -99,6 +99,11 @@ The check found five bugs, fixed in `ab92cc9`, `1127191` and `c2a66dc`:
 - **A fast drag stopped one move short** of the pointer.
 - **A reopened window landed exactly on another** one.
 
+A sixth bug was reported by hand after that check: the 🪟 button was clipped off the editor's
+scroll container, so it never appeared. The check had missed it because Playwright scrolls
+before it hovers. That check was rewritten to use the real pointer and now fails on the old
+build; with the fix it passes 35/35.
+
 Open: the first window opens top-right, over the 🪟 buttons of the top rows, so the next block
 cannot be floated until the window is moved. Where a window should first appear is a design
 call, not changed here.

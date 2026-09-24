@@ -22,6 +22,13 @@ that the next person does not rediscover this.
   means the next run's, and a late cleanup wiped it: every edit was dropped under Strict Mode.
   Likewise detaching no longer clears presence while a floating view still holds the document.
   So the editor must clear `activeBlockId` itself, or peers see a ghost occupant for 30 s.
+- **Playwright's `hover()` and `click()` scroll the target into view first, and that hid a
+  real bug.** The 🪟 button sat at `-right-6`, outside the editor's `overflow-y-auto` container,
+  so its sideways overflow scrolled out of sight: a person could not see or reach it. The
+  first browser check still passed, because Playwright scrolled it into view. The user caught
+  it by hand. The check now moves the real pointer to the row and asserts the button is inside
+  the container and is what `elementFromPoint` returns. It fails on the old build and passes on
+  the fix (`-mr-6 pr-6`, mirroring the drag handle's `-ml-4 pl-4`).
 - **`client not activated` during a reload is noise.** The Yorkie SDK deactivates its client on
   `beforeunload`, so attach requests still in flight from the page being reloaded fail and log.
   The editor's own attach logs it too. Floating views only add more requests in flight.
