@@ -56,6 +56,28 @@ floating window share **one attachment per document key**.
 - **Reuse**: `isTextBearing` (`lib/blocks/registry.ts`), the drag handle's hover classes.
 - **Done**: clicking it opens (or leaves open) that block's window.
 
+### 5. Feedback from the user's browser test (2026-09-24)
+
+- **What**: five changes the user asked for after trying it by hand:
+  - The 🪟 button moves left of the drag handle and grows to 22px.
+  - A ratio-locked corner resize, with the content scaled to the window by CSS `zoom`.
+  - A new window fits its content with a small margin.
+  - The document's name becomes the title, and a deleted document disables the window.
+  - A red close button, on floating windows only.
+  - No re-render when nothing changed.
+- **Files**:
+  - `app/(workspace)/documents/[id]/editor.tsx` and `page.tsx`
+  - `lib/chat/window-frame.ts` (a `clamp` minimum parameter)
+  - `app/(workspace)/use-frame-gesture.ts` (it takes its geometry)
+  - `app/(workspace)/floating-frame.tsx` (resize mode and close style)
+  - `lib/floating/views.ts`, `app/(workspace)/floating-views.tsx`, `docs/design/floating-view.md`
+- **Reuse**:
+  - `window-frame`'s `clamp`/`applyGesture` stay the chat window's rules.
+  - The workspace socket pattern and message shape come from `document-list.tsx`.
+  - `GET /api/documents` for the catalogue.
+- **Done**: the Playwright suite checks each of the five against the container, with real pointer
+  moves, alongside the existing 35.
+
 ## Acceptance
 
 - [x] `pnpm verify:fast`, `pnpm build`, `pnpm comments`, `pnpm verify:docs` pass.
@@ -65,6 +87,11 @@ floating window share **one attachment per document key**.
 - [x] FR-070-05: deleting the block disables the window with the deletion notice.
 - [x] FR-070-06: two or more windows open at once.
 - [x] Opening a document under `pnpm dev` (Strict Mode) logs no attach errors.
+- [ ] The 🪟 button sits left of the drag handle at 22px or more, visible and hittable without scrolling.
+- [ ] A new window fits its content; a corner drag keeps the ratio and scales the content with it.
+- [ ] The title is the source document's name, updates on rename, and a deleted document disables the window.
+- [ ] The close button is red on floating windows; the chat window's is unchanged.
+- [ ] A window does not re-render when another block of its document changes.
 
 ## Cross-cutting
 
