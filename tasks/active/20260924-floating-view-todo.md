@@ -87,11 +87,12 @@ floating window share **one attachment per document key**.
 - [x] FR-070-05: deleting the block disables the window with the deletion notice.
 - [x] FR-070-06: two or more windows open at once.
 - [x] Opening a document under `pnpm dev` (Strict Mode) logs no attach errors.
-- [ ] The 🪟 button sits left of the drag handle at 22px or more, visible and hittable without scrolling.
-- [ ] A new window fits its content; a corner drag keeps the ratio and scales the content with it.
-- [ ] The title is the source document's name, updates on rename, and a deleted document disables the window.
-- [ ] The close button is red on floating windows; the chat window's is unchanged.
-- [ ] A window does not re-render when another block of its document changes.
+- [x] The 🪟 button sits left of the drag handle at 22px or more, visible and hittable without scrolling.
+- [x] A new window fits its content; a corner drag keeps the ratio and scales the content with it.
+- [x] The title is the source document's name, updates on rename, and a deleted document disables the window.
+- [x] The close button is red on floating windows; the chat window's is unchanged.
+- [x] A window does not re-render when another block of its document changes — by construction
+  (`memo` and the unchanged-block skip). No browser check measures render counts.
 
 ## Cross-cutting
 
@@ -134,6 +135,16 @@ build; with the fix it passes 35/35.
 Open: the first window opens top-right, over the 🪟 buttons of the top rows, so the next block
 cannot be floated until the window is moved. Where a window should first appear is a design
 call, not changed here.
+
+**Feedback round (milestone 5).** Result: 43/43 against the container and 43/43 under
+`pnpm dev`. The check found four more problems before it passed, all fixed in `229ffc4`:
+
+- **Fitting broke the cascade.** It keeps the right edge and moves `x`, so new windows stacked
+  exactly on the old ones.
+- **A corner drag near the edge overflowed the viewport**, because the size floor won over it.
+- **The first rule, "follow the axis asking for more", could never shrink** on a sideways drag.
+- **A one-line block fitted about 60px wide**, leaving no room for the title. There is now a
+  160px floor.
 
 Not covered: Firefox and Safari, a second physical device on the LAN, and the PDF viewer's own
 rendering inside a window.

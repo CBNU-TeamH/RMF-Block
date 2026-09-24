@@ -39,6 +39,13 @@ that the next person does not rediscover this.
   `StoredMember` without `lastJoinedAt`. Vitest does not typecheck, so no CI job catches it.
   Left alone here, since it is out of scope.
 
+- **"Follow whichever axis asks for more" only works for growing.** A corner drag inward along
+  one axis never shrank the window, because the untouched axis still asked for the full size.
+  The rule that works both ways is the axis that moved further in proportion. The unit tests
+  had only tried growth; the browser check tried shrinking.
+- **Anything keyed on a window's `x` breaks once windows are fitted.** Fitting keeps the right
+  edge, so the cascade's "slot taken?" check has to compare right edges.
+
 ## What we would do differently
 
 - Run a real browser against the feature before `/simplify` and `/code-review`, not after. Four
