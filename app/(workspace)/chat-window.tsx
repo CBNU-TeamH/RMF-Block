@@ -2,11 +2,19 @@
 
 import { useCallback, useState } from "react";
 
-import { BAR_HEIGHT, clamp, defaultFrame, parseFrame, type Frame } from "@/lib/chat/window-frame";
+import {
+  BAR_HEIGHT,
+  applyGesture,
+  clamp,
+  defaultFrame,
+  parseFrame,
+  type Frame,
+  type GestureKind,
+} from "@/lib/chat/window-frame";
 
 import { ChatPanel } from "./chat-panel";
 import { FloatingFrame } from "./floating-frame";
-import { useFrameGesture, viewport } from "./use-frame-gesture";
+import { useFrameGesture, viewport, type FrameRules } from "./use-frame-gesture";
 
 /** The chat window and the bar that opens it. A floating window, not a rail —
  *  where chat wants to sit depends on what is under it. The title bar moves it,
@@ -17,6 +25,8 @@ import { useFrameGesture, viewport } from "./use-frame-gesture";
  *  viewer's convenience on one device, and the default answers fine when it
  *  throws or comes back empty. */
 const STORAGE_KEY = "rmf-chat-window";
+
+const RULES: FrameRules<GestureKind> = { apply: applyGesture, fit: clamp };
 
 function readFrame(): Frame | null {
   try {
@@ -48,7 +58,7 @@ export function ChatWindow({ me }: { me: string }) {
 
   // Saved when the gesture ends rather than on every move — one write per
   // drag instead of one per frame.
-  const begin = useFrameGesture(frame, setFrame, writeFrame);
+  const begin = useFrameGesture(frame, setFrame, writeFrame, RULES);
 
   return (
     <>
@@ -62,6 +72,7 @@ export function ChatWindow({ me }: { me: string }) {
               채팅
             </span>
           }
+          resize="edges"
           closeLabel="채팅 닫기"
           onClose={() => setOpen(false)}
           className="z-40"

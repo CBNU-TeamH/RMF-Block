@@ -12,23 +12,30 @@ const BORDERS: Array<{ kind: GestureKind; className: string }> = [
 ];
 
 /** The chrome every floating window shares — the chat window and each floating
- *  view: a title bar that moves it, a close button, three resize borders. */
+ *  view: a title bar that moves it, a close button, and either three resize
+ *  borders or one corner grip. */
 export function FloatingFrame({
   frame,
   begin,
+  resize,
   label,
   title,
   closeLabel,
+  closeClassName = "text-ink-faint",
   onClose,
   className,
   headerClassName,
   children,
 }: {
   frame: Frame;
-  begin: (kind: GestureKind) => (event: React.PointerEvent) => void;
+  /** A method, so a caller whose hook only knows its own kinds still fits. */
+  begin(kind: GestureKind | "corner"): (event: React.PointerEvent) => void;
+  /** `edges` for a free window, `corner` for one that keeps its ratio. */
+  resize: "edges" | "corner";
   label: string;
   title: React.ReactNode;
   closeLabel: string;
+  closeClassName?: string;
   onClose: () => void;
   /** Stacking and anything else only this window wants on its frame. */
   className: string;
@@ -55,7 +62,7 @@ export function FloatingFrame({
           onPointerDown={(event) => event.stopPropagation()}
           onClick={onClose}
           aria-label={closeLabel}
-          className="px-1 text-[13px] leading-none text-ink-faint"
+          className={`px-1 text-[13px] leading-none ${closeClassName}`}
         >
           ✕
         </button>
@@ -66,14 +73,22 @@ export function FloatingFrame({
       {/* Pointer-only, and marked as such: dragging a border has no keyboard
           equivalent yet. They come after the content so they sit above it —
           the border must win the pointer, not what is under it. */}
-      {BORDERS.map((border) => (
+      {resize === "edges" ? (
+        BORDERS.map((border) => (
+          <span
+            key={border.kind}
+            onPointerDown={begin(border.kind)}
+            aria-hidden
+            className={`absolute touch-none ${border.className}`}
+          />
+        ))
+      ) : (
         <span
-          key={border.kind}
-          onPointerDown={begin(border.kind)}
+          onPointerDown={begin("corner")}
           aria-hidden
-          className={`absolute touch-none ${border.className}`}
+          className="absolute right-0 bottom-0 size-3.5 cursor-nwse-resize touch-none border-r-2 border-b-2 border-ink-faint"
         />
-      ))}
+      )}
     </section>
   );
 }
