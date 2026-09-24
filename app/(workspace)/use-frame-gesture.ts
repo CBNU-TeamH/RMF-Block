@@ -82,6 +82,9 @@ export function useFrameGesture(
   return (kind: GestureKind) => (event: React.PointerEvent) => {
     if (!frame) return;
     event.preventDefault();
+    // Captured, so an `<iframe>` under the pointer — a floating PDF — cannot
+    // swallow the moves and strand the drag.
+    event.currentTarget.setPointerCapture(event.pointerId);
     setGesture({ kind, pointerX: event.clientX, pointerY: event.clientY, start: frame });
   };
 }

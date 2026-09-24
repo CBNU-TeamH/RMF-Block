@@ -40,6 +40,7 @@ import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
 import { HOST_PRESENCE } from "@/lib/presence/types";
 
+import { canFloat, useFloatingViews } from "../../floating-views";
 import { useFocusFollow } from "../../focus-follow-provider";
 import { Avatar } from "../../presence-avatar";
 import { useWorkspacePresence } from "../../presence-provider";
@@ -114,6 +115,7 @@ export function DocumentEditor({
   const router = useRouter();
   const { client, members, memberId, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId } = useFocusFollow();
+  const floating = useFloatingViews();
   // Falls back to a neutral color/blank name before the roster carries this
   // browser's own entry yet — `useBlockDocument`'s attach doesn't wait on it.
   const me = useMemo(
@@ -955,6 +957,19 @@ export function DocumentEditor({
                 size="size-5"
               />
             </span>
+          ) : null}
+          {/* UC-070's entry point — on the right, where nothing else sits, and
+           * shown the same way the drag handle is. */}
+          {canFloat(block) ? (
+            <button
+              type="button"
+              onClick={() => floating.open({ documentId, blockId: block.id })}
+              aria-label="플로팅 뷰로 열기"
+              title="플로팅 뷰로 열기"
+              className="absolute -right-6 top-0.5 text-[12px] text-ink-faint opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100"
+            >
+              🪟
+            </button>
           ) : null}
           {rowFor(block, index)}
         </div>
