@@ -43,14 +43,22 @@ export function defaultFrame(viewport: Viewport): Frame {
 
 /** Pulls a frame back inside the viewport, size before position — where it fits
  *  depends on how big it is. Below the minimum size the floor wins and the
- *  window overflows rather than collapsing. */
-export function clamp(frame: Frame, viewport: Viewport): Frame {
+ *  window overflows rather than collapsing. `min` is the chat window's unless
+ *  a caller has a smaller window to keep. */
+export function clamp(
+  frame: Frame,
+  viewport: Viewport,
+  min: { width: number; height: number } = { width: MIN_WIDTH, height: MIN_HEIGHT },
+): Frame {
   // The bar's strip is not part of the space a window may occupy, so it comes
   // off the height before anything else is decided.
   const usableHeight = viewport.height - BAR_HEIGHT;
 
-  const width = Math.min(Math.max(frame.width, MIN_WIDTH), Math.max(MIN_WIDTH, viewport.width));
-  const height = Math.min(Math.max(frame.height, MIN_HEIGHT), Math.max(MIN_HEIGHT, usableHeight));
+  const width = Math.min(Math.max(frame.width, min.width), Math.max(min.width, viewport.width));
+  const height = Math.min(
+    Math.max(frame.height, min.height),
+    Math.max(min.height, usableHeight),
+  );
 
   return {
     width,
