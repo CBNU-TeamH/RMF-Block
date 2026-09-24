@@ -58,7 +58,7 @@ floating window share **one attachment per document key**.
 
 ## Acceptance
 
-- [ ] `pnpm verify:fast`, `pnpm build`, `pnpm comments`, `pnpm verify:docs` pass.
+- [x] `pnpm verify:fast`, `pnpm build`, `pnpm comments`, `pnpm verify:docs` pass.
 - [ ] FR-070-01: a text, image or PDF block opens in a floating window.
 - [ ] FR-070-02/03: the window stays over the shell across document navigation (and reload).
 - [ ] FR-070-04: a peer's edit to the block appears in the window live.
@@ -74,4 +74,6 @@ floating window share **one attachment per document key**.
 
 ## Review
 
-Filled in at the end.
+Milestones 1–4 are built, and the design is in `docs/design/floating-view.md`. Every acceptance
+item except the scripts still needs a check in the container, in a real browser with two peers.
+None has been run yet.
