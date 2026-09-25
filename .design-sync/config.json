@@ -81,5 +81,8 @@
       "cardMode": "column"
     }
   },
-  "readmeHeader": ".design-sync/conventions.md"
+  "readmeHeader": ".design-sync/conventions.md",
+  "extraFonts": [
+    ".design-sync/pretendard.css"
+  ]
 }

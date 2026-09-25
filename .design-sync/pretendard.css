@@ -1,0 +1,8 @@
+/* The app loads Pretendard through next/font (app/layout.tsx), which the
+   design system never runs; this ships the same file to it (cfg.extraFonts). */
+@font-face {
+  font-family: "Pretendard Variable";
+  src: url("../app/fonts/PretendardVariable.woff2") format("woff2");
+  font-weight: 45 920;
+  font-display: swap;
+}
