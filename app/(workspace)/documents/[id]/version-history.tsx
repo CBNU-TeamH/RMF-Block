@@ -23,13 +23,15 @@ import { HEADING_CLASS } from "./text-block";
  *  and why a restore is written here rather than handed to Yorkie — is
  *  `docs/design/version-history.md`. */
 
+// The redesign's ghost and primary buttons and dialog
+// (`docs/ui/redesign/HANDOFF.md` §3).
 const BUTTON =
-  "rounded-md border border-ink px-2.5 py-1 font-mono text-[11px] font-medium text-ink disabled:opacity-40";
+  "flex h-[30px] shrink-0 items-center gap-1.5 rounded-control px-2.5 text-[13.5px] font-medium text-ink-soft hover:bg-hover hover:text-ink disabled:opacity-40";
 const PRIMARY =
-  "rounded-md border border-sky-deep bg-sky px-2.5 py-1 font-mono text-[11px] font-bold text-ink disabled:opacity-40";
+  "h-8 shrink-0 rounded-control bg-ink px-3.5 text-[13.5px] font-semibold text-paper hover:opacity-90 disabled:bg-hover disabled:text-ink-faint disabled:hover:opacity-100";
 const DIALOG =
-  "m-auto max-w-sm rounded-lg border border-ink bg-paper p-5 text-ink backdrop:bg-ink/40";
-const META = "font-mono text-[10px] tracking-wide uppercase text-ink-faint";
+  "mx-auto mt-[18vh] w-full max-w-[400px] rounded-card bg-elev p-5 text-ink shadow-elev backdrop:bg-[rgba(10,14,20,0.36)]";
+const META = "text-xs text-ink-faint";
 
 /** Same zone as every other timestamp in the workspace — `document-list.tsx`
  *  states why it is pinned rather than left to the machine. */
@@ -71,9 +73,13 @@ export function VersionHistory({
       <button
         type="button"
         aria-expanded={open}
-        className={BUTTON}
+        className={`mt-2 ${BUTTON}`}
         onClick={() => setOpen((was) => !was)}
       >
+        <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round">
+          <circle cx="8" cy="8" r="5.5" />
+          <path d="M8 5v3l2 1.5" />
+        </svg>
         버전 히스토리
       </button>
       {/* Rendered only while open, so the fetch that fills it cannot land in a
@@ -243,15 +249,15 @@ function HistoryPanel({
   }, [entries, includeAutomatic]);
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 p-6">
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-[rgba(10,14,20,0.36)] p-6">
       <section
         aria-label="버전 히스토리"
-        className="flex h-full max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-ink bg-paper"
+        className="flex h-full max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-card bg-elev shadow-elev"
       >
-        <div className="flex h-9 flex-none items-center gap-2 border-b border-ink px-3">
-          <span className={META}>버전 히스토리</span>
+        <div className="flex h-[46px] flex-none items-center gap-1 border-b border-line pr-2 pl-4">
+          <span className="font-semibold text-ink">버전 히스토리</span>
           <span className="flex-1" />
-          <label className="flex items-center gap-1.5 text-[11px] text-ink-soft">
+          <label className="mr-1 flex items-center gap-1.5 text-[13px] text-ink-soft">
             <input
               type="checkbox"
               checked={includeAutomatic}
@@ -273,7 +279,7 @@ function HistoryPanel({
         </div>
 
         <div className="flex min-h-0 flex-1">
-          <div className="w-64 flex-none overflow-y-auto border-r border-ink">
+          <div className="w-72 flex-none overflow-y-auto border-r border-line p-2">
             {error ? (
               <p role="alert" className="px-3 py-4 text-[13px] font-medium text-danger">
                 {error}
@@ -294,20 +300,31 @@ function HistoryPanel({
 
             {days.map((day) => (
               <div key={day.day}>
-                <p className={`sticky top-0 bg-paper-2 px-3 py-1 ${META}`}>{day.day}</p>
+                <p className={`sticky top-0 bg-elev px-2.5 pt-2 pb-1 font-semibold ${META}`}>{day.day}</p>
                 {day.entries.map((entry) => (
                   <button
                     type="button"
                     key={entry.id}
                     onClick={() => setSelected(entry)}
-                    className={`block w-full border-b border-ink/10 px-3 py-2 text-left ${
-                      selected?.id === entry.id ? "bg-sky-soft" : ""
+                    className={`flex w-full gap-2.5 rounded-control p-2.5 text-left ${
+                      selected?.id === entry.id ? "bg-sky-soft" : "hover:bg-hover"
                     }`}
                   >
-                    <span className="block truncate text-[13px] text-ink">
+                    <span
+                      aria-hidden
+                      className={`mt-1.5 size-2 shrink-0 rounded-full ${
+                        selected?.id === entry.id ? "bg-sky-deep" : "bg-line-strong"
+                      }`}
+                    />
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                    <span
+                      className={`truncate text-[14px] font-semibold ${
+                        selected?.id === entry.id ? "text-sky-text" : "text-ink"
+                      }`}
+                    >
                       {titleOf(entry)}
                     </span>
-                    <span className={META}>
+                    <span className={`text-[12.5px] ${META}`}>
                       {TIME.format(entry.createdAt)} · {KIND_LABEL[entry.kind]}
                       {/* Yorkie's own description ("Auto created revision of
                           snapshot #N") is not attribution — only a person's
@@ -315,6 +332,7 @@ function HistoryPanel({
                       {entry.kind !== "automatic" && entry.description
                         ? ` · ${entry.description}`
                         : ""}
+                    </span>
                     </span>
                   </button>
                 ))}
@@ -333,7 +351,7 @@ function HistoryPanel({
             ) : null}
 
             {entries !== null && oldestReached && shown.length > 0 ? (
-              <p className="px-3 py-3 text-center text-[11px] text-ink-faint">
+              <p className="px-3 py-3 text-center text-xs text-ink-faint">
                 가장 오래된 버전입니다.
               </p>
             ) : null}
@@ -427,8 +445,8 @@ function Preview({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <div className="flex h-9 flex-none items-center gap-2 border-b border-ink px-3">
-        <span className="truncate text-[13px] font-semibold text-ink">{titleOf(entry)}</span>
+      <div className="flex h-[46px] flex-none items-center gap-2 border-b border-line px-4">
+        <span className="truncate font-semibold text-ink">{titleOf(entry)}</span>
         <span className="flex-1" />
         {/* Open to everyone, not host-gated — `docs/design/version-history.md`,
             "Who may restore". The before-restore revision `restore()` creates
@@ -443,7 +461,7 @@ function Preview({
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         {failed ? (
           <p role="alert" className="text-[13px] font-medium text-danger">
             이 버전의 내용을 읽지 못했습니다.
@@ -478,18 +496,18 @@ function PreviewBlock({ block, number }: { block: Block; number: number }) {
       return <p className={`text-ink ${HEADING_CLASS[block.level]}`}>{block.text}</p>;
 
     case "text":
-      return <p className="text-[13px] whitespace-pre-wrap text-ink">{block.text}</p>;
+      return <p className="text-[15px] leading-[1.7] whitespace-pre-wrap text-ink">{block.text}</p>;
 
     case "quote":
       return (
-        <p className="border-l-2 border-ink/30 pl-2 text-[13px] whitespace-pre-wrap text-ink-soft">
+        <p className="border-l-[3px] border-line-strong pl-3.5 text-[15px] leading-[1.7] whitespace-pre-wrap text-ink-soft">
           {block.text}
         </p>
       );
 
     case "code":
       return (
-        <pre className="overflow-x-auto rounded bg-paper-2 p-2 font-mono text-[12px] text-ink">
+        <pre className="overflow-x-auto rounded-control bg-paper-2 px-3 py-2 font-mono text-[13px] text-ink">
           {block.text}
         </pre>
       );
@@ -514,7 +532,7 @@ function PreviewBlock({ block, number }: { block: Block; number: number }) {
       );
 
     case "divider":
-      return <hr className="border-ink/20" />;
+      return <hr className="my-2 border-line" />;
 
     // The bytes are not fetched for a preview — a past version's point is what
     // it said, and a file block says its name.
@@ -528,10 +546,10 @@ function PreviewBlock({ block, number }: { block: Block; number: number }) {
       );
 
     case "doc-link":
-      return <p className="text-[13px] text-sky-deep">🔗 문서 링크</p>;
+      return <p className="text-[15px] text-sky-text">문서 링크</p>;
 
     case "block-link":
-      return <p className="text-[13px] text-sky-deep">🔗 블록 링크</p>;
+      return <p className="text-[15px] text-sky-text">블록 링크</p>;
   }
 }
 
@@ -574,16 +592,16 @@ function PromptDialog({
     >
       {restoring ? (
         <>
-          <p className="text-sm font-semibold text-ink">이 버전으로 복원할까요?</p>
-          <p className="mt-2 text-[13px] text-ink-soft">
+          <p className="text-[17px] font-bold tracking-tight text-ink">이 버전으로 복원할까요?</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
             지금 문서는 <strong>복원 전</strong> 버전으로 먼저 저장되므로 되돌릴 수 있습니다.
             복원은 함께 보고 있는 모든 사람에게 반영됩니다.
           </p>
         </>
       ) : (
         <>
-          <p className="text-sm font-semibold text-ink">지금 상태를 수동으로 저장할까요?</p>
-          <p className="mt-2 text-[13px] text-ink-soft">
+          <p className="text-[17px] font-bold tracking-tight text-ink">지금 상태를 수동으로 저장할까요?</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
             나중에 알아볼 수 있게 이름을 붙여 주세요. 한번 저장하면 이름은 바꾸거나 지울 수 없습니다.
           </p>
           <input
@@ -592,10 +610,10 @@ function PromptDialog({
             maxLength={60}
             onChange={(event) => setLabel(event.target.value)}
             placeholder="예: 제출 전 최종"
-            className="mt-3 w-full rounded-md border border-ink bg-paper px-2 py-1 text-[13px] text-ink"
+            className="mt-3 h-[38px] w-full rounded-control border border-line-strong bg-elev px-3 text-[14.5px] text-ink outline-none focus:border-sky-deep focus:ring-3 focus:ring-sky-ring"
           />
           {reserved ? (
-            <p role="alert" className="mt-2 text-[12px] font-medium text-danger">
+            <p role="alert" className="mt-2 text-[13px] text-danger">
               {reserved}
             </p>
           ) : null}

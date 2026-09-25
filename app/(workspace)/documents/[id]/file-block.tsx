@@ -27,9 +27,12 @@ export function FileBlockView({
   const name = block.fileName || "이름 없는 파일";
 
   return (
-    <div className="group/file my-1 flex items-center gap-3 rounded-md border border-ink bg-paper-2 px-3 py-2">
-      <span aria-hidden className="text-[18px] leading-none select-none">
-        📄
+    <div className="group/file my-1 flex items-center gap-3 rounded-control bg-paper-2 px-2.5 py-2">
+      <span aria-hidden className="flex size-[34px] shrink-0 items-center justify-center rounded-control bg-paper text-ink-soft">
+        <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinejoin="round">
+          <path d="M4 2.5h5l3 3v8H4z" />
+          <path d="M9 2.5v3h3" />
+        </svg>
       </span>
 
       <a
@@ -37,10 +40,10 @@ export function FileBlockView({
         download={name}
         className="min-w-0 flex-1"
       >
-        <span className="block truncate text-[13px] font-semibold text-ink" title={name}>
+        <span className="block truncate font-medium text-ink" title={name}>
           {name}
         </span>
-        <span className="block text-[11px] text-ink-faint">
+        <span className="block text-[12.5px] text-ink-faint">
           {readableSize(block.size)} · 내려받기
         </span>
       </a>
@@ -50,14 +53,14 @@ export function FileBlockView({
           <button
             type="button"
             onClick={() => onDelete(block.id)}
-            className="rounded-md border border-ink bg-ink px-2 py-0.5 text-[11px] font-semibold text-paper"
+            className="h-6 rounded-control bg-danger px-2 text-xs font-semibold text-paper"
           >
             삭제
           </button>
           <button
             type="button"
             onClick={() => setConfirmingDelete(false)}
-            className="rounded-md border border-ink bg-paper px-2 py-0.5 text-[11px] font-semibold text-ink"
+            className="h-6 rounded-control px-2 text-xs font-medium text-ink hover:bg-hover"
           >
             취소
           </button>
@@ -66,7 +69,7 @@ export function FileBlockView({
         <button
           type="button"
           onClick={() => setConfirmingDelete(true)}
-          className="shrink-0 rounded-md border border-ink bg-paper px-2 py-0.5 text-[11px] font-semibold text-ink-soft opacity-0 group-hover/file:opacity-100 group-focus-within/file:opacity-100"
+          className="shrink-0 h-6 rounded-control px-2 text-xs font-medium text-ink-faint opacity-0 hover:bg-hover hover:text-danger group-hover/file:opacity-100 group-focus-within/file:opacity-100"
         >
           삭제
         </button>

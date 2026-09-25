@@ -469,15 +469,15 @@ export function InkOverlay({
         // `fixed`, so the bar takes no layout space — a sticky one would shift
         // every block's `offsetTop` for the presenter alone. `editor.tsx`'s
         // modals already use `fixed` inside this container for the same reason.
-        <div className="fixed bottom-6 left-1/2 z-30 flex -translate-x-1/2 gap-1 rounded-md border border-ink bg-paper px-1.5 py-1 shadow-lg">
+        <div className="fixed bottom-6 left-1/2 z-30 flex -translate-x-1/2 gap-0.5 rounded-card bg-elev p-1 shadow-elev">
           {TOOLS.map((item) => (
             <button
               key={item.kind}
               type="button"
               aria-pressed={tool === item.kind}
               onClick={() => setPicked(tool === item.kind ? null : item.kind)}
-              className={`rounded px-2 py-0.5 font-mono text-[11px] font-medium text-ink ${
-                tool === item.kind ? "bg-sky-soft" : "bg-transparent"
+              className={`h-[30px] rounded-control px-3 text-[13.5px] font-medium ${
+                tool === item.kind ? "bg-sky-soft text-sky-text" : "text-ink-soft hover:bg-hover"
               }`}
             >
               {item.label}
@@ -487,7 +487,7 @@ export function InkOverlay({
             type="button"
             onClick={clearMine}
             disabled={mine.length === 0}
-            className="rounded px-2 py-0.5 font-mono text-[11px] font-medium text-ink disabled:opacity-40"
+            className="h-[30px] rounded-control px-3 text-[13.5px] font-medium text-ink-soft hover:bg-hover disabled:opacity-40"
           >
             지우기
           </button>
