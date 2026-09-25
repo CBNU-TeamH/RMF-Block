@@ -9,6 +9,9 @@ const pretendard = localFont({
   variable: "--font-pretendard",
   weight: "45 920",
   display: "swap",
+  // 2MB: let CSS discover it at normal priority rather than have every page,
+  // /join included, fetch it ahead of everything else. `swap` covers the gap.
+  preload: false,
 });
 
 export const metadata: Metadata = {

@@ -8,17 +8,9 @@ import type { WorkspaceDocument } from "@/lib/documents/documents";
 import { treeRows } from "@/lib/documents/tree";
 import { documentIdFromPathname } from "@/lib/focus/pathname";
 
-import {
-  CANCEL,
-  DIALOG,
-  DocumentActionDialog,
-  FIELD_LABEL,
-  Spinner,
-  confirmClass,
-  inputClass,
-  type DocumentAction,
-} from "./document-actions";
+import { DocumentActionDialog, type DocumentAction } from "./document-actions";
 import { DocumentRowMenu } from "./document-row-menu";
+import { CANCEL, DIALOG, DIALOG_TITLE, FIELD_LABEL, FileIcon, Spinner, confirmClass, inputClass } from "./ui";
 
 /** The sidebar's 16px line icons (`docs/ui/redesign/HANDOFF.md` §3). */
 const icon = (path: React.ReactNode, size = 15) => (
@@ -37,12 +29,6 @@ const icon = (path: React.ReactNode, size = 15) => (
   </svg>
 );
 const PLUS = <path d="M8 3v10M3 8h10" />;
-const FILE = (
-  <>
-    <path d="M4 2.5h5l3 3v8H4z" />
-    <path d="M9 2.5v3h3" />
-  </>
-);
 
 /**
  * The workspace's document tree (FR-020-06, the document half) in the sidebar,
@@ -266,7 +252,7 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                         current ? "text-sky-text" : "text-ink-faint"
                       }`}
                     >
-                      {icon(FILE)}
+                      <FileIcon size={15} />
                     </span>
                   )}
                   <span className="truncate">{doc.name}</span>
@@ -339,7 +325,7 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
           }}
           className="flex flex-col gap-4"
         >
-          <h2 className="text-[17px] font-bold tracking-tight text-ink">
+          <h2 className={DIALOG_TITLE}>
             {parentId === null
               ? "새 문서"
               : `'${live.find((d) => d.id === parentId)?.name ?? "문서"}' 아래에 새 문서`}

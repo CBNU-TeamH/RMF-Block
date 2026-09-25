@@ -5,6 +5,8 @@ import { useState } from "react";
 import type { FileBlock } from "@/lib/blocks/types";
 import { readableSize } from "@/lib/files/size";
 
+import { FileIcon } from "../../ui";
+
 /**
  * A file block (FR-022-13), and the fallback for every type FR-022-14 names no
  * viewer for — Word, PPT and Excel among them.
@@ -29,10 +31,7 @@ export function FileBlockView({
   return (
     <div className="group/file my-1 flex items-center gap-3 rounded-control bg-paper-2 px-2.5 py-2">
       <span aria-hidden className="flex size-[34px] shrink-0 items-center justify-center rounded-control bg-paper text-ink-soft">
-        <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinejoin="round">
-          <path d="M4 2.5h5l3 3v8H4z" />
-          <path d="M9 2.5v3h3" />
-        </svg>
+        <FileIcon size={17} />
       </span>
 
       <a

@@ -35,7 +35,7 @@ exist**, so stay within this vocabulary:
 | Surfaces (`bg-`) | `paper` (page), `paper-2` (sidebar, file/PDF cards, inputs' wells), `elev` (menus, dialogs, floating windows), `shell` (outer canvas), `hover` (row hover), `sky-soft` (selected row, accent-soft) |
 | Text (`text-`) | `ink`, `ink-soft` (secondary), `ink-faint` (meta, placeholders), `sky-text` (links, selected), `danger` |
 | Lines (`border-`) | `line` (dividers), `line-strong` (inputs), `sky-deep` (focus); rings `ring-sky-ring` / `ring-danger-soft` |
-| Shape | `rounded-control` (9px: buttons, inputs, rows), `rounded-card` (14px: cards, menus, dialogs), `rounded-full` (avatars); `shadow-elev`, `shadow-panel` |
+| Shape | `rounded-control` (9px: buttons, inputs, rows), `rounded-card` (14px: cards, menus, dialogs), `rounded-full` (avatars); `shadow-elev`, `bg-scrim` behind modals |
 | Layout | `flex inline-flex grid flex-col flex-1 flex-wrap items-center justify-between justify-center`, `gap-/p-/px-/py-/m-/mt-/mb-{0,1,1.5,2,2.5,3,4,5,6,8,10,12}` |
 | Type | Pretendard via `font-sans` (default). `text-xs text-sm text-base text-lg text-xl text-2xl font-medium font-semibold font-bold truncate`; UI text is 14.5px, body 16.5px/1.7, meta 12–13px `text-ink-faint` |
 

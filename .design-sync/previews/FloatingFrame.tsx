@@ -17,7 +17,6 @@ export function ChatAndFloatingView() {
         closeLabel="채팅 닫기"
         onClose={noop}
         className="z-40"
-        headerClassName="bg-paper-2"
       >
         <p className="p-3 text-[13px] text-ink-soft">대화 내용이 여기에 표시됩니다.</p>
       </FloatingFrame>
@@ -31,7 +30,6 @@ export function ChatAndFloatingView() {
         closeClassName="font-bold text-red-600"
         onClose={noop}
         className="z-[35]"
-        headerClassName="bg-sky-soft"
       >
         <div className="min-h-0 flex-1 overflow-auto p-3 text-[14px] text-ink">
           <p className="font-bold">2주차 회의</p>

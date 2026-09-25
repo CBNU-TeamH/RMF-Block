@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 
 import type { DocLinkBlock } from "@/lib/blocks/types";
 
+import { FileIcon } from "../../ui";
+
 /**
  * A link to another document (SRS §4.1 type 11).
  *
@@ -46,10 +48,9 @@ export function DocLinkBlockView({
 
   return (
     <div className="group/link -mx-1 flex items-center gap-2 rounded-control px-1 py-1 text-[16.5px] hover:bg-hover">
-      <svg aria-hidden width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinejoin="round" className="shrink-0 text-ink-soft">
-        <path d="M4 2.5h5l3 3v8H4z" />
-        <path d="M9 2.5v3h3" />
-      </svg>
+      <span className="shrink-0 text-ink-soft">
+        <FileIcon size={17} />
+      </span>
 
       {missing ? (
         <span className="min-w-0 flex-1 truncate text-ink-faint line-through">

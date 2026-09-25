@@ -403,7 +403,6 @@ const FloatingWindow = memo(function FloatingWindow({
       closeClassName="text-ink-faint hover:text-danger"
       onClose={() => onClose({ documentId, blockId })}
       className="z-[35]"
-      headerClassName=""
     >
       <div className="min-h-0 flex-1 overflow-auto">
         {block && !gone ? (

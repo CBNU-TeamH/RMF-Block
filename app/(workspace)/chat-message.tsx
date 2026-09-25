@@ -3,6 +3,8 @@
 import type { ChatAttachment, ChatMessage } from "@/lib/chat/types";
 import { readableSize } from "@/lib/files/size";
 
+import { FileIcon } from "./ui";
+
 /** One message in the chat panel (FR-060-01/02). **Prototype** — `docs/ui/` has
  *  no chat artboard, so this borrows the shell's vocabulary and is meant to be
  *  replaced once there is a design, not defended. */
@@ -53,10 +55,7 @@ function Attachment({ attachment }: { attachment: ChatAttachment }) {
       className="mt-1 flex w-fit max-w-full items-center gap-2.5 rounded-control bg-paper-2 py-1.5 pr-3 pl-1.5 hover:bg-hover"
     >
       <span aria-hidden className="flex size-8 flex-none items-center justify-center rounded-control bg-paper text-ink-soft">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinejoin="round">
-          <path d="M4 2.5h5l3 3v8H4z" />
-          <path d="M9 2.5v3h3" />
-        </svg>
+        <FileIcon />
       </span>
       <span className="min-w-0">
         <span className="block truncate text-[13.5px] font-medium text-ink">{attachment.fileName}</span>

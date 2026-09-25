@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { readDocuments } from "@/lib/documents/documents";
+import { readDocumentsOnce } from "../../read-documents";
 
 import { DocumentEditor } from "./editor";
 
@@ -16,7 +16,7 @@ export default async function DocumentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const document = readDocuments().find((doc) => doc.id === id);
+  const document = readDocumentsOnce().find((doc) => doc.id === id);
 
   if (!document) notFound();
 

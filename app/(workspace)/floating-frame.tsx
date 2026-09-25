@@ -24,7 +24,6 @@ export function FloatingFrame({
   closeClassName = "text-ink-faint hover:text-ink",
   onClose,
   className,
-  headerClassName,
   children,
 }: {
   frame: Frame;
@@ -39,7 +38,6 @@ export function FloatingFrame({
   onClose: () => void;
   /** Stacking and anything else only this window wants on its frame. */
   className: string;
-  headerClassName: string;
   children: React.ReactNode;
 }) {
   return (
@@ -51,7 +49,7 @@ export function FloatingFrame({
     >
       <header
         onPointerDown={begin("move")}
-        className={`flex h-9 flex-none cursor-grab touch-none items-center gap-2 border-b border-line pr-1.5 pl-3 select-none active:cursor-grabbing ${headerClassName}`}
+        className="flex h-9 flex-none cursor-grab touch-none items-center gap-2 border-b border-line pr-1.5 pl-3 select-none active:cursor-grabbing"
       >
         {title}
         <span className="flex-1" />
