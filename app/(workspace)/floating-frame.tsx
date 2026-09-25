@@ -6,9 +6,9 @@ import type { Frame, GestureKind } from "@/lib/chat/window-frame";
  *  desktop window's — and wider than the 1px they sit on, because a border you
  *  have to hit precisely is a border you miss. */
 const BORDERS: Array<{ kind: GestureKind; className: string }> = [
-  { kind: "left", className: "top-8 bottom-0 left-0 w-1.5 cursor-ew-resize" },
-  { kind: "right", className: "top-8 right-0 bottom-0 w-1.5 cursor-ew-resize" },
-  { kind: "bottom", className: "right-0 bottom-0 left-0 h-1.5 cursor-ns-resize" },
+  { kind: "left", className: "top-9 bottom-0 left-0 w-1.5 cursor-ew-resize after:left-0 after:inset-y-3 after:w-[3px]" },
+  { kind: "right", className: "top-9 right-0 bottom-0 w-1.5 cursor-ew-resize after:right-0 after:inset-y-3 after:w-[3px]" },
+  { kind: "bottom", className: "right-0 bottom-0 left-0 h-1.5 cursor-ns-resize after:bottom-0 after:inset-x-3 after:h-[3px]" },
 ];
 
 /** The chrome every floating window shares — the chat window and each floating
@@ -21,7 +21,7 @@ export function FloatingFrame({
   label,
   title,
   closeLabel,
-  closeClassName = "text-ink-faint",
+  closeClassName = "text-ink-faint hover:text-ink",
   onClose,
   className,
   headerClassName,
@@ -46,11 +46,12 @@ export function FloatingFrame({
     <section
       aria-label={label}
       style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}
-      className={`fixed flex flex-col overflow-hidden rounded-lg border border-ink bg-paper shadow-[0_6px_24px_rgba(28,27,26,0.18)] ${className}`}
+      // The ring marks the window you're working in (HANDOFF's "active window").
+      className={`fixed flex flex-col overflow-hidden rounded-card bg-elev shadow-elev focus-within:shadow-[0_0_0_2px_var(--color-sky-ring),var(--shadow-elev)] ${className}`}
     >
       <header
         onPointerDown={begin("move")}
-        className={`flex h-8 flex-none cursor-move touch-none items-center gap-2 border-b border-ink px-2.5 select-none ${headerClassName}`}
+        className={`flex h-9 flex-none cursor-grab touch-none items-center gap-2 border-b border-line pr-1.5 pl-3 select-none active:cursor-grabbing ${headerClassName}`}
       >
         {title}
         <span className="flex-1" />
@@ -62,9 +63,11 @@ export function FloatingFrame({
           onPointerDown={(event) => event.stopPropagation()}
           onClick={onClose}
           aria-label={closeLabel}
-          className={`px-1 text-[13px] leading-none ${closeClassName}`}
+          className={`flex size-[26px] items-center justify-center rounded-control hover:bg-hover ${closeClassName}`}
         >
-          ✕
+          <svg aria-hidden width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
+            <path d="M4 4l8 8M12 4l-8 8" />
+          </svg>
         </button>
       </header>
 
@@ -79,14 +82,15 @@ export function FloatingFrame({
             key={border.kind}
             onPointerDown={begin(border.kind)}
             aria-hidden
-            className={`absolute touch-none ${border.className}`}
+            // A 3px sky bar on hover shows which edge will move.
+            className={`absolute touch-none after:absolute after:rounded-full after:bg-sky-deep after:opacity-0 after:transition-opacity after:duration-[120ms] hover:after:opacity-100 ${border.className}`}
           />
         ))
       ) : (
         <span
           onPointerDown={begin("corner")}
           aria-hidden
-          className="absolute right-0 bottom-0 size-3.5 cursor-nwse-resize touch-none border-r-2 border-b-2 border-ink-faint"
+          className="absolute right-1 bottom-1 size-3 cursor-nwse-resize touch-none rounded-br-[3px] border-r-2 border-b-2 border-line-strong hover:border-sky-deep"
         />
       )}
     </section>

@@ -23,9 +23,9 @@ import type { BlockId, HeadingLevel } from "@/lib/blocks/types";
  * same size as the live editor does, rather than keeping its own table that
  * could quietly drift from this one. */
 export const HEADING_CLASS: Record<HeadingLevel, string> = {
-  1: "text-2xl font-bold",
-  2: "text-xl font-bold",
-  3: "text-lg font-semibold",
+  1: "mt-[18px] text-[30px] leading-[1.3] font-bold tracking-[-0.02em]",
+  2: "mt-[18px] text-[1.5em] leading-[1.3] font-bold tracking-[-0.015em]",
+  3: "mt-3 text-[19px] leading-[1.4] font-semibold",
 };
 
 /** Styling only. **The root stays a bare `<textarea>` in every variant** — a
@@ -40,13 +40,14 @@ export type BlockVariant =
   | { type: "quote" }
   | { type: "code" };
 
+/** Body copy is 16.5px/1.7 (`docs/ui/redesign/HANDOFF.md` §2). */
 const TEXTAREA_CLASS_BY_VARIANT: Record<BlockVariant["type"], string> = {
-  text: "text-[14px]",
+  text: "text-[16.5px] leading-[1.7]",
   heading: "", // filled in per-level below
-  list: "text-[14px]",
-  checklist: "text-[14px]",
-  quote: "text-[14px] border-l-2 border-ink-faint pl-3 italic text-ink-soft",
-  code: "text-[13px] font-mono bg-paper-2 rounded-md px-2",
+  list: "text-[16.5px] leading-[1.7]",
+  checklist: "text-[16.5px] leading-[1.7]",
+  quote: "text-[16.5px] leading-[1.7] border-l-[3px] border-line-strong pl-3.5 text-ink-soft",
+  code: "text-[14px] leading-[1.6] font-mono bg-paper-2 rounded-control px-3 py-2",
 };
 
 function textareaClass(variant: BlockVariant): string {
@@ -441,7 +442,7 @@ export function TextBlockView({
       // it marks the one block being typed in rather than every empty one —
       // the `/` menu shipped in #63 with nothing in the UI naming it.
       placeholder={variant.type === "text" ? "'/' 를 입력해 명령어 사용" : undefined}
-      className={`min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-1 py-0.5 text-ink outline-none placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
+      className={`min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-0.5 py-0.5 text-ink outline-none placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
       />
 
       {/* Absolutely positioned against the block row, which is already
@@ -455,7 +456,7 @@ export function TextBlockView({
           ref={slashListRef}
           role="listbox"
           aria-label="블록 종류"
-          className="absolute top-full left-6 z-20 mt-1 max-h-64 w-64 overflow-y-auto rounded-md border border-ink bg-paper py-1 shadow-lg"
+          className="absolute top-full left-6 z-20 mt-0.5 flex max-h-[340px] w-[300px] flex-col gap-px overflow-y-auto rounded-card bg-elev p-1.5 shadow-elev"
         >
           {slashItems.map((item, index) => (
             <li key={item.id}>
@@ -471,12 +472,12 @@ export function TextBlockView({
                   chooseSlashItem(index);
                 }}
                 onMouseEnter={() => setHighlight(index)}
-                className={`flex w-full flex-col items-start px-3 py-1.5 text-left ${
-                  index === highlight ? "bg-sky-soft" : "bg-transparent"
+                className={`flex w-full flex-col items-start gap-px rounded-control px-2 py-1.5 text-left ${
+                  index === highlight ? "bg-hover" : "bg-transparent"
                 }`}
               >
-                <span className="text-[13px] font-semibold text-ink">{item.label}</span>
-                <span className="text-[11px] text-ink-faint">{item.hint}</span>
+                <span className="text-[14px] font-medium text-ink">{item.label}</span>
+                <span className="text-xs text-ink-faint">{item.hint}</span>
               </button>
             </li>
           ))}

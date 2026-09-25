@@ -68,15 +68,13 @@ export function ChatWindow({ me }: { me: string }) {
           begin={begin}
           label="채팅"
           title={
-            <span className="font-mono text-[10px] tracking-wide text-ink-soft uppercase">
-              채팅
-            </span>
+            <span className="text-[13px] font-semibold text-ink">채팅</span>
           }
           resize="edges"
           closeLabel="채팅 닫기"
           onClose={() => setOpen(false)}
           className="z-40"
-          headerClassName="bg-paper-2"
+          headerClassName=""
         >
           <ChatPanel me={me} />
         </FloatingFrame>
@@ -88,17 +86,20 @@ export function ChatWindow({ me }: { me: string }) {
           button that opens it. */}
       <div
         style={{ height: BAR_HEIGHT }}
-        className="fixed right-0 bottom-0 z-30 flex items-center border-t border-l border-ink bg-paper px-3"
+        className="fixed right-3 bottom-0 z-30 flex items-center"
       >
         <button
           type="button"
           onClick={() => (open ? setOpen(false) : openWindow())}
           aria-expanded={open}
-          className={`rounded px-2 py-1 font-mono text-[10px] tracking-wide uppercase ${
-            open ? "bg-sky-soft font-bold text-ink" : "text-ink-soft"
+          className={`flex h-8 items-center gap-1.5 rounded-control px-3 text-[13.5px] font-medium shadow-elev ${
+            open ? "bg-sky-soft text-sky-text" : "bg-elev text-ink-soft hover:text-ink"
           }`}
         >
-          💬 채팅
+          <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round">
+            <path d="M3 3.5h10v7H7l-3 2.5v-2.5H3z" />
+          </svg>
+          채팅
         </button>
       </div>
     </>

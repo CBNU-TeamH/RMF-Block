@@ -397,16 +397,13 @@ const FloatingWindow = memo(function FloatingWindow({
       resize="corner"
       label={`플로팅 뷰: ${title}`}
       title={
-        <span className="truncate text-[11px] font-semibold text-ink-soft">
-          <span aria-hidden>🪟 </span>
-          {title}
-        </span>
+        <span className="truncate text-[13px] font-semibold text-ink">{title}</span>
       }
       closeLabel="플로팅 뷰 닫기"
-      closeClassName="font-bold text-danger"
+      closeClassName="text-ink-faint hover:text-danger"
       onClose={() => onClose({ documentId, blockId })}
       className="z-[35]"
-      headerClassName="bg-sky-soft"
+      headerClassName=""
     >
       <div className="min-h-0 flex-1 overflow-auto">
         {block && !gone ? (
