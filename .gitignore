@@ -58,3 +58,10 @@ docs/**/export/
 .design-canvas.state.json
 .thumbnail
 
+
+# design-sync (claude.ai/design) build state
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
