@@ -13,7 +13,7 @@ export function ChatAndFloatingView() {
         begin={begin}
         resize="edges"
         label="채팅"
-        title={<span className="font-mono text-[10px] tracking-wide text-ink-soft uppercase">채팅</span>}
+        title={<span className="text-[13px] font-semibold text-ink">채팅</span>}
         closeLabel="채팅 닫기"
         onClose={noop}
         className="z-40"
@@ -25,9 +25,9 @@ export function ChatAndFloatingView() {
         begin={begin}
         resize="corner"
         label="플로팅 뷰: 회의록"
-        title={<span className="truncate text-[11px] font-semibold text-ink-soft">회의록</span>}
+        title={<span className="truncate text-[13px] font-semibold text-ink">회의록</span>}
         closeLabel="플로팅 뷰 닫기"
-        closeClassName="font-bold text-red-600"
+        closeClassName="text-ink-faint hover:text-danger"
         onClose={noop}
         className="z-[35]"
       >
