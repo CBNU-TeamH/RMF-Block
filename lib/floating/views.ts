@@ -53,7 +53,8 @@ export function parseViews(raw: string | null): Array<FloatingView> {
   for (const entry of value as Array<Record<string, unknown> | null>) {
     if (typeof entry?.documentId !== "string" || typeof entry.blockId !== "string") continue;
     const frame = toFrame(entry.frame);
-    if (!frame) continue;
+    // Nothing this app writes has no width, and the ratio would be NaN.
+    if (!frame || frame.width <= 0) continue;
     const base = toSize(entry.base);
     const view: FloatingView = { documentId: entry.documentId, blockId: entry.blockId, frame };
     if (base) view.base = base;

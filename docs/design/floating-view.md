@@ -36,9 +36,10 @@ Playwright check:
 
 - **Identity is set after `acquire`.** Initial presence only counts for whichever holder
   attaches first, and an effect re-run after the roster lands never re-attaches.
-- **`activeBlockId` is cleared on release.** Detaching used to clear it. With a floating view
-  still holding the document, peers otherwise kept seeing this browser on its last block until
-  the 30 s occupancy TTL.
+- **`activeBlockId`, `marks` and `pointer` are cleared on release.** Detaching used to clear
+  them. With a floating view still holding the document, peers otherwise kept seeing this
+  browser on its last block until the 30 s occupancy TTL. Followers also saw a presenter's old
+  ink on returning to a document the presenter's own screen had already cleared.
 - **`docRef` is cleared in the cleanup itself, not once setup settles.** Every run now gets
   the same document, so a late `docRef.current === held` check cleared the *next* run's ref.
   Under Strict Mode that dropped every edit.

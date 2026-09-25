@@ -88,6 +88,14 @@ describe("parseViews", () => {
     assert.deepEqual(parseViews(JSON.stringify({ ...a, frame })), []);
   });
 
+  it("drops a frame with no width", () => {
+    const raw = JSON.stringify([
+      { ...a, frame: { ...frame, width: 0 } },
+      { ...b, frame: { ...frame, width: -5 } },
+    ]);
+    assert.deepEqual(parseViews(raw), []);
+  });
+
   it("drops malformed entries and duplicates, keeping the rest", () => {
     const raw = JSON.stringify([
       null,

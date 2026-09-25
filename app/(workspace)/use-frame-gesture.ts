@@ -72,13 +72,22 @@ export function useFrameGesture<K extends string>(
       if (last) onEnd(last);
     };
 
+    // The system took the pointer (touch scroll, pen lost): stop where the
+    // last real move left the window — a cancel's coordinates can be 0,0.
+    const cancel = () => {
+      setGesture(null);
+      if (last) onEnd(last);
+    };
+
     window.addEventListener("pointermove", follow);
     window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", cancel);
 
     return () => {
       window.removeEventListener("pointermove", follow);
       frames.forEach((frame) => (frame.style.pointerEvents = ""));
       window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", cancel);
     };
   }, [gesture, setFrame, onEnd, rules]);
 

@@ -203,7 +203,9 @@ export function useBlockDocument(
         // Only this run's own successful acquire holds a share to give back.
         if (!held) return;
         // A floating view may keep it attached — `docs/design/floating-view.md`.
-        held.update((_root, presence) => presence.set({ activeBlockId: null }));
+        held.update((_root, presence) =>
+          presence.set({ activeBlockId: null, marks: null, pointer: null }),
+        );
         releaseBlockDocument(client, documentId);
       });
     };
