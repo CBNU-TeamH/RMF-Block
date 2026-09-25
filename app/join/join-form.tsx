@@ -13,7 +13,7 @@ const FIELD_BY_STATUS: Record<number, FieldError["field"]> = {
 
 const INPUT_BASE = "rounded-md border bg-paper-2 px-3 py-2 text-base text-ink";
 const INPUT_OK = "border-ink";
-const INPUT_BAD = "border-red-600";
+const INPUT_BAD = "border-danger";
 
 /** FR-020-01/02/05/08. Two fields and a button, and deliberately no password
  *  rules — the host chose the password and told it to the guest, so the only
@@ -142,7 +142,7 @@ export function JoinForm() {
         </label>
 
         {error ? (
-          <p role="alert" className="text-sm font-medium text-red-600">
+          <p role="alert" className="text-sm font-medium text-danger">
             {error.message}
           </p>
         ) : null}

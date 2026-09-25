@@ -16,7 +16,7 @@ export type DocumentAction =
 
 const INPUT_BASE = "rounded-md border bg-paper-2 px-3 py-2 text-base text-ink";
 const INPUT_OK = "border-ink";
-const INPUT_BAD = "border-red-600";
+const INPUT_BAD = "border-danger";
 const ROOT = "__root__";
 
 /**
@@ -195,7 +195,7 @@ export function DocumentActionDialog({
         ) : null}
 
         {error ? (
-          <p role="alert" className="text-sm font-medium text-red-600">
+          <p role="alert" className="text-sm font-medium text-danger">
             {error}
           </p>
         ) : null}
@@ -214,7 +214,7 @@ export function DocumentActionDialog({
             disabled={pending}
             className={`rounded-md border px-3 py-1.5 text-sm font-bold disabled:opacity-40 ${
               kind === "delete"
-                ? "border-red-600 bg-red-600 text-paper"
+                ? "border-danger bg-danger text-paper"
                 : "border-sky-deep bg-sky text-ink"
             }`}
           >

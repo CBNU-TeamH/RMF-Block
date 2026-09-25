@@ -691,7 +691,7 @@ export function DocumentEditor({
     return (
       <>
         <div className="flex flex-none items-center gap-2">{title}</div>
-        <p className="text-sm text-red-600">문서를 열지 못했습니다. 새로고침해 주세요.</p>
+        <p className="text-sm text-danger">문서를 열지 못했습니다. 새로고침해 주세요.</p>
       </>
     );
   }
@@ -1035,7 +1035,7 @@ export function DocumentEditor({
         {uploading ? (
           <span className="text-[11px] text-ink-faint">올리는 중…</span>
         ) : uploadError ? (
-          <span className="text-[11px] text-red-600">{uploadError}</span>
+          <span className="text-[11px] text-danger">{uploadError}</span>
         ) : (
           <span className="text-[11px] text-ink-faint">
             파일을 문서에 끌어다 놓을 수도 있습니다.
@@ -1079,13 +1079,13 @@ export function DocumentEditor({
                 onChange={(event) => setNewPageName(event.target.value)}
                 disabled={creatingPage}
                 className={`rounded-md border bg-paper-2 px-3 py-2 text-base text-ink ${
-                  newPageError ? "border-red-600" : "border-ink"
+                  newPageError ? "border-danger" : "border-ink"
                 }`}
               />
             </label>
 
             {newPageError ? (
-              <p className="text-[12px] text-red-600">{newPageError}</p>
+              <p className="text-[12px] text-danger">{newPageError}</p>
             ) : null}
 
             <div className="flex justify-end gap-2">

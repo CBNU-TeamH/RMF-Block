@@ -1,5 +1,15 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
+
+/** Bundled rather than fetched: the app runs on LANs with no route to a font
+ *  CDN (`docs/ui/redesign/source.md`). Variable, so one file covers every weight. */
+const pretendard = localFont({
+  src: "./fonts/PretendardVariable.woff2",
+  variable: "--font-pretendard",
+  weight: "45 920",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "RMF-Block",
@@ -12,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className="h-full antialiased">
+    <html lang="ko" className={`h-full antialiased ${pretendard.variable}`}>
       {/* `h-full`, not `min-h-full`: a min-height leaves the body's own height
           `auto`, so it grows with its content and nothing below it is ever
           bounded — the workspace shell's inner `flex-1 min-h-0 overflow-y-auto`
