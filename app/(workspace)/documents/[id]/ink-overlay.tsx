@@ -560,12 +560,12 @@ const PointerTrail = memo(function PointerTrail({
 
   return (
     // Fixed red, not the presenter's own `colorTag` — a laser pointer reads
-    // as one regardless of whose hand is on it, and `red-600` (this app's own
+    // as one regardless of whose hand is on it, and `danger` (this app's own
     // error color) can't coincide with a presenter's assigned roster color
     // the way `colorTag` itself could. `currentColor`, the same idiom
     // `editor.tsx`'s drag-handle glyph uses for an inline SVG's fill — one
     // Tailwind class names the color once instead of a raw hex per shape.
-    <g className="text-red-600" fill="currentColor">
+    <g className="text-danger" fill="currentColor">
       {strokes.map((stroke, index) => (
         <path
           key={index}

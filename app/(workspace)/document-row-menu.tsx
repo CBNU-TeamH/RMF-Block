@@ -137,7 +137,7 @@ export function DocumentRowMenu({ label, items }: { label: string; items: Array<
                   item.onSelect();
                 }}
                 className={`block w-full px-3 py-1.5 text-left text-[13px] hover:bg-paper-2 ${
-                  item.danger ? "text-red-600" : "text-ink"
+                  item.danger ? "text-danger" : "text-ink"
                 }`}
               >
                 {item.label}

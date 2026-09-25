@@ -41,7 +41,7 @@ const stamp = (iso: string) => (iso ? day.format(new Date(iso)) : "—");
 // sites is not worth the indirection yet.
 const INPUT_BASE = "rounded-md border bg-paper-2 px-3 py-2 text-base text-ink";
 const INPUT_OK = "border-ink";
-const INPUT_BAD = "border-red-600";
+const INPUT_BAD = "border-danger";
 
 /**
  * The workspace's documents (FR-020-06, the document half) and where UC-021's
@@ -368,7 +368,7 @@ export function DocumentList({ documents }: { documents: Array<DocumentRow> }) {
           </label>
 
           {error ? (
-            <p role="alert" className="text-sm font-medium text-red-600">
+            <p role="alert" className="text-sm font-medium text-danger">
               {error}
             </p>
           ) : null}

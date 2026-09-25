@@ -403,7 +403,7 @@ const FloatingWindow = memo(function FloatingWindow({
         </span>
       }
       closeLabel="플로팅 뷰 닫기"
-      closeClassName="font-bold text-red-600"
+      closeClassName="font-bold text-danger"
       onClose={() => onClose({ documentId, blockId })}
       className="z-[35]"
       headerClassName="bg-sky-soft"

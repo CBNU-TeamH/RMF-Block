@@ -14,7 +14,8 @@ const out = '.design-sync/.cache/app.css';
 // a basic layout vocabulary regardless of whether the app uses them yet.
 // ponytail: a fixed safelist; widen it when conventions.md names more.
 const safelist = [
-  '{hover:,}{bg,text,border}-{ink,ink-soft,ink-faint,paper,paper-2,shell,sky,sky-deep,sky-soft}',
+  '{hover:,}{bg,text,border}-{ink,ink-soft,ink-faint,paper,paper-2,shell,sky,sky-deep,sky-soft,elev,line,line-strong,hover,sky-text,sky-ring,danger,danger-soft}',
+  '{rounded-control,rounded-card,shadow-elev,shadow-panel,font-sans}',
   '{flex,inline-flex,grid,block,hidden,flex-col,flex-row,flex-1,flex-wrap,items-center,items-start,items-end,justify-between,justify-center,justify-end}',
   '{gap,p,px,py,m,mx,my,mt,mb}-{0,1,1.5,2,2.5,3,4,5,6,8,10,12}',
   '{text-xs,text-sm,text-base,text-lg,text-xl,text-2xl,font-medium,font-semibold,font-bold,font-mono,truncate,uppercase,tracking-wide}',
@@ -22,6 +23,13 @@ const safelist = [
 ].map((s) => `@source inline("${s}");`).join('\n');
 const css = readFileSync(from, 'utf8').replace('@import "tailwindcss";', `@import "tailwindcss";\n${safelist}`);
 const result = await postcss([tailwind({ base: process.cwd() })]).process(css, { from });
+// Tailwind's own variables (utility internals, default theme values) aren't
+// design tokens; mark them so Claude Design doesn't list them as unclassified
+// (docs/ui/redesign/HANDOFF.md §1). After the build - Tailwind drops comments.
+const marked = result.css.replace(
+  /(--(?:tw-[\w-]+|ease-[\w-]+|default-transition-[\w-]+)\s*:[^;{}]*;)/g,
+  '$1 /* @kind other */',
+);
 mkdirSync('.design-sync/.cache', { recursive: true });
-writeFileSync(out, result.css);
-console.log(`wrote ${out} (${result.css.length} bytes)`);
+writeFileSync(out, marked);
+console.log(`wrote ${out} (${marked.length} bytes)`);

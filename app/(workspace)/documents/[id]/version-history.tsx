@@ -275,7 +275,7 @@ function HistoryPanel({
         <div className="flex min-h-0 flex-1">
           <div className="w-64 flex-none overflow-y-auto border-r border-ink">
             {error ? (
-              <p role="alert" className="px-3 py-4 text-[13px] font-medium text-red-600">
+              <p role="alert" className="px-3 py-4 text-[13px] font-medium text-danger">
                 {error}
               </p>
             ) : null}
@@ -445,7 +445,7 @@ function Preview({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {failed ? (
-          <p role="alert" className="text-[13px] font-medium text-red-600">
+          <p role="alert" className="text-[13px] font-medium text-danger">
             이 버전의 내용을 읽지 못했습니다.
           </p>
         ) : blocks === null ? (
@@ -595,7 +595,7 @@ function PromptDialog({
             className="mt-3 w-full rounded-md border border-ink bg-paper px-2 py-1 text-[13px] text-ink"
           />
           {reserved ? (
-            <p role="alert" className="mt-2 text-[12px] font-medium text-red-600">
+            <p role="alert" className="mt-2 text-[12px] font-medium text-danger">
               {reserved}
             </p>
           ) : null}
