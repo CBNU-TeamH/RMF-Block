@@ -37,8 +37,8 @@ Stacked on `chore/design-sync`, which is stacked on PR #122.
 
 ## Acceptance
 
-- [ ] `pnpm lint && pnpm test && pnpm build` pass
-- [ ] The container shows the redesign on the join, home and document pages, and in the chat window, row menu and dialog
+- [x] `pnpm lint && pnpm test && pnpm build` pass
+- [x] The container shows the redesign on the join, home and document pages, and in the chat window, row menu and dialog
 - [ ] The design system project is updated
 - [ ] Two follow-up issues are filed (in-screen / server-protocol)
 
@@ -48,4 +48,14 @@ Stacked on `chore/design-sync`, which is stacked on PR #122.
 - No SRS requirement changes.
 
 ## Review
+
+Shipped: milestones 1–3 (tokens and a bundled Pretendard, the sidebar tree and breadcrumb, a per-component restyle), plus the design-sync inputs updated for the new look. `/code-review low` found nothing. `/simplify` moved the dialog chrome into `app/(workspace)/ui.tsx`, added a `scrim` token, made the catalogue read happen once per request, and stopped the 2MB font preload.
+
+Not done in this PR:
+- **Claude Design upload.** The re-sync is built and graded locally, but the upload approval was declined; run `/design-sync` again to push it.
+- **Dark mode.** Deferred by decision: tokens are in place, the values are not.
+- **HANDOFF behaviours.** Split into two follow-up issues (in-screen / server-protocol).
+- **Container re-check.** The last `/simplify` pass was checked by lint, tests and build, not a container run.
+
+Removed on purpose: the home page's document table and its creator/date columns. The sidebar tree replaces them, and the SRS asks for a document tree, not those columns.
 

@@ -30,12 +30,13 @@
   --color-sky-ring: rgba(14, 165, 233, 0.25);
   --color-danger: #dc2626;
   --color-danger-soft: #fdecec;
+  /* Behind every modal. */
+  --color-scrim: rgba(10, 14, 20, 0.36);
 
   --radius-control: 9px;
   --radius-card: 14px;
 
   --shadow-elev: 0 1px 2px rgba(28, 27, 26, 0.05), 0 12px 32px rgba(28, 27, 26, 0.1);
-  --shadow-panel: 0 1px 2px rgba(28, 27, 26, 0.05), 0 8px 28px rgba(28, 27, 26, 0.08);
 
   /* `--font-pretendard` is set on <html> by `next/font/local` (app/layout.tsx).
      The system stack behind it covers the moment before it loads. */

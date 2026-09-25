@@ -17,20 +17,18 @@ import {
 } from "@/lib/documents/revisions";
 import type { RevisionEntry } from "@/lib/documents/revisions";
 
+import { DIALOG, DIALOG_TITLE } from "../../ui";
 import { HEADING_CLASS } from "./text-block";
 
 /** What a document used to say, and putting it back (SOIR003). The mechanism —
  *  and why a restore is written here rather than handed to Yorkie — is
  *  `docs/design/version-history.md`. */
 
-// The redesign's ghost and primary buttons and dialog
-// (`docs/ui/redesign/HANDOFF.md` §3).
+// The redesign's ghost and primary buttons (`docs/ui/redesign/HANDOFF.md` §3).
 const BUTTON =
   "flex h-[30px] shrink-0 items-center gap-1.5 rounded-control px-2.5 text-[13.5px] font-medium text-ink-soft hover:bg-hover hover:text-ink disabled:opacity-40";
 const PRIMARY =
   "h-8 shrink-0 rounded-control bg-ink px-3.5 text-[13.5px] font-semibold text-paper hover:opacity-90 disabled:bg-hover disabled:text-ink-faint disabled:hover:opacity-100";
-const DIALOG =
-  "mx-auto mt-[18vh] w-full max-w-[400px] rounded-card bg-elev p-5 text-ink shadow-elev backdrop:bg-[rgba(10,14,20,0.36)]";
 const META = "text-xs text-ink-faint";
 
 /** Same zone as every other timestamp in the workspace — `document-list.tsx`
@@ -249,7 +247,7 @@ function HistoryPanel({
   }, [entries, includeAutomatic]);
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-[rgba(10,14,20,0.36)] p-6">
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-scrim p-6">
       <section
         aria-label="버전 히스토리"
         className="flex h-full max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-card bg-elev shadow-elev"
@@ -592,7 +590,7 @@ function PromptDialog({
     >
       {restoring ? (
         <>
-          <p className="text-[17px] font-bold tracking-tight text-ink">이 버전으로 복원할까요?</p>
+          <p className={DIALOG_TITLE}>이 버전으로 복원할까요?</p>
           <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
             지금 문서는 <strong>복원 전</strong> 버전으로 먼저 저장되므로 되돌릴 수 있습니다.
             복원은 함께 보고 있는 모든 사람에게 반영됩니다.
@@ -600,7 +598,7 @@ function PromptDialog({
         </>
       ) : (
         <>
-          <p className="text-[17px] font-bold tracking-tight text-ink">지금 상태를 수동으로 저장할까요?</p>
+          <p className={DIALOG_TITLE}>지금 상태를 수동으로 저장할까요?</p>
           <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
             나중에 알아볼 수 있게 이름을 붙여 주세요. 한번 저장하면 이름은 바꾸거나 지울 수 없습니다.
           </p>

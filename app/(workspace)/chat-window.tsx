@@ -74,7 +74,6 @@ export function ChatWindow({ me }: { me: string }) {
           closeLabel="채팅 닫기"
           onClose={() => setOpen(false)}
           className="z-40"
-          headerClassName=""
         >
           <ChatPanel me={me} />
         </FloatingFrame>

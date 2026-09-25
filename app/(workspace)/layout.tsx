@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { sessionRegistry } from "@/lib/auth/session-registry";
 import { SESSION_COOKIE } from "@/lib/auth/types";
-import { readDocuments } from "@/lib/documents/documents";
+import { readDocumentsOnce } from "./read-documents";
 import { isHostSecret } from "@/lib/host-secret";
 import { HOST_PRESENCE } from "@/lib/presence/types";
 import { getWorkspaceName } from "@/lib/workspace-config";
@@ -52,7 +52,7 @@ export default async function WorkspaceLayout({
   // join form, so they have no `WorkspaceMember` to publish — see `HOST_PRESENCE`.
   const me = member ?? HOST_PRESENCE;
   const workspaceName = getWorkspaceName();
-  const documents = readDocuments();
+  const documents = readDocumentsOnce();
 
   return (
     <PresenceProvider

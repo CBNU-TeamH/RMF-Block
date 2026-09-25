@@ -40,7 +40,7 @@ import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
 import { HOST_PRESENCE } from "@/lib/presence/types";
 
-import { CANCEL, FIELD_LABEL, Spinner, confirmClass, inputClass } from "../../document-actions";
+import { CANCEL, DIALOG_TITLE, FIELD_LABEL, Spinner, confirmClass, inputClass } from "../../ui";
 import { canFloat, useFloatingViews } from "../../floating-views";
 import { useFocusFollow } from "../../focus-follow-provider";
 import { Avatar } from "../../presence-avatar";
@@ -61,7 +61,10 @@ import { useFileUpload } from "./use-file-upload";
  *  64px either side for the block handles. */
 const COLUMN = "mx-auto flex w-full max-w-[888px] flex-1 flex-col px-16 pt-16 pb-[200px]";
 /** The editor's two in-page overlays share the workspace dialog look. */
-const OVERLAY = "fixed inset-0 z-30 flex items-start justify-center bg-[rgba(10,14,20,0.36)] px-5 pt-[18vh]";
+const OVERLAY = "fixed inset-0 z-30 flex items-start justify-center bg-scrim px-5 pt-[18vh]";
+/** `pl-8`: a text block's 24px marker slot (`INDENT_STEP`) plus its 8px gap,
+ *  so the title lines up with the text under it. */
+const TITLE_ROW = "mb-7 flex items-start gap-2 pl-8";
 const PANEL = "w-full max-w-[400px] rounded-card bg-elev p-5 text-ink shadow-elev";
 
 /** Exhaustive on purpose — the `never` below makes a seventh text-bearing type a
@@ -693,8 +696,6 @@ export function DocumentEditor({
   // `name` is a plain prop, so the title needs neither `client` nor `blocks` —
   // only the trigger below it does. Keeping it out of these two early returns
   // is what stops it from disappearing during the connection window.
-  // `pl-8` on the rows that hold it: text blocks keep a 24px marker slot plus
-  // an 8px gap before their text, and the title lines up with the text.
   const title = (
     <h1 className="min-w-0 flex-1 text-[42px] leading-[1.2] font-bold tracking-[-0.025em] text-pretty text-ink">
       {name}
@@ -704,7 +705,7 @@ export function DocumentEditor({
   if (failed) {
     return (
       <div className={COLUMN}>
-        <div className="mb-7 flex items-start gap-2 pl-8">{title}</div>
+        <div className={TITLE_ROW}>{title}</div>
         <p className="text-danger">문서를 열지 못했습니다. 새로고침해 주세요.</p>
       </div>
     );
@@ -713,7 +714,7 @@ export function DocumentEditor({
   if (!client || blocks === null) {
     return (
       <div className={COLUMN}>
-        <div className="mb-7 flex items-start gap-2 pl-8">{title}</div>
+        <div className={TITLE_ROW}>{title}</div>
         <p className="text-ink-faint">여는 중…</p>
       </div>
     );
@@ -876,7 +877,7 @@ export function DocumentEditor({
           document-level action that needs `client`/`docRef` — both only exist
           once this component's own hooks have run (the title itself does not,
           which is why the two early returns above render it on their own). */}
-      <div className="mb-7 flex items-start gap-2 pl-8">
+      <div className={TITLE_ROW}>
         {title}
         <VersionHistory
           client={client}
@@ -1091,7 +1092,7 @@ export function DocumentEditor({
             }}
             className={`${PANEL} flex flex-col gap-4`}
           >
-            <h2 className="text-[17px] font-bold tracking-tight text-ink">이 문서 안에 새 페이지</h2>
+            <h2 className={DIALOG_TITLE}>이 문서 안에 새 페이지</h2>
 
             <label className={FIELD_LABEL}>
               페이지 이름
@@ -1133,7 +1134,7 @@ export function DocumentEditor({
       {linkAnchor !== null ? (
         <div className={OVERLAY}>
           <div className={`${PANEL} max-h-[64vh] overflow-y-auto`}>
-            <h2 className="mb-3 text-[17px] font-bold tracking-tight text-ink">어느 문서로 링크할까요?</h2>
+            <h2 className={`mb-3 ${DIALOG_TITLE}`}>어느 문서로 링크할까요?</h2>
 
             {linkChoices.length === 0 ? (
               <p className="py-6 text-center text-[13px] text-ink-faint">

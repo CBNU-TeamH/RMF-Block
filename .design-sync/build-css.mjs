@@ -14,8 +14,8 @@ const out = '.design-sync/.cache/app.css';
 // a basic layout vocabulary regardless of whether the app uses them yet.
 // ponytail: a fixed safelist; widen it when conventions.md names more.
 const safelist = [
-  '{hover:,}{bg,text,border}-{ink,ink-soft,ink-faint,paper,paper-2,shell,sky,sky-deep,sky-soft,elev,line,line-strong,hover,sky-text,sky-ring,danger,danger-soft}',
-  '{rounded-control,rounded-card,shadow-elev,shadow-panel,font-sans}',
+  '{hover:,}{bg,text,border}-{ink,ink-soft,ink-faint,paper,paper-2,shell,sky,sky-deep,sky-soft,elev,line,line-strong,hover,sky-text,sky-ring,danger,danger-soft,scrim}',
+  '{rounded-control,rounded-card,shadow-elev,font-sans}',
   '{flex,inline-flex,grid,block,hidden,flex-col,flex-row,flex-1,flex-wrap,items-center,items-start,items-end,justify-between,justify-center,justify-end}',
   '{gap,p,px,py,m,mx,my,mt,mb}-{0,1,1.5,2,2.5,3,4,5,6,8,10,12}',
   '{text-xs,text-sm,text-base,text-lg,text-xl,text-2xl,font-medium,font-semibold,font-bold,font-mono,truncate,uppercase,tracking-wide}',
