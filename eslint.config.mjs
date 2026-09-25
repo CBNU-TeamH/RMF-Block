@@ -26,6 +26,10 @@ const eslintConfig = defineConfig([
     // someone else's bundle or rewrite the wireframes, which is the opposite of
     // what those files are for.
     "docs/ui/**",
+    // `/design-sync`'s staged converter and its compiled output (gitignored);
+    // `.design-sync/` itself holds the committed inputs and stays linted.
+    ".ds-sync/**",
+    "ds-bundle/**",
   ]),
 ]);
 

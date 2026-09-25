@@ -1,0 +1,85 @@
+{
+  "projectId": "8cd19d73-acf0-4cef-9b0e-995d58f947fa",
+  "pkg": "rmf-block",
+  "globalName": "RmfBlock",
+  "shape": "package",
+  "entry": ".design-sync/entry.tsx",
+  "buildCmd": "node .design-sync/build-css.mjs",
+  "srcDir": "app",
+  "tsconfig": "tsconfig.json",
+  "cssEntry": ".design-sync/.cache/app.css",
+  "provider": {
+    "component": "AppShell"
+  },
+  "componentSrcMap": {
+    "AppShell": null,
+    "Avatar": "app/(workspace)/presence-avatar.tsx",
+    "PresenceStack": "app/(workspace)/presence-stack.tsx",
+    "ChatMessageRow": "app/(workspace)/chat-message.tsx",
+    "ChatPanel": "app/(workspace)/chat-panel.tsx",
+    "ChatWindow": "app/(workspace)/chat-window.tsx",
+    "FloatingFrame": "app/(workspace)/floating-frame.tsx",
+    "DocumentList": "app/(workspace)/document-list.tsx",
+    "DocumentRowMenu": "app/(workspace)/document-row-menu.tsx",
+    "DocumentActionDialog": "app/(workspace)/document-actions.tsx",
+    "FocusShare": "app/(workspace)/focus-share.tsx",
+    "JoinForm": "app/join/join-form.tsx",
+    "DividerBlockView": "app/(workspace)/documents/[id]/divider-block.tsx",
+    "DocLinkBlockView": "app/(workspace)/documents/[id]/doc-link-block.tsx",
+    "FileBlockView": "app/(workspace)/documents/[id]/file-block.tsx",
+    "ImageBlockView": "app/(workspace)/documents/[id]/image-block.tsx",
+    "PdfBlockView": "app/(workspace)/documents/[id]/pdf-block.tsx",
+    "TextBlockView": "app/(workspace)/documents/[id]/text-block.tsx",
+    "VersionHistory": "app/(workspace)/documents/[id]/version-history.tsx",
+    "DocumentEditor": "app/(workspace)/documents/[id]/editor.tsx",
+    "PresenceContext": null
+  },
+  "guidelinesGlob": [],
+  "libOverrides": {
+    "source-kit.mjs": "skip Next.js dynamic-route segments ([id]) when deriving component groups"
+  },
+  "docsMap": {
+    "VersionHistory": null
+  },
+  "overrides": {
+    "DocumentActionDialog": {
+      "cardMode": "single",
+      "viewport": "480x320"
+    },
+    "FloatingFrame": {
+      "cardMode": "single",
+      "viewport": "600x240"
+    },
+    "DocumentRowMenu": {
+      "cardMode": "single",
+      "viewport": "380x300"
+    },
+    "DocumentList": {
+      "cardMode": "column"
+    },
+    "JoinForm": {
+      "cardMode": "column"
+    },
+    "ChatWindow": {
+      "cardMode": "single",
+      "viewport": "520x480"
+    },
+    "ChatPanel": {
+      "cardMode": "column"
+    },
+    "VersionHistory": {
+      "cardMode": "single",
+      "viewport": "820x560"
+    },
+    "DocLinkBlockView": {
+      "cardMode": "column"
+    },
+    "FileBlockView": {
+      "cardMode": "column"
+    },
+    "TextBlockView": {
+      "cardMode": "column"
+    }
+  },
+  "readmeHeader": ".design-sync/conventions.md"
+}

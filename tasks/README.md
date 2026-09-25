@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Sync the app's components to Claude Design](active/20260925-design-sync-todo.md) | [lessons](active/20260925-design-sync-lessons.md) |
 | [Floating view of a block (UC-070)](active/20260924-floating-view-todo.md) | [lessons](active/20260924-floating-view-lessons.md) |
 | [Promote comment-budget to a required CI check](active/20260923-comment-budget-ci-todo.md) | [lessons](active/20260923-comment-budget-ci-lessons.md) |
 | [Upgrade Yorkie 0.7.13 → 0.7.23](active/20260922-yorkie-0723-todo.md) | [lessons](active/20260922-yorkie-0723-lessons.md) |
