@@ -1,28 +1,38 @@
 import { AppShell, DocumentList } from "rmf-block";
 
-const minji = { id: "m1", nickname: "김민지", colorTag: "#ef4444" };
-const seojun = { id: "m2", nickname: "박서준", colorTag: "#22c55e" };
-const host = { id: "h", nickname: "Host", colorTag: "#eab308" };
-const row = (id: string, name: string, parentId: string | null, creator: typeof minji | null, created: string, updated: string) => ({
-  id, name, parentId, createdBy: creator?.id ?? "gone", creator, createdAt: created, updatedAt: updated,
+const row = (id: string, name: string, parentId: string | null = null) => ({
+  id, name, parentId, createdBy: "m1", createdAt: "2026-09-01T01:00:00Z", updatedAt: "2026-09-24T05:12:00Z",
 });
 
 const documents = [
-  row("plan", "프로젝트 계획서", null, host, "2026-09-01T01:00:00Z", "2026-09-24T05:12:00Z"),
-  row("minutes", "회의록", "plan", minji, "2026-09-03T02:00:00Z", "2026-09-24T04:40:00Z"),
-  row("wk1", "1주차 회의", "minutes", minji, "2026-09-03T02:10:00Z", "2026-09-10T08:00:00Z"),
-  row("wk2", "2주차 회의", "minutes", seojun, "2026-09-10T02:10:00Z", "2026-09-17T08:00:00Z"),
-  row("srs", "요구사항 명세", null, seojun, "2026-09-02T03:00:00Z", "2026-09-20T06:30:00Z"),
-  row("old", "아이디어 메모", null, null, "2026-08-28T03:00:00Z", "2026-08-29T06:30:00Z"),
+  row("plan", "프로젝트 계획서"),
+  row("minutes", "회의록", "plan"),
+  row("wk1", "1주차 회의", "minutes"),
+  row("wk2", "2주차 회의", "minutes"),
+  row("srs", "요구사항 명세"),
+  row("ideas", "아이디어 메모"),
 ];
 
-/** The workspace's document tree: nesting, creator avatars, a creator the host removed. */
+/** The sidebar as the workspace layout frames it: 260px, paper-2, with the open
+ *  document (from `AppShell`'s pathname) highlighted. */
+function Sidebar({ children }: { children: React.ReactNode }) {
+  return (
+    <aside className="flex h-[420px] w-[260px] flex-col border-r border-line bg-paper-2 px-1.5 pt-2">
+      <div className="mb-1 flex h-9 items-center gap-2 px-2">
+        <span className="flex size-5 items-center justify-center rounded-[5px] bg-ink text-[11px] font-bold text-paper">r</span>
+        <span className="font-semibold text-ink">TeamH 워크스페이스</span>
+      </div>
+      {children}
+    </aside>
+  );
+}
+
 export function Tree() {
   return (
-    <AppShell>
-      <div className="bg-paper p-6">
+    <AppShell pathname="/documents/wk1">
+      <Sidebar>
         <DocumentList documents={documents} />
-      </div>
+      </Sidebar>
     </AppShell>
   );
 }
@@ -30,9 +40,9 @@ export function Tree() {
 export function Empty() {
   return (
     <AppShell>
-      <div className="bg-paper p-6">
+      <Sidebar>
         <DocumentList documents={[]} />
-      </div>
+      </Sidebar>
     </AppShell>
   );
 }

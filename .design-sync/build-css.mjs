@@ -30,6 +30,9 @@ const marked = result.css.replace(
   /(--(?:tw-[\w-]+|ease-[\w-]+|default-transition-[\w-]+)\s*:[^;{}]*;)/g,
   '$1 /* @kind other */',
 );
+// next/font sets --font-pretendard on <html> in the app; the design system has
+// no such class, so name the family .design-sync/pretendard.css ships.
+const withFont = `${marked}\n:root { --font-pretendard: "Pretendard Variable"; }\n`;
 mkdirSync('.design-sync/.cache', { recursive: true });
-writeFileSync(out, marked);
-console.log(`wrote ${out} (${marked.length} bytes)`);
+writeFileSync(out, withFont);
+console.log(`wrote ${out} (${withFont.length} bytes)`);
