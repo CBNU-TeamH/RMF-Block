@@ -92,10 +92,14 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
         const gone = new Set(ids);
         setLive((current) => current.filter((d) => !gone.has(d.id)));
       }
+
+      // The tree updates itself above; the layout's own read feeds the header
+      // breadcrumb, which would otherwise keep the catalogue it first rendered.
+      if (message.event?.startsWith("document:")) router.refresh();
     });
 
     return () => socket.close();
-  }, []);
+  }, [router]);
 
   const toggle = useCallback((id: string) => {
     setCollapsed((current) => {
@@ -220,32 +224,9 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                   }`}
                 >
                   {hasChildren ? (
-                    <button
-                      type="button"
-                      aria-label={collapsed.has(doc.id) ? "펼치기" : "접기"}
-                      aria-expanded={!collapsed.has(doc.id)}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        toggle(doc.id);
-                      }}
-                      className="flex size-5 shrink-0 items-center justify-center rounded text-ink-faint hover:bg-sky-soft"
-                    >
-                      <svg
-                        aria-hidden
-                        width="12"
-                        height="12"
-                        viewBox="0 0 16 16"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={1.8}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className={`transition-transform duration-[120ms] ${collapsed.has(doc.id) ? "" : "rotate-90"}`}
-                      >
-                        <path d="M6 4l4 4-4 4" />
-                      </svg>
-                    </button>
+                    // The chevron's slot; the button itself sits beside the
+                    // link below, since an anchor can't hold another control.
+                    <span aria-hidden className="size-5 shrink-0" />
                   ) : (
                     <span
                       className={`flex size-5 shrink-0 items-center justify-center ${
@@ -257,6 +238,32 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                   )}
                   <span className="truncate">{doc.name}</span>
                 </Link>
+
+                {hasChildren ? (
+                  <button
+                    type="button"
+                    aria-label={collapsed.has(doc.id) ? "펼치기" : "접기"}
+                    aria-expanded={!collapsed.has(doc.id)}
+                    onClick={() => toggle(doc.id)}
+                    style={{ left: 4 + depth * 14 }}
+                    className="absolute top-1.5 flex size-5 items-center justify-center rounded text-ink-faint outline-none hover:bg-sky-soft focus-visible:ring-2 focus-visible:ring-sky-deep"
+                  >
+                    <svg
+                      aria-hidden
+                      width="12"
+                      height="12"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.8}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={`transition-transform duration-[120ms] ${collapsed.has(doc.id) ? "" : "rotate-90"}`}
+                    >
+                      <path d="M6 4l4 4-4 4" />
+                    </svg>
+                  </button>
+                ) : null}
 
                 {/* Outside the `<Link>`, not inside it: a button nested in an
                   * anchor is invalid HTML, and the browser's own fix for it is

@@ -14,8 +14,9 @@ export type Size = { width: number; height: number };
  *  The window keeps that ratio, and its width over `base.width` is the scale. */
 export type FloatingView = BlockRef & { frame: Frame; base?: Size };
 
-/** The title bar's height — `h-8` in `floating-frame.tsx`. */
-export const HEADER = 32;
+/** The title bar's height — `h-9` in `floating-frame.tsx` (border-box, so its
+ *  `border-b` is inside the 36px). */
+export const HEADER = 36;
 /** Narrower than this and the content stops being readable at any scale. */
 export const MIN_CONTENT_WIDTH = 120;
 /** The narrowest a window is fitted: one short line would otherwise leave no
