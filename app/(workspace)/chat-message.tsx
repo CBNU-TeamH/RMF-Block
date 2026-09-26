@@ -3,6 +3,8 @@
 import type { ChatAttachment, ChatMessage } from "@/lib/chat/types";
 import { readableSize } from "@/lib/files/size";
 
+import { FileIcon } from "./ui";
+
 /** One message in the chat panel (FR-060-01/02). **Prototype** — `docs/ui/` has
  *  no chat artboard, so this borrows the shell's vocabulary and is meant to be
  *  replaced once there is a design, not defended. */
@@ -41,7 +43,7 @@ function Attachment({ attachment }: { attachment: ChatAttachment }) {
         <img
           src={`/api/files/${attachment.fileId}/preview`}
           alt={attachment.fileName}
-          className="max-h-60 max-w-full rounded-md border border-ink"
+          className="max-h-60 max-w-full rounded-control"
         />
       </a>
     );
@@ -50,18 +52,14 @@ function Attachment({ attachment }: { attachment: ChatAttachment }) {
   return (
     <a
       href={download}
-      className="mt-1 flex w-fit max-w-full items-center gap-2.5 rounded-md border border-ink bg-paper-2 px-3 py-2"
+      className="mt-1 flex w-fit max-w-full items-center gap-2.5 rounded-control bg-paper-2 py-1.5 pr-3 pl-1.5 hover:bg-hover"
     >
-      <span aria-hidden className="text-base">
-        📎
+      <span aria-hidden className="flex size-8 flex-none items-center justify-center rounded-control bg-paper text-ink-soft">
+        <FileIcon />
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-[13px] font-semibold text-ink">
-          {attachment.fileName}
-        </span>
-        <span className="font-mono text-[10px] tracking-wide text-ink-faint uppercase">
-          {readableSize(attachment.size)} · 내려받기
-        </span>
+        <span className="block truncate text-[13.5px] font-medium text-ink">{attachment.fileName}</span>
+        <span className="text-xs text-ink-faint">{readableSize(attachment.size)} · 내려받기</span>
       </span>
     </a>
   );
@@ -79,32 +77,31 @@ export function ChatMessageRow({
   colorTag: string | undefined;
 }) {
   return (
-    <li className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
+    // Left-aligned, no bubbles (`docs/ui/redesign/HANDOFF.md` §3). Your own
+    // name in sky until HANDOFF's "나" badge lands.
+    <li className="flex gap-2.5 rounded-control px-2 py-1.5 hover:bg-hover">
       <span
         aria-hidden
         style={colorTag ? { backgroundColor: colorTag } : undefined}
-        className="mt-0.5 inline-flex size-6 flex-none items-center justify-center rounded-full border border-ink bg-paper-2 text-[11px] font-bold text-ink"
+        className={`mt-0.5 inline-flex size-[26px] flex-none items-center justify-center rounded-full text-[11.5px] font-semibold ${
+          colorTag ? "text-white" : "bg-paper-2 text-ink-soft"
+        }`}
       >
         {message.sender.slice(0, 1)}
       </span>
 
-      <div className={`flex min-w-0 flex-col ${mine ? "items-end" : "items-start"}`}>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="flex items-baseline gap-1.5">
-          <span className="text-[11px] font-semibold text-ink-soft">{message.sender}</span>
-          <time
-            dateTime={message.sentAt}
-            className="font-mono text-[9.5px] text-ink-faint"
-          >
+          <span className={`text-[13.5px] font-semibold ${mine ? "text-sky-text" : "text-ink"}`}>
+            {message.sender}
+          </span>
+          <time dateTime={message.sentAt} className="text-xs text-ink-faint">
             {time.format(new Date(message.sentAt))}
           </time>
         </span>
 
         {message.text ? (
-          <p
-            className={`mt-0.5 w-fit max-w-full rounded-md border border-ink px-2.5 py-1.5 text-[13px] break-words whitespace-pre-wrap text-ink ${
-              mine ? "bg-sky-soft" : "bg-paper-2"
-            }`}
-          >
+          <p className="text-[14px] leading-[1.55] break-words whitespace-pre-wrap text-ink">
             {message.text}
           </p>
         ) : null}

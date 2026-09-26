@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { readDocuments } from "@/lib/documents/documents";
+import { readDocumentsOnce } from "../../read-documents";
 
 import { DocumentEditor } from "./editor";
 
@@ -16,12 +16,13 @@ export default async function DocumentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const document = readDocuments().find((doc) => doc.id === id);
+  const document = readDocumentsOnce().find((doc) => doc.id === id);
 
   if (!document) notFound();
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    // `pl-2`: with `<main>`'s `px-8` it is the 40px the editor's `-ml-10` reaches into.
+    <div className="flex h-full min-h-0 flex-col">
       {/* Keyed by the document it is showing, so opening a different one
        * gets a fresh editor rather than the same instance with the previous
        * document's `blocks` still rendered (and its `failed` still set, which

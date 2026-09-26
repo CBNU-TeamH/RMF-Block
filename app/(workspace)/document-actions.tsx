@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import type { WorkspaceDocument } from "@/lib/documents/documents";
 import { subtreeIds } from "@/lib/documents/tree";
 
+import { CANCEL, DIALOG, DIALOG_TITLE, FIELD_LABEL, Spinner, confirmClass, inputClass } from "./ui";
+
 /** Which of UC-023's three operations the dialog is standing in for. The
  *  document is carried rather than looked up by id: the catalogue can change
  *  under an open dialog (someone else's delete arrives on the socket), and the
@@ -14,10 +16,8 @@ export type DocumentAction =
   | { kind: "move"; document: WorkspaceDocument }
   | { kind: "delete"; document: WorkspaceDocument };
 
-const INPUT_BASE = "rounded-md border bg-paper-2 px-3 py-2 text-base text-ink";
-const INPUT_OK = "border-ink";
-const INPUT_BAD = "border-red-600";
 const ROOT = "__root__";
+const CONFIRM_LABEL = { rename: "이름 변경", move: "이동", delete: "삭제" } as const;
 
 /**
  * Rename, move and delete for one document (FR-023-01~06).
@@ -143,19 +143,19 @@ export function DocumentActionDialog({
       onCancel={(event) => {
         if (pending) event.preventDefault();
       }}
-      className="m-auto max-w-sm rounded-lg border border-ink bg-paper p-5 text-ink backdrop:bg-ink/40"
+      className={DIALOG}
     >
       <form
         onSubmit={(event) => {
           event.preventDefault();
           void submit();
         }}
-        className="flex flex-col gap-3"
+        className="flex flex-col gap-4"
       >
-        <h2 className="text-base font-bold text-ink">{heading}</h2>
+        <h2 className={DIALOG_TITLE}>{heading}</h2>
 
         {kind === "rename" ? (
-          <label className="flex flex-col gap-1 text-sm text-ink-soft">
+          <label className={FIELD_LABEL}>
             문서 이름
             <input
               ref={nameRef}
@@ -163,18 +163,18 @@ export function DocumentActionDialog({
               onChange={(event) => setName(event.target.value)}
               required
               aria-invalid={error !== null}
-              className={`${INPUT_BASE} ${error ? INPUT_BAD : INPUT_OK}`}
+              className={inputClass(error !== null)}
             />
           </label>
         ) : null}
 
         {kind === "move" ? (
-          <label className="flex flex-col gap-1 text-sm text-ink-soft">
+          <label className={FIELD_LABEL}>
             옮길 위치
             <select
               value={parentId}
               onChange={(event) => setParentId(event.target.value)}
-              className={`${INPUT_BASE} ${error ? INPUT_BAD : INPUT_OK}`}
+              className={inputClass(error !== null)}
             >
               <option value={ROOT}>워크스페이스 최상위</option>
               {destinations.map((candidate) => (
@@ -187,7 +187,7 @@ export function DocumentActionDialog({
         ) : null}
 
         {kind === "delete" ? (
-          <p className="text-sm text-ink-soft">
+          <p className="-mt-2 text-sm leading-relaxed text-ink-soft">
             {descendants > 0
               ? `하위 문서 ${descendants}개도 함께 삭제됩니다. 되돌릴 수 없습니다.`
               : "되돌릴 수 없습니다."}
@@ -195,30 +195,18 @@ export function DocumentActionDialog({
         ) : null}
 
         {error ? (
-          <p role="alert" className="text-sm font-medium text-red-600">
+          <p role="alert" className="-mt-2 text-[13px] text-danger">
             {error}
           </p>
         ) : null}
 
-        <div className="mt-1 flex justify-end gap-2">
-          <button
-            type="button"
-            disabled={pending}
-            onClick={onClose}
-            className="rounded-md border border-ink px-3 py-1.5 text-sm text-ink disabled:opacity-40"
-          >
+        <div className="flex justify-end gap-2">
+          <button type="button" disabled={pending} onClick={onClose} className={CANCEL}>
             취소
           </button>
-          <button
-            type="submit"
-            disabled={pending}
-            className={`rounded-md border px-3 py-1.5 text-sm font-bold disabled:opacity-40 ${
-              kind === "delete"
-                ? "border-red-600 bg-red-600 text-paper"
-                : "border-sky-deep bg-sky text-ink"
-            }`}
-          >
-            {pending ? "처리 중…" : kind === "rename" ? "이름 변경" : kind === "move" ? "이동" : "삭제"}
+          <button type="submit" disabled={pending} className={confirmClass(kind === "delete")}>
+            {pending ? <Spinner /> : null}
+            {pending ? (kind === "delete" ? "삭제 중…" : "처리 중…") : CONFIRM_LABEL[kind]}
           </button>
         </div>
       </form>

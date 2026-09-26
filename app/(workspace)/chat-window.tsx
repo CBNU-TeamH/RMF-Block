@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import {
   BAR_HEIGHT,
@@ -13,6 +13,8 @@ import {
 } from "@/lib/chat/window-frame";
 
 import { ChatPanel } from "./chat-panel";
+import { FloatingFrame } from "./floating-frame";
+import { useFrameGesture, viewport, type FrameRules } from "./use-frame-gesture";
 
 /** The chat window and the bar that opens it. A floating window, not a rail —
  *  where chat wants to sit depends on what is under it. The title bar moves it,
@@ -24,7 +26,7 @@ import { ChatPanel } from "./chat-panel";
  *  throws or comes back empty. */
 const STORAGE_KEY = "rmf-chat-window";
 
-const viewport = () => ({ width: window.innerWidth, height: window.innerHeight });
+const RULES: FrameRules<GestureKind> = { apply: applyGesture, fit: clamp };
 
 function readFrame(): Frame | null {
   try {
@@ -43,30 +45,9 @@ function writeFrame(frame: Frame): void {
   }
 }
 
-type Gesture = {
-  kind: GestureKind;
-  pointerX: number;
-  pointerY: number;
-  start: Frame;
-};
-
-/** The three resize borders. Invisible and found by the cursor changing, like a
- *  desktop window's — and wider than the 1px they sit on, because a border you
- *  have to hit precisely is a border you miss. */
-const BORDERS: Array<{ kind: GestureKind; className: string }> = [
-  { kind: "left", className: "top-8 bottom-0 left-0 w-1.5 cursor-ew-resize" },
-  { kind: "right", className: "top-8 right-0 bottom-0 w-1.5 cursor-ew-resize" },
-  { kind: "bottom", className: "right-0 bottom-0 left-0 h-1.5 cursor-ns-resize" },
-];
-
 export function ChatWindow({ me }: { me: string }) {
   const [open, setOpen] = useState(false);
   const [frame, setFrame] = useState<Frame | null>(null);
-
-  // State rather than a ref: it changes only when a gesture starts or ends,
-  // never per pointer move, and the effect below depending on it is what
-  // attaches and removes the listeners.
-  const [gesture, setGesture] = useState<Gesture | null>(null);
 
   // Resolved on first open, not during render: `window` does not exist while
   // this component renders on the server, and neither does the saved frame.
@@ -75,100 +56,27 @@ export function ChatWindow({ me }: { me: string }) {
     setOpen(true);
   }, []);
 
-  // Listeners go on the window, not the header: a pointer moving faster than
-  // React re-renders leaves the element behind, and a drag that stops when the
-  // cursor outruns the title bar is a drag that feels broken.
-  useEffect(() => {
-    if (!gesture) return undefined;
-
-    const move = (event: PointerEvent) =>
-      setFrame(
-        applyGesture(
-          gesture.kind,
-          gesture.start,
-          event.clientX - gesture.pointerX,
-          event.clientY - gesture.pointerY,
-          viewport(),
-        ),
-      );
-
-    // Saved when the gesture ends rather than on every move — one write per
-    // drag instead of one per frame.
-    const end = () => {
-      setGesture(null);
-      setFrame((current) => {
-        if (current) writeFrame(current);
-        return current;
-      });
-    };
-
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", end);
-
-    return () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", end);
-    };
-  }, [gesture]);
-
-  // A viewport that shrank below the window leaves it partly unreachable.
-  useEffect(() => {
-    const onResize = () =>
-      setFrame((current) => (current ? clamp(current, viewport()) : current));
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  const begin = (kind: Gesture["kind"]) => (event: React.PointerEvent) => {
-    if (!frame) return;
-    event.preventDefault();
-    setGesture({ kind, pointerX: event.clientX, pointerY: event.clientY, start: frame });
-  };
+  // Saved when the gesture ends rather than on every move — one write per
+  // drag instead of one per frame.
+  const begin = useFrameGesture(frame, setFrame, writeFrame, RULES);
 
   return (
     <>
       {open && frame ? (
-        <section
-          aria-label="채팅"
-          style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}
-          className="fixed z-40 flex flex-col overflow-hidden rounded-lg border border-ink bg-paper shadow-[0_6px_24px_rgba(28,27,26,0.18)]"
+        <FloatingFrame
+          frame={frame}
+          begin={begin}
+          label="채팅"
+          title={
+            <span className="text-[13px] font-semibold text-ink">채팅</span>
+          }
+          resize="edges"
+          closeLabel="채팅 닫기"
+          onClose={() => setOpen(false)}
+          className="z-40"
         >
-          <header
-            onPointerDown={begin("move")}
-            className="flex h-8 flex-none cursor-move touch-none items-center gap-2 border-b border-ink bg-paper-2 px-2.5 select-none"
-          >
-            <span className="font-mono text-[10px] tracking-wide text-ink-soft uppercase">
-              채팅
-            </span>
-            <span className="flex-1" />
-            <button
-              type="button"
-              // Inside the header, so pointerdown would bubble into
-              // `begin("move")` — a twitch would move and save the window from a
-              // control that is not for moving it.
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={() => setOpen(false)}
-              aria-label="채팅 닫기"
-              className="px-1 text-[13px] leading-none text-ink-faint"
-            >
-              ✕
-            </button>
-          </header>
-
           <ChatPanel me={me} />
-
-          {/* Pointer-only, and marked as such: dragging a border has no keyboard
-              equivalent yet. They come after the panel so they sit above it —
-              the border must win the pointer, not the message list under it. */}
-          {BORDERS.map((border) => (
-            <span
-              key={border.kind}
-              onPointerDown={begin(border.kind)}
-              aria-hidden
-              className={`absolute touch-none ${border.className}`}
-            />
-          ))}
-        </section>
+        </FloatingFrame>
       ) : null}
 
       {/* The height here is the same number `window-frame` keeps the window
@@ -177,17 +85,20 @@ export function ChatWindow({ me }: { me: string }) {
           button that opens it. */}
       <div
         style={{ height: BAR_HEIGHT }}
-        className="fixed right-0 bottom-0 z-30 flex items-center border-t border-l border-ink bg-paper px-3"
+        className="fixed right-3 bottom-0 z-30 flex items-center"
       >
         <button
           type="button"
           onClick={() => (open ? setOpen(false) : openWindow())}
           aria-expanded={open}
-          className={`rounded px-2 py-1 font-mono text-[10px] tracking-wide uppercase ${
-            open ? "bg-sky-soft font-bold text-ink" : "text-ink-soft"
+          className={`flex h-8 items-center gap-1.5 rounded-control px-3 text-[13.5px] font-medium shadow-elev ${
+            open ? "bg-sky-soft text-sky-text" : "bg-elev text-ink-soft hover:text-ink"
           }`}
         >
-          💬 채팅
+          <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round">
+            <path d="M3 3.5h10v7H7l-3 2.5v-2.5H3z" />
+          </svg>
+          채팅
         </button>
       </div>
     </>

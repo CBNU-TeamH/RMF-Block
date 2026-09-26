@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 
 import type { DocLinkBlock } from "@/lib/blocks/types";
 
+import { FileIcon } from "../../ui";
+
 /**
  * A link to another document (SRS §4.1 type 11).
  *
@@ -45,37 +47,37 @@ export function DocLinkBlockView({
   }, [block.documentId]);
 
   return (
-    <div className="group/link my-1 flex items-center gap-2 rounded-md border border-ink bg-paper-2 px-3 py-2">
-      <span aria-hidden className="text-[15px] leading-none select-none">
-        🔗
+    <div className="group/link -mx-1 flex items-center gap-2 rounded-control px-1 py-1 text-[16.5px] hover:bg-hover">
+      <span className="shrink-0 text-ink-soft">
+        <FileIcon size={17} />
       </span>
 
       {missing ? (
-        <span className="min-w-0 flex-1 truncate text-[13px] text-ink-faint">
+        <span className="min-w-0 flex-1 truncate text-ink-faint line-through">
           삭제된 문서입니다.
         </span>
       ) : (
         <Link
           href={`/documents/${block.documentId}`}
-          className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink underline decoration-ink-faint underline-offset-2"
+          className="min-w-0 truncate font-medium text-ink underline decoration-line-strong underline-offset-4"
         >
           {name ?? "여는 중…"}
         </Link>
       )}
 
       {confirmingDelete ? (
-        <span className="flex shrink-0 items-center gap-1">
+        <span className="ml-auto flex shrink-0 items-center gap-1">
           <button
             type="button"
             onClick={() => onDelete(block.id)}
-            className="rounded-md border border-ink bg-ink px-2 py-0.5 text-[11px] font-semibold text-paper"
+            className="h-6 rounded-control bg-danger px-2 text-xs font-semibold text-paper"
           >
             삭제
           </button>
           <button
             type="button"
             onClick={() => setConfirmingDelete(false)}
-            className="rounded-md border border-ink bg-paper px-2 py-0.5 text-[11px] font-semibold text-ink"
+            className="h-6 rounded-control px-2 text-xs font-medium text-ink hover:bg-hover"
           >
             취소
           </button>
@@ -84,7 +86,7 @@ export function DocLinkBlockView({
         <button
           type="button"
           onClick={() => setConfirmingDelete(true)}
-          className="shrink-0 rounded-md border border-ink bg-paper px-2 py-0.5 text-[11px] font-semibold text-ink-soft opacity-0 group-hover/link:opacity-100 group-focus-within/link:opacity-100"
+          className="ml-auto shrink-0 h-6 rounded-control px-2 text-xs font-medium text-ink-faint opacity-0 hover:bg-hover hover:text-danger group-hover/link:opacity-100 group-focus-within/link:opacity-100"
         >
           삭제
         </button>

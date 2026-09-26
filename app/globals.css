@@ -1,12 +1,14 @@
 @import "tailwindcss";
 
 /**
- * The confirmed artboard's palette (`docs/ui/dashboard/dashboard.dc.html`), as
- * theme tokens so screens name colours instead of repeating hex. Tailwind v4
+ * The "B · Soft / paper" redesign's tokens (`docs/ui/redesign/HANDOFF.md` §2),
+ * as theme tokens so screens name colours instead of repeating hex. Tailwind v4
  * turns each `--color-*` into the matching `bg-`, `text-` and `border-` utility.
  *
- * The design is paper-on-warm-grey and has no dark variant, so these are not
- * paired with dark-mode values, and no screen carries `dark:` classes.
+ * The first block is the original artboard's palette, unchanged in value; the
+ * redesign kept it and added the rest. Light only for now — HANDOFF also has a
+ * dark column, deferred, which is why every colour a screen uses is a token
+ * here: dark becomes a second set of values, not an edit to every component.
  */
 @theme {
   --color-ink: #1c1b1a;
@@ -19,20 +21,34 @@
   --color-sky-deep: #0ea5e9;
   --color-sky-soft: #e0f2fe;
 
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* Menus, dialogs and floating windows — a shade lighter than the page. */
+  --color-elev: #fffefb;
+  --color-line: #e8e3d8;
+  --color-line-strong: #d8d1c3;
+  --color-hover: rgba(28, 27, 26, 0.05);
+  --color-sky-text: #0284c7;
+  --color-sky-ring: rgba(14, 165, 233, 0.25);
+  --color-danger: #dc2626;
+  --color-danger-soft: #fdecec;
+  /* Behind every modal. */
+  --color-scrim: rgba(10, 14, 20, 0.36);
+
+  --radius-control: 9px;
+  --radius-card: 14px;
+
+  --shadow-elev: 0 1px 2px rgba(28, 27, 26, 0.05), 0 12px 32px rgba(28, 27, 26, 0.1);
+
+  /* `--font-pretendard` is set on <html> by `next/font/local` (app/layout.tsx).
+     The system stack behind it covers the moment before it loads. */
+  --font-sans:
+    var(--font-pretendard), system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    "Segoe UI", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  /* Code blocks only — the redesign has no monospace labels. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 body {
-  /* The artboard's own stack. What was here mapped --font-sans to Geist and then
-     set body to Arial, so the loaded font was never the one that rendered — and
-     Geist ships `subsets: ["latin"]`, which is the wrong thing to put in front
-     of a Korean UI anyway.
-
-     JetBrains Mono is named above but deliberately not loaded: the artboard
-     pulls it from Google Fonts, and this app runs on a LAN that may have no
-     route to the internet. The fallback to ui-monospace is what a guest would
-     have got there regardless. */
-  font-family:
-    system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI",
-    "Noto Sans KR", "Malgun Gothic", sans-serif;
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  color: var(--color-ink);
 }

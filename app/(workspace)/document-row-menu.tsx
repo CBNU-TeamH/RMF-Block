@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 export type RowMenuItem = {
   label: string;
+  /** A 15px glyph drawn in `currentColor` before the label. */
+  icon?: React.ReactNode;
   onSelect: () => void;
   /** Drawn apart from the rest, below a rule. For the one that cannot be undone. */
   danger?: boolean;
@@ -13,18 +15,16 @@ export type RowMenuItem = {
  *  An estimate rather than a measurement: measuring needs the menu mounted, and
  *  a first paint in the wrong place is exactly the flicker this avoids. Being a
  *  little wrong costs a menu that opens upward with room to spare. */
-const MENU_HEIGHT_PX = 160;
-const MENU_WIDTH_PX = 168;
+const MENU_HEIGHT_PX = 150;
+const MENU_WIDTH_PX = 220;
 
 /**
- * The row's ⋯ overflow menu — the control `docs/ui/dashboard/dashboard.dc.html`
- * has always had in its last column, and the reason that column is 30px wide.
+ * A sidebar tree row's ··· overflow menu (`docs/ui/redesign/HANDOFF.md` §3).
  *
- * **Why `position: fixed` rather than absolute.** The list sits inside
- * `overflow-hidden` (it is what rounds the table's corners), so a menu
- * positioned against the row would be clipped — the last rows worst, which is
- * where a document-tree menu is most often used. Fixed coordinates read off the
- * button's own rect escape the clip without unpicking the border radius.
+ * **Why `position: fixed` rather than absolute.** The tree scrolls inside the
+ * sidebar, so a menu positioned against the row would be clipped by that
+ * scroller — the last rows worst, which is where a document-tree menu is most
+ * often used. Fixed coordinates read off the button's own rect escape the clip.
  *
  * The cost of that choice is that the menu does not travel with a scroll, so it
  * closes on one. That is what a menu anchored to something that moved should do
@@ -111,11 +111,15 @@ export function DocumentRowMenu({ label, items }: { label: string; items: Array<
         // Faint until the row is hovered or something in it has focus, then
         // full strength — present enough to be discovered, quiet enough that a
         // long list does not read as a column of dots.
-        className={`rounded-md px-1 text-[15px] leading-none text-ink-faint hover:bg-paper-2 hover:text-ink group-hover/row:text-ink-soft group-focus-within/row:text-ink-soft ${
-          open ? "bg-paper-2 text-ink" : ""
+        className={`flex size-[22px] items-center justify-center rounded text-ink-faint hover:bg-sky-soft hover:text-ink ${
+          open ? "bg-sky-soft text-ink" : ""
         }`}
       >
-        ⋯
+        <svg aria-hidden width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="3.5" cy="8" r="1.2" />
+          <circle cx="8" cy="8" r="1.2" />
+          <circle cx="12.5" cy="8" r="1.2" />
+        </svg>
       </button>
 
       {at ? (
@@ -124,11 +128,11 @@ export function DocumentRowMenu({ label, items }: { label: string; items: Array<
           role="menu"
           aria-label={`${label} 작업`}
           style={{ top: at.top, left: at.left, width: MENU_WIDTH_PX }}
-          className="fixed z-40 rounded-lg border border-ink bg-paper py-1 shadow-lg"
+          className="fixed z-40 flex flex-col gap-px rounded-card bg-elev p-1 shadow-elev"
         >
           {items.map((item) => (
             <div key={item.label}>
-              {item.danger ? <div className="my-1 border-t border-ink/15" /> : null}
+              {item.danger ? <div className="mx-1.5 my-1 h-px bg-line" /> : null}
               <button
                 type="button"
                 role="menuitem"
@@ -136,10 +140,13 @@ export function DocumentRowMenu({ label, items }: { label: string; items: Array<
                   setAt(null);
                   item.onSelect();
                 }}
-                className={`block w-full px-3 py-1.5 text-left text-[13px] hover:bg-paper-2 ${
-                  item.danger ? "text-red-600" : "text-ink"
-                }`}
+                className={`flex h-[30px] w-full items-center gap-2.5 rounded-control px-2 text-left text-[14px] ${
+                  item.danger
+                    ? "text-danger hover:bg-danger-soft focus:bg-danger-soft"
+                    : "text-ink hover:bg-hover focus:bg-hover [&>svg]:text-ink-soft"
+                } outline-none focus-visible:ring-2 focus-visible:ring-sky-deep focus-visible:ring-inset`}
               >
+                {item.icon}
                 {item.label}
               </button>
             </div>

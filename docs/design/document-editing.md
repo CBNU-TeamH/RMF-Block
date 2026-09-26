@@ -520,9 +520,16 @@ The fix is to **chain one run's full teardown (unsubscribe + detach) in front of
 ref holding the previous run's teardown is exactly what the next attach must await — and the
 attach never reaches the server while the previous run's document is still marked Attached.
 
-Two places do this for the same reason: `use-block-document.ts` for a content document, and
-`presence-provider.tsx` for the workspace one
+`presence-provider.tsx` does exactly that for the workspace document
 ([#32](https://github.com/CBNU-TeamH/RMF-Block/issues/32)).
+
+A content document goes through **`lib/documents/attach-pool.ts`** instead, because it has more
+than one holder: the editor, and any floating view of one of its blocks (UC-070). Yorkie refuses
+a second `attach` of a key the client already has, so the pool keeps one attachment per key and a
+refcount. That same shape covers Strict Mode: the second run's `acquire` lands before the first
+run's `release` (which waits for its own setup to settle), so the count goes 1→2→1 and nothing
+re-attaches. When the count does reach 0, the next `acquire` of that key waits for the detach in
+flight, the same rule as the chain above, held per key rather than per hook.
 
 ### Seeding a brand-new document is a known race
 

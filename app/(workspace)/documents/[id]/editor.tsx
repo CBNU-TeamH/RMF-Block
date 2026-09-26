@@ -40,6 +40,8 @@ import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
 import { HOST_PRESENCE } from "@/lib/presence/types";
 
+import { CANCEL, DIALOG_TITLE, FIELD_LABEL, Spinner, confirmClass, inputClass } from "../../ui";
+import { canFloat, useFloatingViews } from "../../floating-views";
 import { useFocusFollow } from "../../focus-follow-provider";
 import { Avatar } from "../../presence-avatar";
 import { useWorkspacePresence } from "../../presence-provider";
@@ -54,6 +56,16 @@ import { useBlockDocument } from "./use-block-document";
 import { VersionHistory } from "./version-history";
 import { useFocusPresence } from "./use-focus-presence";
 import { useFileUpload } from "./use-file-upload";
+
+/** The page column (`docs/ui/redesign/HANDOFF.md` §2): 760px of content, with
+ *  64px either side for the block handles. */
+const COLUMN = "mx-auto flex w-full max-w-[888px] flex-1 flex-col px-16 pt-16 pb-[200px]";
+/** The editor's two in-page overlays share the workspace dialog look. */
+const OVERLAY = "fixed inset-0 z-30 flex items-start justify-center bg-scrim px-5 pt-[18vh]";
+/** `pl-8`: a text block's 24px marker slot (`INDENT_STEP`) plus its 8px gap,
+ *  so the title lines up with the text under it. */
+const TITLE_ROW = "mb-7 flex items-start gap-2 pl-8";
+const PANEL = "w-full max-w-[400px] rounded-card bg-elev p-5 text-ink shadow-elev";
 
 /** Exhaustive on purpose — the `never` below makes a seventh text-bearing type a
  *  compile error rather than a block that silently renders as plain text. */
@@ -114,6 +126,7 @@ export function DocumentEditor({
   const router = useRouter();
   const { client, members, memberId, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId } = useFocusFollow();
+  const openFloating = useFloatingViews();
   // Falls back to a neutral color/blank name before the roster carries this
   // browser's own entry yet — `useBlockDocument`'s attach doesn't wait on it.
   const me = useMemo(
@@ -683,23 +696,27 @@ export function DocumentEditor({
   // `name` is a plain prop, so the title needs neither `client` nor `blocks` —
   // only the trigger below it does. Keeping it out of these two early returns
   // is what stops it from disappearing during the connection window.
-  const title = <h1 className="text-[22px] font-bold text-ink">{name}</h1>;
+  const title = (
+    <h1 className="min-w-0 flex-1 text-[42px] leading-[1.2] font-bold tracking-[-0.025em] text-pretty text-ink">
+      {name}
+    </h1>
+  );
 
   if (failed) {
     return (
-      <>
-        <div className="flex flex-none items-center gap-2">{title}</div>
-        <p className="text-sm text-red-600">문서를 열지 못했습니다. 새로고침해 주세요.</p>
-      </>
+      <div className={COLUMN}>
+        <div className={TITLE_ROW}>{title}</div>
+        <p className="text-danger">문서를 열지 못했습니다. 새로고침해 주세요.</p>
+      </div>
     );
   }
 
   if (!client || blocks === null) {
     return (
-      <>
-        <div className="flex flex-none items-center gap-2">{title}</div>
-        <p className="text-sm text-ink-faint">여는 중…</p>
-      </>
+      <div className={COLUMN}>
+        <div className={TITLE_ROW}>{title}</div>
+        <p className="text-ink-faint">여는 중…</p>
+      </div>
     );
   }
 
@@ -722,13 +739,13 @@ export function DocumentEditor({
         // stays the same element at every depth, so nothing remounts and the
         // caret survives an indent.
         <div className="flex items-start gap-2" style={{ paddingLeft: indentOf(block) }}>
-          <span className="mt-0.5 flex size-6 shrink-0 justify-center text-[14px] text-ink-faint select-none">
+          <span className="mt-[3px] flex h-[28px] w-6 shrink-0 items-center justify-center text-[16.5px] text-ink-soft select-none">
             {block.type === "checklist" ? (
               <input
                 type="checkbox"
                 checked={block.checked}
                 onChange={() => handleToggleChecklist(block.id)}
-                className="mt-1 size-3.5 cursor-pointer"
+                className="size-4 cursor-pointer accent-sky-deep"
               />
             ) : block.type === "list" ? (
               block.style === "ordered" ? (
@@ -829,30 +846,15 @@ export function DocumentEditor({
     // whose last block is short leaves most of the page empty, and that empty
     // space is where a file naturally gets dropped. A drop that lands on a
     // block stops there (`handleDrop`) and lands at the pointer instead.
-    <>
-      {/* The title lives here, not in `page.tsx`, so it can share a row with a
-          document-level action that needs `client`/`docRef` — both only exist
-          once this component's own hooks have run (the title itself does not,
-          which is why the two early returns above render it on their own). */}
-      <div className="flex flex-none items-center gap-2">
-        {title}
-        <span className="flex-1" />
-        <VersionHistory
-          client={client}
-          docRef={docRef}
-          nickname={nickname}
-          onRestore={replaceBlocks}
-        />
-      </div>
-      <div
+    <div
       ref={scrollContainerRef}
       data-focus-scroll
       // `relative` makes this each block's `offsetParent` — the space
-      // `lib/focus/dom.ts` reads `offsetTop` in.
-      // `-ml-4 pl-4` is one thing: a non-`visible` overflow on one axis computes
-      // the other to `auto`, so `overflow-y-auto` would clip the drag handle at
-      // `-left-4`. Delete either half and the handle silently stops appearing.
-      className="relative -ml-4 flex min-h-0 flex-1 flex-col overflow-y-auto pl-4"
+      // `lib/focus/dom.ts` reads `offsetTop` in. The centred column inside is
+      // deliberately *not* positioned, so that stays true, and its 64px side
+      // padding is where the block handles at `-left-[50px]` live: an
+      // `overflow-y-auto` here clips anything left of the container itself.
+      className="relative flex min-h-0 flex-1 flex-col overflow-y-auto"
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes("Files")) {
           event.preventDefault();
@@ -870,6 +872,21 @@ export function DocumentEditor({
         void uploadFiles(files, null);
       }}
     >
+      <div className={COLUMN}>
+      {/* The title lives here, not in `page.tsx`, so it can share a row with a
+          document-level action that needs `client`/`docRef` — both only exist
+          once this component's own hooks have run (the title itself does not,
+          which is why the two early returns above render it on their own). */}
+      <div className={TITLE_ROW}>
+        {title}
+        <VersionHistory
+          client={client}
+          docRef={docRef}
+          nickname={nickname}
+          onRestore={replaceBlocks}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
       {blocks.map((block, index) => {
         const occupant = occupantByBlock.get(block.id);
         // The drop indicator wins outright while dragging over this block's
@@ -894,14 +911,14 @@ export function DocumentEditor({
           key={`${block.id}:${restoreCount}`}
           data-block-id={block.id}
           className={`group relative ${
-            block.id === draggedId ? "rounded-md bg-paper-2 opacity-50" : ""
+            block.id === draggedId ? "rounded-control bg-sky-soft opacity-50" : ""
           } ${
             dropIndicator?.targetId === block.id
               ? dropIndicator.before
                 ? "border-t-2 border-sky-deep"
                 : "border-b-2 border-sky-deep"
               : shownOccupant
-                ? "rounded-md border-2"
+                ? "rounded-control border-2"
                 : ""
           }`}
           style={shownOccupant ? { borderColor: shownOccupant.colorTag } : undefined}
@@ -926,20 +943,20 @@ export function DocumentEditor({
               setDraggedId(null);
               setDropIndicator(null);
             }}
-            className="absolute -left-4 top-0.5 cursor-grab text-ink-faint opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+            className="absolute top-[3px] -left-[26px] flex h-6 w-5 cursor-grab items-center justify-center rounded text-ink-faint opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-hover hover:text-ink-soft"
           >
             {/* A Unicode glyph (⠿ and friends) depends on the guest's font
              * having that specific block — Braille Patterns is one of the
              * least reliably covered ranges across OSes. An inline SVG
              * renders identically everywhere a browser does, with no font
              * dependency at all. */}
-            <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
-              <circle cx="2.5" cy="2.5" r="1.5" />
-              <circle cx="7.5" cy="2.5" r="1.5" />
-              <circle cx="2.5" cy="8" r="1.5" />
-              <circle cx="7.5" cy="8" r="1.5" />
-              <circle cx="2.5" cy="13.5" r="1.5" />
-              <circle cx="7.5" cy="13.5" r="1.5" />
+            <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor">
+              <circle cx="4" cy="4" r="1.2" />
+              <circle cx="8" cy="4" r="1.2" />
+              <circle cx="4" cy="8" r="1.2" />
+              <circle cx="8" cy="8" r="1.2" />
+              <circle cx="4" cy="12" r="1.2" />
+              <circle cx="8" cy="12" r="1.2" />
             </svg>
           </span>
           {/* Always visible, unlike the drag handle above it — the point is
@@ -947,7 +964,7 @@ export function DocumentEditor({
            * keeps it clear of the handle's `top-0.5` on a block that is both
            * draggable-by-you and occupied-by-someone-else at once. */}
           {occupant ? (
-            <span className="absolute -left-4 top-6">
+            <span className="absolute top-8 -left-[24px]">
               <Avatar
                 colorTag={occupant.colorTag}
                 label={occupant.nickname.slice(0, 1)}
@@ -956,10 +973,26 @@ export function DocumentEditor({
               />
             </span>
           ) : null}
+          {/* UC-070's entry point — left of the drag handle, shown the way it is. */}
+          {canFloat(block) ? (
+            <button
+              type="button"
+              onClick={() => openFloating({ documentId, blockId: block.id })}
+              aria-label="플로팅 뷰로 열기"
+              title="플로팅 뷰로 열기"
+              className="absolute top-[3px] -left-[50px] flex size-6 items-center justify-center rounded text-ink-faint opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-hover hover:text-ink-soft focus:opacity-100"
+            >
+              <svg aria-hidden width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round">
+                <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                <path d="M2.5 6h11" />
+              </svg>
+            </button>
+          ) : null}
           {rowFor(block, index)}
         </div>
         );
       })}
+      </div>
 
       {/* Below the document rather than above it: this appends, and the
        * button sitting where the new block will appear is less surprising
@@ -970,7 +1003,7 @@ export function DocumentEditor({
         // clicked: an I-beam over blank page is the convention for "there is
         // writing here to land in". The button inside sets its own
         // `cursor-pointer`, which wins over this on the part that is not empty.
-        className="mt-3 flex flex-1 cursor-text flex-wrap items-center gap-2 pt-1"
+        className="mt-4 flex flex-1 cursor-text flex-wrap items-center gap-2 pt-1"
         // Only a click on this div itself, never one that landed on the button
         // or the hint inside it — `currentTarget` is the empty space, `target`
         // is whatever was actually under the pointer.
@@ -992,10 +1025,13 @@ export function DocumentEditor({
         }}
       >
         <label
-          className={`rounded-md border border-ink bg-paper-2 px-2.5 py-1 text-[11px] font-semibold text-ink ${
-            uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-sky-soft"
+          className={`flex h-7 items-center gap-1.5 rounded-control px-2 text-[13px] text-ink-soft ${
+            uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-hover"
           }`}
         >
+          <svg aria-hidden width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
+            <path d="M8 3v10M3 8h10" />
+          </svg>
           파일 추가
           <input
             ref={fileInputRef}
@@ -1018,14 +1054,16 @@ export function DocumentEditor({
         </label>
 
         {uploading ? (
-          <span className="text-[11px] text-ink-faint">올리는 중…</span>
+          <span className="text-[12.5px] text-ink-faint">올리는 중…</span>
         ) : uploadError ? (
-          <span className="text-[11px] text-red-600">{uploadError}</span>
+          <span className="text-[12.5px] text-danger">{uploadError}</span>
         ) : (
-          <span className="text-[11px] text-ink-faint">
+          <span className="text-[12.5px] text-ink-faint">
             파일을 문서에 끌어다 놓을 수도 있습니다.
           </span>
         )}
+      </div>
+
       </div>
 
       {/* After the blocks, not before: sibling effects run in DOM order, so
@@ -1046,31 +1084,29 @@ export function DocumentEditor({
         * "제목 없음": nothing in the editor renames a document yet, so a
         * placeholder name would be one nobody could change from here. */}
       {newPageAnchor !== null ? (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 p-6">
+        <div className={OVERLAY}>
           <form
             onSubmit={(event) => {
               event.preventDefault();
               void createPage();
             }}
-            className="flex w-full max-w-sm flex-col gap-3 rounded-lg border border-ink bg-paper p-5"
+            className={`${PANEL} flex flex-col gap-4`}
           >
-            <h2 className="text-base font-bold text-ink">이 문서 안에 새 페이지</h2>
+            <h2 className={DIALOG_TITLE}>이 문서 안에 새 페이지</h2>
 
-            <label className="flex flex-col gap-1 text-sm text-ink-soft">
+            <label className={FIELD_LABEL}>
               페이지 이름
               <input
                 autoFocus
                 value={newPageName}
                 onChange={(event) => setNewPageName(event.target.value)}
                 disabled={creatingPage}
-                className={`rounded-md border bg-paper-2 px-3 py-2 text-base text-ink ${
-                  newPageError ? "border-red-600" : "border-ink"
-                }`}
+                className={inputClass(newPageError !== null)}
               />
             </label>
 
             {newPageError ? (
-              <p className="text-[12px] text-red-600">{newPageError}</p>
+              <p className="-mt-2 text-[13px] text-danger">{newPageError}</p>
             ) : null}
 
             <div className="flex justify-end gap-2">
@@ -1078,15 +1114,12 @@ export function DocumentEditor({
                 type="button"
                 onClick={() => setNewPageAnchor(null)}
                 disabled={creatingPage}
-                className="rounded-md border border-ink bg-paper px-3 py-1.5 text-[12px] font-semibold text-ink"
+                className={CANCEL}
               >
                 취소
               </button>
-              <button
-                type="submit"
-                disabled={creatingPage}
-                className="rounded-md border border-sky-deep bg-sky px-3 py-1.5 text-[12px] font-bold text-ink disabled:opacity-60"
-              >
+              <button type="submit" disabled={creatingPage} className={confirmClass(false)}>
+                {creatingPage ? <Spinner /> : null}
                 {creatingPage ? "만드는 중…" : "만들고 이동"}
               </button>
             </div>
@@ -1099,16 +1132,16 @@ export function DocumentEditor({
         * one has nothing to trap focus away from — the editor behind it is what
         * the person is choosing a link *for*. */}
       {linkAnchor !== null ? (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 p-6">
-          <div className="max-h-[70vh] w-full max-w-sm overflow-y-auto rounded-lg border border-ink bg-paper p-4">
-            <h2 className="mb-3 text-base font-bold text-ink">어느 문서로 링크할까요?</h2>
+        <div className={OVERLAY}>
+          <div className={`${PANEL} max-h-[64vh] overflow-y-auto`}>
+            <h2 className={`mb-3 ${DIALOG_TITLE}`}>어느 문서로 링크할까요?</h2>
 
             {linkChoices.length === 0 ? (
               <p className="py-6 text-center text-[13px] text-ink-faint">
                 연결할 다른 문서가 없습니다.
               </p>
             ) : (
-              <ul className="flex flex-col gap-1">
+              <ul className="flex flex-col gap-px">
                 {linkChoices
                   // Not this one: a document linking to itself is a loop a
                   // reader can only get out of with the back button.
@@ -1118,7 +1151,7 @@ export function DocumentEditor({
                       <button
                         type="button"
                         onClick={() => insertDocLink(choice.id)}
-                        className="w-full truncate rounded-md px-3 py-2 text-left text-[13px] text-ink hover:bg-sky-soft"
+                        className="flex h-8 w-full items-center truncate rounded-control px-2.5 text-left text-[14px] text-ink hover:bg-hover"
                       >
                         {choice.name}
                       </button>
@@ -1133,14 +1166,13 @@ export function DocumentEditor({
                 setLinkAnchor(null);
                 setLinkChoices([]);
               }}
-              className="mt-3 w-full rounded-md border border-ink bg-paper px-3 py-1.5 text-[12px] font-semibold text-ink"
+              className={`${CANCEL} mt-3 w-full`}
             >
               취소
             </button>
           </div>
         </div>
       ) : null}
-      </div>
-    </>
+    </div>
   );
 }

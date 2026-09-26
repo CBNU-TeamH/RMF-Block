@@ -3,32 +3,27 @@ import { redirect } from "next/navigation";
 
 import { sessionRegistry } from "@/lib/auth/session-registry";
 import { SESSION_COOKIE } from "@/lib/auth/types";
+import { readDocumentsOnce } from "./read-documents";
 import { isHostSecret } from "@/lib/host-secret";
 import { HOST_PRESENCE } from "@/lib/presence/types";
 import { getWorkspaceName } from "@/lib/workspace-config";
 import { yorkieClientConfig } from "@/lib/yorkie-address";
 
 import { SessionWatch } from "../session-watch";
+import { Breadcrumb } from "./breadcrumb";
 import { ChatWindow } from "./chat-window";
+import { DocumentList } from "./document-list";
+import { FloatingViewProvider } from "./floating-views";
 import { FocusFollowProvider } from "./focus-follow-provider";
 import { FocusShare } from "./focus-share";
 import { PresenceProvider } from "./presence-provider";
 import { PresenceStack } from "./presence-stack";
 
-/** Phase 2 owns these three; a nav item that looks clickable and is not is
- * worse than one that says it is not yet. */
-const NAV = [
-  { icon: "⊙", label: "WorkSpace overview", current: true },
-  { icon: "👥", label: "Members" },
-  { icon: "🗄", label: "Storage" },
-  { icon: "⚙", label: "Settings" },
-];
-
 /**
- * The workspace shell — `dashboard.dc.html` screen 2's frame, shared by every
- * screen inside the route group. A layout rather than a `<TopBar />` because
- * the artboard's Members, Storage and Settings screens sit in this same frame,
- * and Next keeps a layout mounted across navigations between them.
+ * The workspace shell — the sidebar document tree and the header of
+ * `docs/ui/redesign/HANDOFF.md`, shared by every screen inside the route group.
+ * A layout because Next keeps it mounted across navigations, so the tree keeps
+ * its socket, scroll and collapsed state while documents open.
  *
  * `(workspace)` is a route group, so this adds a frame without adding a path
  * segment: the page inside it is still `/`. `app/join/` stays outside, which is
@@ -57,6 +52,7 @@ export default async function WorkspaceLayout({
   // join form, so they have no `WorkspaceMember` to publish — see `HOST_PRESENCE`.
   const me = member ?? HOST_PRESENCE;
   const workspaceName = getWorkspaceName();
+  const documents = readDocumentsOnce();
 
   return (
     <PresenceProvider
@@ -67,56 +63,40 @@ export default async function WorkspaceLayout({
       port={yorkie.port}
     >
       <FocusFollowProvider>
-        {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
-            shell has to be exactly the viewport's height, not merely at least
-            it, or the row below never bounds `<main>` and the editor's own
-            scroll container grows to fit its blocks instead of scrolling. */}
-        <div className="flex h-full flex-1 flex-col bg-shell">
-          {member ? <SessionWatch /> : null}
+        <FloatingViewProvider colorTag={me.colorTag} nickname={me.nickname}>
+          {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
+              shell has to be exactly the viewport's height, not merely at least
+              it, or the row below never bounds `<main>` and the editor's own
+              scroll container grows to fit its blocks instead of scrolling. */}
+          <div className="flex h-full flex-1 bg-paper">
+            {member ? <SessionWatch /> : null}
 
-          <header className="flex h-11 flex-none items-center gap-3 border-b border-ink bg-paper px-4">
-            <span className="text-sm font-semibold text-ink">{workspaceName}</span>
-            <span className="flex-1" />
-            <FocusShare memberId={me.id} />
-            <PresenceStack memberId={me.id} />
-          </header>
-
-          <div className="flex min-h-0 flex-1">
-            <nav className="flex w-50 flex-none flex-col border-r border-ink bg-paper">
-              <div className="border-b border-ink/60 px-3 py-2 text-sm font-bold text-ink">
-                {workspaceName}
+            <aside className="flex w-[260px] flex-none flex-col border-r border-line bg-paper-2 px-1.5 pt-2">
+              <div className="mb-1 flex h-9 items-center gap-2 px-2">
+                <span
+                  aria-hidden
+                  className="flex size-5 items-center justify-center rounded-[5px] bg-ink text-[11px] font-bold text-paper"
+                >
+                  r
+                </span>
+                <span className="truncate font-semibold text-ink">{workspaceName}</span>
               </div>
-              <ul className="flex flex-col gap-0.5 p-2">
-                {NAV.map((item) => (
-                  <li key={item.label}>
-                    <span
-                      aria-current={item.current ? "page" : undefined}
-                      className={`flex items-center gap-2 rounded px-2.5 py-1.5 text-sm ${
-                        item.current
-                          ? "bg-sky-soft font-bold text-ink"
-                          : "text-ink-faint line-through decoration-ink-faint/50"
-                      }`}
-                    >
-                      <span aria-hidden>{item.icon}</span>
-                      {item.label}
-                      {/* `aria-disabled` on a bare span is a no-op — the attribute
-                          only means anything on a role that has a disabled state.
-                          The strikethrough says "not yet" to sighted readers; this
-                          says it to everyone else. */}
-                      {item.current ? null : <span className="sr-only">(준비 중)</span>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </nav>
+              <DocumentList documents={documents} />
+            </aside>
 
-            <main className="min-w-0 flex-1 overflow-hidden bg-paper px-8 py-7">{children}</main>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">
+                <Breadcrumb documents={documents} />
+                <PresenceStack memberId={me.id} />
+                <FocusShare memberId={me.id} />
+              </header>
+              <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+            </div>
+
+            {/* `fixed` — it floats over the shell rather than taking a column from it. */}
+            <ChatWindow me={me.nickname} />
           </div>
-
-          {/* Outside the row, and `fixed` — it floats over the shell rather than
-              taking a column from it. */}
-          <ChatWindow me={me.nickname} />
-        </div>
+          </FloatingViewProvider>
       </FocusFollowProvider>
     </PresenceProvider>
   );
