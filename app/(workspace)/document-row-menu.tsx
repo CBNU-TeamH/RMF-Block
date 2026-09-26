@@ -144,7 +144,7 @@ export function DocumentRowMenu({ label, items }: { label: string; items: Array<
                   item.danger
                     ? "text-danger hover:bg-danger-soft focus:bg-danger-soft"
                     : "text-ink hover:bg-hover focus:bg-hover [&>svg]:text-ink-soft"
-                } outline-none`}
+                } outline-none focus-visible:ring-2 focus-visible:ring-sky-deep focus-visible:ring-inset`}
               >
                 {item.icon}
                 {item.label}

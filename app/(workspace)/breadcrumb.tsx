@@ -10,9 +10,8 @@ import { documentIdFromPathname } from "@/lib/focus/pathname";
  * The header's path to the open document: its ancestors, then itself
  * (`docs/ui/redesign/HANDOFF.md`). Nothing on the home page.
  *
- * ponytail: reads the layout's server-rendered list, so a rename or move made
- * by someone else shows here on the next navigation, not live — the sidebar
- * tree has the socket; lift its `live` state if that gap ever matters.
+ * Reads the layout's server-rendered list; the sidebar tree's socket calls
+ * `router.refresh()` on every catalogue change, so that list stays current.
  */
 export function Breadcrumb({ documents }: { documents: Array<WorkspaceDocument> }) {
   const currentId = documentIdFromPathname(usePathname());
