@@ -48,8 +48,8 @@ already identified in their issue bodies, and both land on a boundary that
 - [x] `'`, `(`, `)`, `*` are encoded on both `attachmentHeaders` and `inlineHeaders`
 - [x] Every new test fails against the unfixed code (verified by reverting both
       behaviours and running them — 5 failed, then restored)
-- [ ] `pnpm verify:docs`, `pnpm comments`, `pnpm lint`, `pnpm test`, `pnpm build` pass
-- [ ] `/code-review low` and `/simplify` run before the PR (`AGENTS.md` §6)
+- [x] `pnpm verify:docs`, `pnpm comments`, `pnpm lint`, `pnpm test`, `pnpm build` pass (re-run 2026-10-01 on upstream/main: all pass)
+- [x] `/code-review low` and `/simplify` run before the PR (`AGENTS.md` §6) — both ran on #115 (see its PR description)
 
 ## Cross-cutting
 

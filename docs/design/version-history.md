@@ -41,7 +41,7 @@ safety revision.
 `restoreRevision` has the server re-parse the snapshot and rebuild the document. That re-parse had
 two defects, both measured against `yorkieteam/yorkie:0.7.13` and reproduced identically on
 `0.7.17`. Only one survived the pin moving to `0.7.23`
-(`tasks/active/20260922-yorkie-0723-lessons.md`): the paren corruption below was fixed upstream in
+(`tasks/archive/2026/09/20260922-yorkie-0723-lessons.md`): the paren corruption below was fixed upstream in
 v0.7.19 ([yorkie-team/yorkie#1967](https://github.com/yorkie-team/yorkie/pull/1967)), but the
 `type`-key discriminator crash is unchanged. That alone still rules `restoreRevision` out for this
 schema — and the re-measurement found a second reason to keep the app-side restore that didn't
@@ -187,9 +187,9 @@ decision above that none of them needs a narrower gate.
 Measured 2026-09-22 against `docker-compose.yml`'s stack (Yorkie 0.7.13 + MongoDB 8) with
 throwaway projects and probe scripts; the default project was read and never written. The
 isolating cases for both `restoreRevision` defects, the paging contract, and the automatic-revision
-label are recorded in `tasks/active/20260922-version-history-lessons.md`. Both defects were
+label are recorded in `tasks/archive/2026/09/20260922-version-history-lessons.md`. Both defects were
 re-measured on the `0.7.23` pin during the yorkie-0.7.23 task, along with `doc.history.undo()`'s
-behaviour after a restore; see `tasks/active/20260922-yorkie-0723-lessons.md`.
+behaviour after a restore; see `tasks/archive/2026/09/20260922-yorkie-0723-lessons.md`.
 
 `lib/blocks/revision-snapshot.test.mts` asserts the reader against a snapshot captured from that
 running server rather than a hand-written one, because the characters the reader exists for — a
