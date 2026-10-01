@@ -19,10 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # The token the default checkout leaves in .git/config is of no use to
-      # `pnpm build`, so do not leave it there.
+      # `pnpm build`, so do not leave it there. `fetch-depth: 0` because the SRS
+      # sync step below needs the merge base to see what this PR changed.
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       # Reads the pnpm version from `packageManager` in package.json.
       - uses: pnpm/action-setup@v4
@@ -31,6 +33,10 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+
+      # docs/SRS-en.md must mirror docs/SRS-ko.md (#131). Stdlib only, so it
+      # runs before the install and fails fast.
+      - run: node scripts/verify-srs-sync.mjs --strict
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint

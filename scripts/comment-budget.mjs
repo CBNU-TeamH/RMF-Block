@@ -10,6 +10,7 @@
 // no merge base, since a gate that cannot see its base would pass everything.
 
 import { execFileSync } from "node:child_process";
+import { gitQuiet, resolveMergeBase } from "./lib/merge-base.mjs";
 
 // Arafat & Riehle (ICSE 2009 NIER) measured 5,229 active open source projects on this exact
 // definition — comment lines over comment+source lines — and found mean 18.67%, median 16.74%.
@@ -27,33 +28,6 @@ const SMALL_FILE_FLOOR = 40;
 
 function git(args) {
   return execFileSync("git", args, { encoding: "utf8" }).trim();
-}
-
-// Swallows stderr for calls whose failure is expected control flow (a ref that
-// doesn't exist yet, a path absent at that revision) — the caller's catch
-// already explains the case, so git's own "fatal:" line would just be noise.
-function gitQuiet(args) {
-  return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-}
-
-// Locally `origin` is this repo's fork and `upstream` is canonical; in CI,
-// `origin` *is* canonical (GitHub Actions checks out the workflow's own repo
-// under that name). Trying both in this order gets the right base in both
-// places without hardcoding either.
-function resolveMergeBase() {
-  for (const ref of ["upstream/main", "origin/main", "main"]) {
-    try {
-      gitQuiet(["rev-parse", "--verify", "--quiet", ref]);
-    } catch {
-      continue;
-    }
-    try {
-      return gitQuiet(["merge-base", ref, "HEAD"]);
-    } catch {
-      continue;
-    }
-  }
-  return null;
 }
 
 // Line-based comment counter: a `//` line, or lines inside a `/* */` block,
