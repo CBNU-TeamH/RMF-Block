@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-01
 **Issue**: #23 (the FR/UC gap for version history)
-**Design**: [`docs/design/version-history.md`](../../docs/design/version-history.md) for the SRS content; no new design doc — the audit edits existing ones.
+**Design**: [`docs/design/version-history.md`](../../../../docs/design/version-history.md) for the SRS content; no new design doc — the audit edits existing ones.
 
 ## Milestones
 
