@@ -132,7 +132,7 @@ address.
 | --- | --- |
 | Block occupancy ≠ edit lock (SIR003, FR-022-06) | What triggers a `createRevision` call (ADR-002, issue #23) |
 | Yorkie owns realtime sync **and** document persistence/history (ADR-002) | Presenter/follower session state model |
-| The server keeps **no** Yorkie `Watch` subscription (ADR-002) | Load-test baseline *numbers* (SRS §2.4) — how to measure them is settled in [`PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../../PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) |
+| The server keeps **no** Yorkie `Watch` subscription (ADR-002) | Load-test baseline *numbers* (SRS §2.4) — how to measure them is settled in [`PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) |
 | MongoDB is Yorkie's store alone; the app never connects to it (ADR-002) | |
 | App state lives in `.data/` JSON, not in Yorkie or Mongo — chat today, workspace and auth to follow | |
 | Component boundaries and API groups (this doc) | |
