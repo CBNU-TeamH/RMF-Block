@@ -1,0 +1,113 @@
+name: Post-merge reminders
+
+# After a merge to main: nudge the PR to archive its task, and open (or update)
+# an issue when a drift audit is due (#128, #129).
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+# Two jobs: each merge's archive reminder is about that merge, so it must never be
+# dropped; the audit count is about the whole tree, so only the newest run matters
+# and runs are serialized there alone (a queued run may be superseded — the next
+# one recounts from scratch).
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # Safe with a write token: a push to main runs main's own, already
+      # reviewed code — never a PR's.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # Squash merge is the only method, so the commit maps to one merged PR.
+      - name: Find the merged PR
+        id: pr
+        run: |
+          n=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
+            --jq '[.[] | select(.merged_at != null)][0].number // empty')
+          echo "number=$n" >> "$GITHUB_OUTPUT"
+
+      - name: Decide
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          : > "$RUNNER_TEMP/added.txt"
+          if [ -n "$PR" ]; then
+            gh api "repos/${{ github.repository }}/pulls/$PR/files" --paginate \
+              --jq '.[] | select(.status == "added") | .filename' > "$RUNNER_TEMP/added.txt"
+          fi
+          node scripts/post-merge-reminders.mjs --added "$RUNNER_TEMP/added.txt" | tee "$RUNNER_TEMP/summary.json"
+
+      - name: Remind the PR to archive its task
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          [ -n "$PR" ] || exit 0
+          for slug in $(jq -r '.stillActive[]' "$RUNNER_TEMP/summary.json"); do
+            [[ "$slug" =~ ^[0-9]{8}-[a-z0-9-]+$ ]] || continue
+            marker="<!-- archive-reminder:$slug -->"
+            if gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
+                 --jq '.[].body' | grep -qF "$marker"; then
+              continue
+            fi
+            gh pr comment "$PR" --repo "${{ github.repository }}" --body "$marker
+          Task \`$slug\` is still in \`tasks/active/\` — archive it with \`pnpm tasks:archive $slug\` in the next PR."
+          done
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Two quick merges would otherwise both see the same count and double-post.
+    concurrency:
+      group: post-merge-reminders-audit
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # Full history: a task's archive date is the commit that moved it there.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Count
+        run: |
+          : > "$RUNNER_TEMP/added.txt"
+          node scripts/post-merge-reminders.mjs --added "$RUNNER_TEMP/added.txt" | tee "$RUNNER_TEMP/summary.json"
+
+      - name: Open or update the drift-audit issue
+        run: |
+          [ "$(jq -r '.audit.due' "$RUNNER_TEMP/summary.json")" = true ] || exit 0
+          count=$(jq -r '.audit.count' "$RUNNER_TEMP/summary.json")
+          since=$(jq -r '.audit.since' "$RUNNER_TEMP/summary.json")
+          gh label create drift-audit --repo "${{ github.repository }}" \
+            --description "A drift audit is due" || true
+          open=$(gh issue list --repo "${{ github.repository }}" --label drift-audit \
+            --state open --json number --jq '.[0].number // empty')
+          note="$count tasks archived since $since"
+          if [ -n "$open" ]; then
+            # Every merge re-runs this; post only when the count has moved.
+            gh issue view "$open" --repo "${{ github.repository }}" --json title,comments \
+              --jq '[.title] + [.comments[].body] | join("\n")' | grep -qF "$note" && exit 0
+            gh issue comment "$open" --repo "${{ github.repository }}" --body "Now $note."
+          else
+            gh issue create --repo "${{ github.repository }}" --label drift-audit \
+              --title "Drift audit due: $note" \
+              --body "Run the drift audit described in #129, then archive a \`YYYYMMDD-drift-audit\` task to reset this count. Opened automatically once 3 or more tasks have been archived since the last audit (or since 2026-10-01 if there has been none)."
+          fi
