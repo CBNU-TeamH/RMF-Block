@@ -1,4 +1,4 @@
-# Archive finished tasks, add version history to the SRS, audit doc-code drift — lessons
+# Archive finished tasks and add version history to the SRS — lessons
 
 **Created**: 2026-10-01
 
@@ -7,7 +7,14 @@ that the next person does not rediscover this.
 
 ## What surprised us
 
-- ...
+- **Two docs drew version history on the wrong side of the wire.** The SRS §2.1 diagram and
+  `architecture.md` §3(c) both had the App/WS Server calling the revision API; the code calls it from
+  the browser's `Client`, and the server's only part is the auth webhook. Both were written before
+  #117 and nothing re-read them once it shipped — the design doc (`version-history.md`) was right
+  the whole time, so the drift was between docs, not between a doc and nobody.
+- **A shipped decision stayed "open" in four places** (`AGENTS.md` §7, ADR-002, `architecture.md`
+  §3(c) and §4, `ROADMAP.md` Phase 5) because each recorded the question, and closing it in one did
+  not reach the others.
 
 ## What we would do differently
 

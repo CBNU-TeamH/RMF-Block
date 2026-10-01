@@ -1,4 +1,4 @@
-# Archive finished tasks, add version history to the SRS, audit doc-code drift
+# Archive finished tasks and add version history to the SRS
 
 **Created**: 2026-10-01
 **Issue**: #23 (the FR/UC gap for version history)
@@ -20,7 +20,10 @@
 - **Reuse**: the UC-070 table format and the facts already in `docs/design/version-history.md`.
 - **Done**: every new ID appears consistently across SRS, design docs and ROADMAP (grep); the team has agreed to the edit.
 
-### 3. Doc-code drift audit
+### 3. Doc-code drift audit — moved out of this task
+
+Moved to its own issue and PR on 2026-10-01; the plan below is kept as its starting point.
+
 
 - **What**: find claims in the docs that upstream/main code no longer backs, one part at a time.
 - **Files**: docs under `docs/` by part (auth, editing, realtime, chat/files, UI/floating, infra/process); `docs/design/api.md` §1 for the endpoint catalog.
@@ -41,4 +44,7 @@ Touches the Korean SRS (agreed with the team, to be confirmed in the PR) and eve
 
 ## Review
 
-Filled in at the end.
+Shipped: milestones 1 and 2. Milestone 3 (drift audit) was split off into its own issue and PR —
+it is independent of the archive and the SRS change, and reviewing it apart keeps this PR small.
+Drift found while doing milestone 2 (the version-history call path in the SRS §2.1 diagram and
+`architecture.md` §3(c), and #23 still listed as open) was fixed here because it was the same change.

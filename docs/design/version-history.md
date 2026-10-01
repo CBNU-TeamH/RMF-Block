@@ -1,17 +1,16 @@
 # Version History
 
 - **Status**: In progress (WBS 6.5). The mechanism below is measured, not assumed — see
-  [Verification](#verification). No FR or UC covers version history yet; that gap is
-  [issue #23](https://github.com/CBNU-TeamH/RMF-Block/issues/23) and needs team agreement before
-  `docs/SRS-ko.md` changes (`AGENTS.md` §5), so nothing here claims a requirement number beyond
-  SOIR003.
+  [Verification](#verification). Requirements: UC-090 and FR-090-01..13 in `docs/SRS-ko.md`,
+  added with team agreement (`AGENTS.md` §5), closing the gap
+  [issue #23](https://github.com/CBNU-TeamH/RMF-Block/issues/23) recorded.
 - **Owns**: `lib/blocks/revision-snapshot.ts`, `lib/documents/revisions.ts`,
   `app/(workspace)/documents/[id]/version-history.tsx`. Each is a file-level claim inside a
   directory [`document-editing.md`](document-editing.md) owns, so the more specific claim wins —
   the same shape [`presence-and-focus.md`](presence-and-focus.md) already uses.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(c);
   [`docs/adr/002-persistence-on-yorkie-mongo.md`](../adr/002-persistence-on-yorkie-mongo.md);
-  [`docs/SRS-ko.md`](../SRS-ko.md) SOIR003, §2.3.2
+  [`docs/SRS-ko.md`](../SRS-ko.md) UC-090, §3.3.14, SOIR003, §2.3.2
 
 ## Scope
 

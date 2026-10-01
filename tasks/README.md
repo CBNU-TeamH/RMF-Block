@@ -24,7 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
-| [Archive finished tasks, add version history to the SRS, audit doc-code drift](active/20261001-docs-archive-and-drift-audit-todo.md) | [lessons](active/20261001-docs-archive-and-drift-audit-lessons.md) |
+| [Archive finished tasks and add version history to the SRS](active/20261001-docs-archive-and-drift-audit-todo.md) | [lessons](active/20261001-docs-archive-and-drift-audit-lessons.md) |
 
 ## Archive
 
