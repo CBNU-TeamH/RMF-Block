@@ -45,7 +45,7 @@ boundary anyway: a guest holds an activated client in the browser and can call
 ### 1. Task docs and probe findings
 
 - **What**: this pair, plus (0)'s answers, on the branch before any code.
-- **Files**: `tasks/active/20260922-version-history-{todo,lessons}.md`, `tasks/README.md` (generated).
+- **Files**: `tasks/archive/2026/09/20260922-version-history-{todo,lessons}.md`, `tasks/README.md` (generated).
 - **Reuse**: `tasks/templates/`; `pnpm tasks:index` regenerates the index.
 - **Done**: `pnpm verify:docs` clean with the pair in place.
 
@@ -134,9 +134,9 @@ boundary anyway: a guest holds an activated client in the browser and can call
 
 ## Acceptance
 
-- [ ] `pnpm lint`, `pnpm test`, `pnpm build` pass.
-- [ ] `pnpm verify:docs` clean.
-- [ ] `pnpm comments` and `pnpm comments --strict` both pass — this task is also the trial run of
+- [x] `pnpm lint`, `pnpm test`, `pnpm build` pass. (re-run 2026-10-01 on upstream/main: all pass)
+- [x] `pnpm verify:docs` clean.
+- [x] `pnpm comments` and `pnpm comments --strict` both pass — this task is also the trial run of
       the 30% threshold and the ratchet staged on this branch.
 - [x] Webhook gate asserted **in both directions** — revised from the original host-only design:
       restore ended up open to every live session (`docs/design/version-history.md`, "Who may

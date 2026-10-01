@@ -1,17 +1,16 @@
 # Version History
 
 - **Status**: In progress (WBS 6.5). The mechanism below is measured, not assumed — see
-  [Verification](#verification). No FR or UC covers version history yet; that gap is
-  [issue #23](https://github.com/CBNU-TeamH/RMF-Block/issues/23) and needs team agreement before
-  `docs/SRS-ko.md` changes (`AGENTS.md` §5), so nothing here claims a requirement number beyond
-  SOIR003.
+  [Verification](#verification). Requirements: UC-090 and FR-090-01..13 in `docs/SRS-ko.md`,
+  added with team agreement (`AGENTS.md` §5), closing the gap
+  [issue #23](https://github.com/CBNU-TeamH/RMF-Block/issues/23) recorded.
 - **Owns**: `lib/blocks/revision-snapshot.ts`, `lib/documents/revisions.ts`,
   `app/(workspace)/documents/[id]/version-history.tsx`. Each is a file-level claim inside a
   directory [`document-editing.md`](document-editing.md) owns, so the more specific claim wins —
   the same shape [`presence-and-focus.md`](presence-and-focus.md) already uses.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(c);
   [`docs/adr/002-persistence-on-yorkie-mongo.md`](../adr/002-persistence-on-yorkie-mongo.md);
-  [`docs/SRS-ko.md`](../SRS-ko.md) SOIR003, §2.3.2
+  [`docs/SRS-ko.md`](../SRS-ko.md) UC-090, §3.3.14, SOIR003, §2.3.2
 
 ## Scope
 
@@ -41,7 +40,7 @@ safety revision.
 `restoreRevision` has the server re-parse the snapshot and rebuild the document. That re-parse had
 two defects, both measured against `yorkieteam/yorkie:0.7.13` and reproduced identically on
 `0.7.17`. Only one survived the pin moving to `0.7.23`
-(`tasks/active/20260922-yorkie-0723-lessons.md`): the paren corruption below was fixed upstream in
+(`tasks/archive/2026/09/20260922-yorkie-0723-lessons.md`): the paren corruption below was fixed upstream in
 v0.7.19 ([yorkie-team/yorkie#1967](https://github.com/yorkie-team/yorkie/pull/1967)), but the
 `type`-key discriminator crash is unchanged. That alone still rules `restoreRevision` out for this
 schema — and the re-measurement found a second reason to keep the app-side restore that didn't
@@ -187,9 +186,9 @@ decision above that none of them needs a narrower gate.
 Measured 2026-09-22 against `docker-compose.yml`'s stack (Yorkie 0.7.13 + MongoDB 8) with
 throwaway projects and probe scripts; the default project was read and never written. The
 isolating cases for both `restoreRevision` defects, the paging contract, and the automatic-revision
-label are recorded in `tasks/active/20260922-version-history-lessons.md`. Both defects were
+label are recorded in `tasks/archive/2026/09/20260922-version-history-lessons.md`. Both defects were
 re-measured on the `0.7.23` pin during the yorkie-0.7.23 task, along with `doc.history.undo()`'s
-behaviour after a restore; see `tasks/active/20260922-yorkie-0723-lessons.md`.
+behaviour after a restore; see `tasks/archive/2026/09/20260922-yorkie-0723-lessons.md`.
 
 `lib/blocks/revision-snapshot.test.mts` asserts the reader against a snapshot captured from that
 running server rather than a hand-written one, because the characters the reader exists for — a

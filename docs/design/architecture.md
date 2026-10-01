@@ -37,11 +37,12 @@ MongoDB is Yorkie's internal store — the App/WS Server never connects to it, a
 │ Block/File Mgmt   │        Sync (Yorkie SDK)        │
 └──────┬───────────────────────────────┬──────────────┘
        │ API / WebSocket               │ CRDT sync + Presence
+       │                               │ + revision API
        ▼                               ▼
 ┌─────────────────────┐        ┌─────────────────────┐
-│  App / WS Server    │ ─────▶ │   Yorkie Server     │
-│  Business Logic     │revision│   (self-hosted)     │
-│                     │  API   │                     │
+│  App / WS Server    │ ◀───── │   Yorkie Server     │
+│  Business Logic     │  auth  │   (self-hosted)     │
+│                     │webhook │                     │
 └──────────┬──────────┘        └──────────┬──────────┘
            │                              │
            │ chat, workspace,             │ document state
@@ -86,13 +87,13 @@ Presence/Follow is server-mediated business logic, not raw Yorkie Presence: SRS 
 
 There is no internal persistence module. Document durability is Yorkie's, and crash/restart recovery (NFR-REL-002, NFR-SAF-003) needs no code on our side — Yorkie reloads its own state from MongoDB on start (ADR-002).
 
-What crosses this boundary is version history only, through Yorkie's revision API: `createRevision`, `listRevisions`, `getRevision`, `restoreRevision`. Snapshots come back as YSON.
+What crosses this boundary for version history is authorisation only: the browser calls Yorkie's revision API (`createRevision`, `listRevisions`, `getRevision`) through its own `Client`, and Yorkie asks this server's auth webhook whether the session is live. `restoreRevision` is not used — the app restores by rewriting blocks ([`version-history.md`](version-history.md)). Snapshots come back as YSON.
 
 **Measured, not assumed** (against `@yorkie-js/sdk@0.7.13` and re-checked on `0.7.17`, on the Mongo-backed Yorkie in `docker-compose.yml`): a revision outlives the document it belongs to, but only by id. After `client.remove(doc)`, `getRevision(doc, revisionId)` still returns the full snapshot while `listRevisions` on a fresh `Document` under the same key returns empty. **Anything that deletes a document therefore has to keep the revision ids somewhere, or the history becomes unreachable rather than merely hidden** — a constraint for whoever builds FR-023's delete. UC-023's 비고 records the same, added under the team agreement `docs/SRS-ko.md` requires (`AGENTS.md` §5) — [issue #28](https://github.com/CBNU-TeamH/RMF-Block/issues/28).
 
 **Decided:** the App/WS Server does not keep a `Watch` subscription on documents — the only thing that required one was the deleted delayed-write trigger, and Mongo now provides durability directly.
 
-**Open — decide before building this:** Yorkie's own auto-revision already fires without any app code — measured 2026-09-21 against this project's stack, the default Yorkie project runs with `autoRevisionEnabled` on and `snapshotInterval`/`snapshotThreshold` at 500, so a revision is recorded every time Yorkie snapshots a document. What remains open is whether the app should additionally create *named* revisions on a user action, and the fact that a "before restore" safety revision has to be app-created, since `restoreRevision` does not make one (issue #23).
+**Decided (UC-090):** revisions come from three sources — Yorkie's own auto-revision (`autoRevisionEnabled`, `snapshotInterval`/`snapshotThreshold` at 500, no app code), a user's named save, and the before-restore revision the app takes ahead of every restore, since there is no `restoreRevision` call to make one. Mechanism and measurements: [`version-history.md`](version-history.md).
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 
@@ -130,9 +131,10 @@ address.
 
 | Decided here / already fixed | Deferred to module design |
 | --- | --- |
-| Block occupancy ≠ edit lock (SIR003, FR-022-06) | What triggers a `createRevision` call (ADR-002, issue #23) |
-| Yorkie owns realtime sync **and** document persistence/history (ADR-002) | Presenter/follower session state model |
-| The server keeps **no** Yorkie `Watch` subscription (ADR-002) | Load-test baseline *numbers* (SRS §2.4) — how to measure them is settled in [`PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) |
+| Block occupancy ≠ edit lock (SIR003, FR-022-06) | Presenter/follower session state model |
+| Yorkie owns realtime sync **and** document persistence/history (ADR-002) | Load-test baseline *numbers* (SRS §2.4) — how to measure them is settled in [`PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) |
+| Revisions come from Yorkie's auto-revision, a user's named save, and the app's before-restore save (UC-090, [`version-history.md`](version-history.md)) | |
+| The server keeps **no** Yorkie `Watch` subscription (ADR-002) | |
 | MongoDB is Yorkie's store alone; the app never connects to it (ADR-002) | |
 | App state lives in `.data/` JSON, not in Yorkie or Mongo — chat today, workspace and auth to follow | |
 | Component boundaries and API groups (this doc) | |

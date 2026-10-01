@@ -8,6 +8,12 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Floating view of a block (UC-070)](2026/09/20260924-floating-view-todo.md) | [lessons](2026/09/20260924-floating-view-lessons.md) |
+| [Performance criteria doc — apply review findings and move under docs/](2026/09/20260923-perf-criteria-review-todo.md) | [lessons](2026/09/20260923-perf-criteria-review-lessons.md) |
+| [Promote comment-budget to a required CI check](2026/09/20260923-comment-budget-ci-todo.md) | [lessons](2026/09/20260923-comment-budget-ci-lessons.md) |
+| [Upgrade Yorkie 0.7.13 → 0.7.23](2026/09/20260922-yorkie-0723-todo.md) | [lessons](2026/09/20260922-yorkie-0723-lessons.md) |
+| [Document version history on Yorkie's Revision API](2026/09/20260922-version-history-todo.md) | [lessons](2026/09/20260922-version-history-lessons.md) |
+| [Upload size boundary and Content-Disposition filename encoding](2026/09/20260921-upload-limit-and-filename-encoding-todo.md) | [lessons](2026/09/20260921-upload-limit-and-filename-encoding-lessons.md) |
 | [Repo doc consistency sweep + tasks/active archiving](2026/09/20260921-repo-doc-sync-todo.md) | [lessons](2026/09/20260921-repo-doc-sync-lessons.md) |
 | [Runtime architecture visualization](2026/09/20260918-runtime-architecture-visualization-todo.md) | [lessons](2026/09/20260918-runtime-architecture-visualization-lessons.md) |
 | [Harness sub-agent subdiagrams](2026/09/20260918-harness-subagent-subdiagrams-todo.md) | [lessons](2026/09/20260918-harness-subagent-subdiagrams-lessons.md) |

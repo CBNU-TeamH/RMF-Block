@@ -33,6 +33,7 @@ Management features layered on top of an already-working workspace and editor �
 - Document create/rename/move/delete and the document tree (UC-021, UC-023).
 - Workspace restore-on-restart (remainder of UC-010).
 - Guest kick and workspace password change (UC-011).
+- Document version history: list, preview, named save, restore (UC-090). Shipped in #117, ahead of its SRS entry, which was added afterwards under issue #23.
 
 **Exit criteria**: a host can fully administer a workspace and its document tree without touching the block editor itself.
 
@@ -59,6 +60,6 @@ Management features layered on top of an already-working workspace and editor �
 - Load-test baseline for the 8-user assumption (NFR-PER-001/006). How each NFR-PER item is measured — tool, rig, clock, pass threshold — is settled in [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md); what remains here is running it and recording the numbers.
 - Security pass: input validation, upload restrictions, unauthorized-access checks (NFR-SEC-003/004/005).
 - Crash/restart recovery verification (NFR-SAF-003, NFR-REL-002) — against Yorkie/MongoDB for document content and `.data/` for app state, the two stores ADR-002 leaves.
-- The load-test baseline above is the one piece of hardening that no longer has an `AGENTS.md` §7 entry — its criteria are written, so only the measurement is left. The §7 items that remain — block/text colour (#6) and whether to add app-created *named* revisions on top of Yorkie's automatic ones (#23) — are design decisions, not hardening, and land with the modules that need them.
+- The load-test baseline above is the one piece of hardening that no longer has an `AGENTS.md` §7 entry — its criteria are written, so only the measurement is left. Of the §7 items that remain, block/text colour (#6) is a design decision, not hardening, and lands with the module that needs it; the review-quality measurements (#92) are process, not product.
 
 **Exit criteria**: NFRs in SRS §3.4 are verified, not just assumed.
