@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Archive finished tasks, add version history to the SRS, audit doc-code drift](active/20261001-docs-archive-and-drift-audit-todo.md) | [lessons](active/20261001-docs-archive-and-drift-audit-lessons.md) |
 | [Floating view of a block (UC-070)](active/20260924-floating-view-todo.md) | [lessons](active/20260924-floating-view-lessons.md) |
 | [Performance criteria doc — apply review findings and move under docs/](active/20260923-perf-criteria-review-todo.md) | [lessons](active/20260923-perf-criteria-review-lessons.md) |
 | [Promote comment-budget to a required CI check](active/20260923-comment-budget-ci-todo.md) | [lessons](active/20260923-comment-budget-ci-lessons.md) |
