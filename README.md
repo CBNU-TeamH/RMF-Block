@@ -23,7 +23,7 @@ Read [`AGENTS.md`](AGENTS.md) first. It is the single entry point: workflow, cod
 | [`AGENTS.md`](AGENTS.md) | Entry point — read first. Workflow, coding principles, doc routing. |
 | [`CLAUDE.md`](CLAUDE.md) | Imports `AGENTS.md` for Claude Code. |
 | [`ROADMAP.md`](ROADMAP.md) | Overall plan and milestones. |
-| [`docs/`](docs/) | Deliverable docs: requirements ([`SRS-ko.md`](docs/SRS-ko.md)), module design, UI wireframes, architecture decisions (ADRs). |
+| [`docs/`](docs/) | Deliverable docs: requirements ([`SRS-ko.md`](docs/SRS-ko.md), canonical; [`SRS-en.md`](docs/SRS-en.md), its English translation), module design, UI wireframes, architecture decisions (ADRs). |
 | [`tasks/`](tasks/) | Work in progress (`active/`) and finished work (`archive/YYYY/MM/`). See [`tasks/README.md`](tasks/README.md). |
 | [`scripts/`](scripts/) | The task index and archive helpers (`pnpm tasks:index`, `pnpm tasks:archive`), plus `detect-host-ip.sh`, which `pnpm docker:up` runs first to fill in `HOST_LAN_IP`. |
 | [`app/`](app/) | Next.js App Router — pages, layouts, route handlers. |

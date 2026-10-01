@@ -17,7 +17,7 @@ This version (16.2.12) has breaking changes — APIs, conventions, and file stru
 
 ## 1. Project overview
 
-- **What**: a LAN-based real-time document collaboration system. Full requirements: [`docs/SRS-ko.md`](docs/SRS-ko.md).
+- **What**: a LAN-based real-time document collaboration system. Full requirements: [`docs/SRS-en.md`](docs/SRS-en.md) — the English copy agents read; [`docs/SRS-ko.md`](docs/SRS-ko.md) is the canonical text the team agrees on.
 - **Who**: CBNU Team H capstone project.
 - **Current stage**: this repository holds both the docs and the code — Next.js + TypeScript, single package, pnpm.
 - **Stack**: why Yorkie and not Yjs/Automerge, why Next's App Router and not a React SPA with its own backend, and the smaller choices around them — [`docs/adr/003-stack-choices.md`](docs/adr/003-stack-choices.md).
@@ -32,7 +32,7 @@ We adopt [Spec-Driven Development](https://github.com/github/spec-kit) **as a me
 | Step | Do | Where |
 | --- | --- | --- |
 | 0. Principles | Read the [coding principles](#3-coding-principles) below plus the code conventions | `docs/` |
-| 1. Spec | Confirm requirements and conventions | `docs/SRS-ko.md`, `docs/` |
+| 1. Spec | Confirm requirements and conventions | `docs/SRS-en.md`, `docs/` |
 | 2. Plan | Write down the approach and trade-offs (no over-engineering) | inside the task doc |
 | 3. Task | Register the work as a todo + lessons pair from the templates | `tasks/active/` ([conventions](tasks/active/README.md)) |
 | 4. Build | Define success criteria, then iterate until they are met | `app/` |
@@ -71,6 +71,7 @@ Which document to open for which job.
 
 | When you need | Read |
 | --- | --- |
+| Requirements (agents) | [`docs/SRS-en.md`](docs/SRS-en.md) — a translation; [`docs/SRS-ko.md`](docs/SRS-ko.md) wins where they differ |
 | Requirements · module design · ADRs · UI wireframes ([`docs/ui/`](docs/ui/)) | [`docs/`](docs/) |
 | Code conventions | [`docs/conventions.md`](docs/conventions.md) |
 | Test strategy | [`docs/testing.md`](docs/testing.md) |
@@ -87,9 +88,9 @@ Which document to open for which job.
 ## 5. Team conventions
 
 - **Commit prefixes**: `feat:`, `fix:`, `refactor:`, `test:`, `chore:`, `docs:`.
-- **Doc language**: English. The exception is [`docs/SRS-ko.md`](docs/SRS-ko.md), the team's agreed requirements document, which stays in Korean; [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) is also Korean today but pending translation, not a standing exception.
+- **Doc language**: English. The exception is [`docs/SRS-ko.md`](docs/SRS-ko.md), the team's agreed requirements document, which stays in Korean — [`docs/SRS-en.md`](docs/SRS-en.md) is its English translation, kept structurally in step by `scripts/verify-srs-sync.mjs` in CI; [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) is also Korean today but pending translation, not a standing exception.
 - **Never commit secrets or credentials.**
-- **Do not change agreed documents alone** — e.g. [`docs/SRS-ko.md`](docs/SRS-ko.md) changes only after the team agrees.
+- **Do not change agreed documents alone** — e.g. [`docs/SRS-ko.md`](docs/SRS-ko.md) changes only after the team agrees, and the same PR carries the change into [`docs/SRS-en.md`](docs/SRS-en.md). A change to `SRS-en.md` alone is a translation fix and must not add or alter a requirement.
 
 ---
 
