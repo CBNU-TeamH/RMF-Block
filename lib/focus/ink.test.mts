@@ -25,8 +25,8 @@ import {
   type TrailPoint,
 } from "./ink.ts";
 
-/** Three ordinary blocks, back to back. `left: 16` is the scroll container's
- *  own `pl-4`, which is exactly what a point's `x` must not be measured from. */
+/** Three ordinary blocks, back to back. `left: 16` stands for the scroll container's
+ *  own left padding, which is exactly what a point's `x` must not be measured from. */
 const boxes: Array<InkBox> = [
   { id: "a", top: 0, height: 100, left: 16, width: 200 },
   { id: "b", top: 100, height: 200, left: 16, width: 200 },

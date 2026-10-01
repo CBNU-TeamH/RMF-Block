@@ -223,6 +223,13 @@ describe("applyGesture", () => {
   });
 });
 
+describe("clamp with a smaller minimum", () => {
+  it("keeps a window below the chat window's minimum size", () => {
+    const small = { x: 10, y: 10, width: 100, height: 50 };
+    assert.deepEqual(clamp(small, { width: 800, height: 600 }, { width: 0, height: 0 }), small);
+  });
+});
+
 describe("parseFrame", () => {
   it("reads back what was written", () => {
     const frame: Frame = { x: 1, y: 2, width: 300, height: 400 };

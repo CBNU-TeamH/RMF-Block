@@ -40,6 +40,7 @@ import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
 import { HOST_PRESENCE } from "@/lib/presence/types";
 
+import { canFloat, useFloatingViews } from "../../floating-views";
 import { useFocusFollow } from "../../focus-follow-provider";
 import { Avatar } from "../../presence-avatar";
 import { useWorkspacePresence } from "../../presence-provider";
@@ -114,6 +115,7 @@ export function DocumentEditor({
   const router = useRouter();
   const { client, members, memberId, isPresenting, setPresenting } = useWorkspacePresence();
   const { followingId } = useFocusFollow();
+  const openFloating = useFloatingViews();
   // Falls back to a neutral color/blank name before the roster carries this
   // browser's own entry yet — `useBlockDocument`'s attach doesn't wait on it.
   const me = useMemo(
@@ -849,10 +851,11 @@ export function DocumentEditor({
       data-focus-scroll
       // `relative` makes this each block's `offsetParent` — the space
       // `lib/focus/dom.ts` reads `offsetTop` in.
-      // `-ml-4 pl-4` is one thing: a non-`visible` overflow on one axis computes
-      // the other to `auto`, so `overflow-y-auto` would clip the drag handle at
-      // `-left-4`. Delete either half and the handle silently stops appearing.
-      className="relative -ml-4 flex min-h-0 flex-1 flex-col overflow-y-auto pl-4"
+      // `-ml-10 pl-10` is one thing: a non-`visible` overflow on one axis
+      // computes the other to `auto`, so `overflow-y-auto` would clip the 🪟
+      // button at `-left-10` and the drag handle at `-left-4`. Delete either
+      // half and those controls silently stop appearing.
+      className="relative -ml-10 flex min-h-0 flex-1 flex-col overflow-y-auto pl-10"
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes("Files")) {
           event.preventDefault();
@@ -955,6 +958,18 @@ export function DocumentEditor({
                 size="size-5"
               />
             </span>
+          ) : null}
+          {/* UC-070's entry point — left of the drag handle, shown the way it is. */}
+          {canFloat(block) ? (
+            <button
+              type="button"
+              onClick={() => openFloating({ documentId, blockId: block.id })}
+              aria-label="플로팅 뷰로 열기"
+              title="플로팅 뷰로 열기"
+              className="absolute -left-10 top-0 flex size-[22px] items-center justify-center rounded text-[15px] leading-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-sky-soft focus:opacity-100"
+            >
+              🪟
+            </button>
           ) : null}
           {rowFor(block, index)}
         </div>
