@@ -106,13 +106,13 @@ function specificity(claim) {
   return claim.endsWith("/") ? claim.length : claim.length + 1000; // exact file always beats a directory
 }
 
-export function checkOwnership() {
-  const docs = listDesignDocs();
-  const claims = []; // { doc, path, claim }
+// The claims every design doc makes, plus the authoring defects found while reading them.
+export function loadClaims() {
+  const claims = []; // { doc, claim }
   const deadReferences = [];
   const missingOwnsLine = [];
 
-  for (const doc of docs) {
+  for (const doc of listDesignDocs()) {
     const owns = parseOwns(doc);
     const label = relative(ROOT, doc).replaceAll("\\", "/");
     if (owns === null) {
@@ -120,33 +120,36 @@ export function checkOwnership() {
       continue;
     }
     for (const claim of owns) {
-      const onDisk = claim.endsWith("/")
-        ? existsSync(join(ROOT, claim))
-        : existsSync(join(ROOT, claim));
-      if (!onDisk) {
+      if (!existsSync(join(ROOT, claim))) {
         deadReferences.push({ doc: label, claim });
         continue;
       }
       claims.push({ doc: label, claim });
     }
   }
+  return { claims, deadReferences, missingOwnsLine };
+}
+
+// The doc(s) that own `path`: the most specific matching claims. More than one
+// only on an exact tie, which checkOwnership reports as a duplicate.
+export function ownersOf(path, claims) {
+  const matches = claims.filter((c) => covers(c.claim, path));
+  if (matches.length === 0) return [];
+  const best = Math.max(...matches.map((m) => specificity(m.claim)));
+  return [...new Set(matches.filter((m) => specificity(m.claim) === best).map((m) => m.doc))];
+}
+
+export function checkOwnership() {
+  const { claims, deadReferences, missingOwnsLine } = loadClaims();
 
   const units = [...listLibModules(), ...listAppFiles()];
   const unowned = [];
   const duplicates = [];
 
   for (const unit of units) {
-    const matches = claims.filter((c) => covers(c.claim, unit));
-    if (matches.length === 0) {
-      unowned.push(unit);
-      continue;
-    }
-    const bestSpecificity = Math.max(...matches.map((m) => specificity(m.claim)));
-    const winners = matches.filter((m) => specificity(m.claim) === bestSpecificity);
-    const distinctDocs = new Set(winners.map((w) => w.doc));
-    if (distinctDocs.size > 1) {
-      duplicates.push({ unit, docs: [...distinctDocs] });
-    }
+    const owners = ownersOf(unit, claims);
+    if (owners.length === 0) unowned.push(unit);
+    else if (owners.length > 1) duplicates.push({ unit, docs: owners });
   }
 
   return { unowned, deadReferences, duplicates, missingOwnsLine };
