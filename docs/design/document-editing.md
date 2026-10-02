@@ -108,7 +108,7 @@ Yorkie document never learns its own name, owner or created time — so a worksp
 Yorkie would have no way to render a tree. The catalogue holds that metadata and Yorkie holds the
 content; a document's `id` is the join between them, which is why it doubles as the Yorkie key and why
 renaming (UC-023) changes only the catalogue. It persists as a `.data/` JSON file (write pattern:
-[`chat.md`](chat.md#storage-json-file-not-in-memory-or-a-database)).
+[`chat.md`](chat.md) ("Storage")).
 
 ## Why an Array of blocks, and not one `yorkie.Tree`
 

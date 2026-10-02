@@ -12,7 +12,8 @@
 //       so and name the command to fix it.
 //   (c) dead links — every markdown link and backtick-quoted repo-relative
 //       path inside docs/**/*.md, AGENTS.md, and tasks/active/*.md actually
-//       exists on disk. Anchors and external URLs are skipped.
+//       exists on disk, and a `#anchor` on a link to a .md file names a real
+//       heading there. External URLs are skipped.
 //
 // Exit 1 if (a) or (c) fail. (b) is informational.
 
@@ -21,6 +22,7 @@ import { existsSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileS
 import { dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { headingSlugs } from "./lib/headings.mjs";
 import { checkOwnership } from "./verify-doc-ownership.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([a-zA-Z]):/, "$1:");
@@ -161,9 +163,14 @@ function isSkippable(path) {
 function extractMarkdownLinks(text) {
   const found = [];
   for (const match of text.matchAll(MD_LINK)) {
-    const [pathPart] = match[1].split("#");
+    const [pathPart, frag] = match[1].split("#");
+    // A same-file `#frag` has no path to existence-check, only an anchor.
+    if (pathPart === "" && frag) {
+      found.push({ path: "", frag, rootRelative: false });
+      continue;
+    }
     if (isSkippable(match[1])) continue;
-    found.push({ path: pathPart, rootRelative: pathPart.startsWith("/") });
+    found.push({ path: pathPart, frag, rootRelative: pathPart.startsWith("/") });
   }
   return found;
 }
@@ -227,9 +234,19 @@ function checkDeadLinks() {
     const text = readFileSync(file, "utf8");
     const dir = dirname(file);
     for (const candidate of extractMarkdownLinks(text)) {
-      const target = resolveCandidate(dir, candidate);
+      const target = candidate.path === "" ? file : resolveCandidate(dir, candidate);
       if (!existsSync(target)) {
         broken.push({ file: relative(ROOT, file), candidate: candidate.path });
+      } else if (candidate.frag && target.endsWith(".md") && statSync(target).isFile()) {
+        let frag = candidate.frag;
+        try {
+          frag = decodeURIComponent(frag);
+        } catch {
+          // malformed escape — compare it as written
+        }
+        if (!headingSlugs(readFileSync(target, "utf8")).has(frag.toLowerCase())) {
+          broken.push({ file: relative(ROOT, file), candidate: `${candidate.path}#${candidate.frag} (no such heading)` });
+        }
       }
     }
   }
