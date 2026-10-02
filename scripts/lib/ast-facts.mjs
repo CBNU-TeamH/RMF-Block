@@ -7,23 +7,28 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 
-// `files` (every scanned path) rides along for sliceFacts; the CLI drops it from facts.json.
-export function extractFacts({ root = process.cwd(), typescript } = {}) {
-  const ROOT = root;
-  const ts = typescript ?? createRequire(ROOT + '/package.json')('typescript');
-  // ---- file walk
-  const SKIP = new Set(['node_modules', '.next', '.data', '.git', 'coverage']);
+const SKIP = new Set(['node_modules', '.next', '.data', '.git', 'coverage']);
+// Every scanned path, relative to root: app/lib/server/scripts/.github plus root files.
+export function listFiles(root) {
   function walk(dir, out = []) {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       if (SKIP.has(e.name)) continue;
       const p = path.join(dir, e.name);
       if (e.isDirectory()) walk(p, out);
-      else out.push(path.relative(ROOT, p));
+      else out.push(path.relative(root, p).split(path.sep).join('/')); // '/' on Windows too: every filter and glob expects it
     }
     return out;
   }
-  const all = ['app', 'lib', 'server', 'scripts', '.github'].flatMap((d) => (fs.existsSync(path.join(ROOT, d)) ? walk(path.join(ROOT, d)) : []))
-    .concat(fs.readdirSync(ROOT).filter((f) => fs.statSync(path.join(ROOT, f)).isFile()));
+  return ['app', 'lib', 'server', 'scripts', '.github'].flatMap((d) => (fs.existsSync(path.join(root, d)) ? walk(path.join(root, d)) : []))
+    .concat(fs.readdirSync(root).filter((f) => fs.statSync(path.join(root, f)).isFile()));
+}
+export const scriptKind = (ts, rel) => (rel.endsWith('x') && !rel.endsWith('.mjs') ? ts.ScriptKind.TSX : rel.endsWith('.mjs') || rel.endsWith('.js') ? ts.ScriptKind.JS : ts.ScriptKind.TS);
+
+// `files` (every scanned path) rides along for sliceFacts; the CLI drops it from facts.json.
+export function extractFacts({ root = process.cwd(), typescript } = {}) {
+  const ROOT = root;
+  const ts = typescript ?? createRequire(ROOT + '/package.json')('typescript');
+  const all = listFiles(ROOT);
   const isCode = (f) => /\.(ts|tsx|mts|mjs|js|jsx)$/.test(f);
   const isTest = (f) => /\.test\.|\.spec\./.test(f);
 
@@ -32,8 +37,7 @@ export function extractFacts({ root = process.cwd(), typescript } = {}) {
   function parse(rel) {
     if (cache.has(rel)) return cache.get(rel);
     const text = fs.readFileSync(path.join(ROOT, rel), 'utf8');
-    const kind = rel.endsWith('x') && !rel.endsWith('.mjs') ? ts.ScriptKind.TSX : rel.endsWith('.mjs') || rel.endsWith('.js') ? ts.ScriptKind.JS : ts.ScriptKind.TS;
-    const sf = ts.createSourceFile(rel, text, ts.ScriptTarget.Latest, true, kind);
+    const sf = ts.createSourceFile(rel, text, ts.ScriptTarget.Latest, true, scriptKind(ts, rel));
     cache.set(rel, sf);
     return sf;
   }
@@ -236,7 +240,7 @@ export function extractFacts({ root = process.cwd(), typescript } = {}) {
 
 // Not path.matchesGlob: Next paths contain `[id]`, which it reads as a character class, so an
 // exact claimed path would not even match itself. This escapes brackets and keeps * / **.
-const gl = (g) => new RegExp('^' + g.replace(/[.+^${}()|\\]/g, '\\$&').replace(/\[/g, '\\[').replace(/\]/g, '\\]').replace(/\*\*\/(?!$)/g, '\u0000').replace(/\*\*$/, '\u0001').replace(/\*/g, '[^/]*').replace(/\u0000/g, '(.*/)?').replace(/\u0001/g, '.*') + '$');
+export const gl = (g) => new RegExp('^' + g.replace(/[.+^${}()|\\]/g, '\\$&').replace(/\[/g, '\\[').replace(/\]/g, '\\]').replace(/\*\*\/(?!$)/g, '\u0000').replace(/\*\*$/, '\u0001').replace(/\*/g, '[^/]*').replace(/\u0000/g, '(.*/)?').replace(/\u0001/g, '.*') + '$');
 
 // parts: derive-parts output ({part:{docs,code}}) or a plain {part:[code globs]}; a claimed
 // directory counts as dir/**. Returns { <part>: slice } of facts.

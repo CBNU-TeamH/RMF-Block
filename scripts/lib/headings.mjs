@@ -10,18 +10,25 @@ export function slugify(text) {
     .replace(/\s/g, "-");
 }
 
-export function headingSlugs(markdownText) {
-  const slugs = new Set();
-  const seen = new Map();
+// Blank every fenced-code line (``` / ~~~, markers included) to spaces, keeping line and
+// character offsets, so a checker never reads an example as the real thing.
+export function stripFences(markdownText) {
   let fence = null;
-  for (const line of markdownText.split(/\r?\n/)) {
+  return markdownText.split("\n").map((line) => {
     const marker = line.match(/^ {0,3}(`{3,}|~{3,})/)?.[1];
+    const inside = fence || marker;
     if (marker) {
       if (!fence) fence = marker;
       else if (marker[0] === fence[0] && marker.length >= fence.length) fence = null;
-      continue;
     }
-    if (fence) continue;
+    return inside ? line.replace(/[^\r]/g, " ") : line;
+  }).join("\n");
+}
+
+export function headingSlugs(markdownText) {
+  const slugs = new Set();
+  const seen = new Map();
+  for (const line of stripFences(markdownText).split(/\r?\n/)) {
     const heading = line.match(/^ {0,3}#{1,6}[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/);
     if (!heading) continue;
     const base = slugify(heading[1]);

@@ -141,6 +141,26 @@ restated in `AGENTS.md` §7, ADR-002, `architecture.md` and `ROADMAP.md`, and st
 four after #117 shipped it. The revision call path was drawn server-side in three places while
 `version-history.md` had it right.
 
+## Declared facts
+
+A design doc may pin a structural fact to the code with a `declare` block, which
+`scripts/verify-declarations.mjs` checks against the AST in `pnpm verify:docs` and CI. The doc
+stays the source of truth: the code can't change that fact without the same PR changing the doc.
+
+```md
+<!-- declare: <name>
+called-only-from: <callee>[|<callee>…] in <glob>[, <glob>…]   # every call site is under these, and one exists
+never-called: <callee>[|<callee>…]                           # no call site (calls only, not comments or strings)
+const: <file> <NAME> = <JSON value>                           # a literal initialiser equals this
+const: <file> <NAME> includes [<JSON values…>]                # an array literal contains these
+exists: <file> <symbol>                                       # a top-level declaration exists
+-->
+```
+
+Declare only a fact an audit found drifted or one that guards a decision — the block sits next to
+the prose it backs, and the prose still carries the *why*. Behaviour and ordering ("a before-restore
+revision is taken first") stay with unit tests; a call order read off the AST is too brittle.
+
 ## Revisit a cost claim when what's adjacent to it changes shape
 
 A cost claim can still be true and still be stale, if what it sits next to changed. The laser

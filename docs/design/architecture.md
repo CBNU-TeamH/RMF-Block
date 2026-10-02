@@ -67,6 +67,11 @@ The wire protocol is Yorkie's own client SDK — not ours to design. What we do 
 
 Transport is REST + WebSocket. Grouped by concern; full request/response schemas are written when each group's module is built. Both WebSocket upgrade paths (chat and workspace) require a live session or the host secret to complete at all — an unauthenticated client gets a 401 before the handshake, never reaching the hub ([ADR-006](../adr/006-workspace-chat-socket-auth.md)).
 
+<!-- declare: websocket-paths
+const: server/index.mts CHAT_WS_PATH = "/api/chat/ws"
+const: server/index.mts WORKSPACE_WS_PATH = "/api/workspace/ws"
+-->
+
 SOIR001 is easy to misread here: it requires realtime sync over "WebSocket 기반 실시간 통신", but document changes and presence never cross this boundary — they go straight from the browser to Yorkie over Connect / gRPC-Web on ordinary HTTP, with `WatchDocument` as a server-streaming response rather than a socket. REST and WebSocket are what *this* boundary carries; the socket carries `session:revoked`, chat and the document-tree events (§3(d)). `docs/SRS-ko.md` is a team-agreed document and changes only with the team's agreement (`AGENTS.md` §5); SOIR001's wording was corrected under that agreement — [issue #36](https://github.com/CBNU-TeamH/RMF-Block/issues/36).
 
 | Group | Carries | Traceability |

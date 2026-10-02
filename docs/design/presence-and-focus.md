@@ -333,6 +333,11 @@ occupancy heartbeat retransmit the marks too. At one write per focus change and 
 seconds, with the caps below in place, that is the *cold* price of the channel. The *hot* price —
 while a stroke is actively being drawn — is its own section, next.
 
+<!-- declare: ink-limits
+const: lib/focus/ink.ts MAX_POINTS_PER_MARK = 600
+const: lib/focus/ink.ts MARK_CAP = 8
+-->
+
 ### A mark is a path, not a rectangle — and what that costs
 
 A mark is an ordered path:
