@@ -336,6 +336,20 @@ only the cache size and TTL — so something has to call the Admin API after Yor
 that to the host would make `docker compose up` two steps and, worse, would make *an unguarded
 Yorkie* the state you get by forgetting the second one.
 
+It exits with `process.exit`, not `throw`. Throwing was the first attempt and does not work: Next
+installs its own `unhandledRejection` listener, so a throw from `instrumentation.ts` is logged and
+swallowed, `app.prepare()` never rejects, and the process lives on without ever listening — measured
+at forty-five seconds of sitting there. In a container that is the worst outcome available, because
+Docker sees a running service, `restart` never fires, and compose reports no failure while the
+workspace looks up and serves nothing.
+
+In development it is not fatal — Yorkie is often simply not running and most work does not need
+it — but it is printed loudly, because this is the one state where the app looks fine and is
+protecting nothing. The successful registration is printed too: Yorkie stores the webhook URL
+without ever testing it, so an address it cannot reach registers exactly like one it can and
+surfaces only later as clients failing with `verify access: send webhook`, which reads like a Yorkie
+fault rather than a wrong address.
+
 The Admin API is connect-protocol over HTTP/JSON, so this needs no client library (the JS SDK
 ships none): log in for a token, then update the project. The URL is written from where **Yorkie**
 stands, not where a browser does — inside compose that is the app's service name, since
@@ -425,7 +439,7 @@ Presenter highlight tools (FR-030-12/13) are not covered here and need their own
 
 ### 4.3 Chat realtime delivery (FR-060-04)
 
-See §5 — the events depend on which chat version is in use. Under version A the server broadcasts `chat:message` to every workspace socket after persisting; under version B this server carries no chat traffic at all.
+Which events flow, if any, depends on the chat version in use: [§5](#5-chat--two-candidate-implementations) owns the Version A/B split and the open question.
 
 ## 5. Chat — two candidate implementations
 

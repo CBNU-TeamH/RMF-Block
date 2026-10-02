@@ -88,13 +88,13 @@ There is no internal persistence module. Document durability is Yorkie's, and cr
 
 What crosses this boundary for version history is authorisation only: the browser calls Yorkie's revision API through its own `Client`, and Yorkie asks this server's auth webhook whether the session is live. Which calls are used and where revisions come from: [`version-history.md`](version-history.md).
 
-**Measured, not assumed** (against `@yorkie-js/sdk@0.7.13`, not re-measured on the current `0.7.23` pin, on the Mongo-backed Yorkie in `docker-compose.yml`): a revision outlives the document it belongs to, but only by id. After `client.remove(doc)`, `getRevision(doc, revisionId)` still returns the full snapshot while `listRevisions` on a fresh `Document` under the same key returns empty. **Anything that deletes a document therefore has to keep the revision ids somewhere, or the history becomes unreachable rather than merely hidden** — a constraint for whoever builds FR-023's delete. UC-023's 비고 records the same, added under the team agreement `docs/SRS-ko.md` requires (`AGENTS.md` §5) — [issue #28](https://github.com/CBNU-TeamH/RMF-Block/issues/28).
+A revision outlives the document it belongs to, but only by id, so deleting a document has to keep its revision ids: [`version-history.md`](version-history.md#deleting-a-document).
 
 **Decided:** the App/WS Server does not keep a `Watch` subscription on documents — Mongo provides durability directly (ADR-002).
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 
-Chat history is read and written as whole JSON files on the host filesystem — `lib/chat/chat-repository.ts` is the reference implementation of the pattern, including serializing concurrent writes through one promise chain. Three more stores follow the same pattern synchronously rather than through a promise chain — `lib/auth/member-repository.ts`, `lib/documents/documents.ts` and `lib/files/file-repository.ts`. **A read-modify-write with no `await` in it cannot be interleaved by a second call on Node's single thread, so there is nothing for a queue to serialize.** The queue in `chat-repository.ts` earns its place only because its appends are `async`: an `await` mid-sequence is a point where a second call can land between the read and the write, and the second write would drop the first. Choosing sync is therefore choosing to *not need* the queue, and any of these three growing an `await` inside its read-modify-write needs the promise chain back. The document catalogue in `lib/documents/documents.ts` is separate from Yorkie for a reason the code cannot show: **Yorkie cannot list documents.** `attach` takes a key the caller already holds, and a Yorkie document never learns its own name, owner or created time — so a workspace that could only ask Yorkie would have no way to render a tree. The catalogue holds that metadata and Yorkie holds the content; a document's `id` is the join between them, which is why it doubles as the Yorkie key and why renaming (UC-023) changes only the catalogue. Writes go through a temp file and a `rename`, because `writeFileSync` truncates before it writes and a crash mid-write would otherwise leave a half-written store; `rename` within one filesystem is atomic, so a concurrent reader sees the whole old file or the whole new one. Sessions stay in memory on purpose: a session id on disk would be a permanent bearer token. Workspace metadata is still to come.
+App-owned state is whole JSON files on the host filesystem under `.data/` — chat history, members, the document catalogue and file metadata; sessions stay in memory on purpose (a session id on disk would be a permanent bearer token), and workspace metadata is still to come. The repository pattern (sync vs. queued writes, atomic rename) is in [`chat.md`](chat.md), "Storage"; why the document catalogue exists beside Yorkie is in [`document-editing.md`](document-editing.md#why-a-catalogue-beside-yorkie).
 
 The catalogue is a **tree**, not a list: a document carries a `parentId`, `null` at the root (UC-021 E1a). A catalogue written before sub-documents existed has no such field, and a missing one reads as `null` — that is the whole migration, no rewrite and no version marker. Name uniqueness is per-parent, which is what FR-021-03's "동일 위치 내" asks for.
 
@@ -104,25 +104,9 @@ This store is separate from Yorkie's. Restoring a workspace after a restart requ
 
 ### Startup: how the app refuses to run
 
-`instrumentation.ts` registers Yorkie's auth webhook before the first request is served. **In
-production a failure there is fatal**, because an unguarded Yorkie is reachable by anything on the
-LAN and a workspace that ran anyway would be one nobody knows is open.
-
-It exits with `process.exit`, not `throw`. Throwing was the first attempt and does not work: Next
-installs its own `unhandledRejection` listener, so a throw from here is logged and swallowed,
-`app.prepare()` never rejects, and the process lives on without ever listening — measured at
-forty-five seconds of sitting there. In a container that is the worst outcome available, because
-Docker sees a running service, `restart` never fires, and compose reports no failure while the
-workspace looks up and serves nothing.
-
-In development it is not fatal — Yorkie is often simply not running and most work does not need
-it — but it is printed loudly, because this is the one state where the app looks fine and is
-protecting nothing.
-
-The successful registration is printed too. Yorkie stores the webhook URL without ever testing it,
-so an address it cannot reach registers exactly like one it can and surfaces only later as clients
-failing with `verify access: send webhook` — which reads like a Yorkie fault rather than a wrong
-address.
+`instrumentation.ts` registers Yorkie's auth webhook before the first request is served, and in
+production a failure there is fatal. Why it exits rather than throws, and the dev behaviour:
+[`api.md`](api.md#2-rpc--rmf-block-server--yorkie).
 
 ## 4. Decided vs. deferred
 
@@ -138,7 +122,7 @@ address.
 | App/WS Server runs as one process — a Next.js custom server handling REST + WebSocket together, not split across services | |
 | Reconnect grace period = 30s (UC-022 비고) | |
 | Block schema field-level detail per type (`document-editing.md`, all 12 types agreed) | |
-| Auth/session token format: access 30min / refresh 7d, document key = plain id (no prefix), revoke-all = container restart (`api.md`) — holds only while the session secret stays in memory; persisting it alongside `.data/` auth records would break it | |
+| Document key = plain id (no prefix); revoke-all = container restart — see the auth model in [`api.md`](api.md#authentication-model) | |
 | FR-022 numbering gap (05/07/08/10/11) confirmed intentional | |
 
 ## 5. Relation to task workflow

@@ -100,6 +100,16 @@ Folding it into the conversion avoids all of that: it rides a write the person
 asked for, which was going to race anyway, and it is self-healing — whatever a
 race leaves behind, the next conversion of that block clears.
 
+## Why a catalogue beside Yorkie
+
+The document catalogue in `lib/documents/documents.ts` is separate from Yorkie for a reason the code
+cannot show: **Yorkie cannot list documents.** `attach` takes a key the caller already holds, and a
+Yorkie document never learns its own name, owner or created time — so a workspace that could only ask
+Yorkie would have no way to render a tree. The catalogue holds that metadata and Yorkie holds the
+content; a document's `id` is the join between them, which is why it doubles as the Yorkie key and why
+renaming (UC-023) changes only the catalogue. It persists as a `.data/` JSON file (write pattern:
+[`chat.md`](chat.md#storage-json-file-not-in-memory-or-a-database)).
+
 ## Why an Array of blocks, and not one `yorkie.Tree`
 
 `root.blocks` is a flat Yorkie Array, not a `yorkie.Tree`: `Tree` has no move (FR-022-04), SRS asks

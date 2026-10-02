@@ -145,6 +145,10 @@ The pile does grow — one full snapshot per 500 changes, in Yorkie's MongoDB ra
 that do exist are the project's `snapshotInterval`/`snapshotThreshold`, and filtering automatic
 revisions out of the default view.
 
+## Deleting a document
+
+**Measured, not assumed** (against `@yorkie-js/sdk@0.7.13`, not re-measured on the current `0.7.23` pin, on the Mongo-backed Yorkie in `docker-compose.yml`): a revision outlives the document it belongs to, but only by id. After `client.remove(doc)`, `getRevision(doc, revisionId)` still returns the full snapshot while `listRevisions` on a fresh `Document` under the same key returns empty. **Anything that deletes a document therefore has to keep the revision ids somewhere, or the history becomes unreachable rather than merely hidden** — a constraint for whoever builds FR-023's delete. UC-023's 비고 records the same, added under the team agreement `docs/SRS-ko.md` requires (`AGENTS.md` §5) — [issue #28](https://github.com/CBNU-TeamH/RMF-Block/issues/28).
+
 ## Who may restore
 
 Everyone, for two reasons.

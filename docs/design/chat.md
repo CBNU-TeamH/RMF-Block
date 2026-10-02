@@ -76,9 +76,9 @@ interface ChatBroadcaster { broadcast(event: string, payload: unknown): void; }
 This is the one deliberate abstraction in the module, and it is justified by a concrete,
 already-foreseeable need rather than speculative future-proofing: `ChatBroadcaster` is
 implemented by `ws-hub.mts`, which is written as a **generic** connection registry, not chat's
-own — `architecture.md`'s Presence/Follow API group will need the same "broadcast to connected
-clients" primitive later (NFR-MAI-001: independent module structure), and this way it doesn't
-have to be extracted out of chat code after the fact. It also keeps `ChatService` free of HTTP and
+own — the document-tree events use the same "broadcast to connected clients" primitive
+(NFR-MAI-001: independent module structure), so it did not have to be extracted out of chat code
+after the fact. It also keeps `ChatService` free of HTTP and
 WebSocket specifics.
 
 **Storage — JSON file, not in-memory or a database**: chosen so history survives a server restart
@@ -86,6 +86,18 @@ WebSocket specifics.
 but it is Yorkie's internal store, and ADR-002 fixes the boundary that the app never connects to it.
 So app-owned state stays as JSON files under `.data/`, and this module is the reference
 implementation of that pattern.
+
+**Repository pattern.** `chat-repository.ts` serializes concurrent writes through one promise chain.
+`lib/auth/member-repository.ts`, `lib/documents/documents.ts` and `lib/files/file-repository.ts`
+follow the same pattern synchronously. **A read-modify-write with no `await` in it cannot be
+interleaved by a second call on Node's single thread, so there is nothing for a queue to
+serialize.** The queue here earns its place only because its appends are `async`: an `await`
+mid-sequence is a point where a second call can land between the read and the write, and the second
+write would drop the first. Choosing sync is therefore choosing to *not need* the queue, and any of
+the three growing an `await` inside its read-modify-write needs the promise chain back. Writes go
+through a temp file and a `rename`, because `writeFileSync` truncates before it writes and a crash
+mid-write would otherwise leave a half-written store; `rename` within one filesystem is atomic, so a
+concurrent reader sees the whole old file or the whole new one.
 
 **Message shape.**
 
