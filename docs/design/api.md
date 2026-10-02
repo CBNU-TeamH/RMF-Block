@@ -9,7 +9,7 @@
   ask at all) is explained; nothing else in `docs/design/` covers them. The route handlers are
   the endpoints §1 already tabulates, so this doc owning them keeps the contract and its
   implementation described in one place.
-- **Related**: [`docs/design/architecture.md`](architecture.md) §3(b); [`docs/adr/002-persistence-on-yorkie-mongo.md`](../adr/002-persistence-on-yorkie-mongo.md); [`docs/SRS-ko.md`](../SRS-ko.md) §3.2, §3.3
+- **Related**: [`docs/design/architecture.md`](architecture.md) §3(b); [`docs/adr/002-persistence-on-yorkie-mongo.md`](../adr/002-persistence-on-yorkie-mongo.md); [`docs/adr/006-workspace-chat-socket-auth.md`](../adr/006-workspace-chat-socket-auth.md); [`docs/SRS-ko.md`](../SRS-ko.md) §3.2, §3.3
 
 ## Scope
 
@@ -41,7 +41,7 @@ Access tokens live 30 minutes; refresh tokens live 7 days. Refresh-token reuse i
 
 Rotation bounds how long a leaked token stays replayable. It does **not** protect against a token leaking live — most plausibly by appearing in the address bar during screen sharing (UC-030) — so the client strips the token from the URL immediately after handoff and keeps it out of persistent storage. LAN traffic is unencrypted, so rotation narrows the replay window rather than preventing interception.
 
-There is no separate "revoke all sessions" endpoint. The host runs the container directly, so restarting it is the revoke path: a fresh bootstrap secret is printed to stdout and every existing session token is invalidated. Adding a dedicated revoke action would duplicate that and overlap with the per-guest kick (`DELETE /api/workspace/members/:userId`, not yet built).
+There is no separate "revoke all sessions" endpoint. The host runs the container directly, so restarting it is the revoke path: a fresh bootstrap secret is printed to stdout and every existing session token is invalidated (unless `HOST_SECRET` is pinned in the environment, which keeps the old secret, and so the host's `role` cookie, valid). Adding a dedicated revoke action would duplicate that and overlap with the per-guest kick (`DELETE /api/workspace/members/:userId`, not yet built).
 
 Tokens live in memory, like the sessions they point at. A bearer token written to the host's disk
 outlives the reason it was issued, and restarting the container is this project's documented
@@ -314,7 +314,10 @@ without a token this server issued, a client is refused at `ActivateClient`, bef
 document. The chain is three parts — `GET /api/auth/yorkie-token` trades the session cookie for
 something client JS can hold (the cookie is `httpOnly` so that page scripts, and anyone reading a
 shared screen under UC-030, never see it), the browser passes that through the SDK's
-`authTokenInjector`, and this webhook answers. Startup writes the webhook onto Yorkie's project
+`authTokenInjector`, and this webhook answers. The host has no workspace session, so the
+`role` cookie is exchanged under the `host:<secret>` prefix (`HOST_SESSION_PREFIX`) and the
+webhook allows such a token without a session lookup; revoking the host is the restart, which
+clears the secret and the token registry together. Startup writes the webhook onto Yorkie's project
 itself, over the Admin API: the webhook URL is a project field
 rather than a server flag, and a step the host could forget would make an unguarded Yorkie the
 default.
@@ -390,6 +393,8 @@ Exact method names and availability must be confirmed against the pinned SDK ver
 ## 4. WebSocket — client ↔ rmf-block-server
 
 For state that is neither request/response nor scoped to a single Yorkie document. SRS §2.1's component diagram already routes client traffic through this server as "API / 웹소켓 요청".
+
+Both sockets (`/api/chat/ws`, `/api/workspace/ws`) refuse the upgrade with a raw `401` unless a live session or the host secret is presented ([ADR-006](../adr/006-workspace-chat-socket-auth.md)).
 
 ### 4.1 Workspace presence index (FR-040)
 

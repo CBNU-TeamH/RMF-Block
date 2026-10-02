@@ -69,6 +69,10 @@ app/(workspace)/
 .data/files/             — uploaded bytes, named by id; `index.json` alongside them
 ```
 
+`ChatService.send()` requires text or an attachment, caps text at 2000 characters
+(`ChatValidationError`, surfaced as 400), and persists before it broadcasts. The panel tracks each
+send as pending or failed so a failure reaches the sender (FR-060-07).
+
 **`ChatService` depends on two small interfaces, not concrete classes**:
 
 ```ts

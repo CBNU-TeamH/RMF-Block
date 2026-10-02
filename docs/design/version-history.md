@@ -99,6 +99,11 @@ the restored text does not have. `replaceBlocks` bumps `restoreCount`, which is 
 key — the same move `page.tsx` makes with `key={document.id}` when a different document replaces the
 current one, since a restore replaces the content just as wholesale.
 
+Restore runs in a fixed order: `getRevision` and parse the target, `client.sync()`,
+`createRevision` (before-restore), then `replaceBlocks`. The fetch comes first and is not
+overlapped with the rest, because no revision can be deleted: a before-restore revision left by a
+restore that then failed to fetch or parse would be permanent litter.
+
 What the app gives up is atomicity: two people restoring at once merge as CRDT edits rather than
 one server-side replace. For an eight-person LAN workspace that is acceptable, and the
 before-restore revision makes either outcome reversible.

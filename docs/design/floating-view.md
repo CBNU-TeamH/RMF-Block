@@ -99,6 +99,11 @@ otherwise take the moves for itself and stall the drag. Pointer capture was trie
 not hold across Chrome's PDF viewer (measured with Playwright).
 Windows sit at `z-[35]`: above the chat bar, below the chat window.
 
+The saved list is re-fitted to the current viewport on load and on every viewport resize
+(`fitFloating`), so a window saved on a larger screen is never left off-screen. There is one
+window per block: opening a block that already has one does nothing, and a saved entry that is
+malformed or a duplicate is dropped on load (`parseViews`).
+
 ## Not built
 
 - **No bring-to-front, no cap on open windows, no keyboard move or resize.** The chat window

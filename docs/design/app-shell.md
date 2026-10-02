@@ -28,6 +28,12 @@ The auth gate lives in the layout, not in a page, so every screen in the group i
 live session and no valid host-secret cookie means the join form (FR-020-03/04). The session model itself is
 [`api.md`](api.md), "Authentication model".
 
+Below the gate the layout nests `PresenceProvider`, `FocusFollowProvider` and
+`FloatingViewProvider` around the sidebar/header/`<main>` frame, with the fixed `ChatWindow`
+outside the column layout. They live here, not in a page, so floating windows and chat never
+remount across navigation. The host has no `WorkspaceMember`, so it is given `HOST_PRESENCE` in
+place of one, and `SessionWatch` (which shows an eviction) mounts for members only.
+
 ## One catalogue read per request
 
 The layout (for the sidebar) and the document page both need the document catalogue.
