@@ -10,6 +10,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 | :--- | :--- |
 | [Drift audit: doc-code drift and doc compression](2026/10/20261002-drift-audit-todo.md) | [lessons](2026/10/20261002-drift-audit-lessons.md) |
 | [Make the doc-drift audit a reusable, tool-neutral skill (+ archive PR template)](2026/10/20261002-doc-drift-audit-skill-todo.md) | [lessons](2026/10/20261002-doc-drift-audit-skill-lessons.md) |
+| [Declare structural facts in docs and verify them against the AST (+ move skills/ into .claude/skills/)](2026/10/20261002-doc-declarations-todo.md) | [lessons](2026/10/20261002-doc-declarations-lessons.md) |
 | [SRS-en.md as the agents' copy of SRS-ko.md, kept in sync by a required check](2026/10/20261001-srs-en-sync-todo.md) | [lessons](2026/10/20261001-srs-en-sync-lessons.md) |
 | [Archive finished tasks and add version history to the SRS](2026/10/20261001-docs-archive-and-drift-audit-todo.md) | [lessons](2026/10/20261001-docs-archive-and-drift-audit-lessons.md) |
 | [Keep docs in sync: one fact in one place, and reminders where the work happens](2026/10/20261001-doc-sync-reminders-todo.md) | [lessons](2026/10/20261001-doc-sync-reminders-lessons.md) |

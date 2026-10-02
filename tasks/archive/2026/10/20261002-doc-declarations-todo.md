@@ -60,10 +60,10 @@ One PR with one commit per milestone. The main session owns the format and the f
 
 ## Acceptance
 
-- [ ] Every negative case above fails, and the cases are recorded in the PR
-- [ ] `pnpm verify:docs` is clean with all of the new checks
-- [ ] `pnpm comments --strict`, `pnpm lint && pnpm test && pnpm build`
-- [ ] No live link to the root `skills/` remains
+- [x] Every negative case above fails, and the cases are recorded in the PR
+- [x] `pnpm verify:docs` is clean with all of the new checks
+- [x] `pnpm comments --strict`, `pnpm lint && pnpm test && pnpm build`
+- [x] No live link to the root `skills/` remains
 
 ## Cross-cutting
 
