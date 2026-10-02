@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Full verification before it leaves this machine. Measured this session on
-# WSL over a /mnt/c mount (slower than a native filesystem or CI): test 10s
-# (31 files, 456 tests), build ~66s — still cheap enough to run here every
-# time rather than finding out on the PR.
+# Full verification before it leaves this machine. Measured on WSL over a /mnt/c
+# mount (slower than a native filesystem or CI): test ~10s, build ~66s — still
+# cheap enough to run here every time rather than finding out on the PR.
 #
 # node_modules/.bin/vitest and node_modules/.bin/next directly, for the same
 # PATH reason pre-commit avoids `pnpm` — see that file's comment.

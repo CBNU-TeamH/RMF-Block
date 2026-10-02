@@ -143,9 +143,8 @@ function readBlock(stored: ReadableBlock | null): Block | null {
     case "divider":
       return { id, type: "divider" };
 
-    // `file`, `image` and the two link types have no creator yet — only `pdf`
-    // does (`lib/blocks/create.ts`) — so any of the other four that turn up
-    // came from elsewhere. Read anyway rather than dropped: a document that
+    // `block-link` has no creator yet (the others are in `lib/blocks/create.ts`),
+    // so one that turns up came from elsewhere. Read anyway rather than dropped: a document that
     // renders half its blocks is worse than one that renders a file block
     // with a blank name.
     case "file":
@@ -194,8 +193,8 @@ function readBlock(stored: ReadableBlock | null): Block | null {
 
 /** The reverse of `readBlock`. Text becomes a live, empty `yorkie.Text`, never
  *  the plain string a `Block` carries — this only creates the CRDT, and filling
- *  it is `editBlockText`'s job. Exhaustive over all twelve types, not the seven
- *  `create.ts` builds today, so a renderer for the other five finds this ready. */
+ *  it is `editBlockText`'s job. Exhaustive over all twelve types, not just the eleven
+ *  `create.ts` builds today, so a creator for `block-link` finds this ready. */
 export function toStoredBlock(block: Block): StoredBlock {
   switch (block.type) {
     case "text":

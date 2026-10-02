@@ -154,7 +154,7 @@ export function TextBlockView({
   const slashOpen = slashItems.length > 0;
   const slashListRef = useRef<HTMLUListElement>(null);
 
-  // Keeps the highlighted row on screen: eleven items overflow `max-h-64`, so
+  // Keeps the highlighted row on screen: the items can overflow the menu's max height, so
   // arrow keys used to move the highlight somewhere nobody could see. The
   // `<ul>` is `absolute`, which makes it its rows' `offsetParent`, so
   // `offsetTop` is already in the coordinate space `scrollTop` is measured in

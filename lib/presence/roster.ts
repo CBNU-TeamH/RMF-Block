@@ -8,7 +8,8 @@ export function rosterFrom(
   const byId = new Map<string, WorkspacePresence>();
 
   for (const { presence } of presences) {
-    // Not hardening — Yorkie runs with no auth webhook today (api.md §2).
+    // Not hardening — attaching needs a session token (api.md §2); this only
+    // keeps an id-less entry from collapsing into one blank row.
     if (!presence?.id) continue;
 
     byId.set(presence.id, presence);

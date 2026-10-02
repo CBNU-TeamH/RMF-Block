@@ -67,10 +67,9 @@ export const MAX_POINTS_PER_MARK = 600;
  *  stroke that keeps crossing back over a block boundary (each crossing a
  *  fresh 1-point segment) could reach `MAX_POINTS_PER_MARK` paying the full
  *  36-byte `blockId` cost on every single point, the opposite of what
- *  segmenting exists to save: measured, 300 alternating 1-point segments is
- *  27,127B — over 3x the 8,495B a normal 300-point single-segment stroke
- *  costs. 30 keeps that adversarial case's worst size (2,735B, measured)
- *  under the normal case rather than over it, while comfortably covering a
+ *  segmenting exists to save: measured at the earlier 300-point cap, alternating
+ *  1-point segments cost over 3x a normal single-segment stroke. 30 keeps
+ *  that adversarial case under the normal case rather than over it, while comfortably covering a
  *  real multi-block stroke — more blocks than fit on one screen at once. */
 export const MAX_SEGMENTS_PER_MARK = 30;
 

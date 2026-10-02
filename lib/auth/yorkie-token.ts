@@ -5,8 +5,8 @@ import { randomUUID } from "node:crypto";
  *  cannot pass it to `authTokenInjector` and must pass something narrower.
  *  Why the webhook needs it and why these stay in memory: `docs/design/api.md`. */
 
-/** An hour. Why not shorter, and why expiry costs the person nothing:
- *  `docs/design/api.md`. A server restart clears `sessionByToken` outright, TTL
+/** An hour. Expiry costs the person nothing — the SDK re-asks when the webhook
+ *  refuses (`docs/design/api.md` §2). A server restart clears `sessionByToken` outright, TTL
  *  or not; what rides out a token's remaining life is a page reload. */
 const TOKEN_TTL_MS = 60 * 60 * 1000;
 

@@ -69,9 +69,9 @@ export type DividerBlock = BlockBase & {
   type: "divider";
 };
 
-/** Of the five below only `pdf` can be created today — `file` and `image` wait
- *  on FR-022-14's other legs, the link types on the document tree. All five stay
- *  typed, so `BLOCK_KINDS` and every renderer must handle them. */
+/** Of the five below only `block-link` has no creator today — it waits on a way
+ *  to point at one block. All five stay typed, so `BLOCK_KINDS` and every
+ *  renderer must handle them. */
 
 /** A reference plus display metadata cached at upload (NFR-PER-002); the bytes
  *  stay out of Yorkie. `fileType` is free-form on purpose (FR-022-13). */
