@@ -8,12 +8,16 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [SRS-en.md as the agents' copy of SRS-ko.md, kept in sync by a required check](2026/10/20261001-srs-en-sync-todo.md) | [lessons](2026/10/20261001-srs-en-sync-lessons.md) |
 | [Archive finished tasks and add version history to the SRS](2026/10/20261001-docs-archive-and-drift-audit-todo.md) | [lessons](2026/10/20261001-docs-archive-and-drift-audit-lessons.md) |
+| [Keep docs in sync: one fact in one place, and reminders where the work happens](2026/10/20261001-doc-sync-reminders-todo.md) | [lessons](2026/10/20261001-doc-sync-reminders-lessons.md) |
 
 ## 2026-09
 
 | Task | Lessons |
 | :--- | :--- |
+| [Redesign the app: "B · Soft / paper" (light)](2026/09/20260925-notion-redesign-todo.md) | [lessons](2026/09/20260925-notion-redesign-lessons.md) |
+| [Sync the app's components to Claude Design](2026/09/20260925-design-sync-todo.md) | [lessons](2026/09/20260925-design-sync-lessons.md) |
 | [Floating view of a block (UC-070)](2026/09/20260924-floating-view-todo.md) | [lessons](2026/09/20260924-floating-view-lessons.md) |
 | [Performance criteria doc — apply review findings and move under docs/](2026/09/20260923-perf-criteria-review-todo.md) | [lessons](2026/09/20260923-perf-criteria-review-lessons.md) |
 | [Promote comment-budget to a required CI check](2026/09/20260923-comment-budget-ci-todo.md) | [lessons](2026/09/20260923-comment-budget-ci-lessons.md) |

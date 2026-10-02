@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-25
 **Issue**: none yet. Follow-ups are filed as two issues at the end (see Review).
-**Design**: [`docs/ui/redesign/HANDOFF.md`](../../docs/ui/redesign/HANDOFF.md) is the spec; [`source.md`](../../docs/ui/redesign/source.md) records the decisions.
+**Design**: [`docs/ui/redesign/HANDOFF.md`](../../../../docs/ui/redesign/HANDOFF.md) is the spec; [`source.md`](../../../../docs/ui/redesign/source.md) records the decisions.
 
 Stacked on `chore/design-sync`, which is stacked on PR #122.
 
