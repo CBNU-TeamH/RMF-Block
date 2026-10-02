@@ -50,6 +50,8 @@ export function outline(text) {
   return { ids, sections };
 }
 
+export const definedIds = (text) => new Set(outline(text).ids.map(({ id }) => id));
+
 export function compare(ko, en) {
   const a = outline(ko);
   const b = outline(en);
