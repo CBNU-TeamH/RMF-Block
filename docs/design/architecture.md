@@ -86,13 +86,11 @@ Presence and focus-following are not an API group: presenting is a Yorkie presen
 
 There is no internal persistence module. Document durability is Yorkie's, and crash/restart recovery (NFR-REL-002, NFR-SAF-003) needs no code on our side — Yorkie reloads its own state from MongoDB on start (ADR-002).
 
-What crosses this boundary for version history is authorisation only: the browser calls Yorkie's revision API (`createRevision`, `listRevisions`, `getRevision`) through its own `Client`, and Yorkie asks this server's auth webhook whether the session is live. `restoreRevision` is not used — the app restores by rewriting blocks ([`version-history.md`](version-history.md)). Snapshots come back as YSON.
+What crosses this boundary for version history is authorisation only: the browser calls Yorkie's revision API through its own `Client`, and Yorkie asks this server's auth webhook whether the session is live. Which calls are used and where revisions come from: [`version-history.md`](version-history.md).
 
 **Measured, not assumed** (against `@yorkie-js/sdk@0.7.13` and re-checked on `0.7.17`, on the Mongo-backed Yorkie in `docker-compose.yml`): a revision outlives the document it belongs to, but only by id. After `client.remove(doc)`, `getRevision(doc, revisionId)` still returns the full snapshot while `listRevisions` on a fresh `Document` under the same key returns empty. **Anything that deletes a document therefore has to keep the revision ids somewhere, or the history becomes unreachable rather than merely hidden** — a constraint for whoever builds FR-023's delete. UC-023's 비고 records the same, added under the team agreement `docs/SRS-ko.md` requires (`AGENTS.md` §5) — [issue #28](https://github.com/CBNU-TeamH/RMF-Block/issues/28).
 
 **Decided:** the App/WS Server does not keep a `Watch` subscription on documents — the only thing that required one was the deleted delayed-write trigger, and Mongo now provides durability directly.
-
-**Decided (UC-090):** revisions come from three sources — Yorkie's own auto-revision (`autoRevisionEnabled`, `snapshotInterval`/`snapshotThreshold` at 500, no app code), a user's named save, and the before-restore revision the app takes ahead of every restore, since there is no `restoreRevision` call to make one. Mechanism and measurements: [`version-history.md`](version-history.md).
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 
@@ -100,7 +98,7 @@ Chat history is read and written as whole JSON files on the host filesystem — 
 
 The catalogue is a **tree**, not a list: a document carries a `parentId`, `null` at the root (UC-021 E1a). A catalogue written before sub-documents existed has no such field, and a missing one reads as `null` — that is the whole migration, no rewrite and no version marker. Name uniqueness is per-parent, which is what FR-021-03's "동일 위치 내" asks for.
 
-**Tree edits reach other clients over the WebSocket hub, not through Yorkie.** Every catalogue write broadcasts `document:created`, `document:changed` or `document:deleted`, and open clients apply it — FR-021-06 and FR-023-07 ask for realtime reflection, not for a CRDT. A tree edit is one short server-authoritative operation, so last-write-wins on one JSON file is the honest fit, and `ws-hub.mts` was written to be reused for exactly this (NFR-MAI-001); `chat:message` was its first caller. A delete broadcasts **every** id it removed, because FR-023-06 takes the subtree and a client told only about the parent would keep drawing its children.
+**Tree edits reach other clients over the WebSocket hub, not through Yorkie.** Every catalogue write broadcasts `document:created`, `document:changed` or `document:deleted` (events listed in [ADR-005](../adr/005-custom-server-rest-ws.md); hub design in [`chat.md`](chat.md)), and open clients apply it — a tree edit is one short server-authoritative operation, so last-write-wins on one JSON file fits, not a CRDT. A delete broadcasts **every** id it removed, because FR-023-06 takes the subtree and a client told only about the parent would keep drawing its children.
 
 This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`. Both are now named volumes — `mongo-data` for Yorkie's store, `app-data` for `.data/` — so a container recreation leaves either intact and only `docker compose down -v` clears them (#22).
 
@@ -132,7 +130,6 @@ address.
 | --- | --- |
 | Block occupancy ≠ edit lock (SIR003, FR-022-06) | |
 | Yorkie owns realtime sync **and** document persistence/history (ADR-002) | Load-test baseline *numbers* (SRS §2.4) — how to measure them is settled in [`PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) |
-| Revisions come from Yorkie's auto-revision, a user's named save, and the app's before-restore save (UC-090, [`version-history.md`](version-history.md)) | |
 | The server keeps **no** Yorkie `Watch` subscription (ADR-002) | |
 | MongoDB is Yorkie's store alone; the app never connects to it (ADR-002) | |
 | App state lives in `.data/` JSON, not in Yorkie or Mongo — chat, members, the document catalogue and files; workspace metadata still to come | |

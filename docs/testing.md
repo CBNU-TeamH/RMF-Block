@@ -146,14 +146,9 @@ and a mutation flipping its `&&` to `||` passed anyway, because both operators a
 input is false. Adding the "succeeds when one side is true" case is what actually pins the
 operator down.
 
-## Vitest worker count — symptom and remedy
+## Vitest worker count
 
-This is a different failure mode from `vitest.config.mts`'s `pool: "forks"` setting, which exists
-for `tmpdir()`/`process.env` isolation between test files — see that file's own comment for why.
-Worker *count* is about speed, not isolation, and it fails differently: **if a run times out,
-suspect the worker count first.** Vitest's default sizes the pool at 50% of available cores, which
-floors to 1 on a low-core machine and serializes every file into one process. Check with
-`--max-workers=2` before adding or restructuring tests to chase a timeout — measured 2026-09-02.
+If a run times out, suspect the worker count first — the reasoning is in `vitest.config.mts`'s comment. Check with `--max-workers=2` before restructuring tests.
 
 ## What a local Node version can verify, and what only CI can
 

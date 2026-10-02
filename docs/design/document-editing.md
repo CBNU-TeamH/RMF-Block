@@ -1,6 +1,6 @@
 # Document Editing — Block Schema
 
-- **Status**: Agreed. All 12 block types finalized. The pre-implementation SDK convergence check it was waiting on has been run — see [Verification](#verification-2026-08-27). The [editing surface](#editing-surface) (textarea vs. rich text, IME handling) was decided 2026-08-30, ahead of `tasks/archive/2026/08/20260829-block-editor-todo.md`'s implementation milestones.
+- **Status**: Agreed. All 12 block types finalized. The pre-implementation SDK convergence check it was waiting on has been run — see [ADR-007](../adr/007-block-array-not-tree.md). The [editing surface](#editing-surface) (textarea vs. rich text, IME handling) was decided 2026-08-30, ahead of `tasks/archive/2026/08/20260829-block-editor-todo.md`'s implementation milestones.
 - **Owns**: `lib/blocks/`, `lib/documents/`, `app/(workspace)/documents/`, `app/api/documents/`,
   `app/(workspace)/document-list.tsx`, `app/(workspace)/document-actions.tsx`,
   `app/(workspace)/document-row-menu.tsx` (the sidebar's document tree and its row actions).
@@ -25,7 +25,7 @@ Block = { id: string (uuid), type: string, content: <type-specific, see below> }
 - `root.blocks` is a **Yorkie Array**, not an Object keyed by id. Yorkie's Array is RGA-backed, so concurrent inserts at the same position already converge deterministically — block order is the array position itself, not a stored field. This replaces the `order` field originally sketched in `architecture.md` §3(a).
 - Reordering (FR-022-04) uses the array's native `moveBefore`/`moveAfter` — no custom merge logic, per ADR-001.
 - `id` stays on every block regardless of position, since presence (`activeBlockId`) and the future 블록 링크 블록 need a stable reference independent of array order.
-- ~~**Open risk**: `yorkie-team/yorkie#676` reported non-convergence when the moved element is also the reference element in a concurrent `moveAfter`.~~ **Verified on the then-pinned 0.7.13, 2026-08-27** — see [Verification](#verification-2026-08-27).
+- ~~**Open risk**: `yorkie-team/yorkie#676` reported non-convergence when the moved element is also the reference element in a concurrent `moveAfter`.~~ **Verified on the then-pinned 0.7.13, 2026-08-27** — see [ADR-007](../adr/007-block-array-not-tree.md).
 - Block/text color and styling is an open decision (`AGENTS.md` §7) and intentionally not part of any block's `content` below — see that TODO item for why deferring it doesn't require reworking this schema.
 
 ## Every text-bearing block wraps its text
@@ -107,107 +107,14 @@ race leaves behind, the next conversion of that block clears.
 
 ## Why an Array of blocks, and not one `yorkie.Tree`
 
-See [ADR-007](../adr/007-block-array-not-tree.md) for this decision as an ADR.
-
-Recorded after the fact: the structure above was chosen without this comparison
-written down, and the reference project we borrow from went the other way.
-[wafflebase](https://github.com/wafflebase/wafflebase)'s document editor stores a
-whole document as a single root-level `yorkie.Tree`.
-
-Their choice is right for what they build and wrong for what we build.
-
-**What `Tree` is good at.** A word processor's document *is* a hierarchy —
-`doc > table > row > cell > paragraph > inline > text`. Inline formatting
-(bold, font, colour) applies to a *range*, which `Tree.style(from, to, attrs)`
-expresses directly. Splitting and merging paragraphs on Enter/Backspace is one
-tree operation. `@yorkie-js/prosemirror` binds ProseMirror to a `Tree`, which
-buys an enormous amount of editor behaviour for free.
-
-**Why none of that pays here.**
-
-- **SRS asks for no inline formatting.** "Plain text, no inline marks" under
-  the text block below is not a simplification we chose — it is the requirement.
-  `Tree`'s biggest advantage is unused.
-- **Six of the twelve types hold no text at all** — divider, file, image, PDF,
-  and the two link blocks. As tree nodes they are attribute-only leaves, which
-  is a shape the tree model tolerates rather than serves.
-- **FR-022-06 and the block-link block both need a stable per-block id.** A
-  block that is an array element with an `id` field gives that plainly.
-- **`Tree.move` is not implemented.** `packages/sdk/src/document/crdt/tree.ts`
-  throws `ErrUnimplemented` with the note *"TODO: Implement this with keeping
-  references of the nodes."* FR-022-04 is a hard requirement, and the only way
-  to reorder a tree today is delete-and-reinsert — which mints new nodes, so a
-  peer's concurrent edit to the moved block lands on the deleted ones and is
-  lost. `CRDTArray.moveAfter` keeps the element and moves only its position.
-  Measured: see [Verification](#verification-2026-08-27) item 3.
-
-**What the array costs us**, stated plainly so nobody rediscovers it as a
-surprise: everything that crosses a block boundary is ours to build. Splitting a
-block on Enter, merging into the previous one on Backspace at offset 0, and
-selecting across blocks are all free under `Tree` and are the real work of the
-editing module here. Nesting is also flattened — a list's `depth` is a number on
-a flat block, not a real parent-child relation.
-
-## Verification (2026-08-27)
-
-Run against `yorkieteam/yorkie:0.7.13` on `mongo:8` with the then-pinned
-`@yorkie-js/sdk@0.7.13` (the pin is 0.7.23 now; ADR-007 records the re-measurement), not from the SDK's documentation.
-
-1. **A `yorkie.Text` nested in an array element is a live CRDT.** wafflebase's
-   `slides-document.ts` carries a warning that a `yorkie.Tree` nested inside an
-   array element is serialized to plain JSON — reads see an inert object, writes
-   silently no-op — and that they reverted such a migration. `root.blocks` is
-   that same shape, so it was checked directly: a second client attaching to an
-   existing document receives `blocks[0].content` as a `Text` instance with a
-   working `edit()`, concurrent character-level edits from two clients converge
-   with both edits present, and a third client attaching cold reads the merged
-   result. The same held for a nested `Tree`, so the warning does not reproduce
-   at this depth on this version.
-2. **Concurrent `moveAfter` converges where `yorkie#676` said it might not.**
-   Two clients each moved a block *past the block the other was moving*, so each
-   side's reference element was the other's moved element. Both converged on the
-   same order, no block was lost, and a cold third client agreed. The source
-   supports it: `RGATreeList.moveAfter` resolves competing moves as a
-   last-write-wins position register, and deliberately still creates the losing
-   move's position node — commented *"so that operations referencing this move's
-   position can find it"* — which is the referential-integrity case the issue was
-   about.
-3. **A move preserves the moved block's text, including a peer's concurrent
-   edit.** One client moved a block to the end of the document while another
-   typed into that same block. The order converged and the typed characters
-   survived. This is the property `Tree` cannot offer while `move` is
-   unimplemented, and it is why reordering is safe to build on the array.
-
-4. **A CRDT cannot be re-parented, and failing to do so is silent.** Assigning
-   an existing `yorkie.Text` into a newly-created object under the same document
-   raised no error, produced a `Text` at the destination, and that `Text` was
-   empty — the original characters were not carried over and no exception marked
-   their loss. Rebuilding the text by hand instead loses a peer's concurrent
-   keystrokes. This is what forced the uniform `content.text` wrapper above; the
-   full measurements are in that section.
-
-Not yet verified: convergence under more than two concurrent movers, and
-`moveAfter` interleaved with a concurrent delete of the reference block.
-
-**The load-bearing measurements above are now reproducible; the rest are not.**
-The ADR-007 measurements live in `scripts/verify-yorkie-invariants.mjs` and
-run as the `yorkie invariants` CI job on every PR
-([#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42)), so a reader
-who doubts one of those numbers, or a future SDK bump, has something to run. Everything else on this page was taken with throwaway scripts against
-containers started by hand and is gone — those claims are still only as good as
-this document's word, and the two unverified cases belong in the same script
-rather than in another set of throwaway scripts.
-
-That matters more than usual here, because these measurements are load-bearing.
-They are why every block's text is wrapped (`content = { text }`) and why blocks
-are a Yorkie Array rather than a `yorkie.Tree`. If a future SDK version changes
-one of them the schema is wrong, and nothing in CI would say so.
-
-The unit tests under `lib/blocks/` deliberately do not cover this ground. A
-`yorkie.Document` needs no client and no server, which is what makes those tests
-fast and hermetic, but convergence is a claim about *two* replicas reconciling
-through one — so it cannot be asserted without the thing those tests exist to
-avoid needing.
+`root.blocks` is a flat Yorkie Array, not a `yorkie.Tree`: `Tree` has no move (FR-022-04), SRS asks
+for no inline formatting, and half the types hold no text. What the array costs — splitting,
+merging and cross-block selection are ours to build, and a list's `depth` is a number rather than a
+parent — and the four SDK measurements the schema depends on are in
+[ADR-007](../adr/007-block-array-not-tree.md), asserted by `scripts/verify-yorkie-invariants.mjs`
+as the `yorkie invariants` CI job ([#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42)). The
+unit tests under `lib/blocks/` do not cover them: convergence is a claim about two replicas
+reconciling through one server, which those hermetic tests exist to avoid needing.
 
 ## Block types
 
@@ -361,27 +268,9 @@ obvious first thing to reach for.
 
 ### Why not a rich-text framework
 
-*"We need Notion-style block movement, so a rich-text editor is out"* is not the reason, and is
-not even true in general — ProseMirror-based Notion-style editors (BlockNote, for one) exist.
-The actual reason is specific to Yorkie: binding a rich-text framework's document model to Yorkie
-makes it a `yorkie.Tree`, and `yorkie.Tree` has no move operation at all —
-
-| | move operations |
-| --- | --- |
-| `yorkie.Array` (this schema's `root.blocks`) | `moveBefore`, `moveAfter`, `moveAfterByIndex`, `moveFront`, `moveLast` |
-| `yorkie.Tree` | none |
-
-— while [Verification](#verification-2026-08-27) item 3 measured that `Array`'s move survives a
-concurrent edit to the moved block, and item 4 measured that a `Tree`-shaped rebuild does not:
-re-parenting a CRDT is silent data loss, not an error. Reordering blocks (FR-022-04) is a
-requirement, and only one of the two shapes was measured safe under it. Adopting a rich-text
-framework now would also discard `lib/blocks/`'s tested `operations.ts`, built against the array
-shape this schema settled on.
-
-The honest framing: we take on IME handling ourselves in exchange for block movement that is
-safe under concurrent editing. A rich-text framework would have handed us IME for free — it has
-already solved what the rest of this section solves — so the next part existed to check whether
-that cost is actually payable.
+No rich-text framework: binding one to Yorkie makes the document a `yorkie.Tree`, which has no move,
+and block reordering is a requirement. We take on IME handling ourselves in exchange; see
+[ADR-008](../adr/008-textarea-editing-surface.md).
 
 ### What was measured (2026-08-29–30)
 
@@ -390,20 +279,9 @@ Against a real two-client Yorkie session (0.7.13), using a throwaway harness at
 storage shape above — `root.blocks[0].content.text`, edited through `yorkie.Text.edit()` — rather
 than a bare string.
 
-1. **A naive controlled binding corrupts text under concurrent editing**, but not for the reason
-   first assumed. `<textarea value={text}>` re-rendering `value` from an incoming remote edit
-   does interrupt an in-progress IME composition in the way collaborative editors are known to
-   suffer from — but the sharper failure measured here was a bug in the harness itself: the
-   local diff baseline (`lastSyncedRef`, "what I last told Yorkie the text was") did not get
-   updated on the remote-render path, so the very next local keystroke was diffed against a
-   stale, shorter string and reinserted the *entire visible textarea content* as if it were new.
-   Two people typing "안녕하세요" into the same empty block concurrently produced
-   `"안안녕녕하세요"` — the whole greeting duplicated, not merely a lost syllable. **The lesson
-   generalizes past this one bug**: any surface that reads "the current text" from one source
-   (React state) while diffing against a second, independently-updated source (a sync baseline)
-   has to keep the two in lockstep on *every* path that touches either — the remote path is as
-   much a mutation of "what Yorkie holds" as the local path is, and both have to advance the same
-   baseline.
+1. **A naive controlled binding corrupts text under concurrent editing** (the failure story is in
+   [ADR-008](../adr/008-textarea-editing-surface.md)). The live constraint: every path that
+   changes what Yorkie holds, local or remote, must advance the same diff baseline.
 2. **An uncontrolled textarea, patched only on the changed range, survives.** Two live clients
    typing Hangul into the same block concurrently: remote edits arriving mid-composition are
    queued rather than applied, flushed once `compositionend` fires, and the in-progress
@@ -422,11 +300,6 @@ than a bare string.
    even ended), which is not just noisier but means Yorkie's own `doc.history.undo()` (§6 of the
    editor task) would step back through IME candidates rather than through what a person thinks
    of as a character.
-
-**Not yet measured**: composition survival at a network delay long enough that several remote
-edits queue before `compositionend` fires, and behaviour with more than two concurrent
-composers on one block. Neither is expected to change the surface decision; both are cases to add
-to `scripts/verify-yorkie-invariants.mjs`, which `#42` built for exactly this.
 
 ### Subscribing to remote changes
 
@@ -533,8 +406,9 @@ flight (the chain above, held per key).
 
 Two people opening the same empty document at once can both see it empty and both seed it. `blocks`
 is last-write-wins as a whole, so one seed replaces the other outright. This is the same category
-of race a two-person `changeBlockType` already accepts, and is `#42` material if it ever matters at
-this app's scale.
+of race a two-person `changeBlockType` already accepts, and is [#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42) material if it ever matters at
+this app's scale. How the SDK reports a whole-array seed is also tracked there; `touchesBlockList` in
+`lib/blocks/text-surface.ts` accepts `$.blocks` and `$.blocks.*`.
 
 ### Routing a remote text edit
 
@@ -658,11 +532,8 @@ immediately after `localChanges.push(change)`, while remote changes arrive throu
 edit and never a peer's — the only version of undo a shared document can have, and the reason this
 is the SDK's job rather than something built here.
 
-**The array-of-blocks decision is what makes undo available at all.** §"Why an Array of blocks, and
-not one `yorkie.Tree`" chose the array for reasons that had nothing to do with history; the guide
-lists undo/redo as supported for Text, object and array operations and says *"Tree: Undo/Redo
-support is under development"*. The earlier choice paid an unplanned dividend, and a document built
-on `yorkie.Tree` could not have this feature today.
+**Undo works because blocks are an Array** ([ADR-007](../adr/007-block-array-not-tree.md)); a
+`yorkie.Tree` could not have it yet.
 
 **`undo()` must not be called inside a `doc.update()` callback** — the guide says it throws
 *"Undo is not allowed during an update"*. Nothing here does: the only caller is a keydown handler,
@@ -805,15 +676,4 @@ to the container, which already appends them.
 
 ## Open questions
 
-**Unmeasured: how Yorkie reports a whole-array seed.** A peer seeding a brand-new document assigns
-all of `root.blocks` at once, and whether the SDK reports that as an operation on `$.blocks` or as
-a set on `$` has never been checked. `touchesBlockList` in `lib/blocks/text-surface.ts` accepts the
-former; if it is the latter, the seed is not drawn until something else happens — a race
-[#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42) usually hides.
-
-- ~~Concurrent-move convergence on the pinned SDK version.~~ Closed by
-  [Verification](#verification-2026-08-27) item 2, with two follow-up cases named
-  there that were not covered.
-- ~~The editing surface (rich text vs. plain textarea, IME handling).~~ Closed above,
-  2026-08-30.
-- Block/text color and styling (`AGENTS.md` §7).
+- Block/text color and styling: [#6](https://github.com/CBNU-TeamH/RMF-Block/issues/6).

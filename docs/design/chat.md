@@ -10,8 +10,8 @@
 
 ## Scope
 
-`api.md` §5 already settled the two-version split (Version A: server REST+WebSocket; Version B:
-Yorkie-native document). This doc covers **Version A**: FR-060-01 (text), FR-060-02 (file
+This doc is **Version A**; the A/B split and the open question between them are
+[`api.md`](api.md) §5's. It covers FR-060-01 (text), FR-060-02 (file
 attachments), FR-060-04 (realtime delivery), FR-060-05 (history and attachment info persisted),
 FR-060-07 (failure surfaced to sender).
 
@@ -26,16 +26,9 @@ exists. The window's geometry is the one part with rules worth keeping — see b
 
 ## Why a custom server is unavoidable here
 
-See [ADR-005](../adr/005-custom-server-rest-ws.md) for this decision as an ADR.
-
-The pinned Next.js version (16.2.12) has no WebSocket support in Route Handlers — verified by
-grepping the installed package's `dist` for the feature (it exists only as an upstream RFC,
-absent from this version). Next's `output: "standalone"` build mode and a custom server are also
-mutually exclusive (standalone always ships its own generated `server.js`; it does not trace a
-hand-written one). So realtime delivery (FR-060-04) forces two structural, non-negotiable changes:
-a custom server entry point, and dropping `output: "standalone"` from `next.config.ts` (Dockerfile
-moves from copying the standalone trace to installing full production `node_modules`). Neither
-touches existing route/page logic — both are boot-mechanism swaps.
+Realtime delivery (FR-060-04) needs WebSockets, which this Next.js version's Route Handlers do
+not offer, so the app boots from a custom server and drops `output: "standalone"`. The reasoning
+and the two forced changes are in [ADR-005](../adr/005-custom-server-rest-ws.md).
 
 ## Module structure
 
@@ -80,14 +73,13 @@ interface ChatRepository { append(message: ChatMessage): Promise<void>; list(): 
 interface ChatBroadcaster { broadcast(event: string, payload: unknown): void; }
 ```
 
-This is the one deliberate abstraction in the module, and it is justified by two concrete,
-already-foreseeable needs rather than speculative future-proofing: (1) `docs/design/api.md`'s open
-question — whether Version A and Version B end up sharing a client-facing interface — needs
-`ChatService`'s persistence and fan-out to be swappable without becoming entangled with HTTP or
-WebSocket specifics; (2) `ChatBroadcaster` is implemented by `ws-hub.mts`, which is written as a
-**generic** connection registry, not chat's own — `architecture.md`'s Presence/Follow API group
-will need the same "broadcast to connected clients" primitive later (NFR-MAI-001: independent
-module structure), and this way it doesn't have to be extracted out of chat code after the fact.
+This is the one deliberate abstraction in the module, and it is justified by a concrete,
+already-foreseeable need rather than speculative future-proofing: `ChatBroadcaster` is
+implemented by `ws-hub.mts`, which is written as a **generic** connection registry, not chat's
+own — `architecture.md`'s Presence/Follow API group will need the same "broadcast to connected
+clients" primitive later (NFR-MAI-001: independent module structure), and this way it doesn't
+have to be extracted out of chat code after the fact. It also keeps `ChatService` free of HTTP and
+WebSocket specifics.
 
 **Storage — JSON file, not in-memory or a database**: chosen so history survives a server restart
 (closer to FR-060-05's intent than in-memory). A database does exist in the deployment — MongoDB —
@@ -95,9 +87,7 @@ but it is Yorkie's internal store, and ADR-002 fixes the boundary that the app n
 So app-owned state stays as JSON files under `.data/`, and this module is the reference
 implementation of that pattern.
 
-**Message shape.** `sender` is the session's nickname, resolved by the route from the session
-cookie. A `sender` in the request body is ignored, and a request with no session is refused
-before anything is stored:
+**Message shape.**
 
 ```ts
 type ChatAttachment = { fileId: string; fileName: string; fileType: string; size: number };
@@ -110,23 +100,9 @@ type ChatMessage = {
 };
 ```
 
-This was a real hole rather than a tidy-up. `sender` came off the request body and the route
-checked no session at all, so anything on the LAN could post as any name without joining the
-workspace. The prediction this doc made — *"a `ChatService` caller-side change, not a schema
-change"* — held: `ChatService` and `ChatRepository` were untouched.
-
 `attachment` is optional rather than a second message type, because FR-060-04 has the message
 and its attachment info travelling together and UC-060 step 1 has the user typing text *or*
-attaching a file. Its four fields are **deliberately the same four as `FileBlock`** in
-`lib/blocks/types.ts`: a file attached to a message and a file embedded in a document are one
-thing seen from two places.
-
-The client sends only a `fileId`; the server looks the file up and builds the attachment from
-stored metadata. A client that could name its own `fileName` or `size` could describe someone
-else's upload however it liked.
-
-**`ws-hub.mts` caches its singleton on `globalThis`**, mirroring `lib/host-secret.ts`'s existing
-pattern, because the module is loaded by two module loaders in one process (see [ADR-003](../adr/003-stack-choices.md)) and would otherwise split connection state into two registries.
+attaching a file.
 
 ## The floating window
 
@@ -166,18 +142,19 @@ Two rules are worth stating because the obvious implementation gets them wrong:
 Two fields on `SendChatMessageInput` are resolved by the route from the session and **never taken
 from the request body**.
 
-`sender` comes from `currentMember()`. It is non-optional because there is no longer a path where
-it could be missing: the route answers 401 before reaching the service. A client that could name
-its own sender could post as anyone.
+`sender` comes from `currentMember()`, the session's nickname. A `sender` in the request body is
+ignored, and a request with no session is refused with 401 before anything is stored, so it is
+non-optional on the service. A client that could name its own sender could post as anyone.
 
-`attachment` is looked up in the file store by id. A client that could supply its own `fileName`,
-`fileType` and `size` could describe a file as something it is not — and the description, not the
-file, is what every other browser renders.
+`attachment` is built from the file store: the client sends only a `fileId`, and the server looks
+the file up and takes `fileName`, `fileType` and `size` from stored metadata. A client that could
+supply those could describe a file as something it is not — and the description, not the file, is
+what every other browser renders.
 
 The attachment is **copied onto the message** rather than resolved by `fileId` at render time, so
 history draws without a round trip per message. The copy cannot go stale because the SRS gives
-files no rename. Its four fields are deliberately the same as `FileBlock`'s: an attached file and
-an embedded one are one thing seen from two places.
+files no rename. Its four fields are deliberately the same as `FileBlock`'s in `lib/blocks/types.ts`: an
+attached file and an embedded one are one thing seen from two places.
 
 ## Two things the socket layer must do
 
@@ -191,18 +168,8 @@ whole process down. Next included, since this is one process.
 guess whether it was evicted or the network dropped, and those want different handling
 (`app/session-watch.tsx` shows the eviction; a dropped network should retry).
 
-## Isolation
-
-Existing files keep their current logic untouched. The only touch-points are mechanical
-boot/build config, not business logic: `next.config.ts` (drop `output: "standalone"`),
-`package.json` (`ws`/`@types/ws` deps, `dev`/`start` scripts point at `server/index.mts`),
-`Dockerfile` (runtime stage installs full prod `node_modules`, `CMD` runs `server/index.mts`).
-
 ## Open questions
 
-- Whether Version A and Version B can share a client-facing interface — `api.md`'s existing open
-  question; `ChatRepository`/`ChatBroadcaster` are written so `ChatService` itself wouldn't need to
-  change if that gets resolved, but the resolution isn't attempted here.
 - **URL and block/document-link attachments** (FR-060-03/06). The `attachment` field is shaped
   to take a sibling kind, but what a link attachment stores — and what happens to it when the
   block it points at is deleted — is that task's question.

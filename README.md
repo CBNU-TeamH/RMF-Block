@@ -120,7 +120,7 @@ Three traps worth knowing before you hit them, all found the hard way:
 Documents live in Yorkie, which persists them to MongoDB — see [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2.
 The app's own state is written as JSON under `.data/` (see [`docs/design/architecture.md`](docs/design/architecture.md)),
 so a nickname keeps its colour across a restart. Sessions are
-deliberately not written: restarting the container signs everyone out, which is the revoke path.
+deliberately not written (see [`docs/design/api.md`](docs/design/api.md)).
 
 It survives `down` and `up --build` on the `app-data` volume, the same way documents survive on
 `mongo-data`. Both are named volumes, so `docker compose down -v` still wipes them — that is the

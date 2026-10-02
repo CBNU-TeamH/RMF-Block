@@ -386,9 +386,7 @@ Not our API to design — listed so the boundary is visible and each call is tie
 | `PushPullChanges` | CRDT change sync | FR-022-02~04/09/12 |
 | `Watch` | Realtime change and presence stream | FR-022-06, FR-022-09 |
 | `Broadcast` | Realtime messaging outside document content | Candidate for chat version B (§5) |
-| Revision APIs (`createRevision`/`getRevision`/`listRevisions`/`restoreRevision`) | Yorkie-native version history — **the system's only history mechanism** since ADR-002. Snapshots come back as YSON | ADR-002; SOIR003, NFR-REL-002, NFR-SAF-003 |
-
-Exact method names and availability must be confirmed against the pinned SDK version before implementation.
+| Revision APIs | Yorkie-native version history; which calls are used is in [`version-history.md`](version-history.md) | ADR-002; SOIR003, NFR-REL-002, NFR-SAF-003 |
 
 ## 4. WebSocket — client ↔ rmf-block-server
 

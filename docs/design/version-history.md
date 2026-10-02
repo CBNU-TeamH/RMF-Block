@@ -180,9 +180,8 @@ has no dedicated author field, so this is the whole mechanism). The sidebar show
 named or before-restore entry — automatic ones carry Yorkie's own description instead, which names
 no one. "Who did this" is answered by reading the revision, not by narrowing who could have.
 
-The auth webhook registers all four revision methods (`CreateRevision`, `GetRevision`,
-`ListRevisions`, `RestoreRevision` — exact spellings, verified against `UpdateProject`, which
-rejects an unknown name outright). It checks only that the session is live, which is what keeps a
+The auth webhook guards all four revision methods (list in [`api.md`](api.md) §2, "RPC —
+rmf-block-server ↔ Yorkie"). It checks only that the session is live, which is what keeps a
 revoked session from reading or writing history — the same rule for all four methods, matching the
 decision above that none of them needs a narrower gate.
 

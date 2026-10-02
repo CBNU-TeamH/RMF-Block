@@ -42,7 +42,7 @@ that could succeed could be confirmed.
 **Detection signal**: a `catch` block that manually reverses several of the mutations the `try`
 block just made; a comment explaining why only some of them are undone.
 
-**Cited by**: [`#40`](https://github.com/CBNU-TeamH/RMF-Block/issues/40) (open). `join()` updates
+**Cited by**: [`#40`](https://github.com/CBNU-TeamH/RMF-Block/issues/40). `join()` updates
 five maps, then persists; on failure it hand-rolls back four of the five deletes, because the
 fifth can never fire — and the issue exists because *that* took a twelve-line comment to explain.
 Its own diagnosis: *"The rollback is a consequence of that shape, not something inherent to the
@@ -59,10 +59,10 @@ function so the mirror can't drift out from under it.
 **Detection signal**: the same value read from two different variables, refs, or stores in the
 same component or module; a bug report where "the UI shows X but the data is Y."
 
-**Cited by**: [`#59`](https://github.com/CBNU-TeamH/RMF-Block/issues/59) (closed, fixed) —
+**Cited by**: [`#59`](https://github.com/CBNU-TeamH/RMF-Block/issues/59) —
 `TextBlockView`'s DOM value and Yorkie's CRDT state disagreed after a parent-driven split or
 merge, because the textarea only refreshed on `remote-change` events, not on local mutations the
-parent made on its behalf. [`#52`](https://github.com/CBNU-TeamH/RMF-Block/issues/52) (open) is
+parent made on its behalf. [`#52`](https://github.com/CBNU-TeamH/RMF-Block/issues/52) is
 the same shape one level deeper: queued remote edits and the local composition buffer are two
 owners of "what the text currently is," and replaying one against offsets computed for the other
 is what corrupts `lastSyncedRef`.
@@ -106,10 +106,10 @@ what the relevant standard actually says, or testing the exact edge.
 **Detection signal**: a numeric literal with no comment pointing at a spec section; a limit
 that's "close enough" to a round number.
 
-**Cited by**: [`#57`](https://github.com/CBNU-TeamH/RMF-Block/issues/57) (open) — an upload
+**Cited by**: [`#57`](https://github.com/CBNU-TeamH/RMF-Block/issues/57) — an upload
 exactly at `MAX_UPLOAD_BYTES` is rejected, because the check compares `Content-Length` (the whole
 multipart body, boundary overhead included) against the limit meant for the file's own size.
-[`#56`](https://github.com/CBNU-TeamH/RMF-Block/issues/56) (open) — `encodeURIComponent` alone
+[`#56`](https://github.com/CBNU-TeamH/RMF-Block/issues/56) — `encodeURIComponent` alone
 leaves `'`, `(`, `)`, `*` unescaped, which RFC 8187's `attr-char` for `filename*=` explicitly
 excludes; the four characters were never checked against the actual grammar.
 
@@ -124,7 +124,7 @@ silently diverging.
 **Detection signal**: two components doing the same kind of state sync in two different ways,
 where a code-review pass would ask "why not the way the sibling component does this?"
 
-**Cited by**: [`#59`](https://github.com/CBNU-TeamH/RMF-Block/issues/59) (closed) — the fix's own
+**Cited by**: [`#59`](https://github.com/CBNU-TeamH/RMF-Block/issues/59) — the fix's own
 pattern already existed in the codebase, in the markdown-shortcut path, which clears its textarea
 and its `lastSyncedRef` by hand with a comment explaining why. Split and merge needed the same
 mirroring and didn't have it; the issue's shape section calls this out directly: *"The pattern for
