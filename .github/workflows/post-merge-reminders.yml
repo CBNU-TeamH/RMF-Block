@@ -91,6 +91,17 @@ jobs:
           : > "$RUNNER_TEMP/added.txt"
           node scripts/post-merge-reminders.mjs --added "$RUNNER_TEMP/added.txt" | tee "$RUNNER_TEMP/summary.json"
 
+      # Safety net for an audit PR that forgot `Closes #N`. Only the bot's own
+      # issues: one a person opened for a manual audit is theirs to close.
+      - name: Close a drift-audit issue that is no longer due
+        run: |
+          [ "$(jq -r '.audit.due' "$RUNNER_TEMP/summary.json")" = false ] || exit 0
+          for n in $(gh issue list --repo "${{ github.repository }}" --label drift-audit \
+              --author "app/github-actions" --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --repo "${{ github.repository }}" --reason completed \
+              --comment "Closing: the audit count has reset (a drift-audit task was archived), so this is no longer due."
+          done
+
       - name: Open or update the drift-audit issue
         run: |
           [ "$(jq -r '.audit.due' "$RUNNER_TEMP/summary.json")" = true ] || exit 0
