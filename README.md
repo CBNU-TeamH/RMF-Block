@@ -25,14 +25,14 @@ Read [`AGENTS.md`](AGENTS.md) first. It is the single entry point: workflow, cod
 | [`ROADMAP.md`](ROADMAP.md) | Overall plan and milestones. |
 | [`docs/`](docs/) | Deliverable docs: requirements ([`SRS-ko.md`](docs/SRS-ko.md), canonical; [`SRS-en.md`](docs/SRS-en.md), its English translation), module design, UI wireframes, architecture decisions (ADRs). |
 | [`tasks/`](tasks/) | Work in progress (`active/`) and finished work (`archive/YYYY/MM/`). See [`tasks/README.md`](tasks/README.md). |
-| [`scripts/`](scripts/) | The task index and archive helpers (`pnpm tasks:index`, `pnpm tasks:archive`), plus `detect-host-ip.sh`, which `pnpm docker:up` runs first to fill in `HOST_LAN_IP`. |
+| [`scripts/`](scripts/) | Verification, doc-check and task helpers — see the `package.json` scripts. `detect-host-ip.sh` is what `pnpm docker:up` runs first to fill in `HOST_LAN_IP`. |
 | [`app/`](app/) | Next.js App Router — pages, layouts, route handlers. |
 | [`lib/`](lib/) | Shared code that both the app and server-side processes import. |
 | [`server/`](server/) | The custom server entry point and the WebSocket hub. |
 | [`public/`](public/) | Static assets served as-is. |
 | [`instrumentation.ts`](instrumentation.ts) | Server startup hook — prints the host link and the guest join address. |
 | [`Dockerfile`](Dockerfile) · [`docker-compose.yml`](docker-compose.yml) | The image the host runs, plus the self-hosted Yorkie server and its MongoDB store. |
-| [`skills/`](skills/) | Skills for Claude Code. Empty for now — add them as we find workflows worth packaging. |
+| [`skills/`](skills/) | Pointer files for the review plugins and one optional skill — see [`skills/README.md`](skills/README.md). |
 
 Root config files (`next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, `postcss.config.mjs`) are the real, live settings — not templates.
 
@@ -96,7 +96,7 @@ pnpm install
 docker compose up -d yorkie   # Yorkie on :8080 — realtime sync needs it
 pnpm dev                      # http://localhost:3000, same two lines on stdout
 pnpm lint
-pnpm test                     # node:test, no framework
+pnpm test                     # Vitest
 pnpm build
 ```
 
@@ -118,9 +118,9 @@ Three traps worth knowing before you hit them, all found the hard way:
   gone.
 
 Documents live in Yorkie, which persists them to MongoDB — see [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2.
-The app's own state is written as JSON under `.data/` — chat history and the workspace's members,
-so a nickname keeps its colour across a restart. Workspace metadata is still to come. Sessions are
-deliberately not written: restarting the container signs everyone out, which is the revoke path.
+The app's own state is written as JSON under `.data/` (see [`docs/design/architecture.md`](docs/design/architecture.md)),
+so a nickname keeps its colour across a restart. Sessions are
+deliberately not written (see [`docs/design/api.md`](docs/design/api.md)).
 
 It survives `down` and `up --build` on the `app-data` volume, the same way documents survive on
 `mongo-data`. Both are named volumes, so `docker compose down -v` still wipes them — that is the

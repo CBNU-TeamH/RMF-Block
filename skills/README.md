@@ -57,19 +57,13 @@ not from any single command.
 should catch: a review that spends a findings slot on a lint-level nit is paying model tokens for
 something a script already knows, and costs the reader attention on top.
 
-So the order is: **`pnpm verify:fast` clean, `pnpm comments` / `pnpm verify:docs` showing nothing
-new → then `/simplify` → then `/code-review low`**.
+So the order is: **`pnpm verify:fast` clean, `pnpm comments` / `pnpm verify:docs` reporting nothing
+→ then `/simplify` → then `/code-review low`**. Both are clean on a healthy branch, so anything they
+report is new.
 
-"Nothing new" rather than "clean" for the second pair, because `verify:docs` exits non-zero on a
-dead link and **seven of those are a known baseline** — one illustrative import specifier quoted
-verbatim from real source in `docs/conventions.md`, and six past-tense mentions of since-removed
-files in `docs/HOST-GUEST-ENTRY-ko.md`. Both were examined and deliberately left (#71); the check
-is useful as a diff against that baseline, not as a gate that can ever read green.
-
-#65 widened that first step, and both halves of it shipped in #71: `pnpm comments` (the comment
-budget) and `pnpm verify:docs` (doc ownership, task-index freshness, dead links), plus a
-pre-commit hook that runs the staged-file part on every commit. The archive-pending list that
-#65 originally sketched for `verify:docs` is not among them — it was not built.
+The free checks are `pnpm comments` (the comment budget) and `pnpm verify:docs` (doc ownership,
+task-index freshness, dead links), plus a pre-commit hook that runs the staged-file part on every
+commit.
 
 This matters more than it sounds. Our PRs run to a median of 494 changed lines across 12
 files, with the larger ones (#51, #53, #60) between 2,000 and 2,800 lines — for a repository
@@ -128,7 +122,7 @@ rule list, which is Sonnet-shaped work.
 | Skill | Status |
 | --- | --- |
 | `webapp-testing` ([anthropics/skills](https://github.com/anthropics/skills)) | Playwright-based browser verification. The only thing that can reach #52 (needs a real browser and a Korean IME) and the gaps that leaf server-component tests leave open. Held back for cost — a third runner, browser binaries, and a Python runtime in a pnpm/Node repo — not for doubt. Tracked with its trigger in **#61**. |
-| `hookify` | Builds Claude Code hooks, which act on agent behaviour during a session — a different layer from the git hooks `.githooks/` will add at commit time. Tempting for enforcing things like "write the task doc first", but automating a rule before it has settled in writing is the wrong order. **Trigger**: `docs/conventions.md` in daily use. |
+| `hookify` | Builds Claude Code hooks, which act on agent behaviour during a session — a different layer from the git hooks `.githooks/` holds. Tempting for enforcing things like "write the task doc first", but automating a rule before it has settled in writing is the wrong order. **Trigger**: `docs/conventions.md` in daily use. |
 | `security-guidance` | **Trigger**: #19 (OPAQUE over plaintext HTTP) or #27 (join rate limiting) being picked up. Those issues carry the trigger themselves; no separate one is needed. |
 
 ---

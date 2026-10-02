@@ -1,6 +1,6 @@
 /** Runs once per server instance, before the first request. Where the host
  *  learns the bootstrap secret and the address guests type (FR-010-03, HIR001).
- *  How this refuses to run: `docs/design/architecture.md` §3. */
+ *  How this refuses to run: `docs/design/api.md` §2. */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
@@ -24,12 +24,12 @@ export async function register() {
 
   try {
     await registerAuthWebhook(rpcAddr, webhookUrl);
-    // Printed because Yorkie stores this URL without testing it (architecture.md).
+    // Printed because Yorkie stores this URL without testing it (`docs/design/api.md` §2).
     console.log(`  Auth:  Yorkie will ask ${webhookUrl}`);
   } catch (error) {
     // Fatal in production, and `process.exit` rather than `throw` — Next
     // swallows the throw and the process lives on without listening. Measured;
-    // see `docs/design/architecture.md` §3, "Startup".
+    // see `docs/design/api.md` §2.
     if (process.env.NODE_ENV === "production") {
       console.error(
         `\n  ✗ Could not register the Yorkie auth webhook at ${rpcAddr}.\n` +

@@ -1,6 +1,6 @@
 /** Shared contract between the join route and `session-registry.ts`
  *  (FR-020-02/04/08). Members persist, sessions must not — why:
- *  `docs/design/api.md` §revoke. */
+ *  `docs/design/api.md`, Authentication model. */
 
 /** Name of the httpOnly cookie carrying the guest's session id. */
 export const SESSION_COOKIE = "workspace_session";

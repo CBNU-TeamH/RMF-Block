@@ -15,8 +15,8 @@ elsewhere. Four decisions bound it:
 
 - **A read-only mirror.** UC-070 asks for reference, and a second editing surface would need
   its own IME handling, undo and occupancy. The window never writes to the document.
-- **One entry point**: a 22px 🪟 left of a block row's drag handle, shown the way the handle
-  is. It was first on the right edge; the user found it too small and too far away to hit.
+- **One entry point**: a 24px window-glyph button left of a block row's drag handle, shown the way the handle
+  is. It sits next to the handle, not on the right edge, so it is easy to hit.
 - **Restored after a reload**, from `localStorage` (`rmf-floating-views`). Which blocks one
   person pinned, and where, is worth nothing to anyone else, the same reasoning as the chat
   window's frame.
@@ -31,18 +31,18 @@ the document already open is the common case, so the editor and every window go 
 was ruled out. It would need its own token path (#50) and double every connection.
 
 A window attaches with `activeBlockId: null`. Occupancy already skips that, so a viewer is
-never drawn on anyone's block. Sharing changes three things in the editor, all measured with the
-Playwright check:
+never drawn on anyone's block. Sharing imposes three rules on the editor:
 
 - **Identity is set after `acquire`.** Initial presence only counts for whichever holder
   attaches first, and an effect re-run after the roster lands never re-attaches.
-- **`activeBlockId`, `marks` and `pointer` are cleared on release.** Detaching used to clear
-  them. With a floating view still holding the document, peers otherwise kept seeing this
-  browser on its last block until the 30 s occupancy TTL. Followers also saw a presenter's old
-  ink on returning to a document the presenter's own screen had already cleared.
-- **`docRef` is cleared in the cleanup itself, not once setup settles.** Every run now gets
-  the same document, so a late `docRef.current === held` check cleared the *next* run's ref.
-  Under Strict Mode that dropped every edit.
+- **`activeBlockId`, `marks` and `pointer` are cleared when the editor releases the document**
+  (`use-block-document.ts`), because a release no longer detaches. With a floating view still
+  holding it, peers would otherwise see this browser on its last block until the 30 s occupancy
+  TTL, and followers would see a presenter's old ink on returning to a document the presenter's
+  own screen had already cleared.
+- **`docRef` is cleared in the cleanup itself, not once setup settles.** Every run gets the same
+  document, so a late `docRef.current === held` check would clear the *next* run's ref, and under
+  Strict Mode that drops every edit.
 
 ## What the window shows
 
@@ -91,13 +91,18 @@ ratio locked, and the content scales with it.
 The pointer plumbing in `use-frame-gesture.ts` and the chrome in `floating-frame.tsx` (title
 bar, close button, resize handles) are shared with the chat window. The geometry is each
 window's own: the hook takes it as `rules`. The chat window keeps `lib/chat/window-frame.ts`
-and its three resize borders. A floating view uses the ratio-locked corner above and a red ✕.
-The chat window's ✕ stays grey, because only the floating one was hard to see. While a
-gesture runs,
+and `FloatingFrame` renders either its three resize borders (`resize="edges"`, the chat window)
+or one corner grip (`resize="corner"`, the ratio-locked corner above). A floating view's ✕ turns
+red on hover; the chat window's turns dark. While a gesture runs,
 every `<iframe>` on the page has `pointer-events: none`, because a PDF under the pointer would
 otherwise take the moves for itself and stall the drag. Pointer capture was tried first and does
 not hold across Chrome's PDF viewer (measured with Playwright).
 Windows sit at `z-[35]`: above the chat bar, below the chat window.
+
+The saved list is re-fitted to the current viewport on load and on every viewport resize
+(`fitFloating`), so a window saved on a larger screen is never left off-screen. There is one
+window per block: opening a block that already has one does nothing, and a saved entry that is
+malformed or a duplicate is dropped on load (`parseViews`).
 
 ## Not built
 

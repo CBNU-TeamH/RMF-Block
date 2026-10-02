@@ -45,8 +45,8 @@ MongoDB is Yorkie's internal store — the App/WS Server never connects to it, a
 │                     │webhook │                     │
 └──────────┬──────────┘        └──────────┬──────────┘
            │                              │
-           │ chat, workspace,             │ document state
-           │ auth records                 │ + revisions
+           │ chat, members,               │ document state
+           │ catalogue, files             │ + revisions
            ▼                              ▼
 ┌─────────────────────┐        ┌─────────────────────┐
 │    .data/*.json     │        │      MongoDB        │
@@ -60,14 +60,14 @@ MongoDB is Yorkie's internal store — the App/WS Server never connects to it, a
 
 The wire protocol is Yorkie's own client SDK — not ours to design. What we do own is the **shape of data placed inside it**:
 
-- **Document schema** (CRDT document content — persisted, shared): every block has a common envelope `{ id, type }`; `type` is one of the twelve block types in SRS §4.1 (텍스트, 제목, 목록, 체크리스트, 인용문, 코드, 구분선, 파일, 이미지, PDF, 문서 링크, 블록 링크). Each type owns its own `content` payload shape. Block order is the Yorkie Array position itself, not a stored field — the `order` originally sketched here was dropped for that reason. Field-level detail is settled in [`document-editing.md`](document-editing.md), which covers all twelve types.
-- **Presence schema** (ephemeral, per-connected-client — not persisted): `{ userId, displayName, colorTag, documentId, activeBlockId, viewport, role }`. Shipped so far is the identity subset, under different names: `{ id, nickname, colorTag }` (`lib/presence/types.ts`, reusing `WorkspaceMember` rather than minting a second identity). `documentId`, `activeBlockId`, `viewport` and `role` are design-only, pending the Document Editing and Presence/Follow modules. `activeBlockId` is the block-occupancy signal (SIR003 — display-only, never a lock, per FR-022-06). `role` distinguishes presenter/follower for focus-following (SIR004).
+- **Document schema** (CRDT document content — persisted, shared): every block has a common envelope `{ id, type }`; `type` is one of the twelve block types in SRS §4.1 (텍스트, 제목, 목록, 체크리스트, 인용문, 코드, 구분선, 파일, 이미지, PDF, 문서 링크, 블록 링크). Each type owns its own `content` payload shape. Block order is the Yorkie Array position itself, not a stored field — there is no `order` field. Field-level detail is settled in [`document-editing.md`](document-editing.md), which covers all twelve types.
+- **Presence schema** (ephemeral, per-connected-client — not persisted): the fields are in `lib/presence/types.ts` and `lib/presence/occupancy.ts`, explained in [`presence-and-focus.md`](presence-and-focus.md). `activeBlockId` is the block-occupancy signal (SIR003 — display-only, never a lock, per FR-022-06).
 
 ### (b) Client ↔ App/WS Server (API groups)
 
 Transport is REST + WebSocket. Grouped by concern; full request/response schemas are written when each group's module is built. Both WebSocket upgrade paths (chat and workspace) require a live session or the host secret to complete at all — an unauthenticated client gets a 401 before the handshake, never reaching the hub ([ADR-006](../adr/006-workspace-chat-socket-auth.md)).
 
-This used to cite SOIR001, which is misleading enough to be worth naming: SOIR001 requires realtime sync over "WebSocket 기반 실시간 통신", but document changes and presence never cross this boundary — they go straight from the browser to Yorkie over Connect / gRPC-Web on ordinary HTTP, with `WatchDocument` as a server-streaming response rather than a socket. REST and WebSocket are what *this* boundary carries; the socket's whole traffic today is `session:revoked` plus chat. `docs/SRS-ko.md` is a team-agreed document and changes only with the team's agreement (`AGENTS.md` §5); SOIR001's wording was corrected under that agreement — [issue #36](https://github.com/CBNU-TeamH/RMF-Block/issues/36).
+SOIR001 is easy to misread here: it requires realtime sync over "WebSocket 기반 실시간 통신", but document changes and presence never cross this boundary — they go straight from the browser to Yorkie over Connect / gRPC-Web on ordinary HTTP, with `WatchDocument` as a server-streaming response rather than a socket. REST and WebSocket are what *this* boundary carries; the socket carries `session:revoked`, chat and the document-tree events (§3(d)). `docs/SRS-ko.md` is a team-agreed document and changes only with the team's agreement (`AGENTS.md` §5); SOIR001's wording was corrected under that agreement — [issue #36](https://github.com/CBNU-TeamH/RMF-Block/issues/36).
 
 | Group | Carries | Traceability |
 | --- | --- | --- |
@@ -75,11 +75,10 @@ This used to cite SOIR001, which is misleading enough to be worth naming: SOIR00
 | Document Tree API | doc create/rename/move/delete, tree listing | SIR003 (tree part) |
 | File API | upload, download, workspace-wide embedded-file listing, preview metadata | SIR005, SIR008 |
 | Chat API | send message (text/URL/file/block-link), history, chat-file listing | SIR006, SIR010 |
-| Presence/Follow API | start/stop presenting, join/pause/resume follow, jump-to-user, presenter-tool highlights | SIR004, SIR009 |
 
 The connected-user list is **not** in the table above: it crosses boundary (a), Client ↔ Yorkie, with the browser attaching to a reserved `workspace` document directly. The App/WS Server's only part is handing each browser its own `{ id, nickname, colorTag }` as server-rendered props (`app/(workspace)/layout.tsx`), which passes them to the one provider that owns the browser's Yorkie connection.
 
-Presence/Follow is server-mediated business logic, not raw Yorkie Presence: SRS UC-030/UC-040 describe multi-step session state (start presenting → notify others → join → lock follower input → pause/resume) that needs the App/WS Server to track, beyond what a per-client Presence field expresses.
+Presence and focus-following are not an API group: presenting is a Yorkie presence field and following is client-local state, so they ride the client-to-Yorkie channel and the App/WS Server tracks no session state for them ([`presence-and-focus.md`](presence-and-focus.md)).
 
 > in this section b, Workspace API means join our service (rmf-block) not meaning yorkie client attaching.
 
@@ -87,62 +86,43 @@ Presence/Follow is server-mediated business logic, not raw Yorkie Presence: SRS 
 
 There is no internal persistence module. Document durability is Yorkie's, and crash/restart recovery (NFR-REL-002, NFR-SAF-003) needs no code on our side — Yorkie reloads its own state from MongoDB on start (ADR-002).
 
-What crosses this boundary for version history is authorisation only: the browser calls Yorkie's revision API (`createRevision`, `listRevisions`, `getRevision`) through its own `Client`, and Yorkie asks this server's auth webhook whether the session is live. `restoreRevision` is not used — the app restores by rewriting blocks ([`version-history.md`](version-history.md)). Snapshots come back as YSON.
+What crosses this boundary for version history is authorisation only: the browser calls Yorkie's revision API through its own `Client`, and Yorkie asks this server's auth webhook whether the session is live. Which calls are used and where revisions come from: [`version-history.md`](version-history.md).
 
-**Measured, not assumed** (against `@yorkie-js/sdk@0.7.13` and re-checked on `0.7.17`, on the Mongo-backed Yorkie in `docker-compose.yml`): a revision outlives the document it belongs to, but only by id. After `client.remove(doc)`, `getRevision(doc, revisionId)` still returns the full snapshot while `listRevisions` on a fresh `Document` under the same key returns empty. **Anything that deletes a document therefore has to keep the revision ids somewhere, or the history becomes unreachable rather than merely hidden** — a constraint for whoever builds FR-023's delete. UC-023's 비고 records the same, added under the team agreement `docs/SRS-ko.md` requires (`AGENTS.md` §5) — [issue #28](https://github.com/CBNU-TeamH/RMF-Block/issues/28).
+A revision outlives the document it belongs to, but only by id, so deleting a document has to keep its revision ids: [`version-history.md`](version-history.md#deleting-a-document).
 
-**Decided:** the App/WS Server does not keep a `Watch` subscription on documents — the only thing that required one was the deleted delayed-write trigger, and Mongo now provides durability directly.
-
-**Decided (UC-090):** revisions come from three sources — Yorkie's own auto-revision (`autoRevisionEnabled`, `snapshotInterval`/`snapshotThreshold` at 500, no app code), a user's named save, and the before-restore revision the app takes ahead of every restore, since there is no `restoreRevision` call to make one. Mechanism and measurements: [`version-history.md`](version-history.md).
+**Decided:** the App/WS Server does not keep a `Watch` subscription on documents — Mongo provides durability directly (ADR-002).
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 
-Chat history is read and written as whole JSON files on the host filesystem — `lib/chat/chat-repository.ts` is the reference implementation of the pattern, including serializing concurrent writes through one promise chain. Three more stores follow the same pattern synchronously rather than through a promise chain — `lib/auth/member-repository.ts`, `lib/documents/documents.ts` and `lib/files/file-repository.ts`. **A read-modify-write with no `await` in it cannot be interleaved by a second call on Node's single thread, so there is nothing for a queue to serialize.** The queue in `chat-repository.ts` earns its place only because its appends are `async`: an `await` mid-sequence is a point where a second call can land between the read and the write, and the second write would drop the first. Choosing sync is therefore choosing to *not need* the queue, and any of these three growing an `await` inside its read-modify-write needs the promise chain back. The document catalogue in `lib/documents/documents.ts` is separate from Yorkie for a reason the code cannot show: **Yorkie cannot list documents.** `attach` takes a key the caller already holds, and a Yorkie document never learns its own name, owner or created time — so a workspace that could only ask Yorkie would have no way to render a tree. The catalogue holds that metadata and Yorkie holds the content; a document's `id` is the join between them, which is why it doubles as the Yorkie key and why renaming (UC-023) changes only the catalogue. Writes go through a temp file and a `rename`, because `writeFileSync` truncates before it writes and a crash mid-write would otherwise leave a half-written store; `rename` within one filesystem is atomic, so a concurrent reader sees the whole old file or the whole new one. Sessions stay in memory on purpose: a session id on disk would be a permanent bearer token. Workspace metadata is still to come.
+App-owned state is whole JSON files on the host filesystem under `.data/` — chat history, members, the document catalogue and file metadata; sessions stay in memory on purpose (a session id on disk would be a permanent bearer token), and workspace metadata is still to come. The repository pattern (sync vs. queued writes, atomic rename) is in [`chat.md`](chat.md), "Storage"; why the document catalogue exists beside Yorkie is in [`document-editing.md`](document-editing.md#why-a-catalogue-beside-yorkie).
 
 The catalogue is a **tree**, not a list: a document carries a `parentId`, `null` at the root (UC-021 E1a). A catalogue written before sub-documents existed has no such field, and a missing one reads as `null` — that is the whole migration, no rewrite and no version marker. Name uniqueness is per-parent, which is what FR-021-03's "동일 위치 내" asks for.
 
-**Tree edits reach other clients over the WebSocket hub, not through Yorkie.** Every catalogue write broadcasts `document:created`, `document:changed` or `document:deleted`, and open clients apply it — FR-021-06 and FR-023-07 ask for realtime reflection, not for a CRDT. A tree edit is one short server-authoritative operation, so last-write-wins on one JSON file is the honest fit, and `ws-hub.mts` was written to be reused for exactly this (NFR-MAI-001); `chat:message` was its first caller. A delete broadcasts **every** id it removed, because FR-023-06 takes the subtree and a client told only about the parent would keep drawing its children.
+**Tree edits reach other clients over the WebSocket hub, not through Yorkie.** Every catalogue write broadcasts `document:created`, `document:changed` or `document:deleted` (events listed in [ADR-005](../adr/005-custom-server-rest-ws.md); hub design in [`chat.md`](chat.md)), and open clients apply it — a tree edit is one short server-authoritative operation, so last-write-wins on one JSON file fits, not a CRDT. A delete broadcasts **every** id it removed, because FR-023-06 takes the subtree and a client told only about the parent would keep drawing its children.
 
 This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`. Both are now named volumes — `mongo-data` for Yorkie's store, `app-data` for `.data/` — so a container recreation leaves either intact and only `docker compose down -v` clears them (#22).
 
 ### Startup: how the app refuses to run
 
-`instrumentation.ts` registers Yorkie's auth webhook before the first request is served. **In
-production a failure there is fatal**, because an unguarded Yorkie is reachable by anything on the
-LAN and a workspace that ran anyway would be one nobody knows is open.
-
-It exits with `process.exit`, not `throw`. Throwing was the first attempt and does not work: Next
-installs its own `unhandledRejection` listener, so a throw from here is logged and swallowed,
-`app.prepare()` never rejects, and the process lives on without ever listening — measured at
-forty-five seconds of sitting there. In a container that is the worst outcome available, because
-Docker sees a running service, `restart` never fires, and compose reports no failure while the
-workspace looks up and serves nothing.
-
-In development it is not fatal — Yorkie is often simply not running and most work does not need
-it — but it is printed loudly, because this is the one state where the app looks fine and is
-protecting nothing.
-
-The successful registration is printed too. Yorkie stores the webhook URL without ever testing it,
-so an address it cannot reach registers exactly like one it can and surfaces only later as clients
-failing with `verify access: send webhook` — which reads like a Yorkie fault rather than a wrong
-address.
+`instrumentation.ts` registers Yorkie's auth webhook before the first request is served, and in
+production a failure there is fatal. Why it exits rather than throws, and the dev behaviour:
+[`api.md`](api.md#2-rpc--rmf-block-server--yorkie).
 
 ## 4. Decided vs. deferred
 
 | Decided here / already fixed | Deferred to module design |
 | --- | --- |
-| Block occupancy ≠ edit lock (SIR003, FR-022-06) | Presenter/follower session state model |
+| Block occupancy ≠ edit lock (SIR003, FR-022-06) | |
 | Yorkie owns realtime sync **and** document persistence/history (ADR-002) | Load-test baseline *numbers* (SRS §2.4) — how to measure them is settled in [`PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) |
-| Revisions come from Yorkie's auto-revision, a user's named save, and the app's before-restore save (UC-090, [`version-history.md`](version-history.md)) | |
 | The server keeps **no** Yorkie `Watch` subscription (ADR-002) | |
 | MongoDB is Yorkie's store alone; the app never connects to it (ADR-002) | |
-| App state lives in `.data/` JSON, not in Yorkie or Mongo — chat today, workspace and auth to follow | |
+| App state lives in `.data/` JSON, not in Yorkie or Mongo — chat, members, the document catalogue and files; workspace metadata still to come | |
 | Component boundaries and API groups (this doc) | |
-| Presence carries occupancy + role; session state (present/follow) is server-owned | |
+| Presence and focus ride the client-to-Yorkie channel; no server-side present/follow state ([`presence-and-focus.md`](presence-and-focus.md)) | |
 | App/WS Server runs as one process — a Next.js custom server handling REST + WebSocket together, not split across services | |
 | Reconnect grace period = 30s (UC-022 비고) | |
 | Block schema field-level detail per type (`document-editing.md`, all 12 types agreed) | |
-| Auth/session token format: access 30min / refresh 7d, document key = plain id (no prefix), revoke-all = container restart (`api.md`) — holds only while the session secret stays in memory; persisting it alongside `.data/` auth records would break it | |
+| Document key = plain id (no prefix); revoke-all = container restart — see the auth model in [`api.md`](api.md#authentication-model) | |
 | FR-022 numbering gap (05/07/08/10/11) confirmed intentional | |
 
 ## 5. Relation to task workflow

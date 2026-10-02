@@ -28,15 +28,7 @@ export function FocusShare({ memberId }: { memberId: string }) {
   const { followingId, follow, unfollow } = useFocusFollow();
   const pathname = usePathname();
 
-  // Sorted, so every client names the same presenter. Nothing stops two
-  // members from presenting at once — `presenting` is a per-member flag and
-  // this roster is a flat list — and `members.find(...)`, the shape this
-  // replaces, resolved that by taking whichever one Yorkie's roster iteration
-  // happened to yield first. That is not the same answer on two machines, so
-  // two followers could be offered two different people, and neither could
-  // tell there was a choice. One presenter is what the UI actually allows
-  // (below), so the fix is to make the pick agree everywhere rather than to
-  // surface a list nobody can reach: issue #100.
+  // Sorted, so every client names the same presenter; two presenters are representable, issue #100.
   const presenters = members
     .filter((m) => m.id !== memberId && m.presenting != null)
     .sort((a, b) => a.id.localeCompare(b.id));

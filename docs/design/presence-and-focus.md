@@ -59,8 +59,6 @@ this browser's own — Yorkie routes a client's own presence changes through a s
 buttons in `FocusShare`) publishes correctly for everyone else and never updates the local
 `members`, leaving the presenter's own header stuck showing the share as never having started.
 
-Found by testing the presenter's own button, not by reading the SDK first.
-
 Both subscriptions are opened **before** the first read, so an arrival between the two is not
 missed.
 
@@ -72,8 +70,8 @@ Measured against a real server, a member with two tabs open appears twice in `ge
 `lib/presence/roster.ts` folding them by `id` is what the roster is *for*, not a precaution.
 
 It drops any presence without an `id` rather than rendering it. `undefined` as a `Map` key would
-collapse every such entry into one blank row, and this is not hypothetical: Yorkie runs with no
-auth webhook today (`api.md` §2), so a client can attach with a presence shape of its own.
+collapse every such entry into one blank row. Attaching needs a valid session token (`api.md` §2),
+so this is a cheap guard, not hardening against a hostile client.
 
 The function is kept out of the component so it can be tested without a browser or a running
 Yorkie, and takes the shape `doc.getPresences()` returns so the caller can hand its result
@@ -267,24 +265,15 @@ still reachable for the moment presence takes to settle — two members clicking
 round-trip. Falling through to 공유하기 there would invite a third.
 
 **Which presenter, when there is more than one, is decided by sorting rather than by luck.**
-`members.find(...)` — the original shape — resolved it to whichever member Yorkie's roster
-iteration happened to yield first, which is not the same answer on two machines: two followers
-could be offered two different people, with no way for either to tell there was a choice. Sorting
-by id costs nothing and makes every client name the same person. A dropdown of all of them was
-built for this first, and removed: with 공유하기 replaced rather than kept, no sequence a user can
-perform reaches a second presenter, so it was a control for a state the UI cannot produce.
+Yorkie's roster iteration order differs between machines, so two followers could be offered two
+different people. Sorting by id makes every client name the same person; two presenters stay
+representable (#100).
 `docs/ui/app-shell/app-shell.jsx` still sketches a fuller "다중 발표자" card grid, which is where
 this goes if #100 decides in its favour.
 
 The 공유하기 button is hidden outside a document — `FR-030-01`'s context ("발표자가 바라보고 있는
 문서로 시점을 고정시킨다") has no view to anchor a share to on the dashboard or anywhere else in
 the shell that isn't a document, so there is nothing valid for it to do there.
-
-It used to stay visible-but-disabled instead, on the theory that hiding it would make the control
-pop in and out of the header on every navigation. That theory doesn't hold given what the shell
-actually has today: the workspace only has one other route shape (the dashboard) to pop in and
-out against, not the many the theory pictured — the other sidebar items (Members, Storage,
-Settings) are still unbuilt. Revisited directly rather than kept on a guess.
 
 Starting a share reads the current anchor straight off the live DOM at the moment of the click,
 rather than threading it down through context continuously — the anchor is only needed once, at
@@ -346,8 +335,7 @@ while a stroke is actively being drawn — is its own section, next.
 
 ### A mark is a path, not a rectangle — and what that costs
 
-A drag's two endpoints once made a rectangular band per block crossed. A presenter now draws
-freehand, so a mark is an ordered path:
+A mark is an ordered path:
 
 ```ts
 type MarkPoint = Omit<InkPoint, "blockId">;
@@ -376,16 +364,16 @@ Three caps follow, each with a stated basis rather than a round number:
   the last accepted one, in raw pixels (not ratio — a ratio lives in one block's own scale and
   isn't a physical distance comparable across blocks). The figure follows the precedent issue #95
   already cites, Yorkie's own cursors example, which thins at the same 2px.
-- **`MAX_POINTS_PER_MARK = 300`** — `MARK_CAP` bounds how many marks a member may hold, but never
-  looked inside one, and a mark is no longer the fixed ~110-byte shape it was sized against. 300
-  points measures to 8,495B segmented — at least 600px of accepted travel at the 2px floor, already
-  several paragraph-widths past what an underline or highlight gesture needs. Past the cap,
-  extending a mark is a no-op: the stroke freezes rather than losing its start, which would be more
-  code and would move where the stroke appears to begin. Worst case, every one of `MARK_CAP`'s 16
-  marks at this cap: 16 × 8,495B ≈ 133KB, up from ~1.8KB when a mark was a fixed rectangle — not
-  shrunk further, because reaching it needs 16 uncleared 300-point strokes left standing at once,
-  far outside real annotation use, and it costs bandwidth only for as long as that state persists,
-  not a recurring per-second charge on top of what's below.
+- **`MAX_POINTS_PER_MARK = 600`** — `MARK_CAP` bounds how many marks a member may hold, but never
+  looked inside one, and a mark is no longer the fixed ~110-byte shape it was sized against. 600
+  points is ~1,200px of accepted travel at the 2px floor, enough for one horizontal pass across a
+  laptop-width pane. Past the cap, extending a mark is a no-op: the stroke freezes rather than
+  losing its start, which would be more code and would move where the stroke appears to begin.
+  Worst case, every one of `MARK_CAP`'s 8 marks at this cap: ≈ 127KB (`ink.ts` records the
+  measurement), up from ~1.8KB when a mark was a fixed rectangle — not shrunk further, because
+  reaching it needs 8 uncleared 600-point strokes left standing at once, far outside real
+  annotation use, and it costs bandwidth only for as long as that state persists, not a recurring
+  per-second charge on top of what's below.
 - **`MAX_SEGMENTS_PER_MARK = 30`** — `MAX_POINTS_PER_MARK` bounds total points but not how they're
   distributed across segments, and a stroke that keeps crossing back over a block boundary starts a
   fresh one-point segment each time, paying the full 36-byte `blockId` tax on every point — the
@@ -403,10 +391,8 @@ publish mid-drag. `PUBLISH_MS` — the scroll anchor's own trailing-edge throttl
 exported from `use-focus-presence.ts` and reused here rather than defined a second time at the
 same value: one throttle idiom, one source of truth for its cadence.
 
-The old code published on every change to the presenter's own `mine` state, in a plain effect —
-correct when a mark only ever changed once, on release, and wrong the moment a mark can change
-many times a second while a stroke is drawn. It is replaced by explicit calls at the four moments
-that actually need different rules:
+Publishing is explicit calls at the four moments that need different rules, not an effect on the
+presenter's own `mine` state, which would fire on every change while a stroke is drawn:
 
 - **starting a stroke** publishes immediately — once up front, not only on the next move, the same
   rule the scroll anchor's own presenter effect already follows.
@@ -467,7 +453,8 @@ Last child of the scroll container, for two reasons that are easy to lose. **Pai
 without claiming the `z-30` the editor's modals use. **Effect order**: sibling effects run in DOM
 order, so measuring last means measuring after every textarea in that commit has auto-grown.
 
-Its height is the bottom of the last measured box. `inset-0` would give the visible box and clip
+Its height is the bottom of the last measured box, but never less than the scroll container's
+visible height. `inset-0` would give the visible box and clip
 every mark past the first screen; `scrollHeight` over-reports, because the 파일 추가 footer and its
 `flex-1` sit below the last block.
 
@@ -516,17 +503,16 @@ which is the one thing that would have made a fading trail expensive to publish.
 
 The trail a follower sees is built entirely on their own side: each arriving point is stamped with
 `Date.now()` *at arrival* and appended to a local buffer, aged out past `TRAIL_MS` (1,500ms —
-shorter than #95's original "~2-3s"; seen live in the container, that range read as lingering).
+longer than that read as lingering in the container).
 No clock sync between machines is needed, because nothing timestamped
 by the sender is ever transmitted — a receiver's trail is simply "what I have received in the last
 `TRAIL_MS`," which is also self-healing across a stall: a receiver that hears nothing for a few
 seconds just has an empty trail, no reconciliation required.
 
 Aging happens on arrival *and* on an animation frame — a trail also has to fade when the presenter
-has simply stopped moving, which a purely arrival-triggered prune would never catch. This was a
-`PUBLISH_MS` interval first, matching that constant's own "no easing, no adaptive cadence"
-precedent, and that was the wrong thing to match: `PUBLISH_MS` paces *what goes on the wire*, where
-ten times a second is plenty, and the fade is something an eye watches directly, where ten steps a
+has simply stopped moving, which a purely arrival-triggered prune would never catch. It is a frame
+loop rather than a `PUBLISH_MS` interval: `PUBLISH_MS` paces *what goes on the wire*, where ten
+times a second is plenty, and the fade is something an eye watches directly, where ten steps a
 second is visibly a stutter. The frame loop runs only while there is a trail on screen — that is,
 only while a presenter is actively pointing — and stops on the frame after the last point ages out.
 `pruneTrail` returns the same array reference when nothing ages out, so a frame that drops no point
@@ -553,19 +539,15 @@ Rendering ages, so it needs a wall-clock value — and a component's render has 
 rules out calling `Date.now()` inside one. `now` is state in the parent, updated on the frame loop
 above, passed down as a prop rather than read fresh inside the leaf that uses it.
 
-**The trail is a curve, not a row of dots.** One circle per received point was the first shape, on
-the reasoning that "15 points over 1.5 seconds already renders as continuous" — so the only thing
-worth smoothing was the head, eased toward its new position with a CSS `transform` transition. Seen
-live that reasoning did not survive: 15 points over 1.5 seconds is a point every 100ms, and the
-distance a hand covers in 100ms is a visible gap between one dot and the next. The gaps were the
-stutter, and easing the head smoothed the one part of the trail that was already fine.
+**The trail is a curve, not a row of dots.** 15 points over 1.5 seconds is a point every 100ms, and
+the distance a hand covers in 100ms is a visible gap between one dot and the next, so one circle
+per point reads as stutter.
 
-`trailStrokes` (`lib/focus/ink.ts`) now decodes the trail into one quadratic per point, joined at
+`trailStrokes` (`lib/focus/ink.ts`) decodes the trail into one quadratic per point, joined at
 the midpoints of its neighbours — continuous in position and tangent, so it reads as the shape the
 hand drew rather than the polygon the network sampled. Width and opacity come from each piece's own
 age, so the trail tapers and fades along its length instead of flickering as a unit. The head keeps
-its CSS eased transition, which is still doing real work between 10Hz ticks; it is no longer the
-only thing being smoothed. The geometry is recomputed per frame rather than memoised, because
+its CSS eased transition, which does real work between 10Hz ticks. The geometry is recomputed per frame rather than memoised, because
 `width` and `opacity` *are* the fade and both derive from `now` — at ~15 points that is a handful of
 midpoints, cheaper than keeping two derived shapes in step.
 
@@ -574,7 +556,7 @@ extra one under it would be redundant, not merely unnecessary.
 
 ### The pointer's cost was checked against marks becoming paths, not assumed
 
-`MAX_POINTS_PER_MARK`'s own comment already prices a member's marks at up to ~125KB in the
+`MAX_POINTS_PER_MARK`'s own comment already prices a member's marks at up to ~127KB in the
 worst case, and that number didn't exist when #95 first reasoned "publish only the current point
 keeps the pointer's own payload O(1)" — marks were still a fixed ~110-byte rectangle then. Since
 presence has no delta, the pointer's own small payload rides alongside whatever `marks` currently
@@ -586,9 +568,8 @@ Measured, not assumed:
 |---|---:|---:|
 | pointer field alone | 88 B | ~0.9 KB/s |
 | realistic marks (3 typical strokes) + pointer | ~1.9 KB | ~19 KB/s |
-| worst-case marks (16 maxed 300-point strokes) + pointer | ~125 KB | ~1.25 MB/s |
+| worst-case marks (8 maxed 600-point strokes) + pointer | ~127 KB | ~1.27 MB/s |
 
 The realistic case is trivial on a LAN. The worst case is unchanged in kind from what was already
-accepted — it needs 16 uncleared maximum-length strokes standing at once, and the pointer adds 88
-bytes to that ceiling, not a materially new one. No caps changed here; this confirms the existing
-ones still hold rather than deciding anything new.
+accepted — it needs 8 uncleared maximum-length strokes standing at once, and the pointer adds 88
+bytes to that ceiling, not a materially new one.

@@ -1,6 +1,6 @@
 # Version History
 
-- **Status**: In progress (WBS 6.5). The mechanism below is measured, not assumed — see
+- **Status**: Built ([#117](https://github.com/CBNU-TeamH/RMF-Block/pull/117)). The mechanism below is measured, not assumed — see
   [Verification](#verification). Requirements: UC-090 and FR-090-01..13 in `docs/SRS-ko.md`,
   added with team agreement (`AGENTS.md` §5), closing the gap
   [issue #23](https://github.com/CBNU-TeamH/RMF-Block/issues/23) recorded.
@@ -37,15 +37,12 @@ safety revision.
 
 ## Why the app restores instead of calling `restoreRevision`
 
-`restoreRevision` has the server re-parse the snapshot and rebuild the document. That re-parse had
-two defects, both measured against `yorkieteam/yorkie:0.7.13` and reproduced identically on
-`0.7.17`. Only one survived the pin moving to `0.7.23`
-(`tasks/archive/2026/09/20260922-yorkie-0723-lessons.md`): the paren corruption below was fixed upstream in
-v0.7.19 ([yorkie-team/yorkie#1967](https://github.com/yorkie-team/yorkie/pull/1967)), but the
-`type`-key discriminator crash is unchanged. That alone still rules `restoreRevision` out for this
-schema — and the re-measurement found a second reason to keep the app-side restore that didn't
-exist before: `doc.history.undo()` after a `restoreRevision` now throws outright on 0.7.23, where
-0.7.13 merely left a stale reverse operation on the stack.
+`restoreRevision` has the server re-parse the snapshot and rebuild the document. On the pinned
+Yorkie (0.7.23) that re-parse is unusable for this schema, for two reasons: the `type`-key
+discriminator below crashes it, and `doc.history.undo()` after a `restoreRevision` throws
+outright. The version-by-version measurements are in
+`tasks/archive/2026/09/20260922-yorkie-0723-lessons.md` and
+`tasks/archive/2026/09/20260922-version-history-lessons.md`.
 
 **A `type` key inside an array element is read as a CRDT element discriminator.** Our stored block
 is `{ id, type, content }` and the blocks live in an array, so every document in this project hits
@@ -66,15 +63,7 @@ and starts trying to parse the object *as* a Text. `type` is the only key that d
 `documentId`, `blockId`, `val`, `nodes`, `attrs`, `children`, `value`, `Text`, `Tree` and `Counter`
 all restore cleanly.
 
-**A `)` inside any string became `}`, on 0.7.13/0.7.17.** The snapshot itself was correct; the
-corruption happened on the way back in, because the scan looking for the paren that closes `Text(`
-did not know when it was inside a string literal. `보고서 (최종).pdf` restored as `보고서 (최종}.pdf`,
-and this one was worse than the first because it threw nothing. Fixed upstream as of v0.7.19, and
-confirmed gone on the current `0.7.23` pin — but moot for this project either way, since the
-`type`-key crash above still stops `restoreRevision` before it would reach this code path on our
-schema.
-
-Renaming the stored discriminator to `kind` fixes the first defect and not the second. So the app
+Renaming the stored discriminator to `kind` would avoid the crash but not the undo failure. So the app
 does the restore itself: `getRevision` returns a correct snapshot, `revision-snapshot.ts` reads it,
 and the blocks are written back with two `doc.update()` calls — the array first with empty
 `yorkie.Text` values (`toStoredBlock` already does exactly this), then each text filled, because a
@@ -98,6 +87,11 @@ would show the old text, and the next keystroke would diff against it and write 
 the restored text does not have. `replaceBlocks` bumps `restoreCount`, which is part of every row's
 key — the same move `page.tsx` makes with `key={document.id}` when a different document replaces the
 current one, since a restore replaces the content just as wholesale.
+
+Restore runs in a fixed order: `getRevision` and parse the target, `client.sync()`,
+`createRevision` (before-restore), then `replaceBlocks`. The fetch comes first and is not
+overlapped with the rest, because no revision can be deleted: a before-restore revision left by a
+restore that then failed to fetch or parse would be permanent litter.
 
 What the app gives up is atomicity: two people restoring at once merge as CRDT edits rather than
 one server-side replace. For an eight-person LAN workspace that is acceptable, and the
@@ -151,23 +145,24 @@ The pile does grow — one full snapshot per 500 changes, in Yorkie's MongoDB ra
 that do exist are the project's `snapshotInterval`/`snapshotThreshold`, and filtering automatic
 revisions out of the default view.
 
+## Deleting a document
+
+**Measured, not assumed** (against `@yorkie-js/sdk@0.7.13`, not re-measured on the current `0.7.23` pin, on the Mongo-backed Yorkie in `docker-compose.yml`): a revision outlives the document it belongs to, but only by id. After `client.remove(doc)`, `getRevision(doc, revisionId)` still returns the full snapshot while `listRevisions` on a fresh `Document` under the same key returns empty. **Anything that deletes a document therefore has to keep the revision ids somewhere, or the history becomes unreachable rather than merely hidden** — a constraint for whoever builds FR-023's delete. UC-023's 비고 records the same, added under the team agreement `docs/SRS-ko.md` requires (`AGENTS.md` §5) — [issue #28](https://github.com/CBNU-TeamH/RMF-Block/issues/28).
+
 ## Who may restore
 
-Everyone. This was reconsidered once and the reconsideration is worth keeping: gating restore
-behind the host looked like a reasonable coordination guard, but two things it rested on don't
-survive scrutiny.
+Everyone, for two reasons.
 
 First, a guest can already replace every block by hand (`FR-022-06`, `SIR003` — occupancy does not
-block editing), so restoring grants no capability a guest lacks. The only thing host-only bought was
-concentrating a single, instantaneous, easy-to-misclick action behind one person rather than eight.
+block editing), so restoring grants no capability a guest lacks. Gating it behind the host would
+only concentrate a single, instantaneous, easy-to-misclick action behind one person rather than
+eight.
 
-Second, and this is what actually changes the answer: **the safety net this feature already builds
-makes a wrong restore self-healing, more precisely than a wrong manual edit is.** `restore()` always
-takes a `before-restore:<targetId>` revision first, so undoing a bad restore is exactly one more
-restore away, to a revision that exists for exactly this purpose. A manual editing mistake has no
-equivalent precision — recovering from it means hunting through whichever automatic snapshot happens
-to predate it. Restricting who may press a button whose own worst case is this cleanly reversible
-was solving a problem the feature had already solved a different way.
+Second, **the safety net this feature builds makes a wrong restore self-healing, more precisely
+than a wrong manual edit is.** `restore()` always takes a `before-restore:<targetId>` revision
+first, so undoing a bad restore is exactly one more restore away, to a revision that exists for
+exactly this purpose. A manual editing mistake has no equivalent precision — recovering from it
+means hunting through whichever automatic snapshot happens to predate it.
 
 What replaces the restriction is attribution, not access control: `createNamed` and `restore` both
 pass the acting browser's nickname as the revision's `description` (`RevisionSummary.description`
@@ -175,22 +170,17 @@ has no dedicated author field, so this is the whole mechanism). The sidebar show
 named or before-restore entry — automatic ones carry Yorkie's own description instead, which names
 no one. "Who did this" is answered by reading the revision, not by narrowing who could have.
 
-The auth webhook registers all four revision methods (`CreateRevision`, `GetRevision`,
-`ListRevisions`, `RestoreRevision` — exact spellings, verified against `UpdateProject`, which
-rejects an unknown name outright). It checks only that the session is live, which is what keeps a
+The auth webhook guards all four revision methods (list in [`api.md`](api.md) §2, "RPC —
+rmf-block-server ↔ Yorkie"). It checks only that the session is live, which is what keeps a
 revoked session from reading or writing history — the same rule for all four methods, matching the
 decision above that none of them needs a narrower gate.
 
 ## Verification
 
-Measured 2026-09-22 against `docker-compose.yml`'s stack (Yorkie 0.7.13 + MongoDB 8) with
-throwaway projects and probe scripts; the default project was read and never written. The
-isolating cases for both `restoreRevision` defects, the paging contract, and the automatic-revision
-label are recorded in `tasks/archive/2026/09/20260922-version-history-lessons.md`. Both defects were
-re-measured on the `0.7.23` pin during the yorkie-0.7.23 task, along with `doc.history.undo()`'s
-behaviour after a restore; see `tasks/archive/2026/09/20260922-yorkie-0723-lessons.md`.
+The isolating cases for the `restoreRevision` defects, the paging contract and the
+automatic-revision label are in `tasks/archive/2026/09/20260922-version-history-lessons.md`.
 
-`lib/blocks/revision-snapshot.test.mts` asserts the reader against a snapshot captured from that
+`lib/blocks/revision-snapshot.test.mts` asserts the reader against a snapshot captured from a
 running server rather than a hand-written one, because the characters the reader exists for — a
 paren, an unbalanced bracket, an escaped quote — are the ones a hand-written sample would leave
 out.
