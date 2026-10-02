@@ -120,5 +120,5 @@ jobs:
           else
             gh issue create --repo "${{ github.repository }}" --label drift-audit \
               --title "Drift audit due: $note" \
-              --body "Run the drift audit described in #129, then archive a \`YYYYMMDD-drift-audit\` task to reset this count. Opened automatically once 3 or more tasks have been archived since the last audit (or since 2026-10-01 if there has been none)."
+              --body "Run the drift audit with \`.claude/skills/doc-drift-audit/SKILL.md\` (any agent can follow it); its PR archives a \`YYYYMMDD-drift-audit\` task, which resets this count. Opened automatically once 3 or more tasks have been archived since the last audit (or since 2026-10-01 if there has been none)."
           fi
