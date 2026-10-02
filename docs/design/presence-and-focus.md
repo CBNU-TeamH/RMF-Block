@@ -3,7 +3,8 @@
 - **Status**: Built. UC-030's thin slice (share → follow → end) is live; the rest of `lib/focus`
   and `lib/presence` supports it and the connected-user list.
 - **Owns**: `lib/presence/`, `lib/focus/`, `app/(workspace)/presence-provider.tsx`,
-  `app/(workspace)/presence-stack.tsx`, `app/(workspace)/focus-follow-provider.tsx`,
+  `app/(workspace)/presence-stack.tsx`, `app/(workspace)/presence-avatar.tsx`,
+  `app/(workspace)/focus-follow-provider.tsx`,
   `app/(workspace)/focus-share.tsx`, `app/(workspace)/documents/[id]/use-focus-presence.ts`,
   `app/(workspace)/documents/[id]/ink-overlay.tsx`.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(b) (presence over the client

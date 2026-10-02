@@ -4,7 +4,7 @@
 - **Owns**: `lib/auth/`, `lib/workspace-config.ts`, `lib/yorkie-admin.ts`,
   `app/api/auth/host/route.ts`, `app/api/auth/yorkie-token/route.ts`,
   `app/api/internal/yorkie/auth/route.ts`, `app/api/workspace/join/route.ts`,
-  `app/session-watch.tsx` — the "Authentication model" section below is where their shape
+  `app/session-watch.tsx`, `app/join/page.tsx`, `app/join/join-form.tsx` — the "Authentication model" section below is where their shape
   (bootstrap secret, session tokens, restart-is-the-revoke-path, the webhook that makes Yorkie
   ask at all) is explained; nothing else in `docs/design/` covers them. The route handlers are
   the endpoints §1 already tabulates, so this doc owning them keeps the contract and its

@@ -1,7 +1,9 @@
 # Document Editing — Block Schema
 
 - **Status**: Agreed. All 12 block types finalized. The pre-implementation SDK convergence check it was waiting on has been run — see [Verification](#verification-2026-08-27). The [editing surface](#editing-surface) (textarea vs. rich text, IME handling) was decided 2026-08-30, ahead of `tasks/archive/2026/08/20260829-block-editor-todo.md`'s implementation milestones.
-- **Owns**: `lib/blocks/`, `lib/documents/`, `app/(workspace)/documents/`, `app/api/documents/`.
+- **Owns**: `lib/blocks/`, `lib/documents/`, `app/(workspace)/documents/`, `app/api/documents/`,
+  `app/(workspace)/document-list.tsx`, `app/(workspace)/document-actions.tsx`,
+  `app/(workspace)/document-row-menu.tsx` (the sidebar's document tree and its row actions).
   One file under the third path — its use-focus-presence hook — is more specifically owned
   elsewhere, by [`docs/design/presence-and-focus.md`](presence-and-focus.md), whose file-level
   claim wins over this directory-level one.
