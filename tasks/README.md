@@ -22,9 +22,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 ## Active
 
-| Task | Lessons |
-| :--- | :--- |
-| [Make the doc-drift audit a reusable, tool-neutral skill (+ archive PR template)](active/20261002-doc-drift-audit-skill-todo.md) | [lessons](active/20261002-doc-drift-audit-skill-lessons.md) |
+Nothing in progress.
 
 ## Archive
 
