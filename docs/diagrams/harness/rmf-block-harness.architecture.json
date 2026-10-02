@@ -132,9 +132,9 @@
       "sublabel": "명료성 · 일관성 · 유지보수",
       "tag": "/simplify · Sonnet",
       "sources": [
-        { "path": "skills/README.md", "line": 32, "end_line": 36, "label": "기능 보존형 단순화" },
-        { "path": "skills/README.md", "line": 54, "end_line": 61, "label": "무료 검사 이후 실행" },
-        { "path": "skills/README.md", "line": 81, "end_line": 102, "label": "Sonnet 세션 규칙" }
+        { "path": ".claude/skills/README.md", "line": 32, "end_line": 36, "label": "기능 보존형 단순화" },
+        { "path": ".claude/skills/README.md", "line": 54, "end_line": 61, "label": "무료 검사 이후 실행" },
+        { "path": ".claude/skills/README.md", "line": 81, "end_line": 102, "label": "Sonnet 세션 규칙" }
       ],
       "pos": [840, 400],
       "size": [190, 82]
@@ -146,9 +146,9 @@
       "sublabel": "5 reviewers · rules · bugs",
       "tag": "/code-review low",
       "sources": [
-        { "path": "skills/README.md", "line": 32, "end_line": 35, "label": "5개 reviewer와 80점 filter" },
-        { "path": "skills/README.md", "line": 38, "end_line": 52, "label": "low depth와 issue handoff" },
-        { "path": "skills/README.md", "line": 81, "end_line": 99, "label": "Sonnet fan-out 규칙" }
+        { "path": ".claude/skills/README.md", "line": 32, "end_line": 35, "label": "5개 reviewer와 80점 filter" },
+        { "path": ".claude/skills/README.md", "line": 38, "end_line": 52, "label": "low depth와 issue handoff" },
+        { "path": ".claude/skills/README.md", "line": 81, "end_line": 99, "label": "Sonnet fan-out 규칙" }
       ],
       "pos": [840, 650],
       "size": [190, 82]
@@ -160,9 +160,9 @@
       "sublabel": "audit · drift · promotion",
       "tag": "AGENTS.md target",
       "sources": [
-        { "path": "skills/README.md", "line": 13, "end_line": 15, "label": "skill opt-in 규칙" },
-        { "path": "skills/README.md", "line": 32, "end_line": 36, "label": "시작 audit와 종료 revise" },
-        { "path": "skills/README.md", "line": 104, "end_line": 114, "label": "AGENTS.md 명시 target" }
+        { "path": ".claude/skills/README.md", "line": 13, "end_line": 15, "label": "skill opt-in 규칙" },
+        { "path": ".claude/skills/README.md", "line": 32, "end_line": 36, "label": "시작 audit와 종료 revise" },
+        { "path": ".claude/skills/README.md", "line": 104, "end_line": 114, "label": "AGENTS.md 명시 target" }
       ],
       "pos": [840, 100],
       "size": [190, 82]

@@ -35,6 +35,12 @@ as-is from the browser, where the `Client` and the attached `Document` already l
 The app adds four things: a YSON reader, restore, revision classification, and the before-restore
 safety revision.
 
+<!-- declare: yorkie-revisions
+called-only-from: createRevision|listRevisions|getRevision in app/(workspace)/**   # the browser's own Client; no server-side call
+never-called: restoreRevision                                         # the app restores by rewriting blocks (below)
+const: lib/yorkie-admin.ts GUARDED_METHODS includes ["CreateRevision", "GetRevision", "ListRevisions", "RestoreRevision"]
+-->
+
 ## Why the app restores instead of calling `restoreRevision`
 
 `restoreRevision` has the server re-parse the snapshot and rebuild the document. On the pinned

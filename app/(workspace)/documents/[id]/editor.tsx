@@ -641,7 +641,7 @@ export function DocumentEditor({
     el.setSelectionRange(caret, caret);
   };
 
-  /** Removes a block outright (FR-022-05) — what a PDF block's delete button
+  /** Removes a block outright (FR-022-03) — what a PDF block's delete button
    *  calls, having no caret to Backspace in. `BlockNotFoundError` means a peer
    *  got there first, which is the outcome this asked for. */
   const handleDeleteBlock = (blockId: BlockId) => {
