@@ -10,7 +10,7 @@ in once that drifts from the source. That applies to a plugin's own command file
 one needs different settings, write the setting down here as a rule rather than forking the
 file into this repository.
 
-**Repository-authored skills** are the exception: they live under [`.claude/skills/`](../.claude/skills/), because they encode this repository's own procedures rather than wrapping an external tool — [`doc-drift-audit`](../.claude/skills/doc-drift-audit/SKILL.md) is the first.
+**Repository-authored skills** are the exception: they live under [`.claude/skills/`](../.claude/skills/), because they encode this repository's own procedures rather than wrapping an external tool — [`doc-drift-audit`](../.claude/skills/doc-drift-audit/SKILL.md) is the first. Edit them only there: `pnpm skills:sync` copies them to `.agents/skills/` for Codex, Gemini CLI, Cursor and OpenCode, and `pnpm verify:docs` fails if that copy goes stale.
 
 **None of these fire automatically.** Suggest the relevant one at the point in the task where
 it fits, and let the person decide — don't run one unprompted, and don't assume it is installed.

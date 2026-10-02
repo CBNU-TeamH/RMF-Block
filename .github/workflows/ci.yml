@@ -90,6 +90,7 @@ jobs:
       - run: node scripts/verify-docs.mjs
       - run: node scripts/verify-doc-refs.mjs
       - run: node scripts/verify-srs-sync.mjs --strict
+      - run: node scripts/sync-skills.mjs --check
 
   # `pnpm test` runs against no server at all, so nothing in it can notice the
   # SDK changing under us. The 0.7.13 → 0.7.23 bump is the proof: all 571 tests
