@@ -74,7 +74,14 @@ One PR with one commit per milestone. The main session owns the format and the f
 
 ### PR #139: skill mirror paths across operating systems
 
-- **Scope**: fix review finding 1 in `scripts/sync-skills.mjs`; finding 2 (unclosed declaration blocks) stays for the next turn.
+- **Scope**: fix review finding 1 in `scripts/sync-skills.mjs`.
 - **Approach**: normalize `path.relative()` results to `/` using the native `path.sep`, matching `scripts/lib/ast-facts.mjs`. Keep the existing skill-folder filter and filesystem reads.
 - **Success criteria**: Windows and POSIX paths (macOS/Linux) detect changed, missing and stale mirror files; matching mirrors pass; pointer files and destination-only skills remain excluded.
 - **Verification**: temporary fixtures passed with native Linux paths, POSIX paths (macOS/Linux) and Windows `path.win32` paths. Checked matching, changed, missing and stale files, nested paths, spaces/non-ASCII characters, pointer exclusions and destination-only skills; simulated POSIX/Windows CLI checks returned 0 for matching mirrors and 1 for mismatches. The pre-fix Windows case reproduced the false clean result. Native macOS/Windows hosts were not available. `pnpm verify:docs`, `pnpm lint` and `git diff --check` passed.
+
+### PR #139: reject unclosed declaration blocks
+
+- **Scope**: fix review finding 2 in `scripts/verify-declarations.mjs`.
+- **Approach**: collect declaration openings after stripping fenced examples, require each opening to close before the next declaration, then parse the existing multiline format. Report malformed or unclosed blocks at their opening line.
+- **Success criteria**: missing or mistyped closers fail; a later valid block cannot supply an earlier block's closer; valid declarations and fenced examples retain their behavior, including CRLF input and diagnostic line numbers.
+- **Verification**: temporary parser fixtures passed for missing/mistyped closers, broken blocks before/after valid blocks, multiple valid declarations, malformed single-line format, fenced examples, LF/CRLF and diagnostic line numbers. Existing predicate errors and quoted JSON values retained their behavior. The original `ink-limits` reproduction now reports `unclosed declaration block` at line 336; CLI returns 1 for malformed/unclosed inputs and 0 for a fenced example plus a valid declaration. `pnpm verify:docs`, `pnpm lint` and `git diff --check` passed.

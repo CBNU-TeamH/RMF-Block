@@ -22,8 +22,19 @@ import { stripFences } from "./lib/headings.mjs";
 export function parseDeclarations(text, file) {
   const decls = [], errors = [];
   text = stripFences(text); // documented examples are not parsed
-  for (const m of text.matchAll(/<!--\s*declare:([^\n]*)\n([\s\S]*?)-->/g)) {
-    const line0 = text.slice(0, m.index).split("\n").length;
+  const starts = [...text.matchAll(/<!--\s*declare:/g)];
+  for (const [i, start] of starts.entries()) {
+    const line0 = text.slice(0, start.index).split("\n").length;
+    const end = text.indexOf("-->", start.index + start[0].length);
+    if (end < 0 || end >= (starts[i + 1]?.index ?? text.length)) {
+      errors.push(`${file}:${line0}  unclosed declaration block`);
+      continue;
+    }
+    const m = text.slice(start.index, end + 3).match(/^<!--\s*declare:([^\n]*)\n([\s\S]*?)-->$/);
+    if (!m) {
+      errors.push(`${file}:${line0}  malformed declaration block: expected multiline format`);
+      continue;
+    }
     const d = { file, line: line0, name: m[1].trim(), preds: [] };
     m[2].split("\n").forEach((raw, i) => {
       const l = raw.replace(/\s#(?=(?:[^"]*"[^"]*")*[^"]*$).*$/, "").trim(); // a # inside a "string" is not a comment
