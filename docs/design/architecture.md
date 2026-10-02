@@ -60,14 +60,14 @@ MongoDB is Yorkie's internal store — the App/WS Server never connects to it, a
 
 The wire protocol is Yorkie's own client SDK — not ours to design. What we do own is the **shape of data placed inside it**:
 
-- **Document schema** (CRDT document content — persisted, shared): every block has a common envelope `{ id, type }`; `type` is one of the twelve block types in SRS §4.1 (텍스트, 제목, 목록, 체크리스트, 인용문, 코드, 구분선, 파일, 이미지, PDF, 문서 링크, 블록 링크). Each type owns its own `content` payload shape. Block order is the Yorkie Array position itself, not a stored field — the `order` originally sketched here was dropped for that reason. Field-level detail is settled in [`document-editing.md`](document-editing.md), which covers all twelve types.
+- **Document schema** (CRDT document content — persisted, shared): every block has a common envelope `{ id, type }`; `type` is one of the twelve block types in SRS §4.1 (텍스트, 제목, 목록, 체크리스트, 인용문, 코드, 구분선, 파일, 이미지, PDF, 문서 링크, 블록 링크). Each type owns its own `content` payload shape. Block order is the Yorkie Array position itself, not a stored field — there is no `order` field. Field-level detail is settled in [`document-editing.md`](document-editing.md), which covers all twelve types.
 - **Presence schema** (ephemeral, per-connected-client — not persisted): the fields are in `lib/presence/types.ts` and `lib/presence/occupancy.ts`, explained in [`presence-and-focus.md`](presence-and-focus.md). `activeBlockId` is the block-occupancy signal (SIR003 — display-only, never a lock, per FR-022-06).
 
 ### (b) Client ↔ App/WS Server (API groups)
 
 Transport is REST + WebSocket. Grouped by concern; full request/response schemas are written when each group's module is built. Both WebSocket upgrade paths (chat and workspace) require a live session or the host secret to complete at all — an unauthenticated client gets a 401 before the handshake, never reaching the hub ([ADR-006](../adr/006-workspace-chat-socket-auth.md)).
 
-This used to cite SOIR001, which is misleading enough to be worth naming: SOIR001 requires realtime sync over "WebSocket 기반 실시간 통신", but document changes and presence never cross this boundary — they go straight from the browser to Yorkie over Connect / gRPC-Web on ordinary HTTP, with `WatchDocument` as a server-streaming response rather than a socket. REST and WebSocket are what *this* boundary carries; the socket carries `session:revoked`, chat and the document-tree events (§3(d)). `docs/SRS-ko.md` is a team-agreed document and changes only with the team's agreement (`AGENTS.md` §5); SOIR001's wording was corrected under that agreement — [issue #36](https://github.com/CBNU-TeamH/RMF-Block/issues/36).
+SOIR001 is easy to misread here: it requires realtime sync over "WebSocket 기반 실시간 통신", but document changes and presence never cross this boundary — they go straight from the browser to Yorkie over Connect / gRPC-Web on ordinary HTTP, with `WatchDocument` as a server-streaming response rather than a socket. REST and WebSocket are what *this* boundary carries; the socket carries `session:revoked`, chat and the document-tree events (§3(d)). `docs/SRS-ko.md` is a team-agreed document and changes only with the team's agreement (`AGENTS.md` §5); SOIR001's wording was corrected under that agreement — [issue #36](https://github.com/CBNU-TeamH/RMF-Block/issues/36).
 
 | Group | Carries | Traceability |
 | --- | --- | --- |
@@ -88,9 +88,9 @@ There is no internal persistence module. Document durability is Yorkie's, and cr
 
 What crosses this boundary for version history is authorisation only: the browser calls Yorkie's revision API through its own `Client`, and Yorkie asks this server's auth webhook whether the session is live. Which calls are used and where revisions come from: [`version-history.md`](version-history.md).
 
-**Measured, not assumed** (against `@yorkie-js/sdk@0.7.13` and re-checked on `0.7.17`, on the Mongo-backed Yorkie in `docker-compose.yml`): a revision outlives the document it belongs to, but only by id. After `client.remove(doc)`, `getRevision(doc, revisionId)` still returns the full snapshot while `listRevisions` on a fresh `Document` under the same key returns empty. **Anything that deletes a document therefore has to keep the revision ids somewhere, or the history becomes unreachable rather than merely hidden** — a constraint for whoever builds FR-023's delete. UC-023's 비고 records the same, added under the team agreement `docs/SRS-ko.md` requires (`AGENTS.md` §5) — [issue #28](https://github.com/CBNU-TeamH/RMF-Block/issues/28).
+**Measured, not assumed** (against `@yorkie-js/sdk@0.7.13`, not re-measured on the current `0.7.23` pin, on the Mongo-backed Yorkie in `docker-compose.yml`): a revision outlives the document it belongs to, but only by id. After `client.remove(doc)`, `getRevision(doc, revisionId)` still returns the full snapshot while `listRevisions` on a fresh `Document` under the same key returns empty. **Anything that deletes a document therefore has to keep the revision ids somewhere, or the history becomes unreachable rather than merely hidden** — a constraint for whoever builds FR-023's delete. UC-023's 비고 records the same, added under the team agreement `docs/SRS-ko.md` requires (`AGENTS.md` §5) — [issue #28](https://github.com/CBNU-TeamH/RMF-Block/issues/28).
 
-**Decided:** the App/WS Server does not keep a `Watch` subscription on documents — the only thing that required one was the deleted delayed-write trigger, and Mongo now provides durability directly.
+**Decided:** the App/WS Server does not keep a `Watch` subscription on documents — Mongo provides durability directly (ADR-002).
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 

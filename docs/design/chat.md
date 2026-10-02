@@ -162,7 +162,7 @@ attached file and an embedded one are one thing seen from two places.
 send emits `'error'` on the socket, and with no listener `EventEmitter` rethrows it and takes the
 whole process down. Next included, since this is one process.
 
-**A connection without a session id still works — for `revoke()` attribution, not for authentication.** ~~Chat never required authentication and still does not, so an anonymous connection keeps receiving broadcasts.~~ **Superseded 2026-09-17 (#83).** `wsHub.broadcast()` fans every event to every connection with no per-path filtering, and once #82 put the document catalogue on the same hub, "chat stays anonymous" meant anyone on the LAN could read document names through it too — the two upgrade paths were never actually isolated from each other's data. Both `/api/chat/ws` and `/api/workspace/ws` now require a live session or the host secret to complete the upgrade at all (`server/index.mts`). What's unchanged: chat's connections still aren't filed under a session afterward — `revoke()` has nothing to evict them by, same as before — and posting already required a session (`POST /api/chat`), which this doesn't touch. ([ADR-006](../adr/006-workspace-chat-socket-auth.md) records this as a decision.)
+**A connection without a session id still works — for `revoke()` attribution, not for authentication.** `wsHub.broadcast()` fans every event to every connection with no per-path filtering, and the document catalogue shares the hub, so an anonymous chat socket would let anyone on the LAN read document names. Both `/api/chat/ws` and `/api/workspace/ws` therefore require a live session or the host secret to complete the upgrade at all (`server/index.mts`). Chat's connections are still not filed under a session afterward — `revoke()` has nothing to evict them by — and posting requires a session (`POST /api/chat`). ([ADR-006](../adr/006-workspace-chat-socket-auth.md) records this as a decision.)
 
 **A revoked socket is told before it is closed.** A client that only saw the close would have to
 guess whether it was evicted or the network dropped, and those want different handling
@@ -176,10 +176,3 @@ guess whether it was evicted or the network dropped, and those want different ha
 - **Deleting an attachment.** No FR covers it, and it raises one this module should not answer
   alone: whether removing a file removes the message that carried it.
 - **A real design for the UI.** What ships is a prototype built from the shell's tokens.
-
-Settled since this doc was first written:
-
-- ~~`sender` becomes session-derived once UC-020 guest login exists~~ — done, and it was a
-  live authentication hole rather than a loose end. See the message shape above.
-- ~~File attachments as additive fields on `ChatMessage`~~ — done, as `attachment?`. The
-  reasoning `document-editing.md` used for block `content` held: no rewrite was needed.

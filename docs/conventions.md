@@ -19,14 +19,10 @@ unmodified and act as the check on the refactor."* The only thing that can tell 
 apart is a rule a reviewer — human or the `code-review` plugin's CLAUDE.md-compliance and
 code-comment-compliance agents — can check against. This document is that rule.
 
-The five shapes below were not chosen. They were derived by classifying every open bug in this
-repo (excluding the meta-issue `#39`, which is about the harness itself, not a shape) into
-buckets. Five buckets cover 5 of 6 — 83%. The one that doesn't fit, `#37` (a reconnect path that
-was never built), is left out on purpose: a rulebook that explains every bug prevents none, and a
-shape-rule for a path that doesn't exist yet is not a rule anyone could apply. (`#26`, a
-connection-ordering race, was the other bug that didn't fit this classification when it was
-written — closed 2026-09-20 by #110's `isSessionValid` predicate in `WsHub.handleUpgrade`, so it
-dropped out of the open-bug count rather than needing a shape.)
+The five shapes below were derived by classifying the repo's open bugs into buckets. A rulebook
+that explains every bug prevents none, and a shape-rule for a path that doesn't exist yet (`#37`, a
+reconnect path that was never built) is not a rule anyone could apply — so what doesn't fit is
+left out on purpose.
 
 ## The five forbidden shapes
 
@@ -181,10 +177,6 @@ history of how this got here" — belongs in `docs/design/`, not in the code. If
 have grown past what these five kinds explain, that file's rationale has outgrown the code and
 needs a design doc to hold it, not a longer comment.
 
-Kinds 4 and 5 were promoted here from `20260905-comment-budget-lessons.md`: both were already in
-use — #70 established the cross-reference when it moved this rationale out — and the rulebook not
-naming them meant every trim re-argued whether they were allowed.
-
 ### Write the comment in as few lines as it takes
 
 Format is not content. A JSDoc block whose prose is one sentence is written on one line:
@@ -222,22 +214,22 @@ Two rules follow:
 `scripts/comment-budget.mjs` flags a file whose comments exceed 30% of its lines — 25% until
 2026-09-23; its `THRESHOLD` comment says why it moved, and the figures below were measured against
 the old line. That threshold is reachable for most files and genuinely unreachable for a few. The difference is worth stating
-precisely, because an earlier version of this section got it wrong and the error is instructive.
+precisely.
 
 The arithmetic is real: a 25% budget on *N* code lines allows *N/3* comment lines, and a small
 file with several exported symbols has very little room. What that does **not** justify is the
-delimiter cost. The earlier version argued the budget was unreachable because *"JSDoc spends two
-of those lines on `/**` and `*/` before a word is written."* The single-line form spends none.
-Every ratio it quoted was a formatting choice reported as arithmetic:
+delimiter cost: multi-line JSDoc spends two lines on `/**` and `*/` before a word is written, and
+the single-line form spends none. A ratio quoted that way is a formatting choice reported as
+arithmetic:
 
-| file | claimed floor | actual, compactly written |
+| file | multi-line JSDoc | compactly written |
 | --- | ---: | ---: |
 | `lib/presence/types.ts` | 60.5% | **34.8%** |
 | `lib/files/serving.ts` | 56.3% | **30.0%** |
 | `lib/blocks/types.ts` | 30.7% | **24.8%** |
 | `editor.tsx` | 34.0% | **21.9%** |
 
-Across the codebase the same correction took the comment ratio from 40.0% to 23.6% — under the
+Across the codebase the compact form takes the comment ratio from 40.0% to 23.6% — under the
 budget, with no protected sentence deleted.
 
 **The real floor is content, and it binds on small files only.** `lib/focus/pathname.ts` is the

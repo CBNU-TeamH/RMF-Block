@@ -61,10 +61,9 @@ So the order is: **`pnpm verify:fast` clean, `pnpm comments` / `pnpm verify:docs
 → then `/simplify` → then `/code-review low`**. Both are clean on a healthy branch, so anything they
 report is new.
 
-#65 widened that first step, and both halves of it shipped in #71: `pnpm comments` (the comment
-budget) and `pnpm verify:docs` (doc ownership, task-index freshness, dead links), plus a
-pre-commit hook that runs the staged-file part on every commit. The archive-pending list that
-#65 originally sketched for `verify:docs` is not among them — it was not built.
+The free checks are `pnpm comments` (the comment budget) and `pnpm verify:docs` (doc ownership,
+task-index freshness, dead links), plus a pre-commit hook that runs the staged-file part on every
+commit.
 
 This matters more than it sounds. Our PRs run to a median of 494 changed lines across 12
 files, with the larger ones (#51, #53, #60) between 2,000 and 2,800 lines — for a repository

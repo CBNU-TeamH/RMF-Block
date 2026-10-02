@@ -112,12 +112,10 @@ check, never before: the 409 is the one response that confirms a nickname is in 
 someone already inside may see it.
 
 A wrong password names *the password* in its message. An unknown nickname is not a failure on this
-route — it becomes a new member — so this branch can only mean one thing, and the older "nickname
-or password" wording pointed at a field that cannot be at fault.
+route — it becomes a new member — so this branch can only mean one thing.
 
-Any other failure still fails the request, but with a body the form can render. Re-throwing handed
-Next its own 500 page, and the join form fell back to `"서버에 연결할 수 없습니다"` — which blames
-the network for a fault that is on the server.
+Any other failure returns a body the form can render, not Next's own 500 page, which the join form
+would read as `"서버에 연결할 수 없습니다"` and so blame the network for a fault on the server.
 
 ### What the session registry decides
 
@@ -348,11 +346,9 @@ any document at all, and the rest are defence in depth. Method names come from
 `api/types/auth_webhook.go` — it is `WatchDocument`, singular, and an unknown name fails the
 update rather than being ignored.
 
-**The token-refresh question this section used to leave open is answered**: measured against
-`@yorkie-js/sdk@0.7.13` and not re-measured on the current `0.7.23` pin, the SDK calls
-`authTokenInjector` again whenever the webhook refuses and
-passes the refusal's own `reason` as its argument, then retries with what it gets back. So expiry
-needs no timer on either side, and `reason` is a channel rather than a log line — `"token expired"`
+**Token refresh needs no timer**: the SDK calls `authTokenInjector` again whenever the webhook
+refuses and passes the refusal's own `reason` as its argument, then retries with what it gets back. So expiry
+needs none on either side, and `reason` is a channel rather than a log line — `"token expired"`
 means fetch another, `"session revoked"` means another will not help.
 
 **A session that already holds a live token gets that one back**, rather than a freshly minted
@@ -396,31 +392,21 @@ Both sockets (`/api/chat/ws`, `/api/workspace/ws`) refuse the upgrade with a raw
 
 ### 4.1 Workspace presence index (FR-040)
 
-**Superseded in part.** The "who is connected" half shipped over Yorkie instead: every client
-attaches to a reserved `workspace` document and reads `doc.getPresences()` (`lib/presence/`,
-`app/(workspace)/presence-provider.tsx`). There is no server-held roster and no WS hub involvement — none of
-the six events below exist in the code, and the `/api/workspace/ws` socket that does exist carries
-`session:revoked` plus chat — `WsHub.broadcast()` writes to every open connection regardless of which
-path it upgraded on, so a `chat:message` reaches workspace sockets as well and is ignored client-side. See the connected-user-list task under `tasks/` for why Yorkie won:
-it already handles disconnect detection, which was the hard half.
+Yorkie owns the roster: every client attaches to a reserved `workspace` document and reads
+`doc.getPresences()` (`lib/presence/`, `app/(workspace)/presence-provider.tsx`), which also
+handles disconnect detection. There is no server-held roster. The `/api/workspace/ws` socket
+carries `session:revoked` plus chat — `WsHub.broadcast()` writes to every open connection
+regardless of which path it upgraded on, so a `chat:message` reaches workspace sockets as well
+and is ignored client-side.
 
-What is **not** superseded is the `documentId` half — which document each connected user has open.
-Yorkie presence is per-document, so nothing shipped answers that workspace-wide, and the index
-below is still the design for it. Rewriting this section is FR-040's job, not a docs pass.
-
-Yorkie presence is per-document, so it cannot answer "who is in this workspace and where". The server keeps a workspace-level index of `userId → documentId | null`.
+What is **not** answered is which document each connected user has open. Yorkie presence is
+per-document, so nothing workspace-wide covers it; the design for that is a server-held
+`userId → documentId | null` index, not built.
 
 | Direction | Event | Meaning |
 | --- | --- | --- |
-| client → server | `presence:enter` | Joining the workspace socket; server adds the user with `null` |
 | client → server | `presence:attach` | Opened a document; server sets the value |
 | client → server | `presence:detach` | Closed the document; server resets to `null` |
-| client → server | *(socket close)* | Server removes the key entirely |
-| server → all | `presence:sync` | Full index snapshot, on connect |
-| server → all | `presence:changed` | One user's location changed |
-| server → all | `presence:left` | A user's key was removed |
-
-Presence in the index means connected; absence of the key means offline. That distinction is what FR-040-04 renders as the dimmed, unclickable state — no separate online flag.
 
 ### 4.2 Presentation session (FR-030) — draft, implementation deferred
 

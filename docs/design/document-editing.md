@@ -1,6 +1,6 @@
 # Document Editing — Block Schema
 
-- **Status**: Agreed. All 12 block types finalized. The pre-implementation SDK convergence check it was waiting on has been run — see [ADR-007](../adr/007-block-array-not-tree.md). The [editing surface](#editing-surface) (textarea vs. rich text, IME handling) was decided 2026-08-30, ahead of `tasks/archive/2026/08/20260829-block-editor-todo.md`'s implementation milestones.
+- **Status**: Agreed. All 12 block types finalized; editing surface decided (see [Editing surface](#editing-surface)).
 - **Owns**: `lib/blocks/`, `lib/documents/`, `app/(workspace)/documents/`, `app/api/documents/`,
   `app/(workspace)/document-list.tsx`, `app/(workspace)/document-actions.tsx`,
   `app/(workspace)/document-row-menu.tsx` (the sidebar's document tree and its row actions).
@@ -25,7 +25,6 @@ Block = { id: string (uuid), type: string, content: <type-specific, see below> }
 - `root.blocks` is a **Yorkie Array**, not an Object keyed by id. Yorkie's Array is RGA-backed, so concurrent inserts at the same position already converge deterministically — block order is the array position itself, not a stored field. This replaces the `order` field originally sketched in `architecture.md` §3(a).
 - Reordering (FR-022-04) uses the array's native `moveBefore`/`moveAfter` — no custom merge logic, per ADR-001.
 - `id` stays on every block regardless of position, since presence (`activeBlockId`) and the future 블록 링크 블록 need a stable reference independent of array order.
-- ~~**Open risk**: `yorkie-team/yorkie#676` reported non-convergence when the moved element is also the reference element in a concurrent `moveAfter`.~~ **Verified on the then-pinned 0.7.13, 2026-08-27** — see [ADR-007](../adr/007-block-array-not-tree.md).
 - Block/text color and styling is an open decision (`AGENTS.md` §7) and intentionally not part of any block's `content` below — see that TODO item for why deferring it doesn't require reworking this schema.
 
 ## Every text-bearing block wraps its text
@@ -39,20 +38,16 @@ not `content.text`, because a renderer reaching for the words should not first h
 kind of block it is holding. The wrapper exists for the write path's benefit, not the read path's,
 so the read model drops it.
 
-**The reason is block type conversion**, which this schema originally made
-impossible to do without losing the text. Typing `- ` at the start of a
+**The reason is block type conversion**, which would otherwise lose the text. Typing `- ` at the start of a
 paragraph turns it into a list item; so does picking a type from a menu, or
 typing `# `. It is one of the most ordinary things a person does in an editor,
 and it must keep the block: the same `id`, so occupancy (FR-022-06) and any
 block-link block still resolve, and the same `yorkie.Text`, so a peer typing in
 that block at that moment does not lose what they typed.
 
-The first draft gave text, quote and code `content = yorkie.Text` directly while
-heading, list and checklist nested it. Converting between the two groups then
-meant moving an existing `Text` under a new parent, and **Yorkie does not move
-CRDTs — it silently replaces them**. Measured on 0.7.13: assigning an existing
-`Text` into a new object throws nothing, reports a `Text` afterwards, and that
-`Text` is empty. The paragraph's contents are simply gone, with no error
+**Yorkie does not move CRDTs — it silently replaces them.** Measured on 0.7.13:
+assigning an existing `Text` into a new object throws nothing, reports a `Text`
+afterwards, and that `Text` is empty. The paragraph's contents are simply gone, with no error
 anywhere. Rebuilding the `Text` by hand and copying the string across is no
 better: it also drops whatever a peer typed during the conversion, measured as
 `peer edit survived: false`.
@@ -272,12 +267,10 @@ No rich-text framework: binding one to Yorkie makes the document a `yorkie.Tree`
 and block reordering is a requirement. We take on IME handling ourselves in exchange; see
 [ADR-008](../adr/008-textarea-editing-surface.md).
 
-### What was measured (2026-08-29–30)
+### Behaviour of the textarea surface
 
-Against a real two-client Yorkie session (0.7.13), using a throwaway harness at
-`app/(workspace)/spike/ime-harness/` (deleted once this section landed) that exercised the exact
-storage shape above — `root.blocks[0].content.text`, edited through `yorkie.Text.edit()` — rather
-than a bare string.
+Measured against a real two-client Yorkie session, on the exact storage shape above —
+`root.blocks[0].content.text`, edited through `yorkie.Text.edit()` — rather than a bare string.
 
 1. **A naive controlled binding corrupts text under concurrent editing** (the failure story is in
    [ADR-008](../adr/008-textarea-editing-surface.md)). The live constraint: every path that
@@ -543,13 +536,11 @@ to combine later — an "undo this block" button inside an edit, say.
 **The redo stack clears once a new change is made after an undo.** Standard, and worth knowing
 before someone reports it: undo, type, and the thing you undid is not coming back.
 
-**An undo publishes `local-change`, not `remote-change`**, with `source: OpSource.UndoRedo`. That
-is the one thing the design had to solve: `use-block-document` subscribed to `remote-change` only,
-on the reasoning that a local edit is the caller's to apply and republish — and an undo has no
-caller to do that. It now takes both, because to that component they are the same thing: a change
-nothing local is already holding the text for. Everything downstream — the op-routing loop,
-`touchesBlockList`, the per-block handler map, the rebuild fallback — was written for remote
-changes and needed no change at all.
+**An undo publishes `local-change`, not `remote-change`**, with `source: OpSource.UndoRedo`. A
+local edit is the caller's to apply and republish, and an undo has no caller to do that, so
+`use-block-document` handles an undo's `local-change` like a remote one: a change nothing local is
+already holding the text for. Everything downstream — the op-routing loop, `touchesBlockList`, the per-block
+handler map, the rebuild fallback — is the remote-change path.
 
 **The browser's own undo has to be stopped.** A `<textarea>` keeps its own edit history, and
 `Ctrl+Z` inside a focused one would rewind the DOM while Yorkie kept the text — the desync
