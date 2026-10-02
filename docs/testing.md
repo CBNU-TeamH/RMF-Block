@@ -159,6 +159,5 @@ floors to 1 on a low-core machine and serializes every file into one process. Ch
 
 A local machine's Node version silently gates what "verified by running" means. Pure-Node checks
 (`comment-budget.mjs`, the doc-ownership checker) verify fully on any supported version; anything
-touching `next.config.ts`'s dev/prod `distDir` split or `node --test`'s default file discovery
-only fully verifies on the Node version CI actually runs. Name the gap when a task hits it, rather
-than assuming a green local run covers what CI covers.
+touching `next.config.ts`'s dev/prod `distDir` split only fully verifies under the `NODE_ENV` CI actually
+runs. Name the gap when a task hits it, rather than assuming a green local run covers what CI covers.

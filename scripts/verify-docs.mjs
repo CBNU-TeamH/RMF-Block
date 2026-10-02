@@ -234,16 +234,9 @@ function checkDeadLinks() {
     }
   }
 
-  // Backtick-quoted prose: only docs/ and AGENTS.md — see extractBacktickPaths —
-  // minus the point-in-time records, for that function's own stated reason.
-  // `HOST-GUEST-ENTRY-ko.md` opens by saying it is a record of a moment and is
-  // left as written, then names `app/page.tsx` *because it is gone* and the
-  // spike files (`server/watcher.mts`, `app/spike/`, `lib/pm-schema.ts`)
-  // because that spike finished. Those are the same "prose names a path that
-  // is not a live reference" case that already excludes `tasks/active/*.md`.
+  // Backtick-quoted prose: only docs/ and AGENTS.md — see extractBacktickPaths.
   // Its markdown links stay checked above, where a reader really would click.
-  const historicalDocs = new Set([join(ROOT, "docs", "HOST-GUEST-ENTRY-ko.md")]);
-  for (const file of [...docsFiles, agentsFile].filter((f) => !historicalDocs.has(f))) {
+  for (const file of [...docsFiles, agentsFile]) {
     const text = readFileSync(file, "utf8");
     const dir = dirname(file);
     for (const candidate of extractBacktickPaths(text)) {

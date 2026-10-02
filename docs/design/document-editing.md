@@ -25,7 +25,7 @@ Block = { id: string (uuid), type: string, content: <type-specific, see below> }
 - `root.blocks` is a **Yorkie Array**, not an Object keyed by id. Yorkie's Array is RGA-backed, so concurrent inserts at the same position already converge deterministically — block order is the array position itself, not a stored field. This replaces the `order` field originally sketched in `architecture.md` §3(a).
 - Reordering (FR-022-04) uses the array's native `moveBefore`/`moveAfter` — no custom merge logic, per ADR-001.
 - `id` stays on every block regardless of position, since presence (`activeBlockId`) and the future 블록 링크 블록 need a stable reference independent of array order.
-- ~~**Open risk**: `yorkie-team/yorkie#676` reported non-convergence when the moved element is also the reference element in a concurrent `moveAfter`.~~ **Verified on the pinned 0.7.13, 2026-08-27** — see [Verification](#verification-2026-08-27).
+- ~~**Open risk**: `yorkie-team/yorkie#676` reported non-convergence when the moved element is also the reference element in a concurrent `moveAfter`.~~ **Verified on the then-pinned 0.7.13, 2026-08-27** — see [Verification](#verification-2026-08-27).
 - Block/text color and styling is an open decision (`AGENTS.md` §7) and intentionally not part of any block's `content` below — see that TODO item for why deferring it doesn't require reworking this schema.
 
 ## Every text-bearing block wraps its text
@@ -150,8 +150,8 @@ a flat block, not a real parent-child relation.
 
 ## Verification (2026-08-27)
 
-Run against `yorkieteam/yorkie:0.7.13` on `mongo:8` with the pinned
-`@yorkie-js/sdk@0.7.13`, not from the SDK's documentation.
+Run against `yorkieteam/yorkie:0.7.13` on `mongo:8` with the then-pinned
+`@yorkie-js/sdk@0.7.13` (the pin is 0.7.23 now; ADR-007 records the re-measurement), not from the SDK's documentation.
 
 1. **A `yorkie.Text` nested in an array element is a live CRDT.** wafflebase's
    `slides-document.ts` carries a warning that a `yorkie.Tree` nested inside an
@@ -190,10 +190,9 @@ Not yet verified: convergence under more than two concurrent movers, and
 `moveAfter` interleaved with a concurrent delete of the reference block.
 
 **The load-bearing measurements above are now reproducible; the rest are not.**
-The four ADR-007 invariants live in `scripts/verify-yorkie-invariants.mjs` and
+The ADR-007 measurements live in `scripts/verify-yorkie-invariants.mjs` and
 run as the `yorkie invariants` CI job on every PR
-([#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42)) — not yet a *required*
-check on `main`, which needs a separate branch-protection change — so a reader
+([#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42)), so a reader
 who doubts one of those numbers, or a future SDK bump, has something to run. Everything else on this page was taken with throwaway scripts against
 containers started by hand and is gone — those claims are still only as good as
 this document's word, and the two unverified cases belong in the same script
@@ -518,20 +517,17 @@ already being Attached for this client, and a cancelled run whose `attach()` suc
 never detached.
 
 The fix is to **chain one run's full teardown (unsubscribe + detach) in front of the next run's
-`attach()`.** React runs cleanup(N) before effect(N+1) even in the synchronous double-invoke, so a
-ref holding the previous run's teardown is exactly what the next attach must await — and the
-attach never reaches the server while the previous run's document is still marked Attached.
+`attach()`.** React runs cleanup(N) before effect(N+1) even in the synchronous double-invoke, so the
+previous run's teardown is exactly what the next attach must await — and the attach never reaches
+the server while the previous run's document is still marked Attached.
 
-`presence-provider.tsx` does exactly that for the workspace document
-([#32](https://github.com/CBNU-TeamH/RMF-Block/issues/32)).
-
-A content document goes through **`lib/documents/attach-pool.ts`** instead, because it has more
-than one holder: the editor, and any floating view of one of its blocks (UC-070). Yorkie refuses
+A content document does this through **`lib/documents/attach-pool.ts`**'s per-key `tail`, and the
+pool exists because it has more than one holder: the editor, and any floating view of one of its blocks (UC-070). Yorkie refuses
 a second `attach` of a key the client already has, so the pool keeps one attachment per key and a
 refcount. That same shape covers Strict Mode: the second run's `acquire` lands before the first
 run's `release` (which waits for its own setup to settle), so the count goes 1→2→1 and nothing
 re-attaches. When the count does reach 0, the next `acquire` of that key waits for the detach in
-flight, the same rule as the chain above, held per key rather than per hook.
+flight (the chain above, held per key).
 
 ### Seeding a brand-new document is a known race
 
@@ -567,7 +563,8 @@ trimmed the snapshot would drop a concurrent remote edit past the caret; a check
 the snapshot would flip from a value that is no longer there. So `editor.tsx` reads the block out
 of the live document inside the same `doc.update()` that writes it.
 
-Reading it means `for...of` over `blocks.elements()`, not `.find`. `JSONArray<T>`'s `Array<T>`
+Reading it means iterating the array (`for...of`), not `.find`; `.elements()` is for when the
+`TimeTicket` is needed (`operations.ts`). `JSONArray<T>`'s `Array<T>`
 typing is a compile-time claim about a proxy; only iteration is known to work at runtime.
 
 **One mutation path.** Every local edit goes through one helper that runs the mutation and
@@ -582,8 +579,8 @@ one read, and it is enforced locally only — the append reaches peers as an ord
 
 ### The `/` menu's highlight has to stay on screen
 
-Eleven items at 48px overflow the menu's `max-h-64` (254px), so six sit below the fold. Arrow keys
-move the highlight through all eleven, which means the highlight can land where nobody can see it —
+The item list can exceed the menu's max height. Arrow keys
+move the highlight through every item, which means the highlight can land where nobody can see it —
 the menu looks frozen while it is in fact responding.
 
 The list scrolls to follow, by arithmetic (`scrollTopForHighlight` in `slash-menu.ts`) rather than
@@ -669,7 +666,7 @@ on `yorkie.Tree` could not have this feature today.
 
 **`undo()` must not be called inside a `doc.update()` callback** — the guide says it throws
 *"Undo is not allowed during an update"*. Nothing here does: the only caller is a keydown handler,
-and `applyEdit` is the only thing that opens an update. Written down because the two would be easy
+which runs outside every update callback. Written down because the two would be easy
 to combine later — an "undo this block" button inside an edit, say.
 
 **The redo stack clears once a new change is made after an undo.** Standard, and worth knowing

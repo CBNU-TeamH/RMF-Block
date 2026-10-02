@@ -25,7 +25,7 @@ is still `/`. `app/join/` sits outside the group, which is what keeps the join s
 shell.
 
 The auth gate lives in the layout, not in a page, so every screen in the group inherits it — no
-session and no host cookie means the join form (FR-020-03/04). The session model itself is
+live session and no valid host-secret cookie means the join form (FR-020-03/04). The session model itself is
 [`api.md`](api.md), "Authentication model".
 
 ## One catalogue read per request
@@ -44,8 +44,10 @@ With no document open, the home page (`page.tsx`) only points at the sidebar, wh
 ## Shared dialog chrome
 
 `ui.tsx` is the one place for modal chrome — dialog frame, title, field label, input — used by
-every modal in the app, including `app/join/`'s, which sits outside the shell. A new dialog takes
-these classes rather than restyling its own.
+the app's `<dialog>` modals, including `app/join/`'s, which sits outside the shell, and the
+version-history confirm dialogs. (The history panel itself is a custom overlay, not a dialog.) A
+new dialog takes these classes rather than restyling its own. `ui.tsx` also exports the non-modal
+`Spinner` and `FileIcon`.
 
 ## The font is bundled
 

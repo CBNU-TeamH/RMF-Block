@@ -60,7 +60,7 @@ graph TB
   subgraph PRFlow["Branch & PR (AGENTS.md §6)"]
     Branch["<type>/<slug> branch<br/>never commit to main"]
     Template["PR from .github/pull_request_template.md<br/>verbatim, not gh pr create --body"]
-    CI["CI required checks:<br/>lint · test · build<br/>container smoke test"]
+    CI["CI required checks:<br/>lint · test · build<br/>container smoke test<br/>yorkie invariants"]
     CodeOwners["CODEOWNERS review<br/>1 approval, doesn't carry over"]
     Squash["Squash merge → main<br/>branch auto-deleted"]
   end
@@ -92,5 +92,5 @@ graph TB
 - **`CLAUDE.md` is a one-line `@AGENTS.md` import** — `AGENTS.md` is the tool-neutral entry point every agent reads first; editing session learnings into `CLAUDE.md` instead (e.g. an unguided `/revise-claude-md` run) breaks that split.
 - **Delegation has a hard boundary**: repo-wide search goes to `Explore`; small localized edits are done directly; *judgement calls* — what a thing should do, which trade-off wins — are never delegated, only whoever decides stays accountable.
 - **`/code-review` and `/simplify` must run from a Sonnet session** — sub-agents inherit the launching session's model, so running them from Opus fans out five Opus reviewers instead of the `low`-depth Sonnet pass this repo scoped them to.
-- **Order matters**: `pnpm verify:fast` clean, `verify:docs`/`comments` showing nothing new (7 dead links are a known, deliberately-kept baseline) → `/simplify` → `/code-review low` → open the PR.
+- **Order matters**: `pnpm verify:fast` clean, `verify:docs`/`comments` reporting nothing (`verify:docs` is clean, so anything it reports is new) → `/simplify` → `/code-review low` → open the PR.
 - **Container vs. dev server is a real gap, not paranoia**: `tasks/archive/2026/08/20260809-host-guest-entry-lessons.md` is a past bug caused by verifying auth/network changes against `pnpm dev` instead of the container.

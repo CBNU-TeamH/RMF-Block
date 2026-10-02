@@ -1,6 +1,6 @@
 # Version History
 
-- **Status**: In progress (WBS 6.5). The mechanism below is measured, not assumed — see
+- **Status**: Built ([#117](https://github.com/CBNU-TeamH/RMF-Block/pull/117)). The mechanism below is measured, not assumed — see
   [Verification](#verification). Requirements: UC-090 and FR-090-01..13 in `docs/SRS-ko.md`,
   added with team agreement (`AGENTS.md` §5), closing the gap
   [issue #23](https://github.com/CBNU-TeamH/RMF-Block/issues/23) recorded.

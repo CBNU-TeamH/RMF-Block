@@ -338,7 +338,7 @@ unreachable — nothing invokes `node server/index.mts` directly with `NODE_ENV`
 ## Verifying a Tailwind class before trusting it
 
 Before using a Tailwind class that's new to this project — a numeric step or color no existing
-file uses yet — grep the compiled `.next/dev/static/chunks/*.css` for it. **Search for the
+file uses yet — grep the compiled `.next-dev/**/static/chunks/*.css` (dev's `distDir`, see `next.config.ts`) for it. **Search for the
 generated selector, not the raw class name**: Tailwind backslash-escapes any character a CSS
 identifier can't contain, so `size-3.5` compiles to `.size-3\.5`, and a plain literal search for
 `size-3.5` will not match that — the escape sits exactly where the search string expects a plain

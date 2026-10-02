@@ -72,8 +72,8 @@ Measured against a real server, a member with two tabs open appears twice in `ge
 `lib/presence/roster.ts` folding them by `id` is what the roster is *for*, not a precaution.
 
 It drops any presence without an `id` rather than rendering it. `undefined` as a `Map` key would
-collapse every such entry into one blank row, and this is not hypothetical: Yorkie runs with no
-auth webhook today (`api.md` §2), so a client can attach with a presence shape of its own.
+collapse every such entry into one blank row. Attaching needs a valid session token (`api.md` §2),
+so this is a cheap guard, not hardening against a hostile client.
 
 The function is kept out of the component so it can be tested without a browser or a running
 Yorkie, and takes the shape `doc.getPresences()` returns so the caller can hand its result
@@ -376,16 +376,16 @@ Three caps follow, each with a stated basis rather than a round number:
   the last accepted one, in raw pixels (not ratio — a ratio lives in one block's own scale and
   isn't a physical distance comparable across blocks). The figure follows the precedent issue #95
   already cites, Yorkie's own cursors example, which thins at the same 2px.
-- **`MAX_POINTS_PER_MARK = 300`** — `MARK_CAP` bounds how many marks a member may hold, but never
-  looked inside one, and a mark is no longer the fixed ~110-byte shape it was sized against. 300
-  points measures to 8,495B segmented — at least 600px of accepted travel at the 2px floor, already
-  several paragraph-widths past what an underline or highlight gesture needs. Past the cap,
-  extending a mark is a no-op: the stroke freezes rather than losing its start, which would be more
-  code and would move where the stroke appears to begin. Worst case, every one of `MARK_CAP`'s 16
-  marks at this cap: 16 × 8,495B ≈ 133KB, up from ~1.8KB when a mark was a fixed rectangle — not
-  shrunk further, because reaching it needs 16 uncleared 300-point strokes left standing at once,
-  far outside real annotation use, and it costs bandwidth only for as long as that state persists,
-  not a recurring per-second charge on top of what's below.
+- **`MAX_POINTS_PER_MARK = 600`** — `MARK_CAP` bounds how many marks a member may hold, but never
+  looked inside one, and a mark is no longer the fixed ~110-byte shape it was sized against. 600
+  points is ~1,200px of accepted travel at the 2px floor, enough for one horizontal pass across a
+  laptop-width pane. Past the cap, extending a mark is a no-op: the stroke freezes rather than
+  losing its start, which would be more code and would move where the stroke appears to begin.
+  Worst case, every one of `MARK_CAP`'s 8 marks at this cap: ≈ 127KB (`ink.ts` records the
+  measurement), up from ~1.8KB when a mark was a fixed rectangle — not shrunk further, because
+  reaching it needs 8 uncleared 600-point strokes left standing at once, far outside real
+  annotation use, and it costs bandwidth only for as long as that state persists, not a recurring
+  per-second charge on top of what's below.
 - **`MAX_SEGMENTS_PER_MARK = 30`** — `MAX_POINTS_PER_MARK` bounds total points but not how they're
   distributed across segments, and a stroke that keeps crossing back over a block boundary starts a
   fresh one-point segment each time, paying the full 36-byte `blockId` tax on every point — the
@@ -467,7 +467,8 @@ Last child of the scroll container, for two reasons that are easy to lose. **Pai
 without claiming the `z-30` the editor's modals use. **Effect order**: sibling effects run in DOM
 order, so measuring last means measuring after every textarea in that commit has auto-grown.
 
-Its height is the bottom of the last measured box. `inset-0` would give the visible box and clip
+Its height is the bottom of the last measured box, but never less than the scroll container's
+visible height. `inset-0` would give the visible box and clip
 every mark past the first screen; `scrollHeight` over-reports, because the 파일 추가 footer and its
 `flex-1` sit below the last block.
 
@@ -574,7 +575,7 @@ extra one under it would be redundant, not merely unnecessary.
 
 ### The pointer's cost was checked against marks becoming paths, not assumed
 
-`MAX_POINTS_PER_MARK`'s own comment already prices a member's marks at up to ~125KB in the
+`MAX_POINTS_PER_MARK`'s own comment already prices a member's marks at up to ~127KB in the
 worst case, and that number didn't exist when #95 first reasoned "publish only the current point
 keeps the pointer's own payload O(1)" — marks were still a fixed ~110-byte rectangle then. Since
 presence has no delta, the pointer's own small payload rides alongside whatever `marks` currently
@@ -586,9 +587,9 @@ Measured, not assumed:
 |---|---:|---:|
 | pointer field alone | 88 B | ~0.9 KB/s |
 | realistic marks (3 typical strokes) + pointer | ~1.9 KB | ~19 KB/s |
-| worst-case marks (16 maxed 300-point strokes) + pointer | ~125 KB | ~1.25 MB/s |
+| worst-case marks (8 maxed 600-point strokes) + pointer | ~127 KB | ~1.27 MB/s |
 
 The realistic case is trivial on a LAN. The worst case is unchanged in kind from what was already
-accepted — it needs 16 uncleared maximum-length strokes standing at once, and the pointer adds 88
+accepted — it needs 8 uncleared maximum-length strokes standing at once, and the pointer adds 88
 bytes to that ceiling, not a materially new one. No caps changed here; this confirms the existing
 ones still hold rather than deciding anything new.

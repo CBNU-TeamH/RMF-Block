@@ -54,7 +54,7 @@ graph TB
 ## Notes
 
 - **No internal persistence module for documents.** Yorkie owns document durability and reloads from MongoDB on its own restart — the app never opens a Mongo connection (ADR-002).
-- **`.data/*.json` is the app's own store**, not Yorkie's: chat history and workspace members today, workspace metadata still to come. Writes go through a temp file + `rename` for atomicity; the chat repository serializes concurrent async writes through a promise chain, the sync stores don't need one.
+- **`.data/*.json` is the app's own store**, not Yorkie's: see [`docs/design/architecture.md`](docs/design/architecture.md) for what it holds. Writes go through a temp file + `rename` for atomicity; the chat repository serializes concurrent async writes through a promise chain, the sync stores don't need one.
 - **Sessions are deliberately memory-only** — a session id on disk would be a permanent bearer token, so container restart is the documented revoke path.
 - **Both WebSocket upgrade paths gate entry, not just message content** — an unauthenticated client never reaches `WSHub` at all (ADR-006). The registration-race fix on top of that is detailed in `docs/conventions.md`'s `#26` note, not repeated here.
 - **Docker (`docker-compose.yml`)**: three containers — `app`, `yorkie` (`--mongo-connection-uri`, no MemDB), `mongo` (no published port, only Yorkie talks to it). Named volumes `app-data` and `mongo-data` back `DataFiles` and `Mongo` above; only `docker compose down -v` clears them. `app` depends on `yorkie` being `service_healthy` because startup must register the auth webhook before serving.

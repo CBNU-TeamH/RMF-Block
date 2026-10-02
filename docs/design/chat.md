@@ -49,14 +49,17 @@ lib/files/
   types.ts             — StoredFile metadata
   file-repository.ts   — bytes on disk, metadata in JSON
   serving.ts           — the preview/download response rule (see api.md §1)
+  upload.ts            — readUpload: the 25 MB / Content-Length guard (ceilings: api.md §1)
+  size.ts              — readableSize
 server/
   ws-hub.mts             — generic WS connection registry + broadcast; not chat-specific
   index.mts               — custom server entry point (HTTP + Next handler + WS upgrade routing)
 app/api/chat/
   route.ts                — GET (history) / POST (send)
   files/route.ts          — POST (upload)
+app/api/documents/[id]/files/route.ts — document upload; reuses readUpload and fileRepository
 app/api/files/[id]/
-  preview/route.ts        — inline, images only
+  preview/route.ts        — inline, allow-listed types (images and PDF)
   download/route.ts       — attachment, always opaque
 app/(workspace)/
   chat-window.tsx         — the floating window and the bar that opens it
@@ -119,7 +122,7 @@ stored metadata. A client that could name its own `fileName` or `size` could des
 else's upload however it liked.
 
 **`ws-hub.mts` caches its singleton on `globalThis`**, mirroring `lib/host-secret.ts`'s existing
-pattern, so `next dev`'s module-reload (HMR) can't split connection state into two registries.
+pattern, because the module is loaded by two module loaders in one process (see [ADR-003](../adr/003-stack-choices.md)) and would otherwise split connection state into two registries.
 
 ## The floating window
 

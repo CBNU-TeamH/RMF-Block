@@ -1,6 +1,6 @@
 # API Design — Endpoint Catalog
 
-- **Status**: Draft. Endpoints only — no request/response schemas yet. Shipped so far: `/api/auth/host` (as a simplified interim `GET` + query param, not the `POST` below — see `app/api/auth/host/route.ts`), `/api/workspace/join`, `/api/chat`, `/api/chat/files`, `/api/documents/:id/files`, `/api/files/:id/preview`, `/api/files/:id/download`, plus two endpoints this catalogue does not list because they are not client-facing: `/api/auth/yorkie-token` (issues a per-session token) and `/api/internal/yorkie/auth` (the webhook Yorkie itself calls). Every other row below is target design, not yet built.
+- **Status**: Draft. Endpoints only — no request/response schemas yet. Where a table has a Status column, ✅ marks a built row. In the tables without one, built rows are `/api/workspace/join`, `GET`/`POST /api/chat`, `POST /api/chat/files` and `/api/auth/host` (a simplified interim `GET` + query param, not the `POST` below — see `app/api/auth/host/route.ts`); every other row there is target design. Two built endpoints are not listed because they are not client-facing: `/api/auth/yorkie-token` (issues a per-session token) and `/api/internal/yorkie/auth` (the webhook Yorkie itself calls).
 - **Owns**: `lib/auth/`, `lib/workspace-config.ts`, `lib/yorkie-admin.ts`,
   `app/api/auth/host/route.ts`, `app/api/auth/yorkie-token/route.ts`,
   `app/api/internal/yorkie/auth/route.ts`, `app/api/workspace/join/route.ts`,
@@ -31,10 +31,11 @@ These shape every path below:
 | Host | The server generates a bootstrap secret at startup and prints it to container stdout alongside the join URL (FR-010-03 already puts the join address on the host's screen). Only whoever ran the container can read stdout, so possession of that secret proves host identity. It is exchanged once for a host session token. |
 | Guest | Nickname + workspace password (FR-020-02/03). A known nickname re-attaches to the existing user rather than creating a new one (FR-020-08). |
 
-**Shipped today is none of the below.** A join issues one opaque `randomUUID()` session id held
+**Shipped today is narrower than the model below.** A join issues one opaque `randomUUID()` session id held
 in an in-memory `Map` (`lib/auth/session-registry.ts`) and set as a cookie with no `maxAge` — no
-expiry, no rotation, no refresh endpoint, no reuse detection. The model in this section is target
-design; the header note above covers the REST rows, not this prose.
+expiry, no rotation, no refresh endpoint, no reuse detection. The stdout bootstrap secret,
+restart-is-revoke and the one-hour in-memory Yorkie tokens are built; the 30-minute/7-day
+access + refresh pair, token-family invalidation and the host session token are target design.
 
 Access tokens live 30 minutes; refresh tokens live 7 days. Refresh-token reuse is treated as a theft signal: it invalidates the token family and forces the host to re-read the bootstrap secret from stdout.
 
@@ -58,12 +59,27 @@ starting the server (FR-020-02). It is configuration, not state: the password is
 
 `lib/yorkie-admin.ts` registers this server's auth webhook with Yorkie at startup
 (NFR-SEC-002/005). It is what makes §2's webhook actually get called — a Yorkie that was never
-told to ask would accept any client that can reach port 8080, which is the failure
-`instrumentation.ts` refuses to boot past.
+told to ask would accept any client that can reach port 8080.
 
 `app/session-watch.tsx` is the client half of FR-020-08's one-device rule: when a nickname is
 claimed on another device, the displaced session is revoked server-side and this component is
 what notices and leaves the workspace, rather than leaving a dead tab showing stale content.
+
+### Entry gotchas
+
+Three things about the host/guest entry flow that only show up in the container.
+
+`GET /api/auth/host` answers with a **relative** `Location: /`, not
+`NextResponse.redirect(new URL("/", request.url))`. The container runs with `HOSTNAME=0.0.0.0`, so
+`request.url` is `http://0.0.0.0:3000/…` — a different origin from the one the host typed, and the
+browser drops the cookie that response just set.
+
+`HOST_LAN_IP` is read with `||`, not `??`: compose passes it through as `""` when unset, and `??`
+lets the empty string through as an address.
+
+A Docker/NAT-range address is never printed as the guest join address (`isNatRange`,
+`lib/lan-address.ts`) — it reaches nobody on the LAN. The banner names it and says how to set the
+real one instead.
 
 ### The document endpoints
 
@@ -166,6 +182,7 @@ One requirement, two halves — the tree half is served here, the roster half is
 
 | Method | Path | Purpose | Auth | Traceability | Status |
 | --- | --- | --- | --- | --- | --- |
+| `GET` | `/api/documents` | The whole catalogue | guest | — | ✅ |
 | `POST` | `/api/documents` | Create a document or folder, resolving name collisions | guest | FR-021-01~05 | ✅ |
 | `GET` | `/api/documents/:id` | One document's catalogue row — what a `doc-link` block reads to show a name | guest | — | ✅ |
 | `PATCH` | `/api/documents/:id` | Rename or move to another folder | guest | FR-023-01~03 | ✅ |
@@ -280,7 +297,7 @@ Chat has two candidate implementations (§5). These REST endpoints belong to **v
 | `GET` | `/api/chat` | Message history | guest | FR-060-05 | — |
 | `POST` | `/api/chat` | Send and persist a message | guest | FR-060-01~03/05 | — |
 | `POST` | `/api/chat/files` | Upload a file to attach to a message | guest | FR-060-02 | ✅ |
-| `GET` | `/api/chat/files` | List files shared in chat | guest | FR-061-01/02 | ✅ |
+| `GET` | `/api/chat/files` | List files shared in chat (not built) | guest | FR-061-01/02 | ✅ |
 
 `POST /api/chat/files` is not in the original draft but is unavoidable: chat attachments are bytes, and bytes cannot go through Yorkie, so both chat versions need this REST path even when version B carries the messages themselves over CRDT.
 
@@ -288,7 +305,7 @@ Chat has two candidate implementations (§5). These REST endpoints belong to **v
 
 | Direction | Call | Purpose | Traceability |
 | --- | --- | --- | --- |
-| Yorkie → server | `POST /internal/yorkie/auth` (auth webhook) | Yorkie asks us to authorize each client operation: validate the session token and check workspace membership plus document access | Execution arm of the FR-010/FR-020 auth chain, NFR-SEC-002/005 |
+| Yorkie → server | `POST /api/internal/yorkie/auth` (auth webhook) | Yorkie asks us to authorize each client operation: validate the token and that its session is still live (workspace-membership and per-document access checks are not built) | Execution arm of the FR-010/FR-020 auth chain, NFR-SEC-002/005 |
 | Server → Yorkie | ~~`Watch`~~ — **decided: not kept** | This subscription existed only to drive the delayed-write trigger, which ADR-002 deletes; Mongo now provides durability directly, so nothing needs it | ADR-002 |
 | Server → Yorkie | Admin API, read-only — document summaries and active editors | Supplementary source for who is editing what | FR-040 (support), FR-022-06 (support) |
 
@@ -298,7 +315,7 @@ document. The chain is three parts — `GET /api/auth/yorkie-token` trades the s
 something client JS can hold (the cookie is `httpOnly` so that page scripts, and anyone reading a
 shared screen under UC-030, never see it), the browser passes that through the SDK's
 `authTokenInjector`, and this webhook answers. Startup writes the webhook onto Yorkie's project
-itself, over the Admin API, and refuses to serve if it cannot: the webhook URL is a project field
+itself, over the Admin API: the webhook URL is a project field
 rather than a server flag, and a step the host could forget would make an unguarded Yorkie the
 default.
 
@@ -312,7 +329,7 @@ Anything outside those three combinations — a `200` carrying `allowed: false` 
 
 The endpoint is deliberately unsigned. Anything on the LAN can call it, and all a caller can learn is whether a token it already holds is valid.
 
-**The app registers the webhook with Yorkie itself, at startup, and refuses to run if it cannot.**
+**The app registers the webhook with Yorkie itself, at startup, and refuses to run if it cannot** (production; `pnpm dev` only warns).
 The webhook URL is a Yorkie **project** field, not a server flag — `cmd/yorkie/server.go` exposes
 only the cache size and TTL — so something has to call the Admin API after Yorkie is up. Leaving
 that to the host would make `docker compose up` two steps and, worse, would make *an unguarded
@@ -353,7 +370,7 @@ decision for ten seconds by default** (`--auth-webhook-cache-auth-ttl`). A guest
 UC-011 keeps whatever Yorkie last decided about them until that expires. Choosing the value is
 [#48](https://github.com/CBNU-TeamH/RMF-Block/issues/48).
 
-Document keys carry no type prefix — a Yorkie key can only contain `a-z A-Z 0-9 - . _ ~` (120 chars max), which rules out a `:`-delimited scheme and makes any other delimiter ambiguous against UUIDs. Instead the key **is** the document's id as issued by `POST /api/documents`, and the webhook resolves its type by looking the id up in the App/WS Server's own document table — which it already needs for the Document Tree API. `chat` is a reserved literal key (version B, §5) rather than an id, since it's a workspace-wide singleton.
+Document keys carry no type prefix — a Yorkie key can only contain `a-z A-Z 0-9 - . _ ~` (120 chars max), which rules out a `:`-delimited scheme and makes any other delimiter ambiguous against UUIDs. Instead the key **is** the document's id as issued by `POST /api/documents`. The webhook does not read the key today; once it checks document access it would resolve the type by looking the id up in the App/WS Server's own document table, and `chat` would be a reserved literal key (version B, §5) rather than an id, since it's a workspace-wide singleton.
 
 ## 3. RPC — yorkie-js-sdk ↔ Yorkie
 
@@ -433,7 +450,7 @@ FR-060 was designed as two candidates, as agreed: one conventional, one Yorkie-n
 
 One dedicated Yorkie document per workspace (reserved key `chat`) holding messages as a CRDT array. Clients attach to it like any other document and send by updating it; delivery rides `PushPullChanges`/`Watch`, so **rmf-block-server relays nothing**. Persistence comes free from the Yorkie storage already in place, satisfying FR-060-05 without a chat table.
 
-Version B requires the auth webhook's access check (§2) to recognize the literal `chat` key ahead of the document-table lookup. File attachments still upload over REST either way.
+Version B would need the auth webhook (§2, which does not look at document keys yet) to recognize the literal `chat` key ahead of any document-table lookup. File attachments still upload over REST either way.
 
 ## Open questions
 - Whether the two chat versions can share one client-facing interface.

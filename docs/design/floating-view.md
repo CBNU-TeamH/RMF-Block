@@ -15,7 +15,7 @@ elsewhere. Four decisions bound it:
 
 - **A read-only mirror.** UC-070 asks for reference, and a second editing surface would need
   its own IME handling, undo and occupancy. The window never writes to the document.
-- **One entry point**: a 22px 🪟 left of a block row's drag handle, shown the way the handle
+- **One entry point**: a 24px window-glyph button left of a block row's drag handle, shown the way the handle
   is. It was first on the right edge; the user found it too small and too far away to hit.
 - **Restored after a reload**, from `localStorage` (`rmf-floating-views`). Which blocks one
   person pinned, and where, is worth nothing to anyone else, the same reasoning as the chat
@@ -91,9 +91,9 @@ ratio locked, and the content scales with it.
 The pointer plumbing in `use-frame-gesture.ts` and the chrome in `floating-frame.tsx` (title
 bar, close button, resize handles) are shared with the chat window. The geometry is each
 window's own: the hook takes it as `rules`. The chat window keeps `lib/chat/window-frame.ts`
-and its three resize borders. A floating view uses the ratio-locked corner above and a red ✕.
-The chat window's ✕ stays grey, because only the floating one was hard to see. While a
-gesture runs,
+and `FloatingFrame` renders either its three resize borders (`resize="edges"`, the chat window)
+or one corner grip (`resize="corner"`, the ratio-locked corner above). A floating view's ✕ turns
+red on hover; the chat window's turns dark. While a gesture runs,
 every `<iframe>` on the page has `pointer-events: none`, because a PDF under the pointer would
 otherwise take the moves for itself and stall the drag. Pointer capture was tried first and does
 not hold across Chrome's PDF viewer (measured with Playwright).

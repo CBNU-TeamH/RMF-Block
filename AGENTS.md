@@ -21,7 +21,7 @@ This version (16.2.12) has breaking changes — APIs, conventions, and file stru
 - **Who**: CBNU Team H capstone project.
 - **Current stage**: this repository holds both the docs and the code — Next.js + TypeScript, single package, pnpm.
 - **Stack**: why Yorkie and not Yjs/Automerge, why Next's App Router and not a React SPA with its own backend, and the smaller choices around them — [`docs/adr/003-stack-choices.md`](docs/adr/003-stack-choices.md).
-- **Architecture**: real-time sync runs on **self-hosted Yorkie (CRDT)**; the app/WS server is a single Next.js custom server (REST + WebSocket) owning business logic and state relay. **Yorkie also owns document persistence and version history** — it runs on MongoDB, and history comes from its revision API. MongoDB is Yorkie's internal store and the app never connects to it; the app's own state lives in host-held JSON files under `.data/` — chat history and the workspace's members today, with workspace metadata still to come. Sessions deliberately stay in memory (`lib/auth/session-registry.ts`): a session id on disk would be a permanent bearer token, and restarting the container is the documented revoke path. See [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2 and [`docs/adr/002-persistence-on-yorkie-mongo.md`](docs/adr/002-persistence-on-yorkie-mongo.md).
+- **Architecture**: real-time sync runs on **self-hosted Yorkie (CRDT)**; the app/WS server is a single Next.js custom server (REST + WebSocket) owning business logic and state relay. **Yorkie also owns document persistence and version history** — it runs on MongoDB, and history comes from its revision API. MongoDB is Yorkie's internal store and the app never connects to it; the app's own state lives in host-held JSON files under `.data/` (see [`docs/design/architecture.md`](docs/design/architecture.md)). Sessions deliberately stay in memory (`lib/auth/session-registry.ts`): a session id on disk would be a permanent bearer token, and restarting the container is the documented revoke path. See [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2 and [`docs/adr/002-persistence-on-yorkie-mongo.md`](docs/adr/002-persistence-on-yorkie-mongo.md).
 
 ---
 
@@ -81,7 +81,7 @@ Which document to open for which job.
 | The overall plan | [`ROADMAP.md`](ROADMAP.md) |
 | Skills for Claude Code | [`skills/`](skills/) — pointer files; suggest one to the user, don't run it unprompted |
 | How to run the app (Docker, LAN setup) | [`README.md`](README.md) |
-| Host/guest auth entry flow deep-dive | [`docs/HOST-GUEST-ENTRY-ko.md`](docs/HOST-GUEST-ENTRY-ko.md) |
+| Host/guest auth entry flow | [`docs/design/api.md`](docs/design/api.md) — "Authentication model", "Entry gotchas" |
 
 ---
 
