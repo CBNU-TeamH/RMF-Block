@@ -12,6 +12,7 @@ Fixes #
 - [ ] I searched existing issues and PRs and confirmed this is not a duplicate.
 - [ ] Changes follow [`AGENTS.md`](../AGENTS.md) §3 and §5 and [`docs/conventions.md`](../docs/conventions.md); any deviation is explained in *Why* above.
 - [ ] Agreed docs (`docs/SRS-ko.md`) are unchanged, or the team already agreed to the change — and `docs/SRS-en.md` carries the same change, translation reviewed.
+- [ ] Owning docs (see the owning-docs reminder comment): updated · or not needed because: …
 - [ ] If AI tools assisted with this PR, I noted where in *Notes for Reviewers* below.
 
 ## Verification

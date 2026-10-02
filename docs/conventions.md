@@ -130,6 +130,21 @@ and its `lastSyncedRef` by hand with a comment explaining why. Split and merge n
 mirroring and didn't have it; the issue's shape section calls this out directly: *"The pattern for
 fixing it already exists in the codebase, and says so."*
 
+## One fact, one place
+
+A fact written in two documents is [S-2](#s-2--two-owners-for-one-piece-of-state) for prose: the
+copies drift, and nothing fails when they do.
+
+- **An open question lives in its GitHub issue only.** Other docs link the issue number and never
+  restate its status. Closing the issue is then the whole update.
+- **A mechanism lives in its owning `docs/design/*.md`** (call path, data flow). The SRS,
+  `architecture.md` and every other doc keep at most a one-line summary plus a link.
+
+**Cited by**: [`#126`](https://github.com/CBNU-TeamH/RMF-Block/issues/126). #23's "open" status was
+restated in `AGENTS.md` §7, ADR-002, `architecture.md` and `ROADMAP.md`, and stayed "open" in all
+four after #117 shipped it. The revision call path was drawn server-side in three places while
+`version-history.md` had it right.
+
 ## Revisit a cost claim when what's adjacent to it changes shape
 
 A cost claim can still be true and still be stale, if what it sits next to changed. The laser

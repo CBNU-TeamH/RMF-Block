@@ -61,6 +61,36 @@ jobs:
 
       - run: node scripts/comment-budget.mjs --strict
 
+  # Doc drift: a dead link, a stale task index, an ownership gap, SRS-en.md
+  # falling behind SRS-ko.md. The scripts are stdlib-only, but AGENTS.md links
+  # into node_modules/next/dist/docs/, which verify-docs reports dead without an
+  # install. Full history because verify-srs-sync diffs against the merge base.
+  #
+  # Deliberately NOT a required check yet: it has never run in CI, so it stays
+  # non-blocking until it has run green, then moves to required (a repo ruleset
+  # change, done by an admin).
+  docs:
+    name: verify docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: node scripts/verify-docs.mjs
+      - run: node scripts/verify-doc-refs.mjs
+      - run: node scripts/verify-srs-sync.mjs --strict
+
   # `pnpm test` runs against no server at all, so nothing in it can notice the
   # SDK changing under us. The 0.7.13 → 0.7.23 bump is the proof: all 571 tests
   # passed unmodified while two measured SDK behaviours moved. This job is the

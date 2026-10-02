@@ -1,0 +1,25 @@
+name: Doc reminders
+
+# Stage 1 of 2. A fork PR gets a read-only token, so nothing here can comment.
+# It only records which PR this run is for; doc-reminders-comment.yml (stage 2)
+# computes and posts the comment from main's own code. The artifact carries the
+# PR number and nothing else — a fork controls this job, so stage 2 trusts no
+# content from it. Never switch this to pull_request_target.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir out
+          echo "${{ github.event.pull_request.number }}" > out/pr-number
+      - uses: actions/upload-artifact@v4
+        with:
+          name: doc-reminders
+          path: out/
+          retention-days: 1

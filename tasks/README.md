@@ -25,7 +25,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 | Task | Lessons |
 | :--- | :--- |
 | [SRS-en.md as the agents' copy of SRS-ko.md, kept in sync by a required check](active/20261001-srs-en-sync-todo.md) | [lessons](active/20261001-srs-en-sync-lessons.md) |
-| [Archive finished tasks and add version history to the SRS](active/20261001-docs-archive-and-drift-audit-todo.md) | [lessons](active/20261001-docs-archive-and-drift-audit-lessons.md) |
+| [Keep docs in sync: one fact in one place, and reminders where the work happens](active/20261001-doc-sync-reminders-todo.md) | [lessons](active/20261001-doc-sync-reminders-lessons.md) |
 | [Redesign the app: "B · Soft / paper" (light)](active/20260925-notion-redesign-todo.md) | [lessons](active/20260925-notion-redesign-lessons.md) |
 | [Sync the app's components to Claude Design](active/20260925-design-sync-todo.md) | [lessons](active/20260925-design-sync-lessons.md) |
 

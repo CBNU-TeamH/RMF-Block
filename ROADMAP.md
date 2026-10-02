@@ -60,6 +60,6 @@ Management features layered on top of an already-working workspace and editor �
 - Load-test baseline for the 8-user assumption (NFR-PER-001/006). How each NFR-PER item is measured — tool, rig, clock, pass threshold — is settled in [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md); what remains here is running it and recording the numbers.
 - Security pass: input validation, upload restrictions, unauthorized-access checks (NFR-SEC-003/004/005).
 - Crash/restart recovery verification (NFR-SAF-003, NFR-REL-002) — against Yorkie/MongoDB for document content and `.data/` for app state, the two stores ADR-002 leaves.
-- The load-test baseline above is the one piece of hardening that no longer has an `AGENTS.md` §7 entry — its criteria are written, so only the measurement is left. Of the §7 items that remain, block/text colour (#6) is a design decision, not hardening, and lands with the module that needs it; the review-quality measurements (#92) are process, not product.
+- The load-test baseline above is the one piece of hardening that no longer has an `AGENTS.md` §7 entry — its criteria are written, so only the measurement is left. The §7 item that remains — block/text colour (#6) — is a design decision, not hardening, and lands with the module that needs it.
 
 **Exit criteria**: NFRs in SRS §3.4 are verified, not just assumed.
