@@ -41,7 +41,7 @@ One PR with one commit per milestone. The main session owns the format and the f
 
 ### M4. Declarations verified against the AST
 
-- **What**: `<!-- declare: … -->` blocks with four predicates: `called-only-from`, `never-called`, `const` and `exists`. `scripts/verify-declarations.mjs` checks them. The first declarations go in `version-history.md`, `api.md` and `presence-and-focus.md`.
+- **What**: `<!-- declare: … -->` blocks with four predicates: `called-only-from`, `never-called`, `const` and `exists`. `scripts/verify-declarations.mjs` checks them. The first declarations go in `version-history.md`, `architecture.md` and `presence-and-focus.md`.
 - **Files**: `scripts/verify-declarations.mjs`, `docs/conventions.md`, and the three design docs.
 - **Reuse**: `extractFacts()` from M3.
 - **Done**: every declaration passes on the current code, and fails when its code fact changes in a scratch copy.

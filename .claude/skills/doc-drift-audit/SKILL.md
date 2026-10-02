@@ -40,7 +40,7 @@ Two rules for every step:
 - Every prompt you give a sub-agent starts with: *check `git log --oneline -1` is `<sha>`; stop and report if not.* Worktrees and checkouts drift; this check is what stops an agent from working on a stale base.
 
 ## 1. Baseline
-Run the repo's deterministic doc checks first (here: `pnpm verify:docs` — links, ownership, requirements sync); whatever they catch costs no model tokens and needs no auditor. Then measure before touching anything, and post it on the audit issue — the PR's result section compares against it.
+Run the repo's deterministic doc checks first (here: `pnpm verify:docs` — links and `#anchors`, ownership, requirements sync, cited requirement IDs, facts docs declare in `<!-- declare: -->` blocks, the generated endpoint table); whatever they catch costs no model tokens and needs no auditor. Then measure before touching anything, and post it on the audit issue — the PR's result section compares against it.
 
 ```sh
 node $SKILL/scripts/derive-parts.mjs > <scratch>/parts.json      # step 2; edit or --group it first if needed
@@ -59,7 +59,7 @@ Group each doc with the code it describes, so each auditor reads one doc set and
 - Leave out generated renders, mockups, and agreed requirements docs (those get category E only).
 
 ## 3. Structural facts — optional
-For a TypeScript/Next codebase, `node $SKILL/scripts/extract-facts.mjs --out <scratch>/facts --parts <scratch>/parts.json` writes structural facts per part (what it extracts: the script header).
+For a TypeScript/Next codebase, `node $SKILL/scripts/extract-facts.mjs --out <scratch>/facts --parts <scratch>/parts.json` writes structural facts per part (what it extracts: the script header). The engine is `scripts/lib/ast-facts.mjs`, which CI's declaration and endpoint checks share; this script only slices its output per part.
 
 It is an **index** for auditors — where to look, and the cross-boundary edges a directory scope misses (client call → route → socket hub). Auditors still open the files to decide. Skip it for other stacks; the audit works without it. (Deterministic checks of declared facts — "never called", "only called from `app/**`", a constant's value — belong in CI, not here: grep cannot tell a call from a comment, the AST can.)
 
