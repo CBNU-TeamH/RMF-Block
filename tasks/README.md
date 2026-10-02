@@ -22,9 +22,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 ## Active
 
-| Task | Lessons |
-| :--- | :--- |
-| [Drift audit: doc-code drift and doc compression](active/20261002-drift-audit-todo.md) | [lessons](active/20261002-drift-audit-lessons.md) |
+Nothing in progress.
 
 ## Archive
 
