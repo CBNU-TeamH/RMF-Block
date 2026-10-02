@@ -3,7 +3,7 @@
 - **Status**: Baseline — five forbidden shapes, the comment rule, and two named constraints.
 - **Related**: [`AGENTS.md`](../AGENTS.md) §3 principles 2 and 3 (simplicity first, surgical
   changes), which this document makes checkable; installed via the `code-review` and
-  `code-simplifier` plugins in [`skills/README.md`](../skills/README.md).
+  `code-simplifier` plugins in [`.claude/skills/README.md`](../.claude/skills/README.md).
 
 ## Scope
 

@@ -32,7 +32,7 @@ Read [`AGENTS.md`](AGENTS.md) first. It is the single entry point: workflow, cod
 | [`public/`](public/) | Static assets served as-is. |
 | [`instrumentation.ts`](instrumentation.ts) | Server startup hook — prints the host link and the guest join address. |
 | [`Dockerfile`](Dockerfile) · [`docker-compose.yml`](docker-compose.yml) | The image the host runs, plus the self-hosted Yorkie server and its MongoDB store. |
-| [`skills/`](skills/) | Pointer files for the review plugins and one optional skill — see [`skills/README.md`](skills/README.md). |
+| [`.claude/skills/`](.claude/skills/) | Pointer files for the review plugins and one optional skill, plus the repo's own skills (mirrored to `.agents/skills/`) — see [`.claude/skills/README.md`](.claude/skills/README.md). |
 
 Root config files (`next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, `postcss.config.mjs`) are the real, live settings — not templates.
 

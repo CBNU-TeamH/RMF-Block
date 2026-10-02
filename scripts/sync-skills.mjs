@@ -30,7 +30,7 @@ const skills = (dir) => (existsSync(dir) ? readdirSync(dir, { withFileTypes: tru
 export function diff(src = SRC, dst = DST) {
   const mine = skills(src);
   const ours = (f) => mine.some((s) => f === s || f.startsWith(`${s}/`));
-  const a = files(src);
+  const a = files(src).filter(ours); // top-level pointer files (README.md) are not skills
   const b = files(dst).filter(ours);
   const inDst = new Set(b);
   const missing = a.filter((f) => !inDst.has(f) || !readFileSync(join(src, f)).equals(readFileSync(join(dst, f))));

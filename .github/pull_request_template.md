@@ -31,7 +31,7 @@ Skip reason (if applicable):
 ### Before opening this PR
 
 Which checks were actually run — not whether the diff was read carefully.
-[`skills/README.md`](../skills/README.md) says what each one is, and in which order.
+[`.claude/skills/README.md`](../.claude/skills/README.md) says what each one is, and in which order.
 
 - [ ] `pnpm lint` / `pnpm test` / `pnpm build` locally
 - [ ] `pnpm comments` / `pnpm verify:docs` locally
