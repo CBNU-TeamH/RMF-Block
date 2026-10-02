@@ -72,4 +72,9 @@ One PR with one commit per milestone. The main session owns the format and the f
 
 ## Review
 
-Filled in at the end.
+### PR #139: skill mirror paths across operating systems
+
+- **Scope**: fix review finding 1 in `scripts/sync-skills.mjs`; finding 2 (unclosed declaration blocks) stays for the next turn.
+- **Approach**: normalize `path.relative()` results to `/` using the native `path.sep`, matching `scripts/lib/ast-facts.mjs`. Keep the existing skill-folder filter and filesystem reads.
+- **Success criteria**: Windows and POSIX paths (macOS/Linux) detect changed, missing and stale mirror files; matching mirrors pass; pointer files and destination-only skills remain excluded.
+- **Verification**: temporary fixtures passed with native Linux paths, POSIX paths (macOS/Linux) and Windows `path.win32` paths. Checked matching, changed, missing and stale files, nested paths, spaces/non-ASCII characters, pointer exclusions and destination-only skills; simulated POSIX/Windows CLI checks returned 0 for matching mirrors and 1 for mismatches. The pre-fix Windows case reproduced the false clean result. Native macOS/Windows hosts were not available. `pnpm verify:docs`, `pnpm lint` and `git diff --check` passed.

@@ -9,7 +9,7 @@
 //   node scripts/sync-skills.mjs --check  fail if the mirror differs (run by `pnpm verify:docs`)
 
 import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const SRC = ".claude/skills";
@@ -19,7 +19,7 @@ function files(dir) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir, { recursive: true, withFileTypes: true })
     .filter((e) => e.isFile())
-    .map((e) => relative(dir, join(e.parentPath, e.name)))
+    .map((e) => relative(dir, join(e.parentPath, e.name)).split(sep).join("/"))
     .sort();
 }
 

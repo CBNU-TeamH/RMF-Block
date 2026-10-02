@@ -7,14 +7,14 @@ that the next person does not rediscover this.
 
 ## What surprised us
 
-- ...
+- Filtering `path.relative()` output against `/`-separated prefixes hid every nested skill file on Windows. Filtering both sides then made a stale mirror look clean with zero checked files.
 
 ## What we would do differently
 
-- ...
+- Exercise a verifier with mismatching fixtures under Windows and POSIX path semantics; a clean checkout alone cannot distinguish a correct pass from an empty scan.
 
 ## Worth extracting
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- ...
+- No new convention needed for this fix: reuse the native-separator normalization already used by `scripts/lib/ast-facts.mjs` before filtering relative paths.
