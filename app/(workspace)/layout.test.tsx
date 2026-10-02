@@ -15,6 +15,7 @@ vi.mock("@/lib/host-secret", () => ({ isHostSecret: vi.fn() }));
 // on real env/config reads that already have their own lib tests.
 vi.mock("@/lib/yorkie-address", () => ({ yorkieClientConfig: () => ({ port: 3000 }) }));
 vi.mock("@/lib/workspace-config", () => ({ getWorkspaceName: () => "workspace" }));
+vi.mock("@/lib/documents/documents", () => ({ readDocuments: () => [] }));
 
 import { cookies } from "next/headers";
 import { sessionRegistry } from "@/lib/auth/session-registry";

@@ -33,7 +33,9 @@ export type PresenceState = {
   setPresenting: (presenting: WorkspacePresence["presenting"]) => void;
 };
 
-const PresenceContext = createContext<PresenceState>({
+/** Exported only for `.design-sync/` previews, which have no Yorkie server to
+ *  fill it; app code reads it through `useWorkspacePresence`. */
+export const PresenceContext = createContext<PresenceState>({
   status: "connecting",
   members: [],
   client: null,

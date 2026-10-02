@@ -46,7 +46,7 @@ describe("DocumentRowMenu", () => {
       screen.getAllByRole("menuitem").map((item) => item.textContent),
       ["새 하위 문서", "이름 변경", "이동", "삭제"],
     );
-    assert.match(screen.getByRole("menuitem", { name: "삭제" }).className, /text-red-600/);
+    assert.match(screen.getByRole("menuitem", { name: "삭제" }).className, /text-danger/);
     assert.equal(trigger.getAttribute("aria-expanded"), "true");
   });
 

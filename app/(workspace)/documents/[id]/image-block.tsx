@@ -30,9 +30,9 @@ export function ImageBlockView({
   const name = block.fileName || "이름 없는 이미지";
 
   return (
-    <div className="group/file my-1 rounded-md border border-ink bg-paper-2 p-2">
+    <div className="group/file my-1.5 flex flex-col gap-1.5">
       {broken ? (
-        <p className="px-1 py-4 text-center text-sm text-ink-faint">
+        <p className="flex aspect-[16/9] items-center justify-center rounded-control bg-paper-2 px-3 text-center text-[13px] text-ink-faint">
           이미지를 찾을 수 없습니다 ({name}).
         </p>
       ) : (
@@ -49,13 +49,13 @@ export function ImageBlockView({
             src={`/api/files/${block.fileId}/preview`}
             alt={name}
             onError={() => setBroken(true)}
-            className="block max-h-[420px] rounded-sm"
+            className="block max-h-[420px] rounded-control"
           />
         </a>
       )}
 
-      <div className="mt-2 flex items-center justify-between gap-2 px-1">
-        <span className="truncate text-[12px] text-ink-soft" title={name}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-[13px] text-ink-faint" title={name}>
           {name} · {readableSize(block.size)}
         </span>
 
@@ -64,14 +64,14 @@ export function ImageBlockView({
             <button
               type="button"
               onClick={() => onDelete(block.id)}
-              className="rounded-md border border-ink bg-ink px-2 py-0.5 text-[11px] font-semibold text-paper"
+              className="h-6 rounded-control bg-danger px-2 text-xs font-semibold text-paper"
             >
               삭제
             </button>
             <button
               type="button"
               onClick={() => setConfirmingDelete(false)}
-              className="rounded-md border border-ink bg-paper px-2 py-0.5 text-[11px] font-semibold text-ink"
+              className="h-6 rounded-control px-2 text-xs font-medium text-ink hover:bg-hover"
             >
               취소
             </button>
@@ -80,7 +80,7 @@ export function ImageBlockView({
           <button
             type="button"
             onClick={() => setConfirmingDelete(true)}
-            className="shrink-0 rounded-md border border-ink bg-paper px-2 py-0.5 text-[11px] font-semibold text-ink-soft opacity-0 group-hover/file:opacity-100 group-focus-within/file:opacity-100"
+            className="shrink-0 h-6 rounded-control px-2 text-xs font-medium text-ink-faint opacity-0 hover:bg-hover hover:text-danger group-hover/file:opacity-100 group-focus-within/file:opacity-100"
           >
             삭제
           </button>

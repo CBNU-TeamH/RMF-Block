@@ -22,11 +22,22 @@ export default async function JoinPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 bg-shell px-6">
-      <h1 className="text-2xl font-bold tracking-tight text-ink">
-        {getWorkspaceName()}
-      </h1>
-      <JoinForm />
+    <main className="flex flex-1 items-center justify-center overflow-auto bg-paper p-6">
+      <div className="flex w-full max-w-[380px] flex-col gap-7">
+        <div className="flex flex-col gap-3.5">
+          <span
+            aria-hidden
+            className="flex size-9 items-center justify-center rounded-card bg-ink text-[17px] font-bold text-paper"
+          >
+            r
+          </span>
+          <div className="flex flex-col gap-1.5">
+            <h1 className="text-2xl font-bold tracking-tight text-ink">{getWorkspaceName()}에 참여</h1>
+            <p className="leading-relaxed text-ink-soft">같은 네트워크의 팀원과 문서를 실시간으로 함께 편집합니다.</p>
+          </div>
+        </div>
+        <JoinForm />
+      </div>
     </main>
   );
 }

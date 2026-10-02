@@ -9,8 +9,14 @@ import { documentIdFromPathname } from "@/lib/focus/pathname";
 import { useFocusFollow } from "./focus-follow-provider";
 import { useWorkspacePresence } from "./presence-provider";
 
+/** 30px, radius 9 (`docs/ui/redesign/HANDOFF.md` §3); each state adds its colours. */
 const BUTTON =
-  "rounded-md border border-ink px-2.5 py-1 font-mono text-[11px] font-medium text-ink disabled:opacity-40";
+  "flex h-[30px] items-center gap-1.5 rounded-control px-2.5 text-[13.5px] font-medium disabled:opacity-40";
+const SHARE_ICON = (
+  <svg aria-hidden width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M8 10V2.5M5 5.5l3-3 3 3M3.5 9v4h9V9" />
+  </svg>
+);
 
 /** The one header control for UC-030's thin slice: 공유 → 참여 → 종료
  *  (FR-030-01/03/04/09). The states and the order they are checked in:
@@ -53,7 +59,7 @@ export function FocusShare({ memberId }: { memberId: string }) {
 
   if (isPresenting) {
     return (
-      <button type="button" onClick={() => setPresenting(null)} className={BUTTON}>
+      <button type="button" onClick={() => setPresenting(null)} className={`${BUTTON} bg-sky-deep text-white`}>
         공유 종료
       </button>
     );
@@ -61,7 +67,8 @@ export function FocusShare({ memberId }: { memberId: string }) {
 
   if (following) {
     return (
-      <button type="button" onClick={unfollow} className={BUTTON}>
+      <button type="button" onClick={unfollow} className={`${BUTTON} bg-hover text-ink`}>
+        <span aria-hidden className="size-1.5 rounded-full bg-sky-deep" />
         {following.nickname}님을 따라가는 중 · 종료
       </button>
     );
@@ -73,7 +80,14 @@ export function FocusShare({ memberId }: { memberId: string }) {
   const [presenter] = presenters;
   if (presenter) {
     return (
-      <button type="button" onClick={() => follow(presenter.id)} className={BUTTON}>
+      <button type="button" onClick={() => follow(presenter.id)} className={`${BUTTON} bg-sky-soft text-sky-text`}>
+        <span
+          aria-hidden
+          style={{ backgroundColor: presenter.colorTag }}
+          className="flex size-5 items-center justify-center rounded-full text-[10px] font-semibold text-white"
+        >
+          {presenter.nickname.slice(0, 1)}
+        </span>
         {presenter.nickname}님이 공유 중 · 참여하기
       </button>
     );
@@ -86,7 +100,8 @@ export function FocusShare({ memberId }: { memberId: string }) {
   if (!documentId) return null;
 
   return (
-    <button type="button" onClick={startSharing} className={BUTTON}>
+    <button type="button" onClick={startSharing} className={`${BUTTON} text-ink-soft hover:bg-hover`}>
+      {SHARE_ICON}
       공유하기
     </button>
   );

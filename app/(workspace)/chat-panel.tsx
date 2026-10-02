@@ -198,15 +198,15 @@ export function ChatPanel({ me }: { me: string }) {
         const dropped = event.dataTransfer.files[0];
         if (dropped) setFile(dropped);
       }}
-      className={`flex min-h-0 flex-1 flex-col ${dragging ? "bg-sky-soft" : "bg-paper"}`}
+      className={`flex min-h-0 flex-1 flex-col ${dragging ? "bg-sky-soft" : "bg-elev"}`}
     >
-      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
         {messages.length === 0 && pending.length === 0 ? (
           <p className="pt-8 text-center text-[13px] text-ink-faint">
             아직 대화가 없습니다.
           </p>
         ) : (
-          <ul className="flex flex-col gap-3">
+          <ul className="flex flex-col gap-0.5">
             {messages.map((message) => (
               <ChatMessageRow
                 key={message.id}
@@ -217,20 +217,20 @@ export function ChatPanel({ me }: { me: string }) {
             ))}
 
             {pending.map((entry) => (
-              <li key={entry.key} className="flex flex-col items-end gap-1">
-                <p className="w-fit max-w-full rounded-md border border-dashed border-ink/40 bg-paper-2 px-2.5 py-1.5 text-[13px] break-words whitespace-pre-wrap text-ink-faint">
+              <li key={entry.key} className="flex flex-col gap-0.5 py-1.5 pr-2 pl-[44px]">
+                <p className="text-[14px] leading-[1.55] break-words whitespace-pre-wrap text-ink-faint">
                   {entry.text || entry.file?.name}
                 </p>
                 {entry.failed ? (
                   <button
                     type="button"
                     onClick={() => send(entry)}
-                    className="rounded border border-ink px-2 py-0.5 font-mono text-[10px] tracking-wide text-ink uppercase"
+                    className="w-fit rounded-control px-1.5 py-0.5 text-xs font-medium text-danger hover:bg-danger-soft"
                   >
                     전송 실패 · 다시 보내기
                   </button>
                 ) : (
-                  <span className="font-mono text-[9.5px] text-ink-faint">보내는 중…</span>
+                  <span className="text-xs text-ink-faint">보내는 중…</span>
                 )}
               </li>
             ))}
@@ -238,9 +238,9 @@ export function ChatPanel({ me }: { me: string }) {
         )}
       </div>
 
-      <div className="flex-none border-t border-ink p-2.5">
+      <div className="flex-none px-3 pt-2.5 pb-3">
         {file ? (
-          <div className="mb-2 flex items-center gap-2 rounded border border-ink bg-paper-2 px-2 py-1">
+          <div className="mb-2 flex items-center gap-2 rounded-control bg-paper-2 px-2.5 py-1.5">
             <span className="min-w-0 flex-1 truncate text-[12px] text-ink">{file.name}</span>
             <button
               type="button"
@@ -256,7 +256,7 @@ export function ChatPanel({ me }: { me: string }) {
           </div>
         ) : null}
 
-        <div className="flex items-end gap-1.5">
+        <div className="flex items-end gap-1.5 rounded-card border border-line-strong bg-elev p-1.5 focus-within:border-sky-deep">
           <input
             ref={picker}
             type="file"
@@ -267,9 +267,11 @@ export function ChatPanel({ me }: { me: string }) {
             type="button"
             onClick={() => picker.current?.click()}
             aria-label="파일 첨부"
-            className="flex-none rounded-md border border-ink bg-paper-2 px-2 py-1.5 text-[13px]"
+            className="flex size-[30px] flex-none items-center justify-center rounded-control text-ink-faint hover:bg-hover hover:text-ink"
           >
-            📎
+            <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.5 4.5l-4.8 4.8a1.4 1.4 0 002 2l5.1-5.1a2.8 2.8 0 00-4-4L3.7 7.3a4.2 4.2 0 006 6l3.8-3.8" />
+            </svg>
           </button>
 
           <textarea
@@ -294,14 +296,14 @@ export function ChatPanel({ me }: { me: string }) {
             rows={1}
             placeholder="메시지를 입력하세요"
             aria-label="채팅 메시지"
-            className="max-h-24 min-h-8 w-full flex-1 resize-none rounded-md border border-ink bg-paper-2 px-2.5 py-1.5 text-[13px] text-ink placeholder:text-ink-faint"
+            className="max-h-24 min-h-[30px] w-full flex-1 resize-none bg-transparent px-1 py-[5px] text-[14px] text-ink outline-none placeholder:text-ink-faint"
           />
 
           <button
             type="button"
             onClick={submit}
             disabled={!draft.trim() && !file}
-            className="flex-none rounded-md border border-sky-deep bg-sky px-3 py-1.5 text-[13px] font-bold text-ink disabled:opacity-40"
+            className="h-[30px] flex-none rounded-control bg-sky-deep px-3 text-[13px] font-semibold text-white disabled:bg-hover disabled:text-ink-faint"
           >
             전송
           </button>
