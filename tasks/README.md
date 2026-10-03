@@ -22,9 +22,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 ## Active
 
-| Task | Lessons |
-| :--- | :--- |
-| [Declare structural facts in docs and verify them against the AST (+ move skills/ into .claude/skills/)](active/20261002-doc-declarations-todo.md) | [lessons](active/20261002-doc-declarations-lessons.md) |
+Nothing in progress.
 
 ## Archive
 
