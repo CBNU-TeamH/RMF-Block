@@ -13,7 +13,7 @@ that the next person does not rediscover this.
 
 ## What we would do differently
 
-- Put the fork-safe shape in the first draft of the owning-docs comment: the PR-side workflow records only the PR number, and the write-token workflow runs main's own script. `pull_request_target` was never an option.
+- Give the `archive` job the same full-history checkout as the `audit` job, or stop printing an audit field it cannot compute, so a log line from it cannot be mistaken for the real count.
 
 ## Worth extracting
 
