@@ -18,10 +18,10 @@ that the next person does not rediscover this.
 
 ## What we would do differently
 
-- ...
+- Split the drift audit out of this task from the start. It was planned as milestone 3 and moved to its own issue (#129) and PR; the task doc records the split.
 
 ## Worth extracting
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- ...
+- Nothing new. The "one fact, one place" rule these two findings motivated is already in `docs/conventions.md` (#133).

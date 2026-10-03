@@ -19,5 +19,5 @@ that the next person does not rediscover this.
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- No new convention needed for this fix: reuse the native-separator normalization already used by `scripts/lib/ast-facts.mjs` before filtering relative paths.
-- The declaration fix enforces the already documented parse-error behavior; no additional convention is needed.
+- Test a verifier with mismatching fixtures, not only a clean checkout. Both bugs above reported a clean pass over an empty scan (zero checked files, zero facts), which a clean checkout cannot tell apart from a correct pass. Candidate for `docs/testing.md`.
+- Normalize path separators on both sides before filtering `path.relative()` output; `scripts/lib/ast-facts.mjs` already does.
