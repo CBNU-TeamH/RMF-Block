@@ -59,6 +59,14 @@ describe("TextBlockView's / menu", () => {
     assert.deepEqual(menuLabels(), ["페이지"]);
   });
 
+  it("narrows while a syllable is still being composed", () => {
+    const { textarea } = renderBlock();
+    fireEvent.compositionStart(textarea);
+    fireEvent.input(textarea, { target: { value: "/제" } });
+
+    assert.deepEqual(menuLabels(), ["제목 1", "제목 2", "제목 3"]);
+  });
+
   it("opens in a heading, so the heading can become text again (#145)", () => {
     const { textarea } = renderBlock({ type: "heading", level: 2 });
     fireEvent.input(textarea, { target: { value: "/텍스트" } });

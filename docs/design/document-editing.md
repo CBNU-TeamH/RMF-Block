@@ -487,7 +487,9 @@ marker asks for a conversion that has already happened. The `/` menu opens in **
 block except code** (#145) — in code `/` is source text too, but elsewhere the menu's items are
 conversions *to* another type, so `/텍스트` is how a heading becomes a paragraph again. The `/`
 menu's query is recomputed from the text rather than tracked as a session, so deleting back
-through the slash closes it on its own.
+through the slash closes it on its own. It is recomputed mid-composition too, and matched jamo by
+jamo (`slashMenuItems`), so the menu narrows at each step an IME shows (`ㅈ`, `제`, `젬`, `제모`)
+instead of waiting for the word.
 
 ### `/페이지` makes a page; `/문서 링크` points at one
 

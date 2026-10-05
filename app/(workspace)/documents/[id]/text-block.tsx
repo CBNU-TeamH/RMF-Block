@@ -183,9 +183,10 @@ export function TextBlockView({
     setHighlight(0);
   };
 
-  /** Re-reads the query off the text. Both `onInput` and `onCompositionEnd`
-   *  call it: inputs inside a composition are skipped, so a query typed through
-   *  an IME only ever arrives at `compositionend` (#103). */
+  /** Re-reads the query off the text. Unlike the commit, it runs mid-composition
+   *  too — it only moves the menu, never Yorkie — so `/제` narrows while 제 is
+   *  still being composed. Behind the composing guard, a query typed through an
+   *  IME never reached the menu at all (#103). */
   const syncSlashQuery = (el: HTMLTextAreaElement) => {
     // Every type but code, where `/` is source text (`docs/design/
     // document-editing.md`, "Leaving a code block").
@@ -408,12 +409,11 @@ export function TextBlockView({
       onInput={(event) => {
         const el = event.currentTarget;
         autoGrow(el);
+        syncSlashQuery(el);
         // Composed while `compositionend` is pending; committed there as one
         // edit instead of one per IME candidate (measured: an uncomposed
         // binding sends one edit per candidate revision, not per character).
         if (composingRef.current) return;
-
-        syncSlashQuery(el);
 
         // Plain text only, unlike the `/` menu — a marker in a heading asks for
         // a conversion that already happened (`document-editing.md`, same section).
@@ -448,7 +448,6 @@ export function TextBlockView({
       onCompositionEnd={(event) => {
         composingRef.current = false;
         commitLocal(event.currentTarget.value);
-        syncSlashQuery(event.currentTarget);
         onTextCommitted();
         flushQueuedRemoteEdits();
       }}
