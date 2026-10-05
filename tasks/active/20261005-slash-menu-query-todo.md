@@ -59,3 +59,4 @@ change edits the line #103's fix moves.
   - the menu narrows *while* a syllable is composed (`/제`, not only `/제목`) — the query sync moved ahead of the composing guard, and `slashMenuItems` matches jamo by jamo so the IME's in-between states (`ㅈ`, `젬`, `제모`) never flash 결과 없음;
   - a code block that reads as code — a `--color-code` / `--color-code-ink` pair and one `CODE_SURFACE` shared by the editor, the revision preview and the floating view.
 - **From CodeRabbit**: Escape and the arrows yield to an open IME composition, like Enter already did.
+- **Second review round** (Sonnet, follow-up commits only): `autoGrow` now adds the border back to `scrollHeight` (the code surface's border clipped its last line by 2px); `/simplify` tidied the matcher, `textareaClass` and the composing check. Left as is: a fully typed `/제목` also tries `제모ᄀ…` as a second needle — the known ceiling of the "IME has not decided yet" reading.
