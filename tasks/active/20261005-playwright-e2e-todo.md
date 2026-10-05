@@ -42,9 +42,9 @@ jobs to be merged (same checks, fewer jobs), and E2E has to land in one of them 
 
 ## Acceptance
 
-- [ ] `ime-replay.e2e.ts` red before the fix, green after; `sync.e2e.ts` green — against the container
-- [ ] Component test fails without the fix; existing text-block / text-surface tests pass
-- [ ] eslint on changed files, `tsc --noEmit`, `pnpm verify:docs`
+- [x] `ime-replay.e2e.ts` red before the fix, green after; `sync.e2e.ts` green — against the container
+- [x] Component test fails without the fix; existing text-block / text-surface tests pass
+- [x] eslint on changed files, `tsc --noEmit`, `pnpm verify:docs`
 - [ ] By hand (user): two browsers with a Korean IME, one composing while the other edits earlier in the same block → same text on both
 
 ## Cross-cutting
@@ -55,4 +55,7 @@ jobs to be merged (same checks, fewer jobs), and E2E has to land in one of them 
 
 ## Review
 
-Filled in at the end.
+- **Shipped**: `pnpm e2e` (Playwright 1.61.0, Chromium) with two checks — two-client sync, and #52's composition race through CDP. #52 measured red (`Xabc안` on A, `Xab안c` in Yorkie), fixed in `patchRange` / `onCompositionEnd`, pinned by a component test that fails without the fix; both E2E checks green against `pnpm dev` and against the container.
+- **CI**: five jobs → three (`lint · test · build`, `container smoke test` with invariants + smoke + E2E, `docs`). Still to do at merge: remove `yorkie invariants` from ruleset 20220373's required checks (admin, on the user's word).
+- **Docs**: `docs/testing.md` fifth layer; `document-editing.md` composition rule; AGENTS.md §6, the PR template and the docs naming old jobs; `webapp-testing` dropped from the skills list.
+- **By hand**: still open (two real browsers, a real Korean IME).
