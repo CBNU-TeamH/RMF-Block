@@ -57,6 +57,13 @@ markup.
 Every `"use client"` file is a candidate. A new component test is required whenever a fix lands
 for a bug of this shape — not proactively for every component that happens to exist.
 
+An IME bug belongs in this layer when the bug is in *our* handler order — which of `onInput`,
+`onCompositionEnd` and `onKeyDown` runs what, and when. `fireEvent.compositionStart` →
+`fireEvent.input` → `fireEvent.compositionEnd` reproduces that in happy-dom (`text-block.test.tsx`,
+[#103](https://github.com/CBNU-TeamH/RMF-Block/issues/103)). Only a bug in what the browser's IME
+itself does to the textarea — [#52](https://github.com/CBNU-TeamH/RMF-Block/issues/52)'s replayed
+offsets — needs a real browser ([#61](https://github.com/CBNU-TeamH/RMF-Block/issues/61)).
+
 ### `app/` server components — async leaves
 
 All of this repo's async server components are **leaves**: they `await` only `cookies()` or

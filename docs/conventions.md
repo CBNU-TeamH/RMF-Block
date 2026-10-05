@@ -364,6 +364,16 @@ each time was the same — swap to a value already proven elsewhere in the proje
 Turbopack/Tailwind v4 cause was never worth chasing down; the check above is cheaper than
 debugging why a class silently produced no rule.
 
+## A base `className` must not set what a variant overrides
+
+Two utilities that set the same property on one element resolve by their order in the compiled
+stylesheet — alphabetical within a property, as built — not by their order in `className`. So a
+component's base classes must not set a property a variant also sets; put the default in the
+variant function instead. `textareaClass` in `app/(workspace)/documents/[id]/text-block.tsx` is the
+shape: the code variant returns its own surface, and every other variant gets `bg-transparent
+text-ink` there rather than from the base string. Before that, a base `bg-transparent` beat the
+code block's background from the day the code block shipped, and nothing reported it.
+
 ## A script is not done until it runs against the real repo
 
 Every bug in `tasks/archive/2026/09/20260904-verify-scripts-lessons.md` was caught by execution,
