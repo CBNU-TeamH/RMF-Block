@@ -33,7 +33,7 @@ through review and one that did not.
 
 | Plugin | Why this repository needs it | When to invoke |
 | --- | --- | --- |
-| **`code-review`** | Launches **five parallel review agents** (see the model note below — they inherit your session's model), and **two of them read our rules** — one checks CLAUDE.md compliance, one checks code-comment compliance. The other three cover obvious bugs, git blame, and previous PRs. Findings are scored 0–100 and anything under 80 is dropped. [`docs/conventions.md`](../../docs/conventions.md) (#69) is the rubric those two agents apply — that is what turns a written rule into a check that runs. Before it existed they had no project rulebook to check against, which is the gap Phase 1 closed. | Before opening a PR, **from a Sonnet session**: `/code-review low` |
+| **`code-review`** | Launches **five parallel review agents** (see the model note below — they inherit your session's model), and **two of them read our rules** — one checks CLAUDE.md compliance, one checks code-comment compliance. The other three cover obvious bugs, git blame, and previous PRs. Findings are scored 0–100 and anything under 80 is dropped. [`docs/conventions.md`](../../docs/conventions.md) (#69) is the rubric those two agents apply — that is what turns a written rule into a check that runs. | Before opening a PR, **from a Sonnet session**: `/code-review low` |
 | **`code-simplifier`** | *"Simplifies and refines code for clarity, consistency, and maintainability **while preserving functionality**."* Those last three words are the failure mode tests cannot see — code that behaves correctly and is shaped wrongly. #40 is the worked example. | While working, **from a Sonnet session**: `/simplify` |
 | **`claude-md-management`** | Two halves. `claude-md-improver` audits the harness against the actual state of the codebase, which is how we catch `AGENTS.md` routing to files that do not exist. `/revise-claude-md` captures what a session learned, which is the execution step our lessons → harness promotion loop has always been missing. | Starting work: audit. Finishing a task: `/revise-claude-md` as the promotion step |
 
@@ -63,8 +63,9 @@ So the order is: **`pnpm verify:fast` clean, `pnpm comments` / `pnpm verify:docs
 → then `/simplify` → then `/code-review low`**. Both are clean on a healthy branch, so anything they
 report is new.
 
-The free checks are `pnpm comments` (the comment budget) and `pnpm verify:docs` (doc ownership,
-task-index freshness, dead links), plus a pre-commit hook that runs the staged-file part on every
+The free checks are `pnpm comments` (the comment budget) and `pnpm verify:docs` (doc drift: ownership, task-index
+freshness, dead links and section refs, SRS-en sync, cited SRS IDs, declared facts, the generated
+endpoint table, the skills mirror), plus a pre-commit hook that runs the staged-file part on every
 commit.
 
 This matters more than it sounds. Our PRs run to a median of 494 changed lines across 12
@@ -136,4 +137,4 @@ Both look like obvious additions to the list above, and are not.
 | | Why not |
 | --- | --- |
 | `feature-dev` | Its agents for exploration, architecture and quality review overlap our SDD workflow (`tasks/` todo + lessons) head-on, and two procedures for one job means neither is followed. Duplication rather than bad timing, so a rejection rather than a deferral. |
-| `ponytail` | Said of itself *"not installed by default — it's a per-person plugin choice"*, which a repository convention cannot rest on; `code-simplifier` fills the slot officially. The `ponytail:` markers still in the source are separate — #65 renames them to `simple:`, and **this row can go with them.** |
+| `ponytail` | Said of itself *"not installed by default — it's a per-person plugin choice"*, which a repository convention cannot rest on; `code-simplifier` fills the slot officially. The repo's own deliberate-shortcut marker is `simple:`, not `ponytail:` ([`docs/conventions.md`](../../docs/conventions.md), "The `simple:` marker"). |

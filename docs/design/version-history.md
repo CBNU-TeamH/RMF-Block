@@ -78,9 +78,11 @@ and the blocks are written back with two `doc.update()` calls — the array firs
 Four consequences, all of them simplifications:
 
 - The stored schema keeps `type`. No rename, no migration, no ADR-007 change.
-- A restore is an ordinary edit, so `touchesBlockList` already recomputes the view. Calling
-  `restoreRevision` does not: it delivers a single `snapshot` event carrying **no operations**, and
-  `use-block-document.ts` acts only on `remote-change` and undo/redo, so nothing would re-render.
+- A restore is an ordinary local edit, and `replaceBlocks` re-reads the blocks and republishes them
+  itself (`setBlocks`, plus the `restoreCount` bump below), because a local change never comes back
+  through `doc.subscribe`. Calling `restoreRevision` would not work either: it delivers a single
+  `snapshot` event carrying **no operations**, and `use-block-document.ts` acts only on
+  `remote-change` and undo/redo, so nothing would re-render.
 - Peers converge through the normal remote-change path.
 - `Ctrl+Z` after a restore undoes the restore, which is the behaviour a reader expects. With the
   server-side call the local undo stack would still hold reverse operations recorded against the
@@ -98,6 +100,10 @@ Restore runs in a fixed order: `getRevision` and parse the target, `client.sync(
 `createRevision` (before-restore), then `replaceBlocks`. The fetch comes first and is not
 overlapped with the rest, because no revision can be deleted: a before-restore revision left by a
 restore that then failed to fetch or parse would be permanent litter.
+
+An empty snapshot cannot be restored (the button is disabled). Blocks with a missing, empty, non-string or
+duplicate id are dropped when the snapshot is read, so a restore can write fewer blocks than the raw
+snapshot holds.
 
 What the app gives up is atomicity: two people restoring at once merge as CRDT edits rather than
 one server-side replace. For an eight-person LAN workspace that is acceptable, and the
@@ -118,8 +124,8 @@ tag a revision otherwise.
 | Kind | Label | Shown as |
 | --- | --- | --- |
 | automatic | `snapshot-N`, written by Yorkie | 자동 저장 |
-| before-restore | `before-restore:<revision id>`, written by the app | 복원 전 |
-| named | whatever the user typed | the label itself |
+| before-restore | `before-restore:<revision id>`, written by the app | title 복원 직전 상태, tag 복원 전 |
+| named | whatever the user typed | title the label, tag 수동 저장 |
 
 Stored labels stay English and machine-readable: there is no API for editing or deleting a
 revision, so a label is permanent and the Korean a reader sees is chosen at render time.

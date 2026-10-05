@@ -54,7 +54,7 @@ export function blockIndexFromEditPath(path: string): number | null {
 /** Whether a remote operation means the rendered block list is stale; the paths
  *  it accepts are enumerated in this module's tests. Text edits deliberately go
  *  elsewhere — a full rebuild would cost the caret. One unmeasured case is in
- *  the doc's Open questions. */
+ *  `docs/design/document-editing.md`, "Seeding a brand-new document is a known race". */
 export function touchesBlockList(path: string): boolean {
   return path === "$.blocks" || path.startsWith("$.blocks.");
 }

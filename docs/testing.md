@@ -57,6 +57,13 @@ markup.
 Every `"use client"` file is a candidate. A new component test is required whenever a fix lands
 for a bug of this shape — not proactively for every component that happens to exist.
 
+An IME bug belongs in this layer when the bug is in *our* handler order — which of `onInput`,
+`onCompositionEnd` and `onKeyDown` runs what, and when. `fireEvent.compositionStart` →
+`fireEvent.input` → `fireEvent.compositionEnd` reproduces that in happy-dom (`text-block.test.tsx`,
+[#103](https://github.com/CBNU-TeamH/RMF-Block/issues/103)). Only a bug in what the browser's IME
+itself does to the textarea — [#52](https://github.com/CBNU-TeamH/RMF-Block/issues/52)'s replayed
+offsets — needs a real browser ([#61](https://github.com/CBNU-TeamH/RMF-Block/issues/61)).
+
 ### `app/` server components — async leaves
 
 All of this repo's async server components are **leaves**: they `await` only `cookies()` or
@@ -66,9 +73,9 @@ enough — Next's own guidance against testing async Server Components with Vite
 `redirect()`/`notFound()` really `throw` in this Next version, so the cases where the gate should
 actually fire are `assert.rejects` on that call, no rendering involved at all. The cases that
 return normally split two ways: the auth gate holding open (a host cookie or a session present)
-is checked by simply awaiting the call without it throwing, and the creator join is a direct
-check on the returned element's `props` — `render()` from `@testing-library/react` doesn't come
-up anywhere in this tier, for either kind of normal return.
+is checked by simply awaiting the call without it throwing, and the returned element's `props`
+can be checked directly — `render()` from `@testing-library/react` doesn't come up anywhere in
+this tier, for either kind of normal return.
 
 Two tiers, in order:
 
@@ -77,10 +84,8 @@ Two tiers, in order:
   the whole workspace opens to anyone. FR-020-03 is the password *check* itself, done upstream in
   `/api/auth/*` — the layout only enforces 04's absence-of-session flip side. Also in scope at
   this tier: the redirect when a session already exists (checked for both the host-cookie branch
-  and the existing-session branch separately), `notFound` for an unknown document id, and the
-  document↔member join returning a null `creator` when a member was removed — the last of
-  which has a comment explaining the case today and nothing verifying it. Landed: 4 files, 7
-  tests, all under the default `environment: "node"` (no DOM needed for any of them).
+  and the existing-session branch separately), and `notFound` for an unknown
+  document id. All of it runs under the default `environment: "node"` (no DOM needed).
 - **Tier 2** — extract the gate and join logic into `lib/` so the components become shells. This
   repo's own lessons already state the rule this tier acts on: *geometry belongs outside the
   component.* Tier 1 is the safety net that makes this refactor low-risk, not the end state.
@@ -137,10 +142,8 @@ private `requireMember()`, `app/api/auth/yorkie-token/route.ts`'s own variant), 
 `lib/auth/current-member.ts` helper (tested once, at that layer, rather than duplicated per route). `auth/host`, `workspace/join` and `internal/yorkie/auth`
 get no gate test — they're credential-issuing or self-authenticating endpoints the rule doesn't
 apply to. One thing worth stating plainly: **a gate test needs both directions**, not just "rejects
-when everything is falsy" — a first pass on `app/api/documents/route.ts` only tested the all-false case,
-and a mutation flipping its `&&` to `||` passed anyway, because both operators agree when every
-input is false. Adding the "succeeds when one side is true" case is what actually pins the
-operator down.
+when everything is falsy" — `&&` and `||` agree when every input is false, so
+the "succeeds when one side is true" case is what actually pins the operator down.
 
 ## Vitest worker count
 

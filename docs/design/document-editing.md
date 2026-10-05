@@ -12,8 +12,7 @@
 ## Scope
 
 Field-level Yorkie document schema for each block type listed in SRS §4.1, plus the editing
-surface built on it. Per `architecture.md` §3(a)/§5, this doc is written just-in-time — the
-schema block type by block type, the surface just before the editor's implementation task starts.
+surface built on it.
 
 ## Document structure
 
@@ -22,8 +21,8 @@ root.blocks: Array<Block>
 Block = { id: string (uuid), type: string, content: <type-specific, see below> }
 ```
 
-- `root.blocks` is a **Yorkie Array**, not an Object keyed by id. Yorkie's Array is RGA-backed, so concurrent inserts at the same position already converge deterministically — block order is the array position itself, not a stored field. This replaces the `order` field originally sketched in `architecture.md` §3(a).
-- Reordering (FR-022-04) uses the array's native `moveBefore`/`moveAfter` — no custom merge logic, per ADR-001.
+- `root.blocks` is a **Yorkie Array**, not an Object keyed by id. Yorkie's Array is RGA-backed, so concurrent inserts at the same position already converge deterministically — block order is the array position itself, not a stored field.
+- Reordering (FR-022-04) uses the array's native `moveAfter`/`moveFront` — no custom merge logic, per ADR-001.
 - `id` stays on every block regardless of position, since presence (`activeBlockId`) and the future 블록 링크 블록 need a stable reference independent of array order.
 - Block/text color and styling is an open decision (`AGENTS.md` §7) and intentionally not part of any block's `content` below — see that TODO item for why deferring it doesn't require reworking this schema.
 
@@ -45,12 +44,11 @@ and it must keep the block: the same `id`, so occupancy (FR-022-06) and any
 block-link block still resolve, and the same `yorkie.Text`, so a peer typing in
 that block at that moment does not lose what they typed.
 
-**Yorkie does not move CRDTs — it silently replaces them.** Measured on 0.7.13:
-assigning an existing `Text` into a new object throws nothing, reports a `Text`
-afterwards, and that `Text` is empty. The paragraph's contents are simply gone, with no error
-anywhere. Rebuilding the `Text` by hand and copying the string across is no
-better: it also drops whatever a peer typed during the conversion, measured as
-`peer edit survived: false`.
+**Yorkie does not move CRDTs — it silently replaces them.** Assigning an existing `Text`
+into a new object leaves an empty `Text` and no error ([ADR-007](../adr/007-block-array-not-tree.md)
+has the measurement and the versions it was re-run on). Rebuilding the `Text` by copying the
+string across is no better: it drops whatever a peer typed during the conversion, measured on
+0.7.13 as `peer edit survived: false`. The conversion must therefore never move the `Text`.
 
 With the uniform wrapper the `Text` never moves, because a conversion only adds
 or deletes primitives beside it. Measured: text → list → heading keeps the text
@@ -246,7 +244,7 @@ content = {
 }
 ```
 
-No cached title, unlike file blocks. Documents can be renamed/moved (UC-023, FR-021 series), so a cached title would go stale — and unlike file metadata, the document tree is core navigation state every client already keeps loaded, so resolving `documentId` to a title needs no round-trip anyway.
+No cached title, unlike file blocks. Documents can be renamed/moved (UC-023, FR-021 series), so a cached title would go stale — so the block resolves the name from the catalogue (`GET /api/documents/:id`) and renders an unavailable state when the target is gone.
 
 ### 12. Block link block (`type: "block-link"`)
 
@@ -287,22 +285,18 @@ Measured against a real two-client Yorkie session, on the exact storage shape ab
    changes what Yorkie holds, local or remote, must advance the same diff baseline.
 2. **An uncontrolled textarea, patched only on the changed range, survives.** Two live clients
    typing Hangul into the same block concurrently: remote edits arriving mid-composition are
-   queued rather than applied, flushed once `compositionend` fires, and the in-progress
-   composition was not observed to break in either the corrupted-duplication way above or the
-   composition-interruption way rich-text frameworks are built to avoid. Non-composing keystrokes
+   queued rather than applied and flushed once `compositionend` fires. Non-composing keystrokes
    (plain ASCII, Enter, space) sync per keystroke with no queuing needed.
-3. **The SDK's own `EditOpInfo` carries exactly what patching needs**: `{ from, to, value:
-   { content }, path }`, character offsets against the pre-edit string. Caret adjustment measured
-   against a live remote edit: an edit entirely before the caret shifts it by the size
-   difference (measured: caret at 5, a 1-character insert at position 1, caret becomes 6); one
-   entirely after the caret leaves it alone.
-4. **A composed syllable is one edit, not one per candidate**, when composition is guarded:
-   `compositionstart` suppresses per-keystroke syncing and `compositionend` commits the finished
-   syllable as a single diff. The naive binding sends one edit per intermediate IME candidate
-   (measured: "안" alone produced three edits — `"ㅇ"` → `"아"` → `"안"` — before the composition
-   even ended), which is not just noisier but means Yorkie's own `doc.history.undo()` (§6 of the
-   editor task) would step back through IME candidates rather than through what a person thinks
-   of as a character.
+3. **The SDK's own `EditOpInfo` carries what patching needs**: character offsets against the
+   pre-edit string, so an edit entirely before the caret shifts it by the size difference and
+   one entirely after leaves it alone.
+4. **A composed syllable is one edit, not one per candidate**: `compositionstart` suppresses
+   per-keystroke syncing and `compositionend` commits the finished syllable as a single diff, so
+   Yorkie's own `doc.history.undo()` steps back through what a person thinks of as a character,
+   not through IME candidates.
+
+The measurements behind these rules are in
+[ADR-008](../adr/008-textarea-editing-surface.md).
 
 ### Subscribing to remote changes
 
@@ -434,11 +428,12 @@ and leave the next keystroke diffing against the wrong string.
 
 ## Rules the editor component holds to
 
-**Every mutation reads live, never from `blocks` state.** That state's `text` is a snapshot taken
+**Every mutation reads text and `checked` live, never from `blocks` state.** That state's `text` is
+a snapshot taken
 at the last render and goes stale the moment anyone types — locally or remotely. A split that
 trimmed the snapshot would drop a concurrent remote edit past the caret; a checkbox that toggled
 the snapshot would flip from a value that is no longer there. So `editor.tsx` reads the block out
-of the live document inside the same `doc.update()` that writes it.
+of the live document inside the same `doc.update()` that writes it. Order, type and depth (indent, `preservingDepth`) are read from state: it is reliable for them.
 
 Reading it means iterating the array (`for...of`), not `.find`; `.elements()` is for when the
 `TimeTicket` is needed (`operations.ts`). `JSONArray<T>`'s `Array<T>`
@@ -490,6 +485,13 @@ menu's query is recomputed from the text rather than tracked as a session, so de
 through the slash closes it on its own. It is recomputed mid-composition too, and matched jamo by
 jamo (`slashMenuItems`), so the menu narrows at each step an IME shows (`ㅈ`, `제`, `젬`, `제모`)
 instead of waiting for the word.
+
+The query matches a *prefix* of a label word, the English `name` or a keyword (not a substring);
+label and name matches come first in menu order, keyword-only matches after. When nothing matches,
+a 결과 없음 row replaces the menu and owns no keys — Enter still splits the block. Escape dismisses the
+menu or the row, and blur closes it (the menu's own `mousedown` is prevented so dragging its
+scrollbar keeps focus). While an IME composition is open, Enter, the arrows and Escape belong to
+the IME.
 
 ### `/페이지` makes a page; `/문서 링크` points at one
 
@@ -570,9 +572,7 @@ and nowhere to type.
 Measured against 0.7.13, the seed's root assignment happens to produce no reverse operation, so the
 stack is empty at that point anyway — but that is an accident of which operation the seed uses, not
 a design. `use-block-document` records the stack depth once the document is ready and refuses to
-undo past it. Borrowed from wafflebase's docs store, which reached the same rule from the other
-side: its own seed *is* reversible, and undoing it "would destroy blocks the cursor still
-references".
+undo past it.
 
 The stack is capped at 50 entries (`MaxUndoRedoStackDepth`), so undo is not a journey back to the
 empty document.
@@ -608,7 +608,7 @@ spacing.
 ### Indenting a list item
 
 SRS §4.1 gives 목록 블록 nesting — "항목을 들여쓰기하여 중첩(하위 목록)할 수 있다" — and `depth`
-has carried it in the schema since the block model landed. `Tab` and `Shift+Tab` are what set it,
+carries it in the schema. `Tab` and `Shift+Tab` are what set it,
 and `lib/blocks/indent.ts` holds the rule.
 
 **Indent is capped by the block above, not by the block itself.** The new depth is
@@ -654,8 +654,7 @@ a style change, not a re-parenting**, and an item three levels in should stay th
 
 Neither caller can name the depth itself — the `/` menu's items are static and a markdown marker
 carries none — so `preservingDepth` (`lib/blocks/indent.ts`) carries it from the block being
-converted, at both call sites. This was invisible until Tab existed: while `depth` was always 0,
-there was nothing for a conversion to lose.
+converted, at both call sites.
 
 `level`, `style` are not protected the way `depth` now is — the same silent-flatten shape applies
 to either of them the moment two block types share one, and nothing today would catch it before a
@@ -675,8 +674,7 @@ disagree.
 | the padding beside the blocks | nothing | a block drag that reaches the container passed every block without being claimed; without `preventDefault` the browser shows "no drop", and the line is cleared rather than left promising a landing spot the release would decline |
 
 The empty space *under* the document is the footer's `flex-1` region — which is exactly where a
-block is dragged when the intent is "put it at the end". Before it claimed the drop, the browser
-refused it while the line stayed drawn over the last block crossed. File drags are left to bubble
+block is dragged when the intent is "put it at the end". File drags are left to bubble
 to the container, which already appends them.
 
 ## Open questions
