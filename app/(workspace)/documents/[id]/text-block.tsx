@@ -148,8 +148,9 @@ export function TextBlockView({
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [highlight, setHighlight] = useState(0);
   const slashItems = slashQuery === null ? [] : slashMenuItems(slashQuery);
-  // "Open" means there is something to choose. With no matches the menu hides
-  // and every key goes back to meaning what it usually means — Enter splits.
+  // "Open" means there is something to choose. With no matches only a
+  // "결과 없음" row shows, and every key goes back to meaning what it usually
+  // means — Enter splits (#145).
   const slashOpen = slashItems.length > 0;
   const slashListRef = useRef<HTMLUListElement>(null);
 
@@ -291,7 +292,14 @@ export function TextBlockView({
       defaultValue={initialText}
       rows={1}
       onKeyDown={(event) => {
-        // While the `/` menu is up it owns these four keys — Enter especially,
+        // Escape dismisses the no-results row as well as the menu.
+        if (slashQuery !== null && event.key === "Escape") {
+          event.preventDefault();
+          closeSlash();
+          return;
+        }
+
+        // While the `/` menu is up it owns these three keys — Enter especially,
         // which must choose an item rather than split the block. Everything
         // else still reaches the textarea, so the query keeps being typed.
         if (slashOpen) {
@@ -303,11 +311,6 @@ export function TextBlockView({
           if (event.key === "ArrowUp") {
             event.preventDefault();
             setHighlight((current) => moveHighlight(current, -1, slashItems.length));
-            return;
-          }
-          if (event.key === "Escape") {
-            event.preventDefault();
-            closeSlash();
             return;
           }
           if (event.key === "Enter" && !event.shiftKey) {
@@ -490,6 +493,13 @@ export function TextBlockView({
             </li>
           ))}
         </ul>
+      ) : slashQuery !== null ? (
+        <p
+          role="status"
+          className="absolute top-full left-6 z-20 mt-0.5 w-[300px] rounded-card bg-elev px-3.5 py-2.5 text-[14px] text-ink-faint shadow-elev"
+        >
+          결과 없음
+        </p>
       ) : null}
     </>
   );

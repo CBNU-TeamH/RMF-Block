@@ -66,6 +66,23 @@ describe("TextBlockView's / menu", () => {
     assert.deepEqual(menuLabels(), ["텍스트"]);
   });
 
+  it("says so when nothing matches, without taking Enter away (#145)", () => {
+    const { textarea, onSplit } = renderBlock();
+    fireEvent.input(textarea, { target: { value: "/zzzz" } });
+
+    assert.equal(screen.getByRole("status").textContent, "결과 없음");
+    fireEvent.keyDown(textarea, { key: "Enter" });
+    assert.equal(onSplit.mock.calls.length, 1);
+  });
+
+  it("dismisses the no-results row on Escape", () => {
+    const { textarea } = renderBlock();
+    fireEvent.input(textarea, { target: { value: "/zzzz" } });
+    fireEvent.keyDown(textarea, { key: "Escape" });
+
+    assert.equal(screen.queryByRole("status"), null);
+  });
+
   it("stays shut in a code block, where / is source text", () => {
     const { textarea } = renderBlock({ type: "code" });
     fireEvent.input(textarea, { target: { value: "/" } });
