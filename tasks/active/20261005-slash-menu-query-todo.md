@@ -43,7 +43,7 @@ change edits the line #103's fix moves.
 - [x] `pnpm vitest run lib/blocks/slash-menu.test.mts "app/(workspace)/documents/[id]/text-block.test.tsx"` passes.
 - [x] The milestone 1 test fails against the old `onCompositionEnd`.
 - [x] `pnpm lint` and `pnpm verify:docs` pass.
-- [ ] By hand, in the container: `/페이지` typed with a Korean IME filters the menu; `/텍스트` in a heading converts it; `/` in a code block stays text.
+- [x] By hand, in the container: `/페이지` typed with a Korean IME filters the menu; `/텍스트` in a heading converts it; `/` in a code block stays text.
 
 ## Cross-cutting
 
@@ -55,4 +55,7 @@ change edits the line #103's fix moves.
 
 - **Shipped**: all four milestones. From `/code-review low`: the menu and its 결과 없음 row now close when the block loses focus (the `<ul>` keeps mousedown from taking focus, so its scrollbar still works). From `/simplify`: one `setSlash` for both reset paths, one `SLASH_SURFACE` for the menu and the row, the two no-results tests merged.
 - **Moved**: Escape-dismissal not lasting past the next keystroke (pre-existing, more visible now) → #148.
-- **By hand**: the container check in Acceptance is still open at PR time.
+- **By hand**: passed in the container (user, 2026-10-05). It asked for two more things, shipped here too:
+  - the menu narrows *while* a syllable is composed (`/제`, not only `/제목`) — the query sync moved ahead of the composing guard, and `slashMenuItems` matches jamo by jamo so the IME's in-between states (`ㅈ`, `젬`, `제모`) never flash 결과 없음;
+  - a code block that reads as code — a `--color-code` / `--color-code-ink` pair and one `CODE_SURFACE` shared by the editor, the revision preview and the floating view.
+- **From CodeRabbit**: Escape and the arrows yield to an open IME composition, like Enter already did.
