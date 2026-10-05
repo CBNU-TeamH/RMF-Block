@@ -40,6 +40,11 @@ export type BlockVariant =
   | { type: "quote" }
   | { type: "code" };
 
+/** A code block's surface. Exported for the same reason as `HEADING_CLASS`:
+ *  the revision preview and the floating view draw code the way the editor does. */
+export const CODE_SURFACE =
+  "rounded-control border border-ink bg-code px-3 py-2 font-mono text-code-ink";
+
 /** Body copy is 16.5px/1.7 (`docs/ui/redesign/HANDOFF.md` §2). */
 const TEXTAREA_CLASS_BY_VARIANT: Record<BlockVariant["type"], string> = {
   text: "text-[16.5px] leading-[1.7]",
@@ -47,15 +52,28 @@ const TEXTAREA_CLASS_BY_VARIANT: Record<BlockVariant["type"], string> = {
   list: "text-[16.5px] leading-[1.7]",
   checklist: "text-[16.5px] leading-[1.7]",
   quote: "text-[16.5px] leading-[1.7] border-l-[3px] border-line-strong pl-3.5 text-ink-soft",
-  code: "text-[14px] leading-[1.6] font-mono bg-paper-2 rounded-control px-3 py-2",
+  code: `text-[14px] leading-[1.6] ${CODE_SURFACE}`,
 };
 
+/** Where the `/` menu and its 결과 없음 row sit — one string so the two cannot drift apart. */
+const SLASH_SURFACE = "absolute top-full left-6 z-20 mt-0.5 w-[300px] rounded-card bg-elev shadow-elev";
+
+/** The keys the `/` menu takes for itself while it shows. */
+const SLASH_KEYS = new Set(["ArrowDown", "ArrowUp", "Enter", "Escape"]);
+
 function textareaClass(variant: BlockVariant): string {
-  if (variant.type === "heading") return HEADING_CLASS[variant.level];
-  if (variant.type === "checklist" && variant.checked) {
-    return `${TEXTAREA_CLASS_BY_VARIANT.checklist} text-ink-faint line-through`;
-  }
-  return TEXTAREA_CLASS_BY_VARIANT[variant.type];
+  // Colours live here, not on the textarea's base classes: two utilities for
+  // one property resolve by stylesheet order, not class order, so a base
+  // `bg-transparent` silently beat every code background (measured).
+  if (variant.type === "code") return TEXTAREA_CLASS_BY_VARIANT.code;
+
+  const own =
+    variant.type === "heading"
+      ? HEADING_CLASS[variant.level]
+      : variant.type === "checklist" && variant.checked
+        ? `${TEXTAREA_CLASS_BY_VARIANT.checklist} text-ink-faint line-through`
+        : TEXTAREA_CLASS_BY_VARIANT[variant.type];
+  return `bg-transparent text-ink ${own}`;
 }
 
 /** One text block's editing surface (`document-editing.md`, "Editing surface").
@@ -144,13 +162,13 @@ export function TextBlockView({
     [blockId, registerTextarea],
   );
   /** The `/` menu's session — query read off the textarea, highlight moved by
-   *  arrow keys. Why only a plain text block opens one:
-   *  `docs/design/document-editing.md`, "Leaving a code block". */
+   *  arrow keys. */
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [highlight, setHighlight] = useState(0);
   const slashItems = slashQuery === null ? [] : slashMenuItems(slashQuery);
-  // "Open" means there is something to choose. With no matches the menu hides
-  // and every key goes back to meaning what it usually means — Enter splits.
+  // "Open" means there is something to choose. With no matches only a
+  // "결과 없음" row shows, and every key goes back to meaning what it usually
+  // means — Enter splits.
   const slashOpen = slashItems.length > 0;
   const slashListRef = useRef<HTMLUListElement>(null);
 
@@ -171,9 +189,21 @@ export function TextBlockView({
     if (next !== null) list.scrollTop = next;
   }, [highlight, slashOpen]);
 
-  const closeSlash = () => {
-    setSlashQuery(null);
+  /** A new query starts the highlight back at the top; `null` closes the menu. */
+  const setSlash = (query: string | null) => {
+    setSlashQuery(query);
     setHighlight(0);
+  };
+
+  /** Re-reads the query off the text. Unlike the commit, it runs mid-composition
+   *  too — it only moves the menu, never Yorkie — so `/제` narrows while 제 is
+   *  still being composed. Behind the composing guard, a query typed through an
+   *  IME never reached the menu at all (#103). */
+  const syncSlashQuery = (el: HTMLTextAreaElement) => {
+    // Every type but code, where `/` is source text (`docs/design/
+    // document-editing.md`, "Leaving a code block").
+    const query = variant.type === "code" ? null : detectSlashQuery(el.value);
+    if (query !== slashQuery) setSlash(query);
   };
 
   /** Clears the query text this block is holding, then hands the choice up. */
@@ -189,7 +219,7 @@ export function TextBlockView({
       el.value = "";
       autoGrow(el);
     }
-    closeSlash();
+    setSlash(null);
     onSlashSelect(blockId, item.action);
   };
 
@@ -203,7 +233,9 @@ export function TextBlockView({
 
   const autoGrow = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
+    // `scrollHeight` leaves out the border that `border-box` counts in
+    // `height` — without adding it back a code block clips its last line.
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
   };
 
   const patchRange = (el: HTMLTextAreaElement, op: TextPatch) => {
@@ -279,7 +311,22 @@ export function TextBlockView({
       defaultValue={initialText}
       rows={1}
       onKeyDown={(event) => {
-        // While the `/` menu is up it owns these four keys — Enter especially,
+        // Both signals, not one: `isComposing` on a composition-confirming
+        // Enter is inconsistent across browsers, and `composingRef` alone can
+        // lag a keydown that also ends the composition.
+        const composing = composingRef.current || event.nativeEvent.isComposing;
+        // While a composition is open these keys are its own — Enter confirms
+        // a candidate, arrows pick one, Escape cancels — not the menu's.
+        if (composing && slashQuery !== null && SLASH_KEYS.has(event.key)) return;
+
+        // Escape dismisses the no-results row as well as the menu.
+        if (slashQuery !== null && event.key === "Escape") {
+          event.preventDefault();
+          setSlash(null);
+          return;
+        }
+
+        // While the `/` menu is up it owns these three keys — Enter especially,
         // which must choose an item rather than split the block. Everything
         // else still reaches the textarea, so the query keeps being typed.
         if (slashOpen) {
@@ -293,15 +340,7 @@ export function TextBlockView({
             setHighlight((current) => moveHighlight(current, -1, slashItems.length));
             return;
           }
-          if (event.key === "Escape") {
-            event.preventDefault();
-            closeSlash();
-            return;
-          }
           if (event.key === "Enter" && !event.shiftKey) {
-            // An Enter that is confirming an IME candidate belongs to the IME,
-            // not to the menu — the same two-signal check the split path makes.
-            if (composingRef.current || event.nativeEvent.isComposing) return;
             event.preventDefault();
             chooseSlashItem(highlight);
             return;
@@ -328,10 +367,7 @@ export function TextBlockView({
         }
 
         if (event.key === "Enter" && !event.shiftKey) {
-          // Both signals, not one: `isComposing` on a composition-confirming
-          // Enter is inconsistent across browsers, and `composingRef` alone can
-          // lag a keydown that also ends the composition.
-          if (composingRef.current || event.nativeEvent.isComposing) return;
+          if (composing) return;
 
           if (variant.type === "code") {
             // Enter is a newline here; a second Enter on a blank line at the
@@ -387,20 +423,14 @@ export function TextBlockView({
       onInput={(event) => {
         const el = event.currentTarget;
         autoGrow(el);
+        syncSlashQuery(el);
         // Composed while `compositionend` is pending; committed there as one
         // edit instead of one per IME candidate (measured: an uncomposed
         // binding sends one edit per candidate revision, not per character).
         if (composingRef.current) return;
 
-        // Plain text only — the same guard as the markdown check below, for the
-        // reason both share (`docs/design/document-editing.md`, "Leaving a code
-        // block").
-        const query = variant.type === "text" ? detectSlashQuery(el.value) : null;
-        if (query !== slashQuery) {
-          setSlashQuery(query);
-          setHighlight(0);
-        }
-
+        // Plain text only, unlike the `/` menu — a marker in a heading asks for
+        // a conversion that already happened (`document-editing.md`, same section).
         const shortcut = variant.type === "text" ? detectMarkdownShortcut(el.value) : null;
         if (shortcut) {
           onMarkdownShortcut(blockId, shortcut);
@@ -436,13 +466,18 @@ export function TextBlockView({
         flushQueuedRemoteEdits();
       }}
       onFocus={() => onFocusBlock(blockId)}
-      onBlur={() => onFocusBlock(null)}
+      onBlur={() => {
+        // Nothing to type into once focus leaves, so neither the menu nor its
+        // 결과 없음 row should outlive it next to a block nobody is in.
+        setSlash(null);
+        onFocusBlock(null);
+      }}
       // Plain paragraphs only: every other variant's own styling already says
       // what it is, and a hint on each of them at once is noise. `focus:` so
       // it marks the one block being typed in rather than every empty one —
       // the `/` menu shipped in #63 with nothing in the UI naming it.
-      placeholder={variant.type === "text" ? "'/' 를 입력해 명령어 사용" : undefined}
-      className={`min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-0.5 py-0.5 text-ink outline-none placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
+      placeholder={variant.type === "text" ? "'/'를 입력해 명령어 사용" : undefined}
+      className={`min-w-0 flex-1 resize-none overflow-hidden px-0.5 py-0.5 outline-none placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
       />
 
       {/* Absolutely positioned against the block row, which is already
@@ -456,7 +491,10 @@ export function TextBlockView({
           ref={slashListRef}
           role="listbox"
           aria-label="블록 종류"
-          className="absolute top-full left-6 z-20 mt-0.5 flex max-h-[340px] w-[300px] flex-col gap-px overflow-y-auto rounded-card bg-elev p-1.5 shadow-elev"
+          // Closing on blur means a press anywhere on the menu — its scrollbar,
+          // the gaps between rows — must not take focus from the textarea.
+          onMouseDown={(event) => event.preventDefault()}
+          className={`${SLASH_SURFACE} flex max-h-[340px] flex-col gap-px overflow-y-auto p-1.5`}
         >
           {slashItems.map((item, index) => (
             <li key={item.id}>
@@ -482,6 +520,13 @@ export function TextBlockView({
             </li>
           ))}
         </ul>
+      ) : slashQuery !== null ? (
+        <p
+          role="status"
+          className={`${SLASH_SURFACE} px-3.5 py-2.5 text-[14px] text-ink-faint`}
+        >
+          결과 없음
+        </p>
       ) : null}
     </>
   );

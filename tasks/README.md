@@ -22,7 +22,9 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 ## Active
 
-Nothing in progress.
+| Task | Lessons |
+| :--- | :--- |
+| [The `/` menu's query: IME input, prefix matching, every text block, no-results row](active/20261005-slash-menu-query-todo.md) | [lessons](active/20261005-slash-menu-query-lessons.md) |
 
 ## Archive
 

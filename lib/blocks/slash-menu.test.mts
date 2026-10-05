@@ -63,7 +63,48 @@ describe("slashMenuItems", () => {
     assert.deepEqual(slashMenuItems("zzzz"), []);
   });
 
-  it("keeps menu order rather than reordering by relevance", () => {
+  it("matches the start of a word, not the middle of one (#103)", () => {
+    // A dropped first letter is a typo, not a query the menu should guess at.
+    assert.deepEqual(slashMenuItems("eading"), []);
+    assert.deepEqual(
+      slashMenuItems("head").map((i) => i.id),
+      ["heading-1", "heading-2", "heading-3"],
+    );
+    assert.deepEqual(
+      slashMenuItems("제").map((i) => i.id),
+      ["heading-1", "heading-2", "heading-3"],
+    );
+    // Any word of the label, not only the first.
+    assert.deepEqual(slashMenuItems("1").map((i) => i.id), ["heading-1"]);
+  });
+
+  it("narrows at every step an IME shows on the way to a word", () => {
+    // ㅈ → 제 → 젬 → 제모 → 제목: 젬 is 제 + ㅁ before the IME knows the ㅁ
+    // starts the next syllable, and 제모 is not a syllable-wise prefix of 제목.
+    for (const step of ["ㅈ", "제", "젬", "제모", "제목"]) {
+      assert.deepEqual(
+        slashMenuItems(step).map((i) => i.id),
+        ["heading-1", "heading-2", "heading-3"],
+        step,
+      );
+    }
+  });
+
+  it("splits a compound final the same way", () => {
+    const geulm = "긂".normalize("NFC"); // 그 + ㄻ, on the way to 글머리
+    const beonh = "벊".normalize("NFC"); // 버 + ㄶ, on the way to 번호
+    assert.ok(slashMenuItems(geulm).some((i) => i.id === "list-unordered"));
+    assert.deepEqual(slashMenuItems(beonh).map((i) => i.id), ["list-ordered"]);
+  });
+
+  it("puts what the query names above what it only touches a keyword of", () => {
+    // `/p` is 페이지 first; paragraph and pdf/photo still follow, below it.
+    assert.deepEqual(slashMenuItems("p").map((i) => i.id), ["page", "text", "file"]);
+    // 체크리스트 by its label, then 파일 by its 첨부 keyword.
+    assert.deepEqual(slashMenuItems("ㅊ").map((i) => i.id), ["checklist", "file"]);
+  });
+
+  it("keeps menu order within each rank rather than scoring relevance", () => {
     const ids = slashMenuItems("목록").map((i) => i.id);
     assert.deepEqual(ids, ["list-unordered", "list-ordered"]);
   });

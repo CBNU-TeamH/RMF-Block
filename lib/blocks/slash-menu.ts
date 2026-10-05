@@ -21,9 +21,13 @@ export type SlashItem = {
   /** Stable across renders and locales — used as a React key and in tests. */
   id: string;
   label: string;
+  /** The label in English. Ranked with it: `/p` means 페이지 first, and only
+   *  then the items `p` happens to start a keyword of (pdf, paragraph). */
+  name: string;
   hint: string;
-  /** What matches beyond the label. Both scripts on purpose — a person reaching
-   *  for a heading types `제목` or `h1` depending on the layout they are in. */
+  /** What else matches, ranked below the label and name. Both scripts on
+   *  purpose — a person reaching for a heading types `제목` or `h1` depending on
+   *  the layout they are in. */
   keywords: Array<string>;
   action: SlashAction;
 };
@@ -33,95 +37,108 @@ export const SLASH_ITEMS: Array<SlashItem> = [
   {
     id: "text",
     label: "텍스트",
+    name: "text",
     hint: "일반 문단",
-    keywords: ["text", "paragraph", "본문", "문단", "ㅌㅅㅌ"],
+    keywords: ["paragraph", "본문", "문단", "ㅌㅅㅌ"],
     action: { kind: "convert", fields: { type: "text" } },
   },
   {
     id: "heading-1",
     label: "제목 1",
+    name: "heading",
     hint: "가장 큰 제목",
-    keywords: ["h1", "heading", "title", "제목"],
+    keywords: ["h1", "title"],
     action: { kind: "convert", fields: { type: "heading", level: 1 } },
   },
   {
     id: "heading-2",
     label: "제목 2",
+    name: "heading",
     hint: "중간 제목",
-    keywords: ["h2", "heading", "제목"],
+    keywords: ["h2"],
     action: { kind: "convert", fields: { type: "heading", level: 2 } },
   },
   {
     id: "heading-3",
     label: "제목 3",
+    name: "heading",
     hint: "작은 제목",
-    keywords: ["h3", "heading", "제목"],
+    keywords: ["h3"],
     action: { kind: "convert", fields: { type: "heading", level: 3 } },
   },
   {
     id: "list-unordered",
     label: "글머리 목록",
-    hint: "• 로 시작하는 목록",
-    keywords: ["list", "bullet", "ul", "목록", "글머리"],
+    name: "list",
+    hint: "• 기호로 시작하는 목록",
+    keywords: ["bullet", "ul"],
     action: { kind: "convert", fields: { type: "list", style: "unordered" } },
   },
   {
     id: "list-ordered",
     label: "번호 목록",
-    hint: "1. 로 시작하는 목록",
-    keywords: ["list", "number", "ordered", "ol", "목록", "번호"],
+    name: "list",
+    hint: "번호가 매겨지는 목록",
+    keywords: ["number", "ordered", "ol"],
     action: { kind: "convert", fields: { type: "list", style: "ordered" } },
   },
   {
     id: "checklist",
     label: "체크리스트",
+    name: "checklist",
     hint: "완료 여부를 표시하는 목록",
-    keywords: ["todo", "task", "check", "체크", "할일"],
+    keywords: ["todo", "task", "할일"],
     action: { kind: "convert", fields: { type: "checklist" } },
   },
   {
     id: "quote",
     label: "인용",
+    name: "quote",
     hint: "인용문",
-    keywords: ["quote", "blockquote", "인용"],
+    keywords: ["blockquote"],
     action: { kind: "convert", fields: { type: "quote" } },
   },
   {
     id: "code",
     label: "코드",
-    hint: "고정 폭 텍스트",
-    keywords: ["code", "snippet", "코드", "소스"],
+    name: "code",
+    hint: "코드를 적는 블록",
+    keywords: ["snippet", "소스"],
     action: { kind: "convert", fields: { type: "code" } },
   },
   {
     id: "divider",
     label: "구분선",
+    name: "divider",
     hint: "영역을 나누는 가로선",
-    keywords: ["divider", "hr", "line", "separator", "구분", "구분선", "선"],
+    keywords: ["hr", "line", "separator", "선"],
     action: { kind: "divider" },
   },
   {
     id: "file",
     label: "파일",
+    name: "file",
     // One item, not three: which block an upload becomes is decided from its
     // bytes (`docs/design/api.md` §1), so asking the person to pick first would
     // be asking them to guess at an answer the server already knows.
-    hint: "파일을 올려 문서에 넣기 (이미지·PDF·그 밖의 파일)",
-    keywords: ["file", "upload", "image", "pdf", "photo", "파일", "첨부", "이미지", "사진", "그림"],
+    hint: "이미지·PDF 등 파일을 올려 문서에 넣기",
+    keywords: ["upload", "image", "pdf", "photo", "첨부", "이미지", "사진", "그림"],
     action: { kind: "upload-file" },
   },
   {
     id: "page",
     label: "페이지",
-    hint: "이 문서 안에 새 페이지를 만들고 그리로 이동",
-    keywords: ["page", "new", "sub", "child", "페이지", "새", "하위", "문서"],
+    name: "page",
+    hint: "이 문서 안에 새 페이지를 만들고 해당 페이지로 이동",
+    keywords: ["new", "sub", "child", "새", "하위", "문서"],
     action: { kind: "new-page" },
   },
   {
     id: "doc-link",
     label: "문서 링크",
-    hint: "워크스페이스의 다른 문서로 가는 링크",
-    keywords: ["link", "doc", "document", "링크", "문서", "연결"],
+    name: "link",
+    hint: "워크스페이스의 다른 문서로 연결하는 링크",
+    keywords: ["doc", "document", "연결"],
     action: { kind: "link-document" },
   },
 ];
@@ -139,18 +156,67 @@ export function detectSlashQuery(text: string): string | null {
   return query;
 }
 
-/** Substring, not fuzzy: with a dozen items a fuzzy matcher's ranking is
- *  invisible and its surprises are not. Empty matches everything, which is what
- *  makes a bare `/` show the whole menu. */
-export function slashMenuItems(query: string): Array<SlashItem> {
-  const needle = query.trim().toLowerCase();
-  if (needle === "") return SLASH_ITEMS;
+/** A lone consonant as an IME shows it (`ㅈ`), in the order of the leading
+ *  consonants it stands for (U+1100…). */
+const CONSONANTS = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
 
-  return SLASH_ITEMS.filter(
-    (item) =>
-      item.label.toLowerCase().includes(needle) ||
-      item.keywords.some((keyword) => keyword.toLowerCase().includes(needle)),
-  );
+/** Each final consonant (U+11A8…, in Unicode order) as it splits once a vowel
+ *  follows: a final that stays, if any, then the next syllable's initial. */
+const FINAL_SPLITS = [
+  "ㄱ", "ㄲ", "ㄱㅅ", "ㄴ", "ㄴㅈ", "ㄴㅎ", "ㄷ", "ㄹ", "ㄹㄱ", "ㄹㅁ", "ㄹㅂ", "ㄹㅅ", "ㄹㅌ", "ㄹㅍ",
+  "ㄹㅎ", "ㅁ", "ㅂ", "ㅂㅅ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ",
+];
+
+const initial = (c: string) => String.fromCharCode(0x1100 + CONSONANTS.indexOf(c));
+
+/** Hangul as jamo, so `제` is a prefix of `제목` *and* `제모` is — syllables
+ *  alone would not say so. */
+function jamo(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[ㄱ-ㅎ]/g, (c) => (CONSONANTS.includes(c) ? initial(c) : c));
+}
+
+/** The query, plus — when it ends in a final consonant — the reading where
+ *  that consonant starts the next syllable instead. An IME shows `젬` on the
+ *  way to `제목` and `긂` on the way to `글머리`; it has not decided yet. */
+function needles(query: string): Array<string> {
+  const needle = jamo(query);
+  const split = FINAL_SPLITS[needle.charCodeAt(needle.length - 1) - 0x11a8];
+  if (!split) return [needle];
+
+  const head = needle.slice(0, -1);
+  const next =
+    split.length === 2
+      ? String.fromCharCode(0x11a8 + FINAL_SPLITS.indexOf(split[0])) + initial(split[1])
+      : initial(split);
+  return [needle, head + next];
+}
+
+/** Prefix of a label word, the name or a keyword, compared jamo by jamo so the
+ *  menu narrows while a syllable is still being composed. Items whose label or
+ *  name matches come first and keep menu order; keyword-only matches follow,
+ *  so the default highlight is the item the query names. Not fuzzy, whose
+ *  ranking is invisible with a dozen items, and not substring, which let
+ *  `/eading` find 제목 and read as the menu guessing at a typo (#103). Empty
+ *  matches everything, which is what makes a bare `/` show the whole menu.
+ *
+ *  ponytail: Hangul only, and no 초성 search (`ㅈㅁ` → 제목) — add it here if
+ *  the menu grows past what a few letters narrow down. */
+export function slashMenuItems(query: string): Array<SlashItem> {
+  if (query.trim() === "") return SLASH_ITEMS;
+  const candidates = needles(query.trim());
+
+  const matches = (words: Array<string>) =>
+    words.some((word) => {
+      const letters = jamo(word);
+      return candidates.some((needle) => letters.startsWith(needle));
+    });
+
+  const named = SLASH_ITEMS.filter((item) => matches([...item.label.split(" "), item.name]));
+  const keyworded = SLASH_ITEMS.filter((item) => !named.includes(item) && matches(item.keywords));
+  return [...named, ...keyworded];
 }
 
 /** Wraps at both ends, the way every menu does. `length` 0 is a no-op. */

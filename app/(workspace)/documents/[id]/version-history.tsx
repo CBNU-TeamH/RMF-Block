@@ -18,7 +18,7 @@ import {
 import type { RevisionEntry } from "@/lib/documents/revisions";
 
 import { DIALOG, DIALOG_TITLE } from "../../ui";
-import { HEADING_CLASS } from "./text-block";
+import { CODE_SURFACE, HEADING_CLASS } from "./text-block";
 
 /** What a document used to say, and putting it back (SOIR003). The mechanism —
  *  and why a restore is written here rather than handed to Yorkie — is
@@ -505,7 +505,7 @@ function PreviewBlock({ block, number }: { block: Block; number: number }) {
 
     case "code":
       return (
-        <pre className="overflow-x-auto rounded-control bg-paper-2 px-3 py-2 font-mono text-[13px] text-ink">
+        <pre className={`overflow-x-auto text-[13px] ${CODE_SURFACE}`}>
           {block.text}
         </pre>
       );

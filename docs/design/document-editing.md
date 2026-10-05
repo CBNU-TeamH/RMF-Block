@@ -481,11 +481,15 @@ That leaves no way out, since a code block has no marker to retype and the `/` m
 inside one. **A second Enter on a blank line at the very end exits it.** The "at the very end"
 half matters: a blank line in the middle of otherwise real code is code, and must stay.
 
-Two guards elsewhere in the same component share one reason. Only a **plain text** block converts
-on a markdown marker, and only a plain text block opens the `/` menu. In a code block both `# `
-and `/` are legitimate source text; in a heading, retyping a marker asks for a conversion that has
-already happened. The `/` menu's query is recomputed from the text rather than tracked as a
-session, so deleting back through the slash closes it on its own.
+Two guards elsewhere in the same component draw the line differently. Only a **plain text** block
+converts on a markdown marker: in a code block `# ` is source text, and in a heading retyping a
+marker asks for a conversion that has already happened. The `/` menu opens in **every text-bearing
+block except code** (#145) — in code `/` is source text too, but elsewhere the menu's items are
+conversions *to* another type, so `/텍스트` is how a heading becomes a paragraph again. The `/`
+menu's query is recomputed from the text rather than tracked as a session, so deleting back
+through the slash closes it on its own. It is recomputed mid-composition too, and matched jamo by
+jamo (`slashMenuItems`), so the menu narrows at each step an IME shows (`ㅈ`, `제`, `젬`, `제모`)
+instead of waiting for the word.
 
 ### `/페이지` makes a page; `/문서 링크` points at one
 

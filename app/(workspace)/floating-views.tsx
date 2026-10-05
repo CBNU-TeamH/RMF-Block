@@ -34,6 +34,7 @@ import {
   type Size,
 } from "@/lib/floating/views";
 
+import { CODE_SURFACE } from "./documents/[id]/text-block";
 import { FloatingFrame } from "./floating-frame";
 import { useWorkspacePresence } from "./presence-provider";
 import { useFrameGesture, viewport, type FrameRules } from "./use-frame-gesture";
@@ -301,12 +302,15 @@ function MirrorBody({ block, onImage }: { block: Block; onImage: (img: HTMLImage
   }
   if (!isTextBearing(block)) return null;
 
+  const typeClass =
+    block.type === "code"
+      ? `${CODE_SURFACE} text-[12.5px]`
+      : block.type === "heading"
+        ? "text-[13.5px] text-ink text-lg font-bold"
+        : "text-[13.5px] text-ink";
+
   return (
-    <p
-      className={`whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink ${
-        block.type === "heading" ? "text-lg font-bold" : ""
-      } ${block.type === "code" ? "font-mono text-[12.5px]" : ""}`}
-    >
+    <p className={`whitespace-pre-wrap leading-relaxed ${typeClass}`}>
       {block.type === "checklist" ? (block.checked ? "☑ " : "☐ ") : null}
       {block.text}
     </p>
