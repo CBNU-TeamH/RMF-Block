@@ -53,6 +53,9 @@ const TEXTAREA_CLASS_BY_VARIANT: Record<BlockVariant["type"], string> = {
 /** Where the `/` menu and its 결과 없음 row sit — one string so the two cannot drift apart. */
 const SLASH_SURFACE = "absolute top-full left-6 z-20 mt-0.5 w-[300px] rounded-card bg-elev shadow-elev";
 
+/** The keys the `/` menu takes for itself while it shows. */
+const SLASH_KEYS = new Set(["ArrowDown", "ArrowUp", "Enter", "Escape"]);
+
 function textareaClass(variant: BlockVariant): string {
   if (variant.type === "heading") return HEADING_CLASS[variant.level];
   if (variant.type === "checklist" && variant.checked) {
@@ -293,6 +296,11 @@ export function TextBlockView({
       defaultValue={initialText}
       rows={1}
       onKeyDown={(event) => {
+        // While an IME composition is open these keys are its own — Enter
+        // confirms a candidate, arrows pick one, Escape cancels — not the menu's.
+        const composing = composingRef.current || event.nativeEvent.isComposing;
+        if (composing && slashQuery !== null && SLASH_KEYS.has(event.key)) return;
+
         // Escape dismisses the no-results row as well as the menu.
         if (slashQuery !== null && event.key === "Escape") {
           event.preventDefault();
@@ -315,9 +323,6 @@ export function TextBlockView({
             return;
           }
           if (event.key === "Enter" && !event.shiftKey) {
-            // An Enter that is confirming an IME candidate belongs to the IME,
-            // not to the menu — the same two-signal check the split path makes.
-            if (composingRef.current || event.nativeEvent.isComposing) return;
             event.preventDefault();
             chooseSlashItem(highlight);
             return;

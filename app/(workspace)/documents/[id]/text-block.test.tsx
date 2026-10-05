@@ -78,6 +78,15 @@ describe("TextBlockView's / menu", () => {
     assert.equal(screen.queryByRole("status"), null);
   });
 
+  it("leaves Escape to an open IME composition", () => {
+    const { textarea } = renderBlock();
+    fireEvent.input(textarea, { target: { value: "/" } });
+    fireEvent.compositionStart(textarea);
+    fireEvent.keyDown(textarea, { key: "Escape" });
+
+    assert.ok(menuLabels().length > 0);
+  });
+
   it("closes when the block loses focus", () => {
     const { textarea } = renderBlock();
     fireEvent.input(textarea, { target: { value: "/zzzz" } });
