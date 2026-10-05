@@ -50,6 +50,9 @@ const TEXTAREA_CLASS_BY_VARIANT: Record<BlockVariant["type"], string> = {
   code: "text-[14px] leading-[1.6] font-mono bg-paper-2 rounded-control px-3 py-2",
 };
 
+/** Where the `/` menu and its 결과 없음 row sit — one string so the two cannot drift apart. */
+const SLASH_SURFACE = "absolute top-full left-6 z-20 mt-0.5 w-[300px] rounded-card bg-elev shadow-elev";
+
 function textareaClass(variant: BlockVariant): string {
   if (variant.type === "heading") return HEADING_CLASS[variant.level];
   if (variant.type === "checklist" && variant.checked) {
@@ -150,7 +153,7 @@ export function TextBlockView({
   const slashItems = slashQuery === null ? [] : slashMenuItems(slashQuery);
   // "Open" means there is something to choose. With no matches only a
   // "결과 없음" row shows, and every key goes back to meaning what it usually
-  // means — Enter splits (#145).
+  // means — Enter splits.
   const slashOpen = slashItems.length > 0;
   const slashListRef = useRef<HTMLUListElement>(null);
 
@@ -171,8 +174,9 @@ export function TextBlockView({
     if (next !== null) list.scrollTop = next;
   }, [highlight, slashOpen]);
 
-  const closeSlash = () => {
-    setSlashQuery(null);
+  /** A new query starts the highlight back at the top; `null` closes the menu. */
+  const setSlash = (query: string | null) => {
+    setSlashQuery(query);
     setHighlight(0);
   };
 
@@ -183,10 +187,7 @@ export function TextBlockView({
     // Every type but code, where `/` is source text (`docs/design/
     // document-editing.md`, "Leaving a code block").
     const query = variant.type === "code" ? null : detectSlashQuery(el.value);
-    if (query !== slashQuery) {
-      setSlashQuery(query);
-      setHighlight(0);
-    }
+    if (query !== slashQuery) setSlash(query);
   };
 
   /** Clears the query text this block is holding, then hands the choice up. */
@@ -202,7 +203,7 @@ export function TextBlockView({
       el.value = "";
       autoGrow(el);
     }
-    closeSlash();
+    setSlash(null);
     onSlashSelect(blockId, item.action);
   };
 
@@ -295,7 +296,7 @@ export function TextBlockView({
         // Escape dismisses the no-results row as well as the menu.
         if (slashQuery !== null && event.key === "Escape") {
           event.preventDefault();
-          closeSlash();
+          setSlash(null);
           return;
         }
 
@@ -467,7 +468,7 @@ export function TextBlockView({
           ref={slashListRef}
           role="listbox"
           aria-label="블록 종류"
-          className="absolute top-full left-6 z-20 mt-0.5 flex max-h-[340px] w-[300px] flex-col gap-px overflow-y-auto rounded-card bg-elev p-1.5 shadow-elev"
+          className={`${SLASH_SURFACE} flex max-h-[340px] flex-col gap-px overflow-y-auto p-1.5`}
         >
           {slashItems.map((item, index) => (
             <li key={item.id}>
@@ -496,7 +497,7 @@ export function TextBlockView({
       ) : slashQuery !== null ? (
         <p
           role="status"
-          className="absolute top-full left-6 z-20 mt-0.5 w-[300px] rounded-card bg-elev px-3.5 py-2.5 text-[14px] text-ink-faint shadow-elev"
+          className={`${SLASH_SURFACE} px-3.5 py-2.5 text-[14px] text-ink-faint`}
         >
           결과 없음
         </p>

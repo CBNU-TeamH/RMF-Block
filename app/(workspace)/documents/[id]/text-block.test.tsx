@@ -73,13 +73,8 @@ describe("TextBlockView's / menu", () => {
     assert.equal(screen.getByRole("status").textContent, "결과 없음");
     fireEvent.keyDown(textarea, { key: "Enter" });
     assert.equal(onSplit.mock.calls.length, 1);
-  });
 
-  it("dismisses the no-results row on Escape", () => {
-    const { textarea } = renderBlock();
-    fireEvent.input(textarea, { target: { value: "/zzzz" } });
     fireEvent.keyDown(textarea, { key: "Escape" });
-
     assert.equal(screen.queryByRole("status"), null);
   });
 
