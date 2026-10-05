@@ -233,7 +233,9 @@ export function TextBlockView({
 
   const autoGrow = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
+    // `scrollHeight` leaves out the border that `border-box` counts in
+    // `height` — without adding it back a code block clips its last line.
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
   };
 
   const patchRange = (el: HTMLTextAreaElement, op: TextPatch) => {
