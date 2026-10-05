@@ -476,7 +476,7 @@ export function TextBlockView({
       // what it is, and a hint on each of them at once is noise. `focus:` so
       // it marks the one block being typed in rather than every empty one —
       // the `/` menu shipped in #63 with nothing in the UI naming it.
-      placeholder={variant.type === "text" ? "'/' 를 입력해 명령어 사용" : undefined}
+      placeholder={variant.type === "text" ? "'/'를 입력해 명령어 사용" : undefined}
       className={`min-w-0 flex-1 resize-none overflow-hidden px-0.5 py-0.5 outline-none placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
       />
 
