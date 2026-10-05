@@ -67,12 +67,13 @@ function textareaClass(variant: BlockVariant): string {
   // `bg-transparent` silently beat every code background (measured).
   if (variant.type === "code") return TEXTAREA_CLASS_BY_VARIANT.code;
 
-  const colours = "bg-transparent text-ink";
-  if (variant.type === "heading") return `${colours} ${HEADING_CLASS[variant.level]}`;
-  if (variant.type === "checklist" && variant.checked) {
-    return `${colours} ${TEXTAREA_CLASS_BY_VARIANT.checklist} text-ink-faint line-through`;
-  }
-  return `${colours} ${TEXTAREA_CLASS_BY_VARIANT[variant.type]}`;
+  const own =
+    variant.type === "heading"
+      ? HEADING_CLASS[variant.level]
+      : variant.type === "checklist" && variant.checked
+        ? `${TEXTAREA_CLASS_BY_VARIANT.checklist} text-ink-faint line-through`
+        : TEXTAREA_CLASS_BY_VARIANT[variant.type];
+  return `bg-transparent text-ink ${own}`;
 }
 
 /** One text block's editing surface (`document-editing.md`, "Editing surface").
@@ -308,9 +309,12 @@ export function TextBlockView({
       defaultValue={initialText}
       rows={1}
       onKeyDown={(event) => {
-        // While an IME composition is open these keys are its own — Enter
-        // confirms a candidate, arrows pick one, Escape cancels — not the menu's.
+        // Both signals, not one: `isComposing` on a composition-confirming
+        // Enter is inconsistent across browsers, and `composingRef` alone can
+        // lag a keydown that also ends the composition.
         const composing = composingRef.current || event.nativeEvent.isComposing;
+        // While a composition is open these keys are its own — Enter confirms
+        // a candidate, arrows pick one, Escape cancels — not the menu's.
         if (composing && slashQuery !== null && SLASH_KEYS.has(event.key)) return;
 
         // Escape dismisses the no-results row as well as the menu.
@@ -361,10 +365,7 @@ export function TextBlockView({
         }
 
         if (event.key === "Enter" && !event.shiftKey) {
-          // Both signals, not one: `isComposing` on a composition-confirming
-          // Enter is inconsistent across browsers, and `composingRef` alone can
-          // lag a keydown that also ends the composition.
-          if (composingRef.current || event.nativeEvent.isComposing) return;
+          if (composing) return;
 
           if (variant.type === "code") {
             // Enter is a newline here; a second Enter on a blank line at the

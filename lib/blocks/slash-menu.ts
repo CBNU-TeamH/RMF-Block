@@ -151,7 +151,6 @@ const FINAL_SPLITS = [
 ];
 
 const initial = (c: string) => String.fromCharCode(0x1100 + CONSONANTS.indexOf(c));
-const final = (c: string) => String.fromCharCode(0x11a8 + FINAL_SPLITS.indexOf(c));
 
 /** Hangul as jamo, so `제` is a prefix of `제목` *and* `제모` is — syllables
  *  alone would not say so. */
@@ -171,7 +170,10 @@ function needles(query: string): Array<string> {
   if (!split) return [needle];
 
   const head = needle.slice(0, -1);
-  const next = split.length === 2 ? final(split[0]) + initial(split[1]) : initial(split);
+  const next =
+    split.length === 2
+      ? String.fromCharCode(0x11a8 + FINAL_SPLITS.indexOf(split[0])) + initial(split[1])
+      : initial(split);
   return [needle, head + next];
 }
 
@@ -188,9 +190,10 @@ export function slashMenuItems(query: string): Array<SlashItem> {
   const candidates = needles(query.trim());
 
   return SLASH_ITEMS.filter((item) =>
-    [...item.label.split(" "), ...item.keywords].some((word) =>
-      candidates.some((needle) => jamo(word).startsWith(needle)),
-    ),
+    [...item.label.split(" "), ...item.keywords].some((word) => {
+      const letters = jamo(word);
+      return candidates.some((needle) => letters.startsWith(needle));
+    }),
   );
 }
 
