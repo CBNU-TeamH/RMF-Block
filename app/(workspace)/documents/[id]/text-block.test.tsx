@@ -78,6 +78,14 @@ describe("TextBlockView's / menu", () => {
     assert.equal(screen.queryByRole("status"), null);
   });
 
+  it("closes when the block loses focus", () => {
+    const { textarea } = renderBlock();
+    fireEvent.input(textarea, { target: { value: "/zzzz" } });
+    fireEvent.blur(textarea);
+
+    assert.equal(screen.queryByRole("status"), null);
+  });
+
   it("stays shut in a code block, where / is source text", () => {
     const { textarea } = renderBlock({ type: "code" });
     fireEvent.input(textarea, { target: { value: "/" } });

@@ -448,7 +448,12 @@ export function TextBlockView({
         flushQueuedRemoteEdits();
       }}
       onFocus={() => onFocusBlock(blockId)}
-      onBlur={() => onFocusBlock(null)}
+      onBlur={() => {
+        // Nothing to type into once focus leaves, so neither the menu nor its
+        // 결과 없음 row should outlive it next to a block nobody is in.
+        setSlash(null);
+        onFocusBlock(null);
+      }}
       // Plain paragraphs only: every other variant's own styling already says
       // what it is, and a hint on each of them at once is noise. `focus:` so
       // it marks the one block being typed in rather than every empty one —
@@ -468,6 +473,9 @@ export function TextBlockView({
           ref={slashListRef}
           role="listbox"
           aria-label="블록 종류"
+          // Closing on blur means a press anywhere on the menu — its scrollbar,
+          // the gaps between rows — must not take focus from the textarea.
+          onMouseDown={(event) => event.preventDefault()}
           className={`${SLASH_SURFACE} flex max-h-[340px] flex-col gap-px overflow-y-auto p-1.5`}
         >
           {slashItems.map((item, index) => (
