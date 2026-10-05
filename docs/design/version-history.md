@@ -101,7 +101,7 @@ Restore runs in a fixed order: `getRevision` and parse the target, `client.sync(
 overlapped with the rest, because no revision can be deleted: a before-restore revision left by a
 restore that then failed to fetch or parse would be permanent litter.
 
-An empty snapshot cannot be restored (the button is disabled). Blocks with a missing, non-string or
+An empty snapshot cannot be restored (the button is disabled). Blocks with a missing, empty, non-string or
 duplicate id are dropped when the snapshot is read, so a restore can write fewer blocks than the raw
 snapshot holds.
 

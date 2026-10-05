@@ -63,8 +63,9 @@ So the order is: **`pnpm verify:fast` clean, `pnpm comments` / `pnpm verify:docs
 → then `/simplify` → then `/code-review low`**. Both are clean on a healthy branch, so anything they
 report is new.
 
-The free checks are `pnpm comments` (the comment budget) and `pnpm verify:docs` (doc drift: ownership, dead
-links and section refs, SRS-en sync, declared facts, the generated endpoint table, the skills mirror), plus a pre-commit hook that runs the staged-file part on every
+The free checks are `pnpm comments` (the comment budget) and `pnpm verify:docs` (doc drift: ownership, task-index
+freshness, dead links and section refs, SRS-en sync, cited SRS IDs, declared facts, the generated
+endpoint table, the skills mirror), plus a pre-commit hook that runs the staged-file part on every
 commit.
 
 This matters more than it sounds. Our PRs run to a median of 494 changed lines across 12
