@@ -25,9 +25,9 @@ elsewhere. Four decisions bound it:
 
 ## One attachment per document, shared
 
-Yorkie refuses a second `client.attach` of a key the client already has. Floating a block of
-the document already open is the common case, so the editor and every window go through
-`lib/documents/attach-pool.ts`: a refcount per key, the last release detaches. A second client
+The editor and every window share one `client.attach` per document through
+`lib/documents/attach-pool.ts` (why, and how, in
+[document-editing.md](document-editing.md#attaching-under-reacts-strict-mode)). A second client
 was ruled out. It would need its own token path (#50) and double every connection.
 
 A window attaches with `activeBlockId: null`. Occupancy already skips that, so a viewer is

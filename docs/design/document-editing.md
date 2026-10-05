@@ -45,12 +45,10 @@ and it must keep the block: the same `id`, so occupancy (FR-022-06) and any
 block-link block still resolve, and the same `yorkie.Text`, so a peer typing in
 that block at that moment does not lose what they typed.
 
-**Yorkie does not move CRDTs — it silently replaces them.** Measured on 0.7.13:
-assigning an existing `Text` into a new object throws nothing, reports a `Text`
-afterwards, and that `Text` is empty. The paragraph's contents are simply gone, with no error
-anywhere. Rebuilding the `Text` by hand and copying the string across is no
-better: it also drops whatever a peer typed during the conversion, measured as
-`peer edit survived: false`.
+**Yorkie does not move CRDTs — it silently replaces them.** Assigning an existing `Text`
+into a new object leaves an empty `Text` and no error, and rebuilding it by copying the string
+drops a peer's concurrent edit. The conversion must therefore never move the `Text`; the
+measurements are in [ADR-007](../adr/007-block-array-not-tree.md).
 
 With the uniform wrapper the `Text` never moves, because a conversion only adds
 or deletes primitives beside it. Measured: text → list → heading keeps the text
@@ -287,22 +285,18 @@ Measured against a real two-client Yorkie session, on the exact storage shape ab
    changes what Yorkie holds, local or remote, must advance the same diff baseline.
 2. **An uncontrolled textarea, patched only on the changed range, survives.** Two live clients
    typing Hangul into the same block concurrently: remote edits arriving mid-composition are
-   queued rather than applied, flushed once `compositionend` fires, and the in-progress
-   composition was not observed to break in either the corrupted-duplication way above or the
-   composition-interruption way rich-text frameworks are built to avoid. Non-composing keystrokes
+   queued rather than applied and flushed once `compositionend` fires. Non-composing keystrokes
    (plain ASCII, Enter, space) sync per keystroke with no queuing needed.
-3. **The SDK's own `EditOpInfo` carries exactly what patching needs**: `{ from, to, value:
-   { content }, path }`, character offsets against the pre-edit string. Caret adjustment measured
-   against a live remote edit: an edit entirely before the caret shifts it by the size
-   difference (measured: caret at 5, a 1-character insert at position 1, caret becomes 6); one
-   entirely after the caret leaves it alone.
-4. **A composed syllable is one edit, not one per candidate**, when composition is guarded:
-   `compositionstart` suppresses per-keystroke syncing and `compositionend` commits the finished
-   syllable as a single diff. The naive binding sends one edit per intermediate IME candidate
-   (measured: "안" alone produced three edits — `"ㅇ"` → `"아"` → `"안"` — before the composition
-   even ended), which is not just noisier but means Yorkie's own `doc.history.undo()` (§6 of the
-   editor task) would step back through IME candidates rather than through what a person thinks
-   of as a character.
+3. **The SDK's own `EditOpInfo` carries what patching needs**: character offsets against the
+   pre-edit string, so an edit entirely before the caret shifts it by the size difference and
+   one entirely after leaves it alone.
+4. **A composed syllable is one edit, not one per candidate**: `compositionstart` suppresses
+   per-keystroke syncing and `compositionend` commits the finished syllable as a single diff, so
+   Yorkie's own `doc.history.undo()` steps back through what a person thinks of as a character,
+   not through IME candidates.
+
+The measurements behind these rules are in
+[ADR-008](../adr/008-textarea-editing-surface.md).
 
 ### Subscribing to remote changes
 
