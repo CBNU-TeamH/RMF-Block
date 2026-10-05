@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-05
 **Issue**: #103, #145
-**Design**: [`docs/design/document-editing.md`](../../docs/design/document-editing.md) — "Leaving a code block" holds the rule this task changes (which blocks open the `/` menu).
+**Design**: [`docs/design/document-editing.md`](../../../../docs/design/document-editing.md) — "Leaving a code block" holds the rule this task changes (which blocks open the `/` menu).
 
 All four slices touch the same few lines: where `TextBlockView` computes the `/` menu's query
 and what `slashMenuItems` does with it. That is why #103 and #145 ship together — #145's trigger
