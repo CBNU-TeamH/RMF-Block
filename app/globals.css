@@ -32,6 +32,9 @@
   --color-danger-soft: #fdecec;
   /* Behind every modal. */
   --color-scrim: rgba(10, 14, 20, 0.36);
+  /* A code block's surface — dark, so it reads as code at a glance. */
+  --color-code: #2b2a27;
+  --color-code-ink: #f3f0e8;
 
   --radius-control: 9px;
   --radius-card: 14px;

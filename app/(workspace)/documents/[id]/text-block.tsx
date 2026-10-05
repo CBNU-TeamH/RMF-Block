@@ -40,6 +40,11 @@ export type BlockVariant =
   | { type: "quote" }
   | { type: "code" };
 
+/** A code block's surface. Exported for the same reason as `HEADING_CLASS`:
+ *  the revision preview and the floating view draw code the way the editor does. */
+export const CODE_SURFACE =
+  "rounded-control border border-ink bg-code px-3 py-2 font-mono text-code-ink";
+
 /** Body copy is 16.5px/1.7 (`docs/ui/redesign/HANDOFF.md` §2). */
 const TEXTAREA_CLASS_BY_VARIANT: Record<BlockVariant["type"], string> = {
   text: "text-[16.5px] leading-[1.7]",
@@ -47,7 +52,7 @@ const TEXTAREA_CLASS_BY_VARIANT: Record<BlockVariant["type"], string> = {
   list: "text-[16.5px] leading-[1.7]",
   checklist: "text-[16.5px] leading-[1.7]",
   quote: "text-[16.5px] leading-[1.7] border-l-[3px] border-line-strong pl-3.5 text-ink-soft",
-  code: "text-[14px] leading-[1.6] font-mono bg-paper-2 rounded-control px-3 py-2",
+  code: `text-[14px] leading-[1.6] ${CODE_SURFACE}`,
 };
 
 /** Where the `/` menu and its 결과 없음 row sit — one string so the two cannot drift apart. */
@@ -57,11 +62,17 @@ const SLASH_SURFACE = "absolute top-full left-6 z-20 mt-0.5 w-[300px] rounded-ca
 const SLASH_KEYS = new Set(["ArrowDown", "ArrowUp", "Enter", "Escape"]);
 
 function textareaClass(variant: BlockVariant): string {
-  if (variant.type === "heading") return HEADING_CLASS[variant.level];
+  // Colours live here, not on the textarea's base classes: two utilities for
+  // one property resolve by stylesheet order, not class order, so a base
+  // `bg-transparent` silently beat every code background (measured).
+  if (variant.type === "code") return TEXTAREA_CLASS_BY_VARIANT.code;
+
+  const colours = "bg-transparent text-ink";
+  if (variant.type === "heading") return `${colours} ${HEADING_CLASS[variant.level]}`;
   if (variant.type === "checklist" && variant.checked) {
-    return `${TEXTAREA_CLASS_BY_VARIANT.checklist} text-ink-faint line-through`;
+    return `${colours} ${TEXTAREA_CLASS_BY_VARIANT.checklist} text-ink-faint line-through`;
   }
-  return TEXTAREA_CLASS_BY_VARIANT[variant.type];
+  return `${colours} ${TEXTAREA_CLASS_BY_VARIANT[variant.type]}`;
 }
 
 /** One text block's editing surface (`document-editing.md`, "Editing surface").
@@ -463,7 +474,7 @@ export function TextBlockView({
       // it marks the one block being typed in rather than every empty one —
       // the `/` menu shipped in #63 with nothing in the UI naming it.
       placeholder={variant.type === "text" ? "'/' 를 입력해 명령어 사용" : undefined}
-      className={`min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-0.5 py-0.5 text-ink outline-none placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
+      className={`min-w-0 flex-1 resize-none overflow-hidden px-0.5 py-0.5 outline-none placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
       />
 
       {/* Absolutely positioned against the block row, which is already
