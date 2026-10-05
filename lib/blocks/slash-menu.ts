@@ -139,17 +139,57 @@ export function detectSlashQuery(text: string): string | null {
   return query;
 }
 
-/** Prefix of a label word or a keyword — not fuzzy, whose ranking is invisible
- *  with a dozen items, and not substring, which let `/eading` find 제목 and read
- *  as the menu guessing at a typo (#103). Empty matches everything, which is
- *  what makes a bare `/` show the whole menu. */
+/** A lone consonant as an IME shows it (`ㅈ`), in the order of the leading
+ *  consonants it stands for (U+1100…). */
+const CONSONANTS = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+
+/** Each final consonant (U+11A8…, in Unicode order) as it splits once a vowel
+ *  follows: a final that stays, if any, then the next syllable's initial. */
+const FINAL_SPLITS = [
+  "ㄱ", "ㄲ", "ㄱㅅ", "ㄴ", "ㄴㅈ", "ㄴㅎ", "ㄷ", "ㄹ", "ㄹㄱ", "ㄹㅁ", "ㄹㅂ", "ㄹㅅ", "ㄹㅌ", "ㄹㅍ",
+  "ㄹㅎ", "ㅁ", "ㅂ", "ㅂㅅ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ",
+];
+
+const initial = (c: string) => String.fromCharCode(0x1100 + CONSONANTS.indexOf(c));
+const final = (c: string) => String.fromCharCode(0x11a8 + FINAL_SPLITS.indexOf(c));
+
+/** Hangul as jamo, so `제` is a prefix of `제목` *and* `제모` is — syllables
+ *  alone would not say so. */
+function jamo(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[ㄱ-ㅎ]/g, (c) => (CONSONANTS.includes(c) ? initial(c) : c));
+}
+
+/** The query, plus — when it ends in a final consonant — the reading where
+ *  that consonant starts the next syllable instead. An IME shows `젬` on the
+ *  way to `제목` and `긂` on the way to `글머리`; it has not decided yet. */
+function needles(query: string): Array<string> {
+  const needle = jamo(query);
+  const split = FINAL_SPLITS[needle.charCodeAt(needle.length - 1) - 0x11a8];
+  if (!split) return [needle];
+
+  const head = needle.slice(0, -1);
+  const next = split.length === 2 ? final(split[0]) + initial(split[1]) : initial(split);
+  return [needle, head + next];
+}
+
+/** Prefix of a label word or a keyword, compared jamo by jamo so the menu
+ *  narrows while a syllable is still being composed. Not fuzzy, whose ranking
+ *  is invisible with a dozen items, and not substring, which let `/eading`
+ *  find 제목 and read as the menu guessing at a typo (#103). Empty matches
+ *  everything, which is what makes a bare `/` show the whole menu.
+ *
+ *  ponytail: Hangul only, and no 초성 search (`ㅈㅁ` → 제목) — add it here if
+ *  the menu grows past what a few letters narrow down. */
 export function slashMenuItems(query: string): Array<SlashItem> {
-  const needle = query.trim().toLowerCase();
-  if (needle === "") return SLASH_ITEMS;
+  if (query.trim() === "") return SLASH_ITEMS;
+  const candidates = needles(query.trim());
 
   return SLASH_ITEMS.filter((item) =>
     [...item.label.split(" "), ...item.keywords].some((word) =>
-      word.toLowerCase().startsWith(needle),
+      candidates.some((needle) => jamo(word).startsWith(needle)),
     ),
   );
 }

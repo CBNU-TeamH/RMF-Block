@@ -78,6 +78,25 @@ describe("slashMenuItems", () => {
     assert.deepEqual(slashMenuItems("1").map((i) => i.id), ["heading-1"]);
   });
 
+  it("narrows at every step an IME shows on the way to a word", () => {
+    // ㅈ → 제 → 젬 → 제모 → 제목: 젬 is 제 + ㅁ before the IME knows the ㅁ
+    // starts the next syllable, and 제모 is not a syllable-wise prefix of 제목.
+    for (const step of ["ㅈ", "제", "젬", "제모", "제목"]) {
+      assert.deepEqual(
+        slashMenuItems(step).map((i) => i.id),
+        ["heading-1", "heading-2", "heading-3"],
+        step,
+      );
+    }
+  });
+
+  it("splits a compound final the same way", () => {
+    const geulm = "긂".normalize("NFC"); // 그 + ㄻ, on the way to 글머리
+    const beonh = "벊".normalize("NFC"); // 버 + ㄶ, on the way to 번호
+    assert.ok(slashMenuItems(geulm).some((i) => i.id === "list-unordered"));
+    assert.deepEqual(slashMenuItems(beonh).map((i) => i.id), ["list-ordered"]);
+  });
+
   it("keeps menu order rather than reordering by relevance", () => {
     const ids = slashMenuItems("목록").map((i) => i.id);
     assert.deepEqual(ids, ["list-unordered", "list-ordered"]);
