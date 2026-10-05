@@ -66,9 +66,9 @@ enough — Next's own guidance against testing async Server Components with Vite
 `redirect()`/`notFound()` really `throw` in this Next version, so the cases where the gate should
 actually fire are `assert.rejects` on that call, no rendering involved at all. The cases that
 return normally split two ways: the auth gate holding open (a host cookie or a session present)
-is checked by simply awaiting the call without it throwing, and the creator join is a direct
-check on the returned element's `props` — `render()` from `@testing-library/react` doesn't come
-up anywhere in this tier, for either kind of normal return.
+is checked by simply awaiting the call without it throwing, and the returned element's `props`
+can be checked directly — `render()` from `@testing-library/react` doesn't come up anywhere in
+this tier, for either kind of normal return.
 
 Two tiers, in order:
 
@@ -77,10 +77,8 @@ Two tiers, in order:
   the whole workspace opens to anyone. FR-020-03 is the password *check* itself, done upstream in
   `/api/auth/*` — the layout only enforces 04's absence-of-session flip side. Also in scope at
   this tier: the redirect when a session already exists (checked for both the host-cookie branch
-  and the existing-session branch separately), `notFound` for an unknown document id, and the
-  document↔member join returning a null `creator` when a member was removed — the last of
-  which has a comment explaining the case today and nothing verifying it. Landed: 4 files, 7
-  tests, all under the default `environment: "node"` (no DOM needed for any of them).
+  and the existing-session branch separately), and `notFound` for an unknown
+  document id. All of it runs under the default `environment: "node"` (no DOM needed).
 - **Tier 2** — extract the gate and join logic into `lib/` so the components become shells. This
   repo's own lessons already state the rule this tier acts on: *geometry belongs outside the
   component.* Tier 1 is the safety net that makes this refactor low-risk, not the end state.

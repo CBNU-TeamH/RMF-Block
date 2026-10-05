@@ -63,8 +63,8 @@ So the order is: **`pnpm verify:fast` clean, `pnpm comments` / `pnpm verify:docs
 → then `/simplify` → then `/code-review low`**. Both are clean on a healthy branch, so anything they
 report is new.
 
-The free checks are `pnpm comments` (the comment budget) and `pnpm verify:docs` (doc ownership,
-task-index freshness, dead links), plus a pre-commit hook that runs the staged-file part on every
+The free checks are `pnpm comments` (the comment budget) and `pnpm verify:docs` (doc drift: ownership, dead
+links and section refs, SRS-en sync, declared facts, the generated endpoint table, the skills mirror), plus a pre-commit hook that runs the staged-file part on every
 commit.
 
 This matters more than it sounds. Our PRs run to a median of 494 changed lines across 12
@@ -136,4 +136,4 @@ Both look like obvious additions to the list above, and are not.
 | | Why not |
 | --- | --- |
 | `feature-dev` | Its agents for exploration, architecture and quality review overlap our SDD workflow (`tasks/` todo + lessons) head-on, and two procedures for one job means neither is followed. Duplication rather than bad timing, so a rejection rather than a deferral. |
-| `ponytail` | Said of itself *"not installed by default — it's a per-person plugin choice"*, which a repository convention cannot rest on; `code-simplifier` fills the slot officially. The `ponytail:` markers still in the source are separate — #65 renames them to `simple:`, and **this row can go with them.** |
+| `ponytail` | Said of itself *"not installed by default — it's a per-person plugin choice"*, which a repository convention cannot rest on; `code-simplifier` fills the slot officially. The repo's own deliberate-shortcut marker is `simple:`, not `ponytail:` ([`docs/conventions.md`](../../docs/conventions.md), "The `simple:` marker"). |

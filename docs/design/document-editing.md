@@ -23,7 +23,7 @@ Block = { id: string (uuid), type: string, content: <type-specific, see below> }
 ```
 
 - `root.blocks` is a **Yorkie Array**, not an Object keyed by id. Yorkie's Array is RGA-backed, so concurrent inserts at the same position already converge deterministically — block order is the array position itself, not a stored field. This replaces the `order` field originally sketched in `architecture.md` §3(a).
-- Reordering (FR-022-04) uses the array's native `moveBefore`/`moveAfter` — no custom merge logic, per ADR-001.
+- Reordering (FR-022-04) uses the array's native `moveAfter`/`moveFront` — no custom merge logic, per ADR-001.
 - `id` stays on every block regardless of position, since presence (`activeBlockId`) and the future 블록 링크 블록 need a stable reference independent of array order.
 - Block/text color and styling is an open decision (`AGENTS.md` §7) and intentionally not part of any block's `content` below — see that TODO item for why deferring it doesn't require reworking this schema.
 
@@ -246,7 +246,7 @@ content = {
 }
 ```
 
-No cached title, unlike file blocks. Documents can be renamed/moved (UC-023, FR-021 series), so a cached title would go stale — and unlike file metadata, the document tree is core navigation state every client already keeps loaded, so resolving `documentId` to a title needs no round-trip anyway.
+No cached title, unlike file blocks. Documents can be renamed/moved (UC-023, FR-021 series), so a cached title would go stale — so the block resolves the name from the catalogue (`GET /api/documents/:id`) and renders an unavailable state when the target is gone.
 
 ### 12. Block link block (`type: "block-link"`)
 
