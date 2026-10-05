@@ -8,6 +8,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [The `/` menu's query: IME input, prefix matching, every text block, no-results row](2026/10/20261005-slash-menu-query-todo.md) | [lessons](2026/10/20261005-slash-menu-query-lessons.md) |
 | [Drift audit: doc-code drift and doc compression](2026/10/20261002-drift-audit-todo.md) | [lessons](2026/10/20261002-drift-audit-lessons.md) |
 | [Make the doc-drift audit a reusable, tool-neutral skill (+ archive PR template)](2026/10/20261002-doc-drift-audit-skill-todo.md) | [lessons](2026/10/20261002-doc-drift-audit-skill-lessons.md) |
 | [Declare structural facts in docs and verify them against the AST (+ move skills/ into .claude/skills/)](2026/10/20261002-doc-declarations-todo.md) | [lessons](2026/10/20261002-doc-declarations-lessons.md) |
