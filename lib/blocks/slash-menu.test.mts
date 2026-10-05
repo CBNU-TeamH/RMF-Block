@@ -63,6 +63,21 @@ describe("slashMenuItems", () => {
     assert.deepEqual(slashMenuItems("zzzz"), []);
   });
 
+  it("matches the start of a word, not the middle of one (#103)", () => {
+    // A dropped first letter is a typo, not a query the menu should guess at.
+    assert.deepEqual(slashMenuItems("eading"), []);
+    assert.deepEqual(
+      slashMenuItems("head").map((i) => i.id),
+      ["heading-1", "heading-2", "heading-3"],
+    );
+    assert.deepEqual(
+      slashMenuItems("제").map((i) => i.id),
+      ["heading-1", "heading-2", "heading-3"],
+    );
+    // Any word of the label, not only the first.
+    assert.deepEqual(slashMenuItems("1").map((i) => i.id), ["heading-1"]);
+  });
+
   it("keeps menu order rather than reordering by relevance", () => {
     const ids = slashMenuItems("목록").map((i) => i.id);
     assert.deepEqual(ids, ["list-unordered", "list-ordered"]);

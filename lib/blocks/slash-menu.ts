@@ -139,17 +139,18 @@ export function detectSlashQuery(text: string): string | null {
   return query;
 }
 
-/** Substring, not fuzzy: with a dozen items a fuzzy matcher's ranking is
- *  invisible and its surprises are not. Empty matches everything, which is what
- *  makes a bare `/` show the whole menu. */
+/** Prefix of a label word or a keyword — not fuzzy, whose ranking is invisible
+ *  with a dozen items, and not substring, which let `/eading` find 제목 and read
+ *  as the menu guessing at a typo (#103). Empty matches everything, which is
+ *  what makes a bare `/` show the whole menu. */
 export function slashMenuItems(query: string): Array<SlashItem> {
   const needle = query.trim().toLowerCase();
   if (needle === "") return SLASH_ITEMS;
 
-  return SLASH_ITEMS.filter(
-    (item) =>
-      item.label.toLowerCase().includes(needle) ||
-      item.keywords.some((keyword) => keyword.toLowerCase().includes(needle)),
+  return SLASH_ITEMS.filter((item) =>
+    [...item.label.split(" "), ...item.keywords].some((word) =>
+      word.toLowerCase().startsWith(needle),
+    ),
   );
 }
 
