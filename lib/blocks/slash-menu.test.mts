@@ -97,7 +97,14 @@ describe("slashMenuItems", () => {
     assert.deepEqual(slashMenuItems(beonh).map((i) => i.id), ["list-ordered"]);
   });
 
-  it("keeps menu order rather than reordering by relevance", () => {
+  it("puts what the query names above what it only touches a keyword of", () => {
+    // `/p` is 페이지 first; paragraph and pdf/photo still follow, below it.
+    assert.deepEqual(slashMenuItems("p").map((i) => i.id), ["page", "text", "file"]);
+    // 체크리스트 by its label, then 파일 by its 첨부 keyword.
+    assert.deepEqual(slashMenuItems("ㅊ").map((i) => i.id), ["checklist", "file"]);
+  });
+
+  it("keeps menu order within each rank rather than scoring relevance", () => {
     const ids = slashMenuItems("목록").map((i) => i.id);
     assert.deepEqual(ids, ["list-unordered", "list-ordered"]);
   });

@@ -21,9 +21,13 @@ export type SlashItem = {
   /** Stable across renders and locales — used as a React key and in tests. */
   id: string;
   label: string;
+  /** The label in English. Ranked with it: `/p` means 페이지 first, and only
+   *  then the items `p` happens to start a keyword of (pdf, paragraph). */
+  name: string;
   hint: string;
-  /** What matches beyond the label. Both scripts on purpose — a person reaching
-   *  for a heading types `제목` or `h1` depending on the layout they are in. */
+  /** What else matches, ranked below the label and name. Both scripts on
+   *  purpose — a person reaching for a heading types `제목` or `h1` depending on
+   *  the layout they are in. */
   keywords: Array<string>;
   action: SlashAction;
 };
@@ -33,95 +37,108 @@ export const SLASH_ITEMS: Array<SlashItem> = [
   {
     id: "text",
     label: "텍스트",
+    name: "text",
     hint: "일반 문단",
-    keywords: ["text", "paragraph", "본문", "문단", "ㅌㅅㅌ"],
+    keywords: ["paragraph", "본문", "문단", "ㅌㅅㅌ"],
     action: { kind: "convert", fields: { type: "text" } },
   },
   {
     id: "heading-1",
     label: "제목 1",
+    name: "heading",
     hint: "가장 큰 제목",
-    keywords: ["h1", "heading", "title", "제목"],
+    keywords: ["h1", "title"],
     action: { kind: "convert", fields: { type: "heading", level: 1 } },
   },
   {
     id: "heading-2",
     label: "제목 2",
+    name: "heading",
     hint: "중간 제목",
-    keywords: ["h2", "heading", "제목"],
+    keywords: ["h2"],
     action: { kind: "convert", fields: { type: "heading", level: 2 } },
   },
   {
     id: "heading-3",
     label: "제목 3",
+    name: "heading",
     hint: "작은 제목",
-    keywords: ["h3", "heading", "제목"],
+    keywords: ["h3"],
     action: { kind: "convert", fields: { type: "heading", level: 3 } },
   },
   {
     id: "list-unordered",
     label: "글머리 목록",
+    name: "list",
     hint: "• 로 시작하는 목록",
-    keywords: ["list", "bullet", "ul", "목록", "글머리"],
+    keywords: ["bullet", "ul"],
     action: { kind: "convert", fields: { type: "list", style: "unordered" } },
   },
   {
     id: "list-ordered",
     label: "번호 목록",
+    name: "list",
     hint: "1. 로 시작하는 목록",
-    keywords: ["list", "number", "ordered", "ol", "목록", "번호"],
+    keywords: ["number", "ordered", "ol"],
     action: { kind: "convert", fields: { type: "list", style: "ordered" } },
   },
   {
     id: "checklist",
     label: "체크리스트",
+    name: "checklist",
     hint: "완료 여부를 표시하는 목록",
-    keywords: ["todo", "task", "check", "체크", "할일"],
+    keywords: ["todo", "task", "할일"],
     action: { kind: "convert", fields: { type: "checklist" } },
   },
   {
     id: "quote",
     label: "인용",
+    name: "quote",
     hint: "인용문",
-    keywords: ["quote", "blockquote", "인용"],
+    keywords: ["blockquote"],
     action: { kind: "convert", fields: { type: "quote" } },
   },
   {
     id: "code",
     label: "코드",
+    name: "code",
     hint: "고정 폭 텍스트",
-    keywords: ["code", "snippet", "코드", "소스"],
+    keywords: ["snippet", "소스"],
     action: { kind: "convert", fields: { type: "code" } },
   },
   {
     id: "divider",
     label: "구분선",
+    name: "divider",
     hint: "영역을 나누는 가로선",
-    keywords: ["divider", "hr", "line", "separator", "구분", "구분선", "선"],
+    keywords: ["hr", "line", "separator", "선"],
     action: { kind: "divider" },
   },
   {
     id: "file",
     label: "파일",
+    name: "file",
     // One item, not three: which block an upload becomes is decided from its
     // bytes (`docs/design/api.md` §1), so asking the person to pick first would
     // be asking them to guess at an answer the server already knows.
     hint: "파일을 올려 문서에 넣기 (이미지·PDF·그 밖의 파일)",
-    keywords: ["file", "upload", "image", "pdf", "photo", "파일", "첨부", "이미지", "사진", "그림"],
+    keywords: ["upload", "image", "pdf", "photo", "첨부", "이미지", "사진", "그림"],
     action: { kind: "upload-file" },
   },
   {
     id: "page",
     label: "페이지",
+    name: "page",
     hint: "이 문서 안에 새 페이지를 만들고 그리로 이동",
-    keywords: ["page", "new", "sub", "child", "페이지", "새", "하위", "문서"],
+    keywords: ["new", "sub", "child", "새", "하위", "문서"],
     action: { kind: "new-page" },
   },
   {
     id: "doc-link",
     label: "문서 링크",
+    name: "link",
     hint: "워크스페이스의 다른 문서로 가는 링크",
-    keywords: ["link", "doc", "document", "링크", "문서", "연결"],
+    keywords: ["doc", "document", "연결"],
     action: { kind: "link-document" },
   },
 ];
@@ -177,11 +194,13 @@ function needles(query: string): Array<string> {
   return [needle, head + next];
 }
 
-/** Prefix of a label word or a keyword, compared jamo by jamo so the menu
- *  narrows while a syllable is still being composed. Not fuzzy, whose ranking
- *  is invisible with a dozen items, and not substring, which let `/eading`
- *  find 제목 and read as the menu guessing at a typo (#103). Empty matches
- *  everything, which is what makes a bare `/` show the whole menu.
+/** Prefix of a label word, the name or a keyword, compared jamo by jamo so the
+ *  menu narrows while a syllable is still being composed. Items whose label or
+ *  name matches come first and keep menu order; keyword-only matches follow,
+ *  so the default highlight is the item the query names. Not fuzzy, whose
+ *  ranking is invisible with a dozen items, and not substring, which let
+ *  `/eading` find 제목 and read as the menu guessing at a typo (#103). Empty
+ *  matches everything, which is what makes a bare `/` show the whole menu.
  *
  *  ponytail: Hangul only, and no 초성 search (`ㅈㅁ` → 제목) — add it here if
  *  the menu grows past what a few letters narrow down. */
@@ -189,12 +208,15 @@ export function slashMenuItems(query: string): Array<SlashItem> {
   if (query.trim() === "") return SLASH_ITEMS;
   const candidates = needles(query.trim());
 
-  return SLASH_ITEMS.filter((item) =>
-    [...item.label.split(" "), ...item.keywords].some((word) => {
+  const matches = (words: Array<string>) =>
+    words.some((word) => {
       const letters = jamo(word);
       return candidates.some((needle) => letters.startsWith(needle));
-    }),
-  );
+    });
+
+  const named = SLASH_ITEMS.filter((item) => matches([...item.label.split(" "), item.name]));
+  const keyworded = SLASH_ITEMS.filter((item) => !named.includes(item) && matches(item.keywords));
+  return [...named, ...keyworded];
 }
 
 /** Wraps at both ends, the way every menu does. `length` 0 is a no-op. */
