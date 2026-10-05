@@ -176,6 +176,19 @@ export function TextBlockView({
     setHighlight(0);
   };
 
+  /** Re-reads the query off the text. Both `onInput` and `onCompositionEnd`
+   *  call it: inputs inside a composition are skipped, so a query typed through
+   *  an IME only ever arrives at `compositionend` (#103). */
+  const syncSlashQuery = (el: HTMLTextAreaElement) => {
+    // Plain text only — the same guard as the markdown check, for the reason
+    // both share (`docs/design/document-editing.md`, "Leaving a code block").
+    const query = variant.type === "text" ? detectSlashQuery(el.value) : null;
+    if (query !== slashQuery) {
+      setSlashQuery(query);
+      setHighlight(0);
+    }
+  };
+
   /** Clears the query text this block is holding, then hands the choice up. */
   const chooseSlashItem = (index: number) => {
     const item = slashItems[index];
@@ -392,14 +405,7 @@ export function TextBlockView({
         // binding sends one edit per candidate revision, not per character).
         if (composingRef.current) return;
 
-        // Plain text only — the same guard as the markdown check below, for the
-        // reason both share (`docs/design/document-editing.md`, "Leaving a code
-        // block").
-        const query = variant.type === "text" ? detectSlashQuery(el.value) : null;
-        if (query !== slashQuery) {
-          setSlashQuery(query);
-          setHighlight(0);
-        }
+        syncSlashQuery(el);
 
         const shortcut = variant.type === "text" ? detectMarkdownShortcut(el.value) : null;
         if (shortcut) {
@@ -432,6 +438,7 @@ export function TextBlockView({
       onCompositionEnd={(event) => {
         composingRef.current = false;
         commitLocal(event.currentTarget.value);
+        syncSlashQuery(event.currentTarget);
         onTextCommitted();
         flushQueuedRemoteEdits();
       }}
