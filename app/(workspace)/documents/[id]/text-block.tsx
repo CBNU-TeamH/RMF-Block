@@ -225,10 +225,10 @@ export function TextBlockView({
 
   const composingRef = useRef(false);
   const pendingRemoteRef = useRef<Array<TextPatch>>([]);
-  // "What I last told Yorkie the text was" — the diff baseline for the next
-  // local keystroke. Has to advance on *every* path that touches the text,
-  // remote patches included, or the next local edit reinserts whatever the
-  // textarea shows as if it were new (measured: "안안녕녕하세요").
+  // What Yorkie holds for this block — the diff baseline for the next local
+  // keystroke. Has to advance on *every* path that touches the text, remote
+  // patches included, or the next local edit reinserts whatever the textarea
+  // shows as if it were new (measured: "안안녕녕하세요").
   const lastSyncedRef = useRef(initialText);
 
   const autoGrow = (el: HTMLTextAreaElement) => {
@@ -243,12 +243,23 @@ export function TextBlockView({
     const selStart = el.selectionStart ?? 0;
     const selEnd = el.selectionEnd ?? 0;
 
-    el.value = el.value.slice(0, from) + value.content + el.value.slice(to);
-    lastSyncedRef.current = el.value;
+    // The edit's offsets are Yorkie's. An open composition is the one thing the
+    // textarea holds that Yorkie does not, so map them around it (#52); outside
+    // a composition the two are equal and this is the identity. An edit
+    // overlapping the composition lands after it.
+    const local = diffRange(lastSyncedRef.current, el.value);
+    const around = { from: local.from, to: local.to, insertedLength: local.value.length };
+    const composedEnd = local.from + local.value.length;
+    const domFrom = shiftCaret(from, around) ?? composedEnd;
+    const domTo = shiftCaret(to, around) ?? composedEnd;
+
+    el.value = el.value.slice(0, domFrom) + value.content + el.value.slice(domTo);
+    const base = lastSyncedRef.current;
+    lastSyncedRef.current = base.slice(0, from) + value.content + base.slice(to);
 
     const insertedLength = value.content.length;
-    const newStart = shiftCaret(selStart, { from, to, insertedLength });
-    const newEnd = shiftCaret(selEnd, { from, to, insertedLength });
+    const newStart = shiftCaret(selStart, { from: domFrom, to: domTo, insertedLength });
+    const newEnd = shiftCaret(selEnd, { from: domFrom, to: domTo, insertedLength });
     if (newStart !== null && newEnd !== null) {
       el.selectionStart = newStart;
       el.selectionEnd = newEnd;
@@ -461,9 +472,11 @@ export function TextBlockView({
       }}
       onCompositionEnd={(event) => {
         composingRef.current = false;
+        // Remote edits first: the commit then diffs Yorkie's own text against
+        // the textarea, which is always an edit Yorkie can apply as-is (#52).
+        flushQueuedRemoteEdits();
         commitLocal(event.currentTarget.value);
         onTextCommitted();
-        flushQueuedRemoteEdits();
       }}
       onFocus={() => onFocusBlock(blockId)}
       onBlur={() => {

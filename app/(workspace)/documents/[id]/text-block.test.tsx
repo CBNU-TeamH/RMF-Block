@@ -2,22 +2,35 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import yorkie, { type Document } from "@yorkie-js/sdk";
 
+import type { BlockDocumentRoot, StoredBlock } from "@/lib/blocks/document";
+import { editBlockText, type BlockArray } from "@/lib/blocks/operations";
+import type { TextPatch } from "@/lib/blocks/text-surface";
 import { TextBlockView, type BlockVariant } from "./text-block.tsx";
 
 afterEach(cleanup);
 
-/** No document attached: `commitLocal` returns before touching Yorkie, which
- *  leaves only what these tests are about — the `/` menu's query. */
-function renderBlock(variant: BlockVariant = { type: "text" }) {
+/** With no document attached `commitLocal` returns before touching Yorkie,
+ *  which is all the `/` menu tests need. `remote` plays the editor's
+ *  subscription, handing this block a patch the way a peer's edit arrives. */
+function renderBlock(
+  variant: BlockVariant = { type: "text" },
+  doc: Document<BlockDocumentRoot> | null = null,
+  initialText = "",
+) {
   const onSplit = vi.fn();
+  let handler: (patch: TextPatch) => void = () => {};
   render(
     <TextBlockView
       blockId="b1"
-      initialText=""
+      initialText={initialText}
       variant={variant}
-      docRef={{ current: null }}
-      registerRemoteHandler={() => () => {}}
+      docRef={{ current: doc }}
+      registerRemoteHandler={(_id, h) => {
+        handler = h;
+        return () => {};
+      }}
       registerTextarea={() => {}}
       onMarkdownShortcut={vi.fn()}
       onSplit={onSplit}
@@ -33,7 +46,8 @@ function renderBlock(variant: BlockVariant = { type: "text" }) {
     />,
   );
 
-  return { textarea: screen.getByRole("textbox"), onSplit };
+  const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+  return { textarea, onSplit, remote: (patch: TextPatch) => handler(patch) };
 }
 
 function menuLabels(): Array<string> {
@@ -108,5 +122,52 @@ describe("TextBlockView's / menu", () => {
     fireEvent.input(textarea, { target: { value: "/" } });
 
     assert.equal(screen.queryByRole("listbox"), null);
+  });
+});
+
+describe("TextBlockView's remote edits", () => {
+  let counter = 0;
+
+  /** A real document holding one text block, `abc`. `peer` makes the edit a
+   *  peer would — in Yorkie first, then the patch the block receives. */
+  function seeded() {
+    const doc = new yorkie.Document<BlockDocumentRoot>(`text-block-${(counter += 1)}`);
+    doc.update((root) => {
+      root.blocks = [{ id: "b1", type: "text", content: { text: new yorkie.Text() } } as StoredBlock];
+      root.blocks[0]!.content!.text!.edit(0, 0, "abc");
+    });
+    const peer = (from: number, to: number, content: string): TextPatch => {
+      doc.update((root) => editBlockText(root.blocks as BlockArray, "b1", from, to, content));
+      return { from, to, value: { content } };
+    };
+    const live = () => doc.getRoot().blocks[0]!.content!.text!.toString();
+    return { doc, peer, live };
+  }
+
+  it("patches the textarea and keeps the caret on its character", () => {
+    const { doc, peer } = seeded();
+    const { textarea, remote } = renderBlock({ type: "text" }, doc, "abc");
+    textarea.setSelectionRange(3, 3);
+
+    remote(peer(0, 0, "X"));
+
+    assert.equal(textarea.value, "Xabc");
+    assert.equal(textarea.selectionStart, 4);
+  });
+
+  it("ends equal to Yorkie when edits land on both sides of an open composition (#52)", () => {
+    const { doc, peer, live } = seeded();
+    const { textarea, remote } = renderBlock({ type: "text" }, doc, "abc");
+
+    fireEvent.compositionStart(textarea);
+    fireEvent.input(textarea, { target: { value: "abc안" } });
+    // Yorkie's offsets: X before the composition point, Z at Yorkie's end —
+    // which is after it on screen.
+    remote(peer(0, 0, "X"));
+    remote(peer(4, 4, "Z"));
+    fireEvent.compositionEnd(textarea);
+
+    assert.equal(live(), "Xabc안Z");
+    assert.equal(textarea.value, live());
   });
 });
