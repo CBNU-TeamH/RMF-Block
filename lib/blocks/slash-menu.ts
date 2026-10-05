@@ -202,7 +202,7 @@ function needles(query: string): Array<string> {
  *  `/eading` find 제목 and read as the menu guessing at a typo (#103). Empty
  *  matches everything, which is what makes a bare `/` show the whole menu.
  *
- *  ponytail: Hangul only, and no 초성 search (`ㅈㅁ` → 제목) — add it here if
+ *  simple: Hangul only, and no 초성 search (`ㅈㅁ` → 제목) — add it here if
  *  the menu grows past what a few letters narrow down. */
 export function slashMenuItems(query: string): Array<SlashItem> {
   if (query.trim() === "") return SLASH_ITEMS;

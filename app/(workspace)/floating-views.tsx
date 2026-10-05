@@ -412,7 +412,7 @@ const FloatingWindow = memo(function FloatingWindow({
         {block && !gone ? (
           // Scaled, not re-laid-out: the content keeps the shape it was
           // measured at and the window's width over that is the zoom. Unmeasured
-          // it takes its own size, up to `MEASURE_MAX`. ponytail: `base` is
+          // it takes its own size, up to `MEASURE_MAX`. simple: `base` is
           // fixed at the first fit, so content that grows later scrolls here
           // rather than resizing the window under the reader.
           <div
