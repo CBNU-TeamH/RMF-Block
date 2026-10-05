@@ -142,10 +142,8 @@ private `requireMember()`, `app/api/auth/yorkie-token/route.ts`'s own variant), 
 `lib/auth/current-member.ts` helper (tested once, at that layer, rather than duplicated per route). `auth/host`, `workspace/join` and `internal/yorkie/auth`
 get no gate test — they're credential-issuing or self-authenticating endpoints the rule doesn't
 apply to. One thing worth stating plainly: **a gate test needs both directions**, not just "rejects
-when everything is falsy" — a first pass on `app/api/documents/route.ts` only tested the all-false case,
-and a mutation flipping its `&&` to `||` passed anyway, because both operators agree when every
-input is false. Adding the "succeeds when one side is true" case is what actually pins the
-operator down.
+when everything is falsy" — `&&` and `||` agree when every input is false, so
+the "succeeds when one side is true" case is what actually pins the operator down.
 
 ## Vitest worker count
 

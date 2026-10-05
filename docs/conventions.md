@@ -231,12 +231,11 @@ Two rules follow:
 
 ### The comment budget is a ratio, and a ratio has a floor — a low one
 
-`scripts/comment-budget.mjs` flags a file whose comments exceed 30% of its lines — 25% until
-2026-09-23; its `THRESHOLD` comment says why it moved, and the figures below were measured against
-the old line. That threshold is reachable for most files and genuinely unreachable for a few. The difference is worth stating
+`scripts/comment-budget.mjs` flags a file whose comments exceed 30% of its lines (its `THRESHOLD` comment says why
+that line). That threshold is reachable for most files and genuinely unreachable for a few. The difference is worth stating
 precisely.
 
-The arithmetic is real: a 25% budget on *N* code lines allows *N/3* comment lines, and a small
+The arithmetic is real: a 30% budget on *N* code lines allows under *N/2* comment lines, and a small
 file with several exported symbols has very little room. What that does **not** justify is the
 delimiter cost: multi-line JSDoc spends two lines on `/**` and `*/` before a word is written, and
 the single-line form spends none. A ratio quoted that way is a formatting choice reported as
@@ -258,10 +257,8 @@ function returns and why the file exists apart from its only caller (Node's test
 import a client component). Two lines over, and correct there — no amount of trimming buys back a
 floor this low.
 
-[`#75`](https://github.com/CBNU-TeamH/RMF-Block/issues/75) measured where that population actually
-sits: after #74's cleanup, every file over 40 code lines passed the then-25% budget; the files still
-failing were all at or under that line (88% of ≤20-line files, 76% of 21–40-line files). Below 40
-code lines the ratio is measuring file size, not commenting — so `scripts/comment-budget.mjs`
+Below 40 code lines the ratio measures file size, not commenting
+([`#75`](https://github.com/CBNU-TeamH/RMF-Block/issues/75)) — so `scripts/comment-budget.mjs`
 exempts a file at or under that floor from the check entirely, rather than asking its author to
 re-argue the same three-line-comment case in every PR that happens to touch it.
 
@@ -358,11 +355,9 @@ identifier can't contain, so `size-3.5` compiles to `.size-3\.5`, and a plain li
 the backslash already in place (`size-3\.5`), or search for the substring on either side of the
 special character and confirm the rest by eye.
 
-Three separate silent failures in one milestone (`border-sky`, `rounded-sm`/`opacity-70`,
-`size-3.5`) had this exact shape: the class simply didn't compile, with no error, and the fix
-each time was the same — swap to a value already proven elsewhere in the project. The underlying
-Turbopack/Tailwind v4 cause was never worth chasing down; the check above is cheaper than
-debugging why a class silently produced no rule.
+A class that doesn't compile produces no error and no rule, just a missing style; the fix is to
+swap to a value already proven elsewhere in the project, and the check above is cheaper than
+debugging why nothing happened.
 
 ## A base `className` must not set what a variant overrides
 

@@ -12,8 +12,7 @@
 ## Scope
 
 Field-level Yorkie document schema for each block type listed in SRS §4.1, plus the editing
-surface built on it. Per `architecture.md` §3(a)/§5, this doc is written just-in-time — the
-schema block type by block type, the surface just before the editor's implementation task starts.
+surface built on it.
 
 ## Document structure
 
@@ -22,7 +21,7 @@ root.blocks: Array<Block>
 Block = { id: string (uuid), type: string, content: <type-specific, see below> }
 ```
 
-- `root.blocks` is a **Yorkie Array**, not an Object keyed by id. Yorkie's Array is RGA-backed, so concurrent inserts at the same position already converge deterministically — block order is the array position itself, not a stored field. This replaces the `order` field originally sketched in `architecture.md` §3(a).
+- `root.blocks` is a **Yorkie Array**, not an Object keyed by id. Yorkie's Array is RGA-backed, so concurrent inserts at the same position already converge deterministically — block order is the array position itself, not a stored field.
 - Reordering (FR-022-04) uses the array's native `moveAfter`/`moveFront` — no custom merge logic, per ADR-001.
 - `id` stays on every block regardless of position, since presence (`activeBlockId`) and the future 블록 링크 블록 need a stable reference independent of array order.
 - Block/text color and styling is an open decision (`AGENTS.md` §7) and intentionally not part of any block's `content` below — see that TODO item for why deferring it doesn't require reworking this schema.
@@ -563,12 +562,10 @@ handler map, the rebuild fallback — is the remote-change path.
 with a first block through `doc.update()`, and undoing that would leave a document with no blocks
 and nowhere to type.
 
-Measured against 0.7.13, the seed's root assignment happens to produce no reverse operation, so the
+The seed's root assignment happens to produce no reverse operation, so the
 stack is empty at that point anyway — but that is an accident of which operation the seed uses, not
 a design. `use-block-document` records the stack depth once the document is ready and refuses to
-undo past it. Borrowed from wafflebase's docs store, which reached the same rule from the other
-side: its own seed *is* reversible, and undoing it "would destroy blocks the cursor still
-references".
+undo past it.
 
 The stack is capped at 50 entries (`MaxUndoRedoStackDepth`), so undo is not a journey back to the
 empty document.
@@ -604,7 +601,7 @@ spacing.
 ### Indenting a list item
 
 SRS §4.1 gives 목록 블록 nesting — "항목을 들여쓰기하여 중첩(하위 목록)할 수 있다" — and `depth`
-has carried it in the schema since the block model landed. `Tab` and `Shift+Tab` are what set it,
+carries it in the schema. `Tab` and `Shift+Tab` are what set it,
 and `lib/blocks/indent.ts` holds the rule.
 
 **Indent is capped by the block above, not by the block itself.** The new depth is
@@ -650,8 +647,7 @@ a style change, not a re-parenting**, and an item three levels in should stay th
 
 Neither caller can name the depth itself — the `/` menu's items are static and a markdown marker
 carries none — so `preservingDepth` (`lib/blocks/indent.ts`) carries it from the block being
-converted, at both call sites. This was invisible until Tab existed: while `depth` was always 0,
-there was nothing for a conversion to lose.
+converted, at both call sites.
 
 `level`, `style` are not protected the way `depth` now is — the same silent-flatten shape applies
 to either of them the moment two block types share one, and nothing today would catch it before a
@@ -671,8 +667,7 @@ disagree.
 | the padding beside the blocks | nothing | a block drag that reaches the container passed every block without being claimed; without `preventDefault` the browser shows "no drop", and the line is cleared rather than left promising a landing spot the release would decline |
 
 The empty space *under* the document is the footer's `flex-1` region — which is exactly where a
-block is dragged when the intent is "put it at the end". Before it claimed the drop, the browser
-refused it while the line stayed drawn over the last block crossed. File drags are left to bubble
+block is dragged when the intent is "put it at the end". File drags are left to bubble
 to the container, which already appends them.
 
 ## Open questions
