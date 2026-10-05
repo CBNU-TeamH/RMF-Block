@@ -53,4 +53,6 @@ change edits the line #103's fix moves.
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+- **Shipped**: all four milestones. From `/code-review low`: the menu and its 결과 없음 row now close when the block loses focus (the `<ul>` keeps mousedown from taking focus, so its scrollbar still works). From `/simplify`: one `setSlash` for both reset paths, one `SLASH_SURFACE` for the menu and the row, the two no-results tests merged.
+- **Moved**: Escape-dismissal not lasting past the next keystroke (pre-existing, more visible now) → #148.
+- **By hand**: the container check in Acceptance is still open at PR time.

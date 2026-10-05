@@ -12,7 +12,9 @@ that the next person does not rediscover this.
 
 ## What we would do differently
 
-- Escape dismisses the menu, but the query is recomputed from the text, so the next keystroke brings it back. Unchanged here (the menu with matches always behaved this way); worth a look if users find it nagging, e.g. remembering the dismissed query until the text no longer starts with it.
+- Escape dismisses the menu, but the query is recomputed from the text, so the next keystroke brings it back. Unchanged here (the menu with matches always behaved this way); filed as #148.
+
+- Closing a popup on blur needs `preventDefault` on mousedown over the *whole* popup, not only on its options — otherwise its own scrollbar steals focus and closes it. The options here already did it; the container did not, because nothing closed on blur until review asked for it.
 
 ## Worth extracting
 
