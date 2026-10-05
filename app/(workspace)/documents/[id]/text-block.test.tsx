@@ -58,4 +58,18 @@ describe("TextBlockView's / menu", () => {
 
     assert.deepEqual(menuLabels(), ["페이지"]);
   });
+
+  it("opens in a heading, so the heading can become text again (#145)", () => {
+    const { textarea } = renderBlock({ type: "heading", level: 2 });
+    fireEvent.input(textarea, { target: { value: "/텍스트" } });
+
+    assert.deepEqual(menuLabels(), ["텍스트"]);
+  });
+
+  it("stays shut in a code block, where / is source text", () => {
+    const { textarea } = renderBlock({ type: "code" });
+    fireEvent.input(textarea, { target: { value: "/" } });
+
+    assert.equal(screen.queryByRole("listbox"), null);
+  });
 });

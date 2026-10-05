@@ -144,8 +144,7 @@ export function TextBlockView({
     [blockId, registerTextarea],
   );
   /** The `/` menu's session — query read off the textarea, highlight moved by
-   *  arrow keys. Why only a plain text block opens one:
-   *  `docs/design/document-editing.md`, "Leaving a code block". */
+   *  arrow keys. */
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [highlight, setHighlight] = useState(0);
   const slashItems = slashQuery === null ? [] : slashMenuItems(slashQuery);
@@ -180,9 +179,9 @@ export function TextBlockView({
    *  call it: inputs inside a composition are skipped, so a query typed through
    *  an IME only ever arrives at `compositionend` (#103). */
   const syncSlashQuery = (el: HTMLTextAreaElement) => {
-    // Plain text only — the same guard as the markdown check, for the reason
-    // both share (`docs/design/document-editing.md`, "Leaving a code block").
-    const query = variant.type === "text" ? detectSlashQuery(el.value) : null;
+    // Every type but code, where `/` is source text (`docs/design/
+    // document-editing.md`, "Leaving a code block").
+    const query = variant.type === "code" ? null : detectSlashQuery(el.value);
     if (query !== slashQuery) {
       setSlashQuery(query);
       setHighlight(0);
@@ -407,6 +406,8 @@ export function TextBlockView({
 
         syncSlashQuery(el);
 
+        // Plain text only, unlike the `/` menu — a marker in a heading asks for
+        // a conversion that already happened (`document-editing.md`, same section).
         const shortcut = variant.type === "text" ? detectMarkdownShortcut(el.value) : null;
         if (shortcut) {
           onMarkdownShortcut(blockId, shortcut);
