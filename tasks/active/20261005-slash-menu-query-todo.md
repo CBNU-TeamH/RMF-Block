@@ -40,9 +40,9 @@ change edits the line #103's fix moves.
 
 ## Acceptance
 
-- [ ] `pnpm vitest run lib/blocks/slash-menu.test.mts "app/(workspace)/documents/[id]/text-block.test.tsx"` passes.
-- [ ] The milestone 1 test fails against the old `onCompositionEnd`.
-- [ ] `pnpm lint` and `pnpm verify:docs` pass.
+- [x] `pnpm vitest run lib/blocks/slash-menu.test.mts "app/(workspace)/documents/[id]/text-block.test.tsx"` passes.
+- [x] The milestone 1 test fails against the old `onCompositionEnd`.
+- [x] `pnpm lint` and `pnpm verify:docs` pass.
 - [ ] By hand, in the container: `/페이지` typed with a Korean IME filters the menu; `/텍스트` in a heading converts it; `/` in a code block stays text.
 
 ## Cross-cutting
