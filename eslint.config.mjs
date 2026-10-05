@@ -30,6 +30,10 @@ const eslintConfig = defineConfig([
     // `.design-sync/` itself holds the committed inputs and stays linted.
     ".ds-sync/**",
     "ds-bundle/**",
+    // Playwright's output (`pnpm e2e`).
+    "test-results/**",
+    "playwright-report/**",
+    "blob-report/**",
   ]),
 ]);
 
