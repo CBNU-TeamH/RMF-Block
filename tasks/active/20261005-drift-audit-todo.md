@@ -36,11 +36,11 @@ The slug is exactly `YYYYMMDD-drift-audit`, so archiving this task resets the au
 
 ## Acceptance
 
-- [ ] Every A finding fixed or kept with a reason; F and E filed or explained
-- [ ] Every ticked B/C/D item applied
-- [ ] Both lessons promotions applied
-- [ ] `pnpm verify:docs`, comment budget (pre-commit hook)
-- [ ] Before/after sizes in the PR
+- [x] Every A finding fixed or kept with a reason; F and E filed or explained
+- [x] Every ticked B/C/D item applied
+- [x] Both lessons promotions applied
+- [x] `pnpm verify:docs`, comment budget (pre-commit hook)
+- [x] Before/after sizes in the PR
 
 ## Cross-cutting
 
@@ -48,4 +48,19 @@ The slug is exactly `YYYYMMDD-drift-audit`, so archiving this task resets the au
 
 ## Review
 
-Filled in at the end.
+**Shipped.** 4 read-only auditors → 25 findings (A 9 · B 3 · C 4 · D 9 · E 0 · F 0). The A
+verifier: 7 confirmed, 1 partial (harness-01, corrected fix used), 1 false (document-editing-a-06,
+dropped). The user approved all 16 B/C/D items on #151; a-03 applied the ADR-preserving way. Three
+editors in separate worktrees, integrated as one commit per category plus the stale-comment
+commit (`ponytail:` → `simple:` ×2, the `touchesBlockList` pointer). Both lessons promotions landed
+(`docs/testing.md` IME paragraph, `docs/conventions.md` base-`className` rule).
+
+**Review loop.** Round 1 (nothing lost): one blocking — a-04's edit deferred the rebuild-by-copy
+measurement to ADR-007, which does not carry it; restored, with the 0.7.13 and Playwright
+qualifiers. Round 2 (edits are true): nothing blocking; two minor fixes applied.
+
+**Sizes** (audited docs): 120,672 → 120,816 B, 1,915 → 1,928 lines — flat, because the B additions
+and the two promotions offset the D deletions. History-narration markers 4 → 3.
+
+**Not done:** ADR edits (ADR-007:23 still says `moveBefore`; ADR-008's examples), by the
+ADRs-keep-history default. testing.md:76's "props can be checked directly" (minor, pre-existing).
