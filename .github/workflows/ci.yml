@@ -43,34 +43,15 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
-  # Fails only a file this PR pushed over the budget (docs/conventions.md). The
-  # script is stdlib only, so no install. `fetch-depth: 0` because the merge
-  # base needs main's history — a shallow clone has none, and --strict fails.
-  comments:
-    name: comment budget
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - run: node scripts/comment-budget.mjs --strict
-
-  # Doc drift: a dead link, a stale task index, an ownership gap, SRS-en.md
-  # falling behind SRS-ko.md. The scripts are stdlib-only, but AGENTS.md links
-  # into node_modules/next/dist/docs/, which verify-docs reports dead without an
-  # install. Full history because verify-srs-sync diffs against the merge base.
-  #
-  # Deliberately NOT a required check yet: it has never run in CI, so it stays
-  # non-blocking until it has run green, then moves to required (a repo ruleset
-  # change, done by an admin).
+  # Doc drift and the comment budget, in one job. Neither is a required check:
+  # verify docs stays non-blocking until it has run green for a while (then a
+  # ruleset change, by an admin), and the comment budget only flags a PR
+  # (docs/conventions.md). The scripts are stdlib-only, but AGENTS.md links into
+  # node_modules/next/dist/docs/, which verify-docs reports dead without an
+  # install. Full history: verify-srs-sync and the budget both diff against the
+  # merge base, which a shallow clone does not have.
   docs:
-    name: verify docs
+    name: docs
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -95,15 +76,25 @@ jobs:
       - run: node scripts/gen-endpoints.mjs --check
       - run: node scripts/sync-skills.mjs --check
 
-  # `pnpm test` runs against no server at all, so nothing in it can notice the
-  # SDK changing under us. The 0.7.13 → 0.7.23 bump is the proof: all 571 tests
-  # passed unmodified while two measured SDK behaviours moved. This job is the
-  # harness ADR-007 asked for (issue #42) — it needs Yorkie but not the app, so
-  # it runs on its own rather than lengthening the smoke test.
-  invariants:
-    name: yorkie invariants
+      # Fails only a file this PR pushed over the budget. Runs even when a doc
+      # check above failed — the two answer different questions.
+      - name: Comment budget
+        if: ${{ !cancelled() }}
+        run: node scripts/comment-budget.mjs --strict
+
+  # Everything that needs the real stack, on one stack: the Yorkie invariants,
+  # the container smoke test, then the E2E layer. The job keeps the smoke test's
+  # name because that is the required check the branch ruleset names.
+  container:
+    name: container smoke test
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    env:
+      # The server refuses to start without one (lib/workspace-config.ts), and
+      # there is no .env here. Also what the join assertions below type in.
+      WORKSPACE_PASSWORD: ci-smoke-test
+    # A container that accepts the connection but never answers would otherwise
+    # hold a runner for the 6h default.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -118,45 +109,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # `--wait` is enough here, unlike in the smoke test below: compose now
-      # gives yorkie a real healthcheck (bash's /dev/tcp against its health
-      # endpoint), so "started" and "serving" are no longer different claims.
-      - run: docker compose up -d --wait yorkie
-
-      - run: node scripts/verify-yorkie-invariants.mjs
-
-      - name: Yorkie log
-        if: always()
-        run: docker compose logs yorkie
-
-  container:
-    name: container smoke test
-    runs-on: ubuntu-latest
-    env:
-      # The server refuses to start without one (lib/workspace-config.ts), and
-      # there is no .env here. Also what the join assertions below type in.
-      WORKSPACE_PASSWORD: ci-smoke-test
-    # A container that accepts the connection but never answers would otherwise
-    # hold a runner for the 6h default.
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      # Yorkie owns document persistence against MongoDB (ADR-002), and nothing
-      # else in CI touches that wiring — `app` has no depends_on, so the steps
-      # below start it alone. A bad URI or flag fails here instead of silently
-      # falling back to MemDB and losing every document on the next restart.
-      # Mongo comes along via yorkie's depends_on.
-      #
-      # This used to say `--wait` was not enough because the Yorkie image could
-      # carry no healthcheck. That is no longer true — compose gives it one now
-      # (bash's /dev/tcp; see the file's own comment), and `--wait` returns only
-      # once it reports healthy. The probe below is kept anyway: it asserts from
-      # the runner's side of the network, which is where a published-port or
-      # binding problem would show and a healthcheck running inside the
-      # container would not.
+      # Yorkie owns document persistence against MongoDB (ADR-002). A bad URI or
+      # flag fails here instead of silently falling back to MemDB and losing
+      # every document on the next restart. Mongo comes along via yorkie's
+      # depends_on. `--wait` returns once compose's healthcheck passes; the probe
+      # asserts from the runner's side of the network, where a published-port or
+      # binding problem would show and a healthcheck inside the container would not.
       - name: Verify Yorkie is serving against MongoDB
         shell: bash
         run: |
@@ -173,6 +131,16 @@ jobs:
           echo "::error::Yorkie never reported SERVING — check the MongoDB wiring"
           docker compose logs mongo yorkie
           exit 1
+
+      # `pnpm test` runs against no server at all, so nothing in it can notice the
+      # SDK changing under us — the 0.7.13 → 0.7.23 bump passed every test while
+      # two measured SDK behaviours moved. This is the harness ADR-007 asked for
+      # (#42). It reports through the last step, so a failure here does not
+      # hide what the smoke test would have said.
+      - name: Yorkie invariants
+        id: invariants
+        continue-on-error: true
+        run: node scripts/verify-yorkie-invariants.mjs
 
       - name: Build and start the image the host runs
         run: docker compose up -d --build app
@@ -283,6 +251,38 @@ jobs:
 
           echo "host/guest split, the join flow, and chat attribution verified against the container"
 
+      # The E2E layer (docs/testing.md), against the same container. Not able to
+      # fail this required job yet — it stays non-blocking until it has run green
+      # for a while.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E
+        id: e2e
+        continue-on-error: true
+        env:
+          E2E_WORKSPACE_PASSWORD: ${{ env.WORKSPACE_PASSWORD }}
+        run: pnpm e2e
+
+      - name: E2E report
+        if: ${{ steps.e2e.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+
       - name: Server log
         if: always()
-        run: docker compose logs app
+        run: docker compose logs app yorkie
+
+      - name: Fail on the Yorkie invariants
+        if: ${{ steps.invariants.outcome == 'failure' }}
+        run: |
+          echo "::error::scripts/verify-yorkie-invariants.mjs failed — see its step above"
+          exit 1

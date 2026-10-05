@@ -115,7 +115,7 @@ for no inline formatting, and half the types hold no text. What the array costs 
 merging and cross-block selection are ours to build, and a list's `depth` is a number rather than a
 parent — and the four SDK measurements the schema depends on are in
 [ADR-007](../adr/007-block-array-not-tree.md), asserted by `scripts/verify-yorkie-invariants.mjs`
-as the `yorkie invariants` CI job ([#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42)). The
+as a step of CI's `container smoke test` job ([#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42)). The
 unit tests under `lib/blocks/` do not cover them: convergence is a claim about two replicas
 reconciling through one server, which those hermetic tests exist to avoid needing.
 
