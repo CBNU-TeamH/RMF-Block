@@ -124,7 +124,7 @@ rule list, which is Sonnet-shaped work.
 
 | Skill | Status |
 | --- | --- |
-| `webapp-testing` ([anthropics/skills](https://github.com/anthropics/skills)) | Playwright-based browser verification. The only thing that can reach #52 (needs a real browser and a Korean IME) and the gaps that leaf server-component tests leave open. Held back for cost — a third runner, browser binaries, and a Python runtime in a pnpm/Node repo — not for doubt. Tracked with its trigger in **#61**. |
+| `webapp-testing` ([anthropics/skills](https://github.com/anthropics/skills)) | Playwright-based browser verification. Not needed: the repo runs Playwright directly (`pnpm e2e`, [`docs/testing.md`](../../docs/testing.md) "E2E"), without the Python runtime this skill brings. |
 | `hookify` | Builds Claude Code hooks, which act on agent behaviour during a session — a different layer from the git hooks `.githooks/` holds. Tempting for enforcing things like "write the task doc first", but automating a rule before it has settled in writing is the wrong order. **Trigger**: `docs/conventions.md` in daily use. |
 | `security-guidance` | **Trigger**: #19 (OPAQUE over plaintext HTTP) or #27 (join rate limiting) being picked up. Those issues carry the trigger themselves; no separate one is needed. |
 

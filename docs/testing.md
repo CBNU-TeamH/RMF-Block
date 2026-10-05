@@ -1,12 +1,13 @@
 # Testing strategy
 
-- **Status**: All four layers landed. Server-component Tier 2 (extract gate/join logic into
+- **Status**: All five layers landed; the E2E layer is not a required check yet. Server-component Tier 2 (extract gate/join logic into
   `lib/`) is tracked in [issue #112](https://github.com/CBNU-TeamH/RMF-Block/issues/112).
-- **Owns**: none — this is process/strategy, not a module's design rationale. The four layers
+- **Owns**: none — this is process/strategy, not a module's design rationale. The five layers
   below name which existing design doc still owns *why* each module behaves the way it does; this
   document only says *where a new test for it belongs*.
 - **Related**: [issue #66](https://github.com/CBNU-TeamH/RMF-Block/issues/66) (closed — the
   measured layer/line-count breakdown that motivated this doc lives there); [issue
+  #61](https://github.com/CBNU-TeamH/RMF-Block/issues/61) (the E2E layer's trigger); [issue
   #112](https://github.com/CBNU-TeamH/RMF-Block/issues/112) (Tier 2, still open);
   [ADR-004](adr/004-test-runner-migration.md) (why Vitest, why `pool: "forks"`, why happy-dom);
   [`docs/conventions.md`](conventions.md) (the Node type-stripping constraint `server/index.mts`
@@ -29,7 +30,7 @@ had tests* (`serving.test.mts`, `upload.test.mts`). The missing thing was never 
 was a boundary value inside one. A layer having tests at all says nothing about whether the one
 value that mattered was checked.
 
-## The four layers
+## The five layers
 
 | Layer | A test here answers | How | Status |
 | --- | --- | --- | --- |
@@ -37,6 +38,7 @@ value that mattered was checked.
 | `app/` client components (`"use client"`) | Did the right thing render, and does it react correctly to focus, event order, and async completion? | Vitest + `@testing-library/react` / `@testing-library/user-event`, opt into a DOM with `// @vitest-environment happy-dom` | In place |
 | `app/` server components — async leaves | Does the server-only gate, redirect, or lookup run correctly before anything reaches the client? | Call `await Page(props)` directly with `next/headers`/`next/navigation` mocked; assert on the thrown redirect/`notFound`, or on the returned element's props | Tier 1 in place; Tier 2 in #112 |
 | `app/api/**/route.ts` — route handlers | Does the auth gate reject before touching data, and does an error map to the right status code? | Call the exported `GET`/`POST`/etc. directly with a constructed `Request` | In place |
+| E2E — a real browser against the running stack (`e2e/`) | Does it still work after hydration, between two clients through Yorkie, and through a real IME composition? | Playwright, Chromium, `pnpm e2e` against the container or `pnpm dev` | In place; a non-blocking step of CI's `container smoke test` |
 
 ### `lib/` + `server/`
 
@@ -59,10 +61,11 @@ for a bug of this shape — not proactively for every component that happens to 
 
 An IME bug belongs in this layer when the bug is in *our* handler order — which of `onInput`,
 `onCompositionEnd` and `onKeyDown` runs what, and when. `fireEvent.compositionStart` →
-`fireEvent.input` → `fireEvent.compositionEnd` reproduces that in happy-dom (`text-block.test.tsx`,
-[#103](https://github.com/CBNU-TeamH/RMF-Block/issues/103)). Only a bug in what the browser's IME
-itself does to the textarea — [#52](https://github.com/CBNU-TeamH/RMF-Block/issues/52)'s replayed
-offsets — needs a real browser ([#61](https://github.com/CBNU-TeamH/RMF-Block/issues/61)).
+`fireEvent.input` → `fireEvent.compositionEnd` reproduces that in happy-dom (`text-block.test.tsx`:
+[#103](https://github.com/CBNU-TeamH/RMF-Block/issues/103)'s query, and
+[#52](https://github.com/CBNU-TeamH/RMF-Block/issues/52)'s replayed offsets with a real
+`yorkie.Document` behind the block). Only what the browser's IME itself does to the textarea needs
+a real browser — the E2E layer below.
 
 ### `app/` server components — async leaves
 
@@ -93,8 +96,7 @@ Two tiers, in order:
 Tier 1 covers the thrown `redirect()`/`notFound()` signals directly, with `assert.rejects`. What
 stays out of both tiers, and stays with the `container smoke test` instead: RSC serialization,
 layout↔page composition, and hydration — end-to-end concerns a mocked, directly-called component
-function can't exercise. Closing that gap is tracked separately in
-[#61](https://github.com/CBNU-TeamH/RMF-Block/issues/61), not here.
+function can't exercise, and the E2E layer's to take on.
 
 ### `app/api/**/route.ts` — route handlers
 
@@ -144,6 +146,28 @@ get no gate test — they're credential-issuing or self-authenticating endpoints
 apply to. One thing worth stating plainly: **a gate test needs both directions**, not just "rejects
 when everything is falsy" — `&&` and `||` agree when every input is false, so
 the "succeeds when one side is true" case is what actually pins the operator down.
+
+### E2E — `e2e/`
+
+For what nothing above can reach: behaviour after hydration, two clients converging through Yorkie,
+and a real browser's IME composition. Not for anything a component or route test already covers —
+a browser run costs seconds per test against milliseconds.
+
+- **Running it.** The tests drive a stack that is already up — `pnpm docker:up`, or `pnpm dev`
+  beside `docker compose up -d yorkie` — and need its password:
+  `E2E_WORKSPACE_PASSWORD=<WORKSPACE_PASSWORD> pnpm e2e`. `E2E_BASE_URL` overrides
+  `http://localhost:3000`. Restart `pnpm dev` after editing a client component before trusting a
+  run: on a `/mnt/c` checkout its file watching can keep serving the old module.
+- **Files are `*.e2e.ts`**, not `*.spec.ts` — Vitest's default glob would collect a `.spec.ts`.
+- **Getting in.** `e2e/helpers.ts` joins through `POST /api/workspace/join` and creates documents
+  through the API; the form has its own tests. Nicknames are unique per run, so reruns against the
+  same `.data/` never collide.
+- **Anchors.** A block's textarea is `[data-block-id] textarea`, never a bare `textarea`. Wait for
+  an element, never `networkidle` — the workspace socket and Yorkie's watch stream never go idle.
+- **IME.** A CDP session drives a composition the way a Korean IME does:
+  `Input.imeSetComposition` opens it, `Input.insertText` confirms it (`e2e/ime-replay.e2e.ts`).
+- **In CI** it runs after the smoke test in `container smoke test`, against the same container, as
+  a `continue-on-error` step until it has run green for a while; a failure uploads the report.
 
 ## Vitest worker count
 
