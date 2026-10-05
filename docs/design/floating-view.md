@@ -96,7 +96,7 @@ or one corner grip (`resize="corner"`, the ratio-locked corner above). A floatin
 red on hover; the chat window's turns dark. While a gesture runs,
 every `<iframe>` on the page has `pointer-events: none`, because a PDF under the pointer would
 otherwise take the moves for itself and stall the drag, and pointer capture does not hold across
-Chrome's PDF viewer.
+Chrome's PDF viewer (measured with Playwright).
 Windows sit at `z-[35]`: above the chat bar, below the chat window.
 
 The saved list is re-fitted to the current viewport on load and on every viewport resize

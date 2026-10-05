@@ -45,9 +45,10 @@ block-link block still resolve, and the same `yorkie.Text`, so a peer typing in
 that block at that moment does not lose what they typed.
 
 **Yorkie does not move CRDTs — it silently replaces them.** Assigning an existing `Text`
-into a new object leaves an empty `Text` and no error, and rebuilding it by copying the string
-drops a peer's concurrent edit. The conversion must therefore never move the `Text`; the
-measurements are in [ADR-007](../adr/007-block-array-not-tree.md).
+into a new object leaves an empty `Text` and no error ([ADR-007](../adr/007-block-array-not-tree.md)
+has the measurement and the versions it was re-run on). Rebuilding the `Text` by copying the
+string across is no better: it drops whatever a peer typed during the conversion, measured on
+0.7.13 as `peer edit survived: false`. The conversion must therefore never move the `Text`.
 
 With the uniform wrapper the `Text` never moves, because a conversion only adds
 or deletes primitives beside it. Measured: text → list → heading keeps the text
@@ -427,7 +428,8 @@ and leave the next keystroke diffing against the wrong string.
 
 ## Rules the editor component holds to
 
-**Every mutation reads text and `checked` live, never from `blocks` state.** That state's `text` is a snapshot taken
+**Every mutation reads text and `checked` live, never from `blocks` state.** That state's `text` is
+a snapshot taken
 at the last render and goes stale the moment anyone types — locally or remotely. A split that
 trimmed the snapshot would drop a concurrent remote edit past the caret; a checkbox that toggled
 the snapshot would flip from a value that is no longer there. So `editor.tsx` reads the block out
@@ -484,7 +486,12 @@ through the slash closes it on its own. It is recomputed mid-composition too, an
 jamo (`slashMenuItems`), so the menu narrows at each step an IME shows (`ㅈ`, `제`, `젬`, `제모`)
 instead of waiting for the word.
 
-The query matches a *prefix* of a label word, the English `name` or a keyword (not a substring); label and name matches come first in menu order, keyword-only matches after. When nothing matches, a 결과 없음 row replaces the menu and owns no keys — Enter still splits the block. Escape dismisses the menu or the row, and blur closes it (the menu's own `mousedown` is prevented so dragging its scrollbar keeps focus). While an IME composition is open, Enter, the arrows and Escape belong to the IME.
+The query matches a *prefix* of a label word, the English `name` or a keyword (not a substring);
+label and name matches come first in menu order, keyword-only matches after. When nothing matches,
+a 결과 없음 row replaces the menu and owns no keys — Enter still splits the block. Escape dismisses the
+menu or the row, and blur closes it (the menu's own `mousedown` is prevented so dragging its
+scrollbar keeps focus). While an IME composition is open, Enter, the arrows and Escape belong to
+the IME.
 
 ### `/페이지` makes a page; `/문서 링크` points at one
 
@@ -562,7 +569,7 @@ handler map, the rebuild fallback — is the remote-change path.
 with a first block through `doc.update()`, and undoing that would leave a document with no blocks
 and nowhere to type.
 
-The seed's root assignment happens to produce no reverse operation, so the
+Measured against 0.7.13, the seed's root assignment happens to produce no reverse operation, so the
 stack is empty at that point anyway — but that is an accident of which operation the seed uses, not
 a design. `use-block-document` records the stack depth once the document is ready and refuses to
 undo past it.
