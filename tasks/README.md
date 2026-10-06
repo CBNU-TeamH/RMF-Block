@@ -22,9 +22,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 ## Active
 
-| Task | Lessons |
-| :--- | :--- |
-| [A Playwright E2E layer, and the IME replay race it exists to reach](active/20261005-playwright-e2e-todo.md) | [lessons](active/20261005-playwright-e2e-lessons.md) |
+Nothing in progress.
 
 ## Archive
 
