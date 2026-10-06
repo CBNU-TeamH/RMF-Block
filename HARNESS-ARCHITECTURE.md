@@ -74,4 +74,4 @@ graph TB
 ## Notes
 
 - **`CLAUDE.md` is a one-line `@AGENTS.md` import** — `AGENTS.md` is the tool-neutral entry point every agent reads first; editing session learnings into `CLAUDE.md` instead (e.g. an unguided `/revise-claude-md` run) breaks that split.
-- **Rules, not restated here**: delegation, the Sonnet-session preference, check order, and the container-vs-dev gap are one-line rules in [`AGENTS.md`](AGENTS.md) §2 and §6; the reasoning is in [`.claude/skills/README.md`](.claude/skills/README.md).
+- **Rules, not restated here**: delegation, check order, and the container-vs-dev gap are one-line rules in [`AGENTS.md`](AGENTS.md) §2 and §6; the reasoning is in [`.claude/skills/README.md`](.claude/skills/README.md).

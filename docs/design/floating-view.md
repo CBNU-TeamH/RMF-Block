@@ -74,8 +74,8 @@ prefixed so neither can read as the other — and open, close, move, fit and the
 the same for both.
 
 - **It saves the attachment's four fields** (`fileId`, `fileName`, `fileType`, `size`), so a
-  window restored after a reload needs no lookup. Why they cannot go stale: `chat.md`, "What the
-  server decides".
+  window restored after a reload needs no lookup. Why they cannot go stale:
+  [`chat.md`](chat.md#what-the-server-decides-and-what-it-refuses-to-be-told).
 - **It draws through the block path.** The window builds an image or PDF block from those fields
   and hands it to the same renderer, so fitting and scaling are the block rules below.
 - **Nothing is mirrored.** A stored file never changes, so FR-070-04 holds without a

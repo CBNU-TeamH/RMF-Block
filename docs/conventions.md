@@ -383,11 +383,10 @@ Describe it, don't quote it.
 
 ## A path that does not exist yet drops its trailing slash
 
-`pnpm verify:docs` reads a backticked path with a slash in it, in `docs/` (outside `docs/ui/`)
-or `AGENTS.md`, as a claim that it exists when it ends in `/` or a known extension, and fails on
-one that does not. A directory that is planned but not built is written without the slash —
-`e2e/perf`, with nothing after it — and a glob such as `e2e/perf/*.perf.ts` is not matched at
-all. Once the directory exists, the slash may come back.
+`pnpm verify:docs` treats a backticked path that ends in `/` as a claim that the directory exists
+(`BACKTICK_PATH` in `scripts/verify-docs.mjs` has the exact rule, and its failure says so). Write
+a directory that is planned but not built without the slash — `e2e/perf` — and add it back once
+the directory exists.
 
 **Cited by**: [`20261006-perf-criteria-scope-lessons.md`](../tasks/archive/2026/10/20261006-perf-criteria-scope-lessons.md).
 

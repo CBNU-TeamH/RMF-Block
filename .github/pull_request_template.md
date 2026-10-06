@@ -35,11 +35,11 @@ Which checks were actually run — not whether the diff was read carefully.
 
 - [ ] `pnpm lint` / `pnpm test` / `pnpm build` locally
 - [ ] `pnpm comments` / `pnpm verify:docs` locally
-- [ ] `/simplify` (a Sonnet session preferred, for cost) — ran · or not applicable because:
-- [ ] `/code-review low` (a Sonnet session preferred, for cost) — ran · or not applicable because:
+- [ ] `/simplify` — ran · or not applicable because:
+- [ ] `/code-review low` — ran · or not applicable because:
 
-Sub-agents inherit the session's model, so an Opus session runs the review on Opus and
-spends the saving that `low` exists to make.
+Prefer a Sonnet session for both: sub-agents inherit the session's model, so an Opus session runs
+the review on Opus and spends the saving that `low` exists to make.
 
 Findings raised but **not fixed here** — filed as issues rather than dropped:
 

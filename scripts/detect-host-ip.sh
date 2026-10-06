@@ -2,7 +2,7 @@
 # Detects the host's LAN IP and writes it into .env as HOST_LAN_IP, so guests
 # can reach `docker compose up` without the host copy-pasting an address by
 # hand every time. Also flags (but does not fix) WSL2 mirrored networking,
-# since Docker Desktop can otherwise bind guests out. See README.md "Getting started".
+# since Docker Desktop can otherwise bind guests out. See README.md.
 #
 # Two platforms only: Linux and macOS. A Windows host runs Docker Desktop on
 # the WSL2 backend, so `pnpm docker:up` lands in WSL and the Linux branch is the

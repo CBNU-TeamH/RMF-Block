@@ -1,28 +1,32 @@
 # Contributing to RMF-Block
 
-[`AGENTS.md`](AGENTS.md) is the rulebook — workflow, coding principles, conventions — and what a
-pull request is reviewed against. This file is the how-to: a working setup, the checks, and the
-path to a PR. Where the two touch, this file links to `AGENTS.md` rather than repeating it.
+[`AGENTS.md`](AGENTS.md) is the rulebook a pull request is reviewed against; this file is the
+how-to.
 
 ## TL;DR
 
-1. Branch from `main` as `<type>/<slug>` (`feat/`, `fix/`, `docs/` …).
-2. Register the work as a todo + lessons pair in `tasks/active/` and plan it there.
+1. Branch from `main` as `<type>/<slug>` — one branch and one squash-merged PR per task
+   (`AGENTS.md` §6).
+2. Register the work as a todo + lessons pair in `tasks/active/` and plan it there (`AGENTS.md` §2).
 3. Build it; `pnpm verify:fast` and `pnpm verify:docs` clean.
-4. Run the review passes, then open a PR from the template.
-
-The order and its reasons: `AGENTS.md` §2 (workflow) and §6 (branches and pull requests).
+4. Run the review passes ([`.claude/skills/README.md`](.claude/skills/README.md)), then open a PR
+   from [`.github/pull_request_template.md`](.github/pull_request_template.md).
 
 ## Development setup
 
-Node.js 24 ([`.nvmrc`](.nvmrc)), pnpm 10, and Docker with Compose 2.20 or newer.
+Node.js ([`.nvmrc`](.nvmrc)), pnpm (pinned in `package.json` — `corepack enable` provides it), and
+Docker Compose 2.20 or newer (the trap below says why).
 
 ```bash
 pnpm install
-cp .env.sample .env           # set WORKSPACE_PASSWORD (4+ characters) — startup refuses without it
+cp .env.sample .env           # fill it in — startup refuses without WORKSPACE_PASSWORD
 docker compose up -d yorkie   # Yorkie on :8080 — realtime sync needs it
-pnpm dev                      # http://localhost:3000, the same Host/Guest lines on stdout
+pnpm dev                      # http://localhost:3000; prints the Host and Guest lines
 ```
+
+`pnpm dev` is reachable from other devices on the LAN too. `pnpm start` serves a production
+build, but without the Yorkie container behind it — the host runs the image. Changes to server
+startup, auth or networking are verified against the container (`AGENTS.md` §2, "Run and verify").
 
 Once per machine, so line endings match `.gitattributes` (`eol=lf`) on every OS:
 
@@ -30,22 +34,9 @@ Once per machine, so line endings match `.gitattributes` (`eol=lf`) on every OS:
 git config --global core.autocrlf input
 ```
 
-Three traps, all found the hard way:
-
-- **Run `pnpm build` after `pnpm dev`, not before.** A production build leaves a `.next` the dev
-  server cannot use, and it fails with `Could not parse module '[project]/instrumentation.ts', file
-  not found` for a file that plainly exists. `rm -rf .next` fixes it.
-- **Docker Compose must be 2.20 or newer.** `docker-compose.yml` uses `attach: false` on the mongo
-  service; older Compose (2.13 was measured) refuses the whole file with `services.mongo Additional
-  property attach is not allowed`.
-- **`pnpm dev` is reachable from this machine only — test other devices against the container.**
-  Next's dev server refuses `/_next/*` to any host but `localhost`, so a phone at
-  `http://<LAN-IP>:3000` gets the server-rendered HTML and no client JavaScript. The page draws,
-  React never hydrates, and the join form falls back to a plain
-  `GET /join?nickname=…&password=…` that never logs in — which reads exactly like a wrong password. Use `pnpm docker:up` (or `pnpm build && pnpm start`).
-
-Changes to server startup, auth or networking are verified against the container, not `pnpm dev`
-(`AGENTS.md` §2, "Run and verify").
+**Older Docker Compose refuses the file.** `docker-compose.yml` uses `attach: false` on the mongo
+service; Compose before 2.20 (2.13 was measured) rejects the whole file with `services.mongo
+Additional property attach is not allowed`.
 
 ## Where things are
 
@@ -72,27 +63,17 @@ line.
 | `pnpm verify:fast` | `pnpm lint` and `pnpm test` (Vitest) |
 | `pnpm verify:docs` | The doc checks — what they cover: [`.claude/skills/README.md`](.claude/skills/README.md), "Run the free checks first" |
 | `pnpm comments` | The comment budget ([`docs/conventions.md`](docs/conventions.md)) |
-| `pnpm e2e` | Playwright against a running stack — the container, or `pnpm dev` beside Yorkie — with `E2E_WORKSPACE_PASSWORD` set to `.env`'s `WORKSPACE_PASSWORD` |
+| `pnpm e2e` | Playwright against a running stack — how to run it: [`docs/testing.md`](docs/testing.md), "E2E" |
 | `pnpm build` | The production build |
 
-The git hooks in `.githooks/` run some of these for you: pre-commit lints the staged `.ts`/`.tsx`
-files and checks their comment budget; pre-push runs the comment budget, the test suite and the
-build, so a push takes a minute or two. What CI runs and which checks block a merge: `AGENTS.md` §6. How the layers of tests divide
-the work: [`docs/testing.md`](docs/testing.md).
+The git hooks in `.githooks/` run some of these for you — each hook's header says which — and
+pre-push includes the test suite and the build, so a push takes a minute or two. What CI runs and
+which checks block a merge: `AGENTS.md` §6. How the layers of tests divide the work:
+[`docs/testing.md`](docs/testing.md).
 
 ## Pull requests
 
-- **Commit prefixes, doc language, agreed documents**: `AGENTS.md` §5.
-- **One branch and one PR per task**, squash-merged, with the description started from
-  [`.github/pull_request_template.md`](.github/pull_request_template.md): `AGENTS.md` §6.
-- **Review passes** (`/simplify`, `/code-review low`) and why they run the way they do:
-  [`.claude/skills/README.md`](.claude/skills/README.md).
+- **Commit prefixes, doc language, ground rules**: `AGENTS.md` §5.
 - **When the work is done**, archive its task with `pnpm tasks:archive <slug>` (`AGENTS.md` §2,
   step 5); an archive-only PR starts from
   [`.github/PULL_REQUEST_TEMPLATE/archive.md`](.github/PULL_REQUEST_TEMPLATE/archive.md).
-
-## Ground rules
-
-- **This repository is the source of truth.** Discussion may happen elsewhere (Notion, chat), but
-  decisions land here; sync is one way, into the repo.
-- **Docs live with the code.** A change and the doc that describes it go in the same commit.

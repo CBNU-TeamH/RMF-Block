@@ -290,8 +290,8 @@ Measured against a real two-client Yorkie session, on the exact storage shape ab
    Yorkie's offsets, so the flush applies it to the baseline (Yorkie's text) and puts the composed
    text back where the composition started — the range recorded at `compositionstart`, carried
    through each edit, not inferred by a diff, which cannot place it inside a run of one character.
-   Only when that range no longer fits the textarea (an IME that composed away from where it
-   started) does the flush fall back to the diff's guess.
+   If that range no longer fits the textarea (an IME composed away from where it started), the
+   flush falls back to the diff's guess.
    The flush runs *before* the composition's commit, which then diffs Yorkie's own text and is
    always an edit Yorkie can apply
    ([#52](https://github.com/CBNU-TeamH/RMF-Block/issues/52), `e2e/ime-replay.e2e.ts`).
