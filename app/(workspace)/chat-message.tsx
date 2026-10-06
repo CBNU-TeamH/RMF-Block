@@ -1,8 +1,10 @@
 "use client";
 
 import type { ChatAttachment, ChatMessage } from "@/lib/chat/types";
+import { isInlineType } from "@/lib/files/serving";
 import { readableSize } from "@/lib/files/size";
 
+import { useFloatingViews } from "./floating-views";
 import { FileIcon } from "./ui";
 
 /** One message in the chat panel (FR-060-01/02). **Prototype** — `docs/ui/` has
@@ -65,6 +67,23 @@ function Attachment({ attachment }: { attachment: ChatAttachment }) {
   );
 }
 
+/** FR-070-01's "or a file": only the types the preview route serves inline,
+ *  since anything else would open a window the server refuses to fill. */
+export function FloatButton({ attachment }: { attachment: ChatAttachment }) {
+  const openFloating = useFloatingViews();
+  if (!isInlineType(attachment.fileType)) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => openFloating(attachment)}
+      className="w-fit rounded-control px-1 text-xs text-ink-faint hover:bg-hover hover:text-ink"
+    >
+      플로팅 뷰로 열기
+    </button>
+  );
+}
+
 export function ChatMessageRow({
   message,
   mine,
@@ -107,6 +126,7 @@ export function ChatMessageRow({
         ) : null}
 
         {message.attachment ? <Attachment attachment={message.attachment} /> : null}
+        {message.attachment ? <FloatButton attachment={message.attachment} /> : null}
       </div>
     </li>
   );

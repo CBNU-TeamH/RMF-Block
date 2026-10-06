@@ -1,6 +1,7 @@
 # Floating view — Module Design
 
-- **Status**: Agreed 2026-09-24. Built for text-bearing, image and PDF blocks.
+- **Status**: Agreed 2026-09-24. Built for text-bearing, image and PDF blocks, and for image
+  and PDF chat attachments (#143).
 - **Owns**: `lib/floating/`, `app/(workspace)/floating-views.tsx`,
   `app/(workspace)/floating-frame.tsx`, `app/(workspace)/use-frame-gesture.ts`.
 - **Related**: [`docs/SRS-ko.md`](../SRS-ko.md) UC-070, FR-070-01..06, SIR007;
@@ -10,18 +11,20 @@
 
 ## Scope
 
-A person pins a block into a window over the workspace and keeps reading it while working
-elsewhere. Four decisions bound it:
+A person pins a block, or a file shared in chat, into a window over the workspace and keeps
+reading it while working elsewhere. Four decisions bound it:
 
 - **A read-only mirror.** UC-070 asks for reference, and a second editing surface would need
   its own IME handling, undo and occupancy. The window never writes to the document.
-- **One entry point**: a 24px window-glyph button left of a block row's drag handle, shown the way the handle
-  is. It sits next to the handle, not on the right edge, so it is easy to hit.
+- **One entry point per source**: for a block, a 24px window-glyph button left of a block row's
+  drag handle, shown the way the handle is. It sits next to the handle, not on the right edge,
+  so it is easy to hit. For a chat attachment, "플로팅 뷰로 열기" under the message, and
+  "미리보기" in the chat file list (`chat.md`).
 - **Restored after a reload**, from `localStorage` (`rmf-floating-views`). Which blocks one
   person pinned, and where, is worth nothing to anyone else, the same reasoning as the chat
   window's frame.
-- **Text-bearing, image and PDF blocks.** Word/PPT/Excel follow when UC-080's viewer exists;
-  chat attachments are out.
+- **Text-bearing, image and PDF blocks, and image and PDF chat attachments.** Word/PPT/Excel
+  follow when UC-080's viewer exists.
 
 ## One attachment per document, shared
 
@@ -63,6 +66,26 @@ every window live. A deleted **document** disables its windows with
 The provider lives in the workspace layout, which never remounts across document navigation.
 That is all FR-070-03 takes.
 
+## A file as the source
+
+A chat attachment opens as a view of the stored file, not of a block. `lib/floating/views.ts`
+keys every view by its source — `block:<documentId>:<blockId>` or `file:<fileId>`, both
+prefixed so neither can read as the other — and open, close, move, fit and the saved list work
+the same for both.
+
+- **It saves the attachment's four fields** (`fileId`, `fileName`, `fileType`, `size`), so a
+  window restored after a reload needs no lookup. They cannot go stale: the SRS gives files no
+  rename.
+- **It draws through the block path.** The window builds an image or PDF block from those fields
+  and hands it to the same renderer, so fitting and scaling are the block rules below. An
+  attached file and an embedded one are one thing seen from two places (`chat.md`).
+- **Nothing is mirrored.** A stored file never changes, so FR-070-04 holds without a
+  subscription, and there is no Yorkie attach. FR-070-05 has nothing to watch: attachments
+  cannot be deleted (`chat.md`, "Open questions").
+- **Only the types the preview route serves inline float** — `isInlineType` in
+  `lib/files/serving.ts`. Any other type would open a window the server refuses to fill.
+- **The title bar shows the file's name**, where a block's window shows its document's.
+
 ## Fitted, then scaled
 
 A new window fits its content, then resizes like picture-in-picture: from its corner, with its
@@ -101,7 +124,7 @@ Windows sit at `z-[35]`: above the chat bar, below the chat window.
 
 The saved list is re-fitted to the current viewport on load and on every viewport resize
 (`fitFloating`), so a window saved on a larger screen is never left off-screen. There is one
-window per block: opening a block that already has one does nothing, and a saved entry that is
+window per block or file: opening one that already has a window does nothing, and a saved entry that is
 malformed or a duplicate is dropped on load (`parseViews`).
 
 ## Not built
