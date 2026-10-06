@@ -22,7 +22,9 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 ## Active
 
-Nothing in progress.
+| Task | Lessons |
+| :--- | :--- |
+| [Drift audit: the parts that changed since 2026-10-05](active/20261007-drift-audit-todo.md) | [lessons](active/20261007-drift-audit-lessons.md) |
 
 ## Archive
 
