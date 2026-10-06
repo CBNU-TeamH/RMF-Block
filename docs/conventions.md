@@ -385,12 +385,11 @@ Describe it, don't quote it.
 
 `pnpm verify:docs` reads a backticked path with a slash in it, in `docs/` (outside `docs/ui/`)
 or `AGENTS.md`, as a claim that it exists when it ends in `/` or a known extension, and fails on
-one that does not. A directory that is
-planned but not built is written without the slash — `e2e/perf`, with nothing after it — and a glob
-such as `e2e/perf/*.perf.ts` is not matched at all. Once the directory exists, the slash may
-come back.
+one that does not. A directory that is planned but not built is written without the slash —
+`e2e/perf`, with nothing after it — and a glob such as `e2e/perf/*.perf.ts` is not matched at
+all. Once the directory exists, the slash may come back.
 
-**Cited by**: `tasks/archive/2026/10/20261006-perf-criteria-scope-lessons.md`.
+**Cited by**: [`20261006-perf-criteria-scope-lessons.md`](../tasks/archive/2026/10/20261006-perf-criteria-scope-lessons.md).
 
 ## Keep browser-dependent geometry in a pure function, not the component
 

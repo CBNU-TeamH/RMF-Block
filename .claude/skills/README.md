@@ -63,6 +63,12 @@ So the order is: **`pnpm verify:fast` clean, `pnpm comments` / `pnpm verify:docs
 → then `/simplify` → then `/code-review low`**. Both are clean on a healthy branch, so anything they
 report is new.
 
+The two passes may also run in parallel instead — two sessions, or two sub-agents launched from
+one Sonnet session. They then share one working tree, so **both run report-only**: `/simplify`
+applies its fixes by default, and two passes editing the same files collide. Let the session
+that wrote the change decide and apply — that also keeps a judgement call with whoever is
+accountable for it (`AGENTS.md` §2).
+
 The free checks are `pnpm comments` (the comment budget) and `pnpm verify:docs` (doc drift: ownership, task-index
 freshness, dead links and section refs, SRS-en sync, cited SRS IDs, declared facts, the generated
 endpoint table, the skills mirror), plus a pre-commit hook that runs the staged-file part on every
@@ -97,12 +103,6 @@ session.
 
 The same applies to `/simplify`: it is a sub-agent doing a mechanical comparison against a
 rule list, which is Sonnet-shaped work.
-
-**Two passes running at once are report-only.** When `/code-review` and `/simplify` run in
-parallel — two sessions, or two sub-agents launched from one — they share one working tree, and
-two of them applying fixes collide. Have each report, and let the session that wrote the change
-decide and apply — that also keeps a judgement call with whoever is accountable for it
-(`AGENTS.md` §2).
 
 ### Settled by reading the plugins, so nobody has to re-check
 
