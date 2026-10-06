@@ -243,21 +243,36 @@ export function TextBlockView({
     const selStart = el.selectionStart ?? 0;
     const selEnd = el.selectionEnd ?? 0;
 
-    // The edit's offsets are Yorkie's. An open composition is the one thing the
-    // textarea holds that Yorkie does not, so map them around it (#52); outside
-    // a composition the two are equal and this is the identity. An edit
-    // overlapping the composition lands after it.
+    // The edit's offsets are Yorkie's. A composition is the one thing the
+    // textarea holds that Yorkie does not (#52), so the edit is mapped around
+    // it — the identity when nothing was composed. Where a character repeats,
+    // which side of it the composed text sits on is `diffRange`'s guess; the
+    // commit after the flush converges either way.
     const local = diffRange(lastSyncedRef.current, el.value);
-    const around = { from: local.from, to: local.to, insertedLength: local.value.length };
     const composedEnd = local.from + local.value.length;
-    const domFrom = shiftCaret(from, around) ?? composedEnd;
-    const domTo = shiftCaret(to, around) ?? composedEnd;
-
-    el.value = el.value.slice(0, domFrom) + value.content + el.value.slice(domTo);
+    const toDom = (pos: number) =>
+      pos >= local.to ? pos + composedEnd - local.to : pos <= local.from ? pos : composedEnd;
+    const domFrom = toDom(from);
+    const domTo = toDom(to);
+    // An edit spanning the composed text applies around it, never through it:
+    // the peer removed what Yorkie held there, not what this person just typed.
+    const spans = local.from < composedEnd && domFrom < composedEnd && domTo > local.from;
+    const head = Math.min(domFrom, local.from);
+    const dom = el.value;
+    el.value = spans
+      ? dom.slice(0, head) + value.content + dom.slice(local.from, composedEnd) +
+        dom.slice(Math.max(domTo, composedEnd))
+      : dom.slice(0, domFrom) + value.content + dom.slice(domTo);
     const base = lastSyncedRef.current;
     lastSyncedRef.current = base.slice(0, from) + value.content + base.slice(to);
 
     const insertedLength = value.content.length;
+    if (spans) {
+      // The caret was at the end of the composition; it stays there.
+      el.selectionStart = el.selectionEnd = head + insertedLength + composedEnd - local.from;
+      autoGrow(el);
+      return;
+    }
     const newStart = shiftCaret(selStart, { from: domFrom, to: domTo, insertedLength });
     const newEnd = shiftCaret(selEnd, { from: domFrom, to: domTo, insertedLength });
     if (newStart !== null && newEnd !== null) {

@@ -126,15 +126,13 @@ describe("TextBlockView's / menu", () => {
 });
 
 describe("TextBlockView's remote edits", () => {
-  let counter = 0;
-
-  /** A real document holding one text block, `abc`. `peer` makes the edit a
-   *  peer would — in Yorkie first, then the patch the block receives. */
-  function seeded() {
-    const doc = new yorkie.Document<BlockDocumentRoot>(`text-block-${(counter += 1)}`);
+  /** A real, never-attached document holding one text block. `peer` makes the
+   *  edit a peer would — in Yorkie first, then the patch the block receives. */
+  function seeded(text = "abc") {
+    const doc = new yorkie.Document<BlockDocumentRoot>("text-block");
     doc.update((root) => {
       root.blocks = [{ id: "b1", type: "text", content: { text: new yorkie.Text() } } as StoredBlock];
-      root.blocks[0]!.content!.text!.edit(0, 0, "abc");
+      root.blocks[0]!.content!.text!.edit(0, 0, text);
     });
     const peer = (from: number, to: number, content: string): TextPatch => {
       doc.update((root) => editBlockText(root.blocks as BlockArray, "b1", from, to, content));
@@ -168,6 +166,19 @@ describe("TextBlockView's remote edits", () => {
     fireEvent.compositionEnd(textarea);
 
     assert.equal(live(), "Xabc안Z");
+    assert.equal(textarea.value, live());
+  });
+
+  it("keeps the composed text when a peer deletes across it", () => {
+    const { doc, peer, live } = seeded("abcd");
+    const { textarea, remote } = renderBlock({ type: "text" }, doc, "abcd");
+
+    fireEvent.compositionStart(textarea);
+    fireEvent.input(textarea, { target: { value: "ab안cd" } });
+    remote(peer(1, 3, "")); // "bc", on both sides of the composition point
+    fireEvent.compositionEnd(textarea);
+
+    assert.equal(live(), "a안d");
     assert.equal(textarea.value, live());
   });
 });
