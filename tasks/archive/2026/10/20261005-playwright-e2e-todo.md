@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-05
 **Issue**: #61, #52
-**Design**: [`docs/testing.md`](../../docs/testing.md) gains the layer; [`docs/design/document-editing.md`](../../docs/design/document-editing.md) "Behaviour of the textarea surface" holds the composition rule #52 changes.
+**Design**: [`docs/testing.md`](../../../../docs/testing.md) gains the layer; [`docs/design/document-editing.md`](../../../../docs/design/document-editing.md) "Behaviour of the textarea surface" holds the composition rule #52 changes.
 
 #61's own trigger is met: the editor's screen contract has stopped moving, and #52 cannot be
 measured any other way. #52 is the first thing the layer measures. The user also asked for the CI
