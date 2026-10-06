@@ -252,7 +252,8 @@ File bytes never travel through Yorkie — blocks carry only a `fileId` referenc
 Bytes live at `.data/files/<fileId>` and metadata in `.data/files/index.json`. **The id is the
 filename on disk, never the uploaded name** — a name is attacker-controlled and `../../` is a
 valid string. One store is shared with document files (FR-022-13/14) when those land, with an
-`origin` field recording which; FR-050-06 and FR-061-01 are queries over it.
+`origin` field recording which; FR-050-06 is a query over it. FR-061-01's chat file list is not:
+it is derived from the chat history ([`chat.md`](chat.md#the-file-list)).
 
 **Two ceilings, not one.** An upload is refused at 25 MB, and that number is about the *file*, which
 is what the error message says. The request carrying it is larger: `content-length` covers the whole
@@ -323,7 +324,6 @@ Chat has two candidate implementations (§5). These REST endpoints belong to **v
 | `GET` | `/api/chat` | Message history | guest | FR-060-05 | — |
 | `POST` | `/api/chat` | Send and persist a message | guest | FR-060-01~03/05 | — |
 | `POST` | `/api/chat/files` | Upload a file to attach to a message | guest | FR-060-02 | ✅ |
-| `GET` | `/api/chat/files` | List files shared in chat (not built) | guest | FR-061-01/02 | ✅ |
 
 `POST /api/chat/files` is not in the original draft but is unavoidable: chat attachments are bytes, and bytes cannot go through Yorkie, so both chat versions need this REST path even when version B carries the messages themselves over CRDT.
 
