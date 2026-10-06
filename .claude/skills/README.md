@@ -33,8 +33,8 @@ through review and one that did not.
 
 | Plugin | Why this repository needs it | When to invoke |
 | --- | --- | --- |
-| **`code-review`** | Launches **five parallel review agents** (see the model note below — they inherit your session's model), and **two of them read our rules** — one checks CLAUDE.md compliance, one checks code-comment compliance. The other three cover obvious bugs, git blame, and previous PRs. Findings are scored 0–100 and anything under 80 is dropped. [`docs/conventions.md`](../../docs/conventions.md) (#69) is the rubric those two agents apply — that is what turns a written rule into a check that runs. | Before opening a PR, **from a Sonnet session**: `/code-review low` |
-| **`code-simplifier`** | *"Simplifies and refines code for clarity, consistency, and maintainability **while preserving functionality**."* Those last three words are the failure mode tests cannot see — code that behaves correctly and is shaped wrongly. #40 is the worked example. | While working, **from a Sonnet session**: `/simplify` |
+| **`code-review`** | Launches **five parallel review agents** (see the model note below — they inherit your session's model), and **two of them read our rules** — one checks CLAUDE.md compliance, one checks code-comment compliance. The other three cover obvious bugs, git blame, and previous PRs. Findings are scored 0–100 and anything under 80 is dropped. [`docs/conventions.md`](../../docs/conventions.md) (#69) is the rubric those two agents apply — that is what turns a written rule into a check that runs. | Before opening a PR, preferably **from a Sonnet session**: `/code-review low` |
+| **`code-simplifier`** | *"Simplifies and refines code for clarity, consistency, and maintainability **while preserving functionality**."* Those last three words are the failure mode tests cannot see — code that behaves correctly and is shaped wrongly. #40 is the worked example. | While working, preferably **from a Sonnet session**: `/simplify` |
 | **`claude-md-management`** | Two halves. `claude-md-improver` audits the harness against the actual state of the codebase, which is how we catch `AGENTS.md` routing to files that do not exist. `/revise-claude-md` captures what a session learned, which is the execution step our lessons → harness promotion loop has always been missing. | Starting work: audit. Finishing a task: `/revise-claude-md` as the promotion step |
 
 ### Depth: run `code-review` at `low`
@@ -81,9 +81,10 @@ effectively several passes over the codebase, and `low` reduces the number of *f
 the amount read.
 
 
-### Model: switch to Sonnet before running either command
+### Model: prefer a Sonnet session for either command
 
-**Both `/code-review` and `/simplify` must be run from a Sonnet session.**
+**Run `/code-review` and `/simplify` from a Sonnet session where you can.** The reason is cost, not
+correctness: an Opus run reviews just as well, it only spends more.
 
 ```bash
 /model claude-sonnet-5     # then run /code-review low, or /simplify
