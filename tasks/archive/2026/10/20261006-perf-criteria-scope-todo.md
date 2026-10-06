@@ -60,7 +60,7 @@ is not adopted (it shares one NIC/CPU/radio).
 - [x] `pnpm verify:docs` passes.
 - [x] No sentence of the comparison section is deleted (`git diff` shows only wrapping + moves — the preset table, the degradation-tool table and the DevTools bullet moved to the body, a pointer left in their place).
 - [x] No NFR threshold changes (1 s / 3 s / 1 s / 1 s / 500 MB / 8 users, 0-in-20).
-- [ ] Rendered on GitHub: the toggle collapses, tables intact — check on the PR's rich diff.
+- [ ] Rendered on GitHub: the toggle collapses, tables intact — not confirmed before merge; check the rendered file on `main`.
 - [x] The doc names `e2e/perf` and `.perf.ts`; no file under `e2e/`, `playwright.config.ts` or CI is touched in this task.
 
 ## Cross-cutting
@@ -69,4 +69,9 @@ Doc-only. `SRS-ko.md` / `SRS-en.md` untouched (AGENTS.md §5). `ROADMAP.md` and 
 
 ## Review
 
-Filled in at the end.
+Shipped as #155 (squash 952f5b9). Beyond the plan:
+
+- `/code-review` caught that degrading the server host or a gateway slows every client, and a host-as-client is on loopback — degradation went to guest devices only, and SRS pass/fail was pinned to the 8 users × baseline cell (20 runs); every other cell is reported, not judged.
+- CodeRabbit caught this task doc's own run order still pre-dating that fix (line 41); aligned in the same PR.
+- Translated technical terms went back to English (wall clock, degradation, direct path, …) at the user's request; quoted SRS text kept verbatim.
+- Cut: nothing. The harness itself (`e2e/perf`, `pnpm perf`) is `ROADMAP.md` Phase 5.

@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-06
 **Issue**: #143, #146
-**Design**: [`docs/design/floating-view.md`](../../docs/design/floating-view.md) (a file as a view's source) and [`docs/design/chat.md`](../../docs/design/chat.md) (the file list) — both updated in this task.
+**Design**: [`docs/design/floating-view.md`](../../../../docs/design/floating-view.md) (a file as a view's source) and [`docs/design/chat.md`](../../../../docs/design/chat.md) (the file list) — both updated in this task.
 
 #143 lets an image or PDF chat attachment open in a floating view (FR-070-01's "block **or file**"). #146 adds the chat file list (UC-061, FR-061-01..04), whose preview is that floating view — so #143 lands first, in the same PR.
 
@@ -34,9 +34,9 @@
 
 ## Acceptance
 
-- [ ] `pnpm test` — new cases: `views.test.mts` (open/dedupe/close/parse for a file ref, mixed with block refs), `attachments.test.mts` (kind per type incl. `image/svg+xml` → 이미지 without preview, newest first, text-only messages skipped), `chat-files.test.tsx` (tabs, preview button only for inline types, download href).
-- [ ] `pnpm lint`, `pnpm build`, `pnpm verify:docs` pass.
-- [ ] By hand against the container: send an image and a PDF in chat → each opens in a floating view; reload keeps them; the file list shows both under the right tabs with sender and time; download works.
+- [x] `pnpm test` — new cases: `views.test.mts` (open/dedupe/close/parse for a file ref, mixed with block refs), `attachments.test.mts` (kind per type incl. `image/svg+xml` → 이미지 without preview, newest first, text-only messages skipped), `chat-files.test.tsx` (tabs, preview button only for inline types, download href).
+- [x] `pnpm lint`, `pnpm build`, `pnpm verify:docs` pass.
+- [ ] By hand against the container: send an image and a PDF in chat → each opens in a floating view; reload keeps them; the file list shows both under the right tabs with sender and time; download works. — The image half is automated as `e2e/chat-files.e2e.ts` (passed in CI and locally); the PDF and download halves were not checked by hand.
 
 ## Cross-cutting
 
@@ -46,4 +46,8 @@
 
 ## Review
 
-Filled in at the end.
+Shipped as #156 (squash c2b7dc6), closing #143 and #146. Beyond the plan:
+
+- `e2e/chat-files.e2e.ts` — send an image, preview it from the file list into a floating view, survive a reload, close.
+- Review passes ran as two Sonnet sub-agents in parallel, report-only. Applied: plain buttons for the 대화/파일 switch, `AttachmentKind` derived from `KINDS`, `FloatButton` unexported, comments cut to pointers, and the file-list tabs moved from a partial `role="tab"` pattern to `aria-pressed` buttons in a labelled group. Declined: dropping the kind from each row (FR-061-02 requires it), extracting the download URL and time formatter (one-line duplicates).
+- Cut: jumping from a file to its message (no FR); a 링크 tab waits for #147.

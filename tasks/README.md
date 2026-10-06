@@ -22,10 +22,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 ## Active
 
-| Task | Lessons |
-| :--- | :--- |
-| [Perf criteria — scope to "our performance under conditions"](active/20261006-perf-criteria-scope-todo.md) | [lessons](active/20261006-perf-criteria-scope-lessons.md) |
-| [Chat attachments in floating views, and the chat file list](active/20261006-chat-media-floating-todo.md) | [lessons](active/20261006-chat-media-floating-lessons.md) |
+Nothing in progress.
 
 ## Archive
 
