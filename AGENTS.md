@@ -88,7 +88,7 @@ Which document to open for which job.
 - **Commit prefixes**: `feat:`, `fix:`, `refactor:`, `test:`, `chore:`, `docs:`.
 - **Doc language**: English. The exception is [`docs/SRS-ko.md`](docs/SRS-ko.md), the team's agreed requirements document, which stays in Korean — [`docs/SRS-en.md`](docs/SRS-en.md) is its English translation, kept structurally in step by `scripts/verify-srs-sync.mjs` in CI; [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) is also Korean today but pending translation, not a standing exception.
 - **Never commit secrets or credentials.**
-- **This repository is the source of truth.** Discussion may happen elsewhere (Notion, chat); decisions land here.
+- **This repository is the source of truth.** Discussion may happen elsewhere (Notion, chat); decisions land here, and sync runs one way, into the repo.
 - **Docs live with the code.** A change and the doc that describes it go in the same commit.
 - **Do not change agreed documents alone** — e.g. [`docs/SRS-ko.md`](docs/SRS-ko.md) changes only after the team agrees, and the same PR carries the change into [`docs/SRS-en.md`](docs/SRS-en.md). A change to `SRS-en.md` alone is a translation fix and must not add or alter a requirement.
 

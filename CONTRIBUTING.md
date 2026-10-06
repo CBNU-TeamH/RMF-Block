@@ -24,7 +24,8 @@ docker compose up -d yorkie   # Yorkie on :8080 — realtime sync needs it
 pnpm dev                      # http://localhost:3000; prints the Host and Guest lines
 ```
 
-`pnpm dev` is reachable from other devices on the LAN too. `pnpm start` serves a production
+`pnpm dev` is reachable from other devices on the LAN too (on WSL, only with mirrored networking
+— README, "If a guest cannot connect"). `pnpm start` serves a production
 build, but without the Yorkie container behind it — the host runs the image. Changes to server
 startup, auth or networking are verified against the container (`AGENTS.md` §2, "Run and verify").
 

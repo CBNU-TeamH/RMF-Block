@@ -63,9 +63,9 @@ So the order is: **`pnpm verify:fast` clean, `pnpm comments` / `pnpm verify:docs
 → then `/simplify` → then `/code-review low`**. Both are clean on a healthy branch, so anything they
 report is new.
 
-Run in parallel instead — two sessions, or two sub-agents — the passes share one working tree, so
-**both run report-only** (`/simplify` applies fixes by default, and two passes editing one file
-collide); the session that wrote the change applies them (`AGENTS.md` §2).
+The two may also run in parallel, as two sessions or two sub-agents. They then share one working
+tree, so **both run report-only** — `/simplify` applies fixes by default, and two passes editing
+one file collide. The session that wrote the change applies them (`AGENTS.md` §2).
 
 The free checks are `pnpm comments` (the comment budget) and `pnpm verify:docs` (doc drift: ownership, task-index
 freshness, dead links and section refs, SRS-en sync, cited SRS IDs, declared facts, the generated

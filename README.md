@@ -58,8 +58,8 @@ rmf-app  |   Guest: http://192.168.0.14:3000
 - **Give everyone else the `Guest:` address.**
 - **Restarting the container signs everyone out** — that is how access is revoked
   ([`docs/design/api.md`](docs/design/api.md)).
-- **Documents and app state survive** restarts and rebuilds on named volumes;
-  `docker compose down -v` wipes them.
+- **Documents and app state survive** restarts and rebuilds on named volumes — members keep their
+  colours — and `docker compose down -v` wipes them.
 
 ### If a guest cannot connect
 
