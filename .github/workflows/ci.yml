@@ -132,11 +132,8 @@ jobs:
           docker compose logs mongo yorkie
           exit 1
 
-      # `pnpm test` runs against no server at all, so nothing in it can notice the
-      # SDK changing under us — the 0.7.13 → 0.7.23 bump passed every test while
-      # two measured SDK behaviours moved. This is the harness ADR-007 asked for
-      # (#42). It reports through the last step, so a failure here does not
-      # hide what the smoke test would have said.
+      # The SDK measurements ADR-007 rests on (#42). Reported by the last step,
+      # so a failure here does not hide what the smoke test would have said.
       - name: Yorkie invariants
         id: invariants
         continue-on-error: true
@@ -251,18 +248,16 @@ jobs:
 
           echo "host/guest split, the join flow, and chat attribution verified against the container"
 
-      # The E2E layer (docs/testing.md), against the same container. Not able to
-      # fail this required job yet — it stays non-blocking until it has run green
-      # for a while.
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-
-      - run: pnpm exec playwright install --with-deps chromium
+      # The E2E layer (docs/testing.md), against the same container. Nothing from
+      # here on can fail this required job until E2E has run green for a while.
+      - name: Install Chromium
+        id: browsers
+        continue-on-error: true
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: E2E
         id: e2e
+        if: ${{ steps.browsers.outcome == 'success' }}
         continue-on-error: true
         env:
           E2E_WORKSPACE_PASSWORD: ${{ env.WORKSPACE_PASSWORD }}
