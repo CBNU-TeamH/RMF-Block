@@ -381,6 +381,16 @@ One trap recurs when a script's own trigger pattern is described in prose next t
 script parses: quoting the pattern verbatim can make the checker match its own explanation.
 Describe it, don't quote it.
 
+## A path that does not exist yet drops its trailing slash
+
+`pnpm verify:docs` reads a backticked path in `docs/` or `AGENTS.md` as a claim that it exists
+when it ends in `/` or a known extension, and fails on one that does not. A directory that is
+planned but not built is written without the slash — `e2e/perf`, with nothing after it — and a glob
+such as `e2e/perf/*.perf.ts` is not matched at all. Once the directory exists, the slash may
+come back.
+
+**Cited by**: `tasks/archive/2026/10/20261006-perf-criteria-scope-lessons.md`.
+
 ## Keep browser-dependent geometry in a pure function, not the component
 
 A function that takes the viewport as an argument instead of reading `window` itself is testable
