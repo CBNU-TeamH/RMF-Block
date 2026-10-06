@@ -13,9 +13,11 @@ test("a remote edit during an IME composition leaves both screens agreeing", asy
 }) => {
   const a = await joinedPage(browser, nickname("ime-a"));
   const b = await joinedPage(browser, nickname("ime-b"));
+  const watcher = await joinedPage(browser, nickname("ime-c"));
   const id = await createDocument(a, `e2e ime ${Date.now()}`);
   await openDocument(a, id);
   await openDocument(b, id);
+  await openDocument(watcher, id);
 
   await firstBlock(a).click();
   await a.keyboard.type("abc");
@@ -28,9 +30,10 @@ test("a remote edit during an IME composition leaves both screens agreeing", asy
   await firstBlock(b).click();
   await b.keyboard.press("Home");
   await b.keyboard.type("X");
-  // simple: a fixed wait for B's edit to reach A — it is queued behind the open
-  // composition, so nothing on A's screen can be awaited instead.
-  await a.waitForTimeout(1500);
+  // B's edit is queued behind A's open composition, so nothing on A's screen
+  // shows it. A third client that is not composing does: once it has the edit,
+  // the same broadcast has reached A.
+  await expect(firstBlock(watcher)).toHaveValue("Xabc");
 
   await ime.send("Input.insertText", { text: "안" });
 

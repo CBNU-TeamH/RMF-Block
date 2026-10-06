@@ -11,7 +11,6 @@ export default defineConfig({
   testMatch: "**/*.e2e.ts",
   // One stack, shared state (members, documents): tests run one after another.
   workers: 1,
-  retries: 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
