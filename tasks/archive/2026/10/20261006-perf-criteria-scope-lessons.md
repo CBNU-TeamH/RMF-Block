@@ -13,10 +13,11 @@ that the next person does not rediscover this.
 
 ## What we would do differently
 
-- ...
+- Open the PR against `CBNU-TeamH/RMF-Block` from the start — `origin` is the fork, and a bare `gh pr create` opened it there first (#1 on the fork, closed).
+- Write the run order once, in the criteria doc, and point at it from the task doc. Two copies drifted after the review fix, and CodeRabbit had to find the stale one.
 
 ## Worth extracting
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- ...
+- `verify:docs`'s future-path rule (a not-yet-existing directory is written without its trailing slash) belongs in `docs/conventions.md` — left for a docs PR, since an archive PR carries task files only.

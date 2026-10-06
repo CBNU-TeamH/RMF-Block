@@ -8,6 +8,8 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Perf criteria — scope to "our performance under conditions"](2026/10/20261006-perf-criteria-scope-todo.md) | [lessons](2026/10/20261006-perf-criteria-scope-lessons.md) |
+| [Chat attachments in floating views, and the chat file list](2026/10/20261006-chat-media-floating-todo.md) | [lessons](2026/10/20261006-chat-media-floating-lessons.md) |
 | [The `/` menu's query: IME input, prefix matching, every text block, no-results row](2026/10/20261005-slash-menu-query-todo.md) | [lessons](2026/10/20261005-slash-menu-query-lessons.md) |
 | [A Playwright E2E layer, and the IME replay race it exists to reach](2026/10/20261005-playwright-e2e-todo.md) | [lessons](2026/10/20261005-playwright-e2e-lessons.md) |
 | [Drift audit: the parts that changed since 2026-10-02](2026/10/20261005-drift-audit-todo.md) | [lessons](2026/10/20261005-drift-audit-lessons.md) |
