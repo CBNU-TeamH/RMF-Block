@@ -19,14 +19,32 @@ Docker Compose 2.20 or newer (the trap below says why).
 
 ```bash
 pnpm install
-cp .env.sample .env           # fill it in — startup refuses without WORKSPACE_PASSWORD
+cp .env.sample .env
+```
+
+Before starting, set `WORKSPACE_PASSWORD` in `.env` (at least four characters) and configure
+both Yorkie addresses. For the app running natively beside Yorkie on Docker Desktop:
+
+```dotenv
+YORKIE_ADMIN_ADDR=http://localhost:8080
+YORKIE_AUTH_WEBHOOK_URL=http://host.docker.internal:3000/api/internal/yorkie/auth
+```
+
+The sample's empty Yorkie values override the startup defaults; leaving them blank makes
+webhook registration fail. On Linux Docker Engine, use a host address reachable from Yorkie's
+container for `YORKIE_AUTH_WEBHOOK_URL`, or add `host.docker.internal:host-gateway` to the Yorkie
+service's `extra_hosts` before using the Docker Desktop example. The full container stack sets
+both addresses itself in `docker-compose.yml`; these values are for native development.
+
+```bash
 docker compose up -d yorkie   # Yorkie on :8080 — realtime sync needs it
 pnpm dev                      # http://localhost:3000; prints the Host and Guest lines
 ```
 
-`pnpm dev` is reachable from other devices on the LAN too (on WSL, only with mirrored networking
-— README, "If a guest cannot connect"). `pnpm start` serves a production
-build, but without the Yorkie container behind it — the host runs the image. Changes to server
+`pnpm dev` is reachable from other devices on the LAN too. On WSL, LAN access requires mirrored
+networking or explicit port forwarding (see [README](README.md#if-a-guest-cannot-connect)).
+`pnpm start` serves a production build, but without the Yorkie container behind it — the host
+runs the image. Changes to server
 startup, auth or networking are verified against the container (`AGENTS.md` §2, "Run and verify").
 
 Once per machine, so line endings match `.gitattributes` (`eol=lf`) on every OS:

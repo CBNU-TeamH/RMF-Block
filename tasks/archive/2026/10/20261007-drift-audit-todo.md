@@ -35,7 +35,7 @@ The slug is exactly `YYYYMMDD-drift-audit`, so archiving this task resets the au
   `docs/conventions.md` — a not-yet-built path in backticks drops its trailing slash
   (`20261006-perf-criteria-scope-lessons.md`); `.claude/skills/README.md` — review passes run as
   parallel sub-agents are report-only (`20261006-chat-media-floating-lessons.md`).
-- **Done**: `pnpm verify:docs` clean; after-numbers on the final commit.
+- **Done**: `pnpm verify:docs` clean; the audit snapshot sizes below name their measured commits.
 
 ## Acceptance
 
@@ -77,8 +77,21 @@ moved beside the order it qualifies, rewraps, a link citation).
   screenshots retaken with Playwright on a clean demo container (the local `rmf-app` was stopped
   and restarted around it). One verifier pass: two blocking — the README claimed block-link
   creation, which is not built, and the dev setup skipped `.env`; both fixed with the minors.
-  `verify:docs` does not link-check README.md or CONTRIBUTING.md — left as is.
+  The combined review extended `verify:docs` to check Markdown links in README.md and
+  CONTRIBUTING.md.
 
-**Numbers** (audited parts, final commit). 148,502 → 149,301 bytes (+799), 2,161 → 2,171
-lines: the B sentence, the two promoted sections and the Sonnet wording outweigh the cuts.
+**Numbers** (audited parts, `a790fa8` → `5abc9b2`, before the combined review). These are historical
+snapshot sizes, not final PR sizes: 148,502 → 149,301 bytes (+799), 2,161 → 2,171
+lines. The B sentence, the two promoted sections and the Sonnet wording outweigh the cuts.
 `chat.md` ↔ `floating-view.md` shared runs 7 → 0. README.md 138 → 89 lines; CONTRIBUTING.md is new.
+
+### PR #159 review follow-up
+
+**Plan and scope.** Apply the five documentation findings from the requester-approved review:
+make native-development Yorkie settings explicit, reconcile the task and PR verification records,
+describe the WSL check and port-forwarding alternative accurately, scope LAN claims to collaboration
+data, and qualify the historical model measurement against current Claude Code documentation.
+Keep runtime code and agreed requirements unchanged; commit and push on this PR's branch.
+
+**Acceptance.** The five findings are reflected in the documents and PR body; `pnpm verify:docs`
+and the comment budget pass, and the pre-push test suite and production build pass.

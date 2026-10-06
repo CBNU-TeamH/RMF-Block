@@ -33,7 +33,7 @@ through review and one that did not.
 
 | Plugin | Why this repository needs it | When to invoke |
 | --- | --- | --- |
-| **`code-review`** | Launches **five parallel review agents** (see the model note below — they inherit your session's model), and **two of them read our rules** — one checks CLAUDE.md compliance, one checks code-comment compliance. The other three cover obvious bugs, git blame, and previous PRs. Findings are scored 0–100 and anything under 80 is dropped. [`docs/conventions.md`](../../docs/conventions.md) (#69) is the rubric those two agents apply — that is what turns a written rule into a check that runs. | Before opening a PR, preferably **from a Sonnet session**: `/code-review low` |
+| **`code-review`** | Launches **five parallel review agents** (see the model note below for how to verify their models), and **two of them read our rules** — one checks CLAUDE.md compliance, one checks code-comment compliance. The other three cover obvious bugs, git blame, and previous PRs. Findings are scored 0–100 and anything under 80 is dropped. [`docs/conventions.md`](../../docs/conventions.md) (#69) is the rubric those two agents apply — that is what turns a written rule into a check that runs. | Before opening a PR, preferably **from a Sonnet session**: `/code-review low` |
 | **`code-simplifier`** | *"Simplifies and refines code for clarity, consistency, and maintainability **while preserving functionality**."* Those last three words are the failure mode tests cannot see — code that behaves correctly and is shaped wrongly. #40 is the worked example. | While working, preferably **from a Sonnet session**: `/simplify` |
 | **`claude-md-management`** | Two halves. `claude-md-improver` audits the harness against the actual state of the codebase, which is how we catch `AGENTS.md` routing to files that do not exist. `/revise-claude-md` captures what a session learned, which is the execution step our lessons → harness promotion loop has always been missing. | Starting work: audit. Finishing a task: `/revise-claude-md` as the promotion step |
 
@@ -81,27 +81,24 @@ the amount read.
 
 ### Model: prefer a Sonnet session for either command
 
-**Run `/code-review` and `/simplify` from a Sonnet session where you can.** The reason is cost, not
-correctness: an Opus run reviews just as well, it only spends more.
+**Run `/code-review` and `/simplify` from a Sonnet session where you can, for cost.** Actual
+sub-agent model selection depends on the Claude Code version and configuration; verify the
+running model rather than assuming inheritance.
 
 ```bash
 /model claude-sonnet-5     # then run /code-review low, or /simplify
 ```
 
-The plugin's `commands/code-review.md` names Sonnet for its five reviewers and Haiku for the
-filtering passes — **but that instruction does not survive.** Measured 2026-09-03: the
-sub-agents inherit the model of the session that launched them, so running `/code-review`
-from an Opus session gets five parallel **Opus** reviewers. That is the most expensive way to
-buy a pass we deliberately scoped down to `low` for cost reasons in the first place, and it
-quietly undoes the reasoning above.
+**Historical measurement, 2026-09-03.** The plugin's `commands/code-review.md` named Sonnet
+for its five reviewers and Haiku for the filtering passes, but an Opus session launched five
+Opus reviewers in that run. This note did not record the Claude Code version or model settings,
+so the observation describes that run rather than a guarantee of inheritance.
 
-There is no settings key for a default sub-agent model, so the session model is the only
-lever. Switching for the duration of the review is the whole workaround. Authoring can go
-back to whatever model you prefer afterwards — it is the *fan-out* that is expensive, not the
-session.
-
-The same applies to `/simplify`: it is a sub-agent doing a mechanical comparison against a
-rule list, which is Sonnet-shaped work.
+Claude Code supports a per-invocation `model`, a sub-agent definition's `model` field and the
+`CLAUDE_CODE_SUBAGENT_MODEL` environment variable. Their precedence and exceptions are documented
+in [Choose a model](https://code.claude.com/docs/en/sub-agents#choose-a-model). On versions that
+show sub-agent models in `/tasks`, check them while the review runs. Switching the session to
+Sonnet is one cost-control option; authoring can return to your preferred model afterwards.
 
 ### Settled by reading the plugins, so nobody has to re-check
 

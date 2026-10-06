@@ -15,6 +15,9 @@ that the next person does not rediscover this.
   (`lib/files/types.ts`); round 1's "nothing lost" lens is what found it.
 - A sentence written to record a lesson made a claim nobody had measured (sub-agent model
   override) — round 2 caught it against the measured section right above it.
+- The PR review found that copying `.env.sample` preserves empty Yorkie addresses, which
+  suppress the startup's `??` defaults. Native-development setup must specify those addresses;
+  Compose's app environment overrides do not configure the native app process.
 
 ## What we would do differently
 

@@ -30,7 +30,8 @@ the same documents together. CBNU Team H capstone project.
 The host machine runs three containers: the app — a Next.js custom server for pages, REST and
 WebSockets — and a self-hosted [Yorkie](https://yorkie.dev) server with MongoDB behind it. Yorkie
 syncs every document as a CRDT and keeps its content and history; the app keeps its own state as
-JSON under `.data/`. Nothing leaves the LAN.
+JSON under `.data/`. Documents, chat and uploaded files are stored on the host and shared over
+the LAN.
 
 [`ARCHITECTURE.md`](ARCHITECTURE.md) has the diagram; [`docs/design/architecture.md`](docs/design/architecture.md)
 the contracts.
@@ -66,9 +67,9 @@ rmf-app  |   Guest: http://192.168.0.14:3000
 - **Client/AP isolation.** Campus and guest Wi-Fi often block devices from reaching each other even
   on one network. Rule this out first — it is a router setting no script here can detect.
 - **Windows hosts.** Docker Desktop's WSL2 backend may forward the port only to `127.0.0.1`; the
-  start script detects this and prints the fix. That fix, mirrored networking, needs Windows 11
-  22H2+; on older Windows, forward the port to the host's LAN address yourself
-  (`netsh interface portproxy`).
+  start script checks whether WSL mirrored networking is enabled and prints configuration
+  guidance. Mirrored networking needs Windows 11 22H2+; on older Windows, forward the port to
+  the host's LAN address yourself (`netsh interface portproxy`).
 - **Wrong address detected**, or no default route to read: set `HOST_LAN_IP` in `.env` yourself —
   `.env.sample` says how to find it on each OS — and run `docker compose up --build`.
 
