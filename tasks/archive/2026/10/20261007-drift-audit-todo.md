@@ -39,11 +39,11 @@ The slug is exactly `YYYYMMDD-drift-audit`, so archiving this task resets the au
 
 ## Acceptance
 
-- [ ] Every A finding fixed or kept with a reason; F and E filed or explained
-- [ ] Every ticked B/C/D item applied
-- [ ] Both lessons promotions applied
-- [ ] `pnpm verify:docs`, comment budget (pre-commit hook)
-- [ ] Before/after sizes in the PR
+- [x] Every A finding fixed or kept with a reason; F and E filed or explained
+- [x] Every ticked B/C/D item applied
+- [x] Both lessons promotions applied
+- [x] `pnpm verify:docs`, comment budget (pre-commit hook)
+- [x] Before/after sizes in the PR
 
 ## Cross-cutting
 
@@ -51,4 +51,23 @@ The slug is exactly `YYYYMMDD-drift-audit`, so archiving this task resets the au
 
 ## Review
 
-Filled in at the end.
+**Shipped.** 4 read-only auditors (Sonnet) → 8 findings (A 4 · B 1 · C 2 · D 0 · E 0 · F 1);
+testing found nothing. The A/F verifier: 4 confirmed, 1 partial (chat-floating-02 — the ✅ it
+read as "done" is the "survives under version B" column; corrected fix used), 0 false. All five
+A/F applied; the F was a stale comment, moved rather than filed. The user approved the
+recommendation on #158: document-editing-02 and chat-floating-03 applied, document-editing-01
+left (its fix edited ADR-008). Both lessons promotions landed (`docs/conventions.md` future-path
+rule, `.claude/skills/README.md` report-only parallel passes).
+
+**Applied in the main checkout, not in worktrees** — seven short edits in seven files, so the
+fan-out would have cost more than it isolated. One commit per category, then the fixups.
+
+**Review loop.** Round 1 (nothing lost): one blocking — `lib/files/types.ts` still said
+FR-061-01 filters on `FileOrigin`, a second copy of the claim fixed in `api.md`. Round 2 (edits
+are true): one blocking — the new skills-README paragraph claimed a sub-agent's model setting
+overrides inheritance, contradicting the section above it and never measured; cut to the
+report-only rule. Round 3 (rest of the diff): nothing blocking; minors applied (the paragraph
+moved beside the order it qualifies, rewraps, a link citation).
+
+**Numbers.** 148,502 → 149,030 bytes (+528), 2,161 → 2,169 lines: the B sentence and the two
+promoted sections outweigh the cuts. `chat.md` ↔ `floating-view.md` shared runs 7 → 0.
