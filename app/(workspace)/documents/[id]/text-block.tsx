@@ -225,10 +225,13 @@ export function TextBlockView({
 
   const composingRef = useRef(false);
   const pendingRemoteRef = useRef<Array<TextPatch>>([]);
-  // "What I last told Yorkie the text was" — the diff baseline for the next
-  // local keystroke. Has to advance on *every* path that touches the text,
-  // remote patches included, or the next local edit reinserts whatever the
-  // textarea shows as if it were new (measured: "안안녕녕하세요").
+  // What the open composition replaced, in Yorkie's offsets — recorded when it
+  // starts, because inside a run of one character a diff cannot say where it is.
+  const compositionRef = useRef({ from: 0, to: 0 });
+  // What Yorkie holds for this block — the diff baseline for the next local
+  // keystroke. Has to advance on *every* path that touches the text, remote
+  // patches included, or the next local edit reinserts whatever the textarea
+  // shows as if it were new (measured: "안안녕녕하세요").
   const lastSyncedRef = useRef(initialText);
 
   const autoGrow = (el: HTMLTextAreaElement) => {
@@ -238,6 +241,8 @@ export function TextBlockView({
     el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
   };
 
+  /** Outside a composition the textarea and Yorkie hold the same text, so a
+   *  patch lands at its own offsets. */
   const patchRange = (el: HTMLTextAreaElement, op: TextPatch) => {
     const { from, to, value } = op;
     const selStart = el.selectionStart ?? 0;
@@ -296,12 +301,45 @@ export function TextBlockView({
     lastSyncedRef.current = newValue;
   };
 
+  /** The edits that arrived while a composition was open (#52). Their offsets
+   *  are Yorkie's, so they apply to the baseline — Yorkie's text — and the
+   *  composed text goes back where the composition was, carried through each. */
   const flushQueuedRemoteEdits = () => {
     const el = textareaRef.current;
-    if (!el) return;
     const queued = pendingRemoteRef.current;
     pendingRemoteRef.current = [];
-    for (const op of queued) patchRange(el, op);
+    if (!el || queued.length === 0) return;
+
+    const base = lastSyncedRef.current;
+    let { from, to } = compositionRef.current;
+    // simple: an IME that composed away from where it started breaks the
+    // recorded range; the diff's guess is the fallback.
+    const fits =
+      from + base.length - to <= el.value.length &&
+      el.value.startsWith(base.slice(0, from)) &&
+      el.value.endsWith(base.slice(to));
+    if (!fits) {
+      ({ from, to } = diffRange(base, el.value));
+    }
+    const composed = el.value.slice(from, el.value.length - (base.length - to));
+
+    const through = (pos: number, op: TextPatch) =>
+      pos <= op.from
+        ? pos
+        : pos >= op.to
+          ? pos + op.value.content.length - (op.to - op.from)
+          : op.from + op.value.content.length;
+    let text = base;
+    for (const op of queued) {
+      text = text.slice(0, op.from) + op.value.content + text.slice(op.to);
+      from = through(from, op);
+      to = through(to, op);
+    }
+
+    lastSyncedRef.current = text;
+    el.value = text.slice(0, from) + composed + text.slice(to);
+    el.selectionStart = el.selectionEnd = from + composed.length;
+    autoGrow(el);
   };
 
   return (
@@ -456,14 +494,18 @@ export function TextBlockView({
         event.preventDefault();
         onPasteBlocks(blockId, text);
       }}
-      onCompositionStart={() => {
+      onCompositionStart={(event) => {
         composingRef.current = true;
+        const el = event.currentTarget;
+        compositionRef.current = { from: el.selectionStart, to: el.selectionEnd };
       }}
       onCompositionEnd={(event) => {
         composingRef.current = false;
+        // Remote edits first: the commit then diffs Yorkie's own text against
+        // the textarea, which is always an edit Yorkie can apply as-is (#52).
+        flushQueuedRemoteEdits();
         commitLocal(event.currentTarget.value);
         onTextCommitted();
-        flushQueuedRemoteEdits();
       }}
       onFocus={() => onFocusBlock(blockId)}
       onBlur={() => {

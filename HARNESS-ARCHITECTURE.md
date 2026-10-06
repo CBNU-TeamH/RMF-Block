@@ -60,7 +60,7 @@ graph TB
   subgraph PRFlow["Branch & PR (AGENTS.md §6)"]
     Branch["<type>/<slug> branch<br/>never commit to main"]
     Template["PR from .github/pull_request_template.md<br/>verbatim, not gh pr create --body"]
-    CI["CI required checks:<br/>lint · test · build<br/>container smoke test<br/>yorkie invariants"]
+    CI["CI required checks:<br/>lint · test · build<br/>container smoke test<br/>(invariants · smoke · E2E)"]
     CodeOwners["CODEOWNERS review<br/>1 approval, doesn't carry over"]
     Squash["Squash merge → main<br/>branch auto-deleted"]
   end

@@ -115,7 +115,7 @@ for no inline formatting, and half the types hold no text. What the array costs 
 merging and cross-block selection are ours to build, and a list's `depth` is a number rather than a
 parent — and the four SDK measurements the schema depends on are in
 [ADR-007](../adr/007-block-array-not-tree.md), asserted by `scripts/verify-yorkie-invariants.mjs`
-as the `yorkie invariants` CI job ([#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42)). The
+as a step of CI's `container smoke test` job ([#42](https://github.com/CBNU-TeamH/RMF-Block/issues/42)). The
 unit tests under `lib/blocks/` do not cover them: convergence is a claim about two replicas
 reconciling through one server, which those hermetic tests exist to avoid needing.
 
@@ -286,7 +286,13 @@ Measured against a real two-client Yorkie session, on the exact storage shape ab
 2. **An uncontrolled textarea, patched only on the changed range, survives.** Two live clients
    typing Hangul into the same block concurrently: remote edits arriving mid-composition are
    queued rather than applied and flushed once `compositionend` fires. Non-composing keystrokes
-   (plain ASCII, Enter, space) sync per keystroke with no queuing needed.
+   (plain ASCII, Enter, space) sync per keystroke with no queuing needed. A queued edit carries
+   Yorkie's offsets, so the flush applies it to the baseline (Yorkie's text) and puts the composed
+   text back where the composition started — the range recorded at `compositionstart`, carried
+   through each edit, not inferred by a diff, which cannot place it inside a run of one character.
+   The flush runs *before* the composition's commit, which then diffs Yorkie's own text and is
+   always an edit Yorkie can apply
+   ([#52](https://github.com/CBNU-TeamH/RMF-Block/issues/52), `e2e/ime-replay.e2e.ts`).
 3. **The SDK's own `EditOpInfo` carries what patching needs**: character offsets against the
    pre-edit string, so an edit entirely before the caret shifts it by the size difference and
    one entirely after leaves it alone.

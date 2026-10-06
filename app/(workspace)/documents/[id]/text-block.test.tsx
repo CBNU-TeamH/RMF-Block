@@ -2,22 +2,35 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import yorkie, { type Document } from "@yorkie-js/sdk";
 
+import type { BlockDocumentRoot, StoredBlock } from "@/lib/blocks/document";
+import { editBlockText, type BlockArray } from "@/lib/blocks/operations";
+import type { TextPatch } from "@/lib/blocks/text-surface";
 import { TextBlockView, type BlockVariant } from "./text-block.tsx";
 
 afterEach(cleanup);
 
-/** No document attached: `commitLocal` returns before touching Yorkie, which
- *  leaves only what these tests are about — the `/` menu's query. */
-function renderBlock(variant: BlockVariant = { type: "text" }) {
+/** With no document attached `commitLocal` returns before touching Yorkie,
+ *  which is all the `/` menu tests need. `remote` plays the editor's
+ *  subscription, handing this block a patch the way a peer's edit arrives. */
+function renderBlock(
+  variant: BlockVariant = { type: "text" },
+  doc: Document<BlockDocumentRoot> | null = null,
+  initialText = "",
+) {
   const onSplit = vi.fn();
+  let handler: (patch: TextPatch) => void = () => {};
   render(
     <TextBlockView
       blockId="b1"
-      initialText=""
+      initialText={initialText}
       variant={variant}
-      docRef={{ current: null }}
-      registerRemoteHandler={() => () => {}}
+      docRef={{ current: doc }}
+      registerRemoteHandler={(_id, h) => {
+        handler = h;
+        return () => {};
+      }}
       registerTextarea={() => {}}
       onMarkdownShortcut={vi.fn()}
       onSplit={onSplit}
@@ -33,7 +46,8 @@ function renderBlock(variant: BlockVariant = { type: "text" }) {
     />,
   );
 
-  return { textarea: screen.getByRole("textbox"), onSplit };
+  const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+  return { textarea, onSplit, remote: (patch: TextPatch) => handler(patch) };
 }
 
 function menuLabels(): Array<string> {
@@ -108,5 +122,80 @@ describe("TextBlockView's / menu", () => {
     fireEvent.input(textarea, { target: { value: "/" } });
 
     assert.equal(screen.queryByRole("listbox"), null);
+  });
+});
+
+describe("TextBlockView's remote edits", () => {
+  /** A real, never-attached document holding one text block. `peer` makes the
+   *  edit a peer would — in Yorkie first, then the patch the block receives. */
+  function seeded(text = "abc") {
+    const doc = new yorkie.Document<BlockDocumentRoot>("text-block");
+    doc.update((root) => {
+      root.blocks = [{ id: "b1", type: "text", content: { text: new yorkie.Text() } } as StoredBlock];
+      root.blocks[0]!.content!.text!.edit(0, 0, text);
+    });
+    const peer = (from: number, to: number, content: string): TextPatch => {
+      doc.update((root) => editBlockText(root.blocks as BlockArray, "b1", from, to, content));
+      return { from, to, value: { content } };
+    };
+    const live = () => doc.getRoot().blocks[0]!.content!.text!.toString();
+    return { doc, peer, live };
+  }
+
+  it("patches the textarea and keeps the caret on its character", () => {
+    const { doc, peer } = seeded();
+    const { textarea, remote } = renderBlock({ type: "text" }, doc, "abc");
+    textarea.setSelectionRange(3, 3);
+
+    remote(peer(0, 0, "X"));
+
+    assert.equal(textarea.value, "Xabc");
+    assert.equal(textarea.selectionStart, 4);
+  });
+
+  it("ends equal to Yorkie when edits land on both sides of an open composition (#52)", () => {
+    const { doc, peer, live } = seeded();
+    const { textarea, remote } = renderBlock({ type: "text" }, doc, "abc");
+
+    textarea.setSelectionRange(3, 3);
+    fireEvent.compositionStart(textarea);
+    fireEvent.input(textarea, { target: { value: "abc안" } });
+    // Yorkie's offsets: X before the composition point, Z at Yorkie's end —
+    // which is after it on screen.
+    remote(peer(0, 0, "X"));
+    remote(peer(4, 4, "Z"));
+    fireEvent.compositionEnd(textarea);
+
+    assert.equal(live(), "Xabc안Z");
+    assert.equal(textarea.value, live());
+  });
+
+  it("keeps the composed text when a peer deletes across it", () => {
+    const { doc, peer, live } = seeded("abcd");
+    const { textarea, remote } = renderBlock({ type: "text" }, doc, "abcd");
+
+    textarea.setSelectionRange(2, 2);
+    fireEvent.compositionStart(textarea);
+    fireEvent.input(textarea, { target: { value: "ab안cd" } });
+    remote(peer(1, 3, "")); // "bc", on both sides of the composition point
+    fireEvent.compositionEnd(textarea);
+
+    assert.equal(live(), "a안d");
+    assert.equal(textarea.value, live());
+  });
+
+  it("keeps a composition where it started inside a run of the same character", () => {
+    // A diff of 가가b → 가가가b cannot say which 가 is new; the caret can.
+    const { doc, peer, live } = seeded("가가b");
+    const { textarea, remote } = renderBlock({ type: "text" }, doc, "가가b");
+
+    textarea.setSelectionRange(1, 1);
+    fireEvent.compositionStart(textarea);
+    fireEvent.input(textarea, { target: { value: "가가가b" } });
+    remote(peer(1, 2, "X")); // the second of the original two 가
+    fireEvent.compositionEnd(textarea);
+
+    assert.equal(live(), "가가Xb");
+    assert.equal(textarea.value, live());
   });
 });
