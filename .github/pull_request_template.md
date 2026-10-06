@@ -22,7 +22,8 @@ Fixes #
 All run on this PR.
 
 - [ ] `lint · test · build` — ✅
-- [ ] `container smoke test` — ✅ (Yorkie invariants, smoke, E2E; or explicit skip reason below)
+- [ ] `container smoke test` — ✅ (Yorkie invariants and the smoke test; or explicit skip reason below)
+- [ ] its E2E step — passed · or failed / skipped, and why: (non-blocking until promoted, so a green job does not mean E2E passed)
 - [ ] `docs` — ✅ (doc checks and the comment budget; a red budget step means this PR grew comments in a file over 30% — see `docs/conventions.md`)
 
 Skip reason (if applicable):
