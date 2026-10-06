@@ -22,7 +22,9 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 ## Active
 
-Nothing in progress.
+| Task | Lessons |
+| :--- | :--- |
+| [Perf criteria — scope to "our performance under conditions"](active/20261006-perf-criteria-scope-todo.md) | [lessons](active/20261006-perf-criteria-scope-lessons.md) |
 
 ## Archive
 
