@@ -69,5 +69,16 @@ overrides inheritance, contradicting the section above it and never measured; cu
 report-only rule. Round 3 (rest of the diff): nothing blocking; minors applied (the paragraph
 moved beside the order it qualifies, rewraps, a link citation).
 
-**Numbers.** 148,502 → 149,030 bytes (+528), 2,161 → 2,169 lines: the B sentence and the two
-promoted sections outweigh the cuts. `chat.md` ↔ `floating-view.md` shared runs 7 → 0.
+**Added at the user's request, same PR.**
+- A Sonnet session is *preferred* for `/code-review` and `/simplify`, not required — the rule is
+  about cost (AGENTS.md §6, `.claude/skills/README.md`, the PR template).
+- README rewritten in the shape of yorkie's, codepair's and wafflebase's READMEs, with the
+  development material moved to a new `CONTRIBUTING.md` that links into AGENTS.md. Both
+  screenshots retaken with Playwright on a clean demo container (the local `rmf-app` was stopped
+  and restarted around it). One verifier pass: two blocking — the README claimed block-link
+  creation, which is not built, and the dev setup skipped `.env`; both fixed with the minors.
+  `verify:docs` does not link-check README.md or CONTRIBUTING.md — left as is.
+
+**Numbers** (audited parts, final commit). 148,502 → 149,301 bytes (+799), 2,161 → 2,171
+lines: the B sentence, the two promoted sections and the Sonnet wording outweigh the cuts.
+`chat.md` ↔ `floating-view.md` shared runs 7 → 0. README.md 138 → 89 lines; CONTRIBUTING.md is new.
