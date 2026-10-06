@@ -13,6 +13,7 @@ import {
   moveView,
   openView,
   parseViews,
+  refKey,
 } from "./views.ts";
 
 const viewport = { width: 1280, height: 800 };
@@ -24,7 +25,7 @@ describe("openView", () => {
   it("adds a window inside the viewport and clear of the chat bar", () => {
     const [view] = openView([], a, viewport);
 
-    assert.equal(view.blockId, "b-1");
+    assert.equal(refKey(view), refKey(a));
     assert.ok(view.frame.width >= MIN_WIDTH && view.frame.height >= MIN_HEIGHT);
     assert.ok(view.frame.x >= 0 && view.frame.x + view.frame.width <= viewport.width);
     assert.ok(view.frame.y + view.frame.height <= viewport.height - BAR_HEIGHT);
@@ -106,6 +107,43 @@ describe("parseViews", () => {
       { ...b, frame: { ...frame, x: 99 } },
     ]);
     assert.deepEqual(parseViews(raw), [{ ...b, frame }]);
+  });
+});
+
+describe("a file as the source (#143)", () => {
+  const file = { fileId: "f-1", fileName: "plan.pdf", fileType: "application/pdf", size: 2048 };
+
+  it("opens beside block windows and only once", () => {
+    const views = openView(openView([], a, viewport), file, viewport);
+    assert.equal(views.length, 2);
+    assert.equal(openView(views, file, viewport), views);
+  });
+
+  it("is told apart from a block whose ids happen to read the same", () => {
+    const lookalike = { documentId: "file", blockId: "f-1" };
+    assert.equal(openView(openView([], file, viewport), lookalike, viewport).length, 2);
+  });
+
+  it("closes, moves and fits by its file id alone", () => {
+    const views = openView(openView([], a, viewport), file, viewport);
+    const moved = moveView(views, file, frame);
+    assert.deepEqual(moved[1].frame, frame);
+    assert.deepEqual(moved[0], views[0]);
+    assert.ok(fitView(views, file, { width: 200, height: 100 }, viewport)[1].base);
+    assert.deepEqual(closeView(views, file), [views[0]]);
+  });
+
+  it("reads back from storage next to block entries, dropping a half-written one", () => {
+    const raw = JSON.stringify([
+      { ...a, frame },
+      { ...file, frame },
+      { fileId: "f-2", fileName: "x.png", frame },
+      { ...file, frame: { ...frame, x: 99 } },
+    ]);
+    assert.deepEqual(parseViews(raw), [
+      { ...a, frame },
+      { ...file, frame },
+    ]);
   });
 });
 

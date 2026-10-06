@@ -8,11 +8,24 @@ export const STORAGE_KEY = "rmf-floating-views";
 
 export type BlockRef = { documentId: string; blockId: string };
 
+/** A stored file shown on its own — a chat attachment (#143). Its four fields are
+ *  the attachment's, so the window needs no lookup to draw it. */
+export type FileRef = { fileId: string; fileName: string; fileType: string; size: number };
+
+export type ViewRef = BlockRef | FileRef;
+
+export const isFileRef = (ref: ViewRef): ref is FileRef => "fileId" in ref;
+
+/** One string per source. Both kinds are prefixed, so a block and a file never
+ *  collide whatever their ids read. */
+export const refKey = (ref: ViewRef) =>
+  isFileRef(ref) ? `file:${ref.fileId}` : `block:${ref.documentId}:${ref.blockId}`;
+
 export type Size = { width: number; height: number };
 
 /** `base` is the content's own size at scale 1, measured once it first renders.
  *  The window keeps that ratio, and its width over `base.width` is the scale. */
-export type FloatingView = BlockRef & { frame: Frame; base?: Size };
+export type FloatingView = ViewRef & { frame: Frame; base?: Size };
 
 /** The title bar's height — `h-9` in `floating-frame.tsx` (border-box, so its
  *  `border-b` is inside the 36px). */
@@ -34,8 +47,24 @@ const CASCADE = 24;
 /** Clear of the workspace header. */
 const TOP = 56;
 
-const sameBlock = (a: BlockRef, b: BlockRef) =>
-  a.documentId === b.documentId && a.blockId === b.blockId;
+const sameRef = (a: ViewRef, b: ViewRef) => refKey(a) === refKey(b);
+
+/** The source fields of a saved entry, or `null` when it names neither kind. */
+function toRef(entry: Record<string, unknown>): ViewRef | null {
+  if (typeof entry.documentId === "string" && typeof entry.blockId === "string") {
+    return { documentId: entry.documentId, blockId: entry.blockId };
+  }
+  const { fileId, fileName, fileType, size } = entry;
+  if (
+    typeof fileId === "string" &&
+    typeof fileName === "string" &&
+    typeof fileType === "string" &&
+    typeof size === "number"
+  ) {
+    return { fileId, fileName, fileType, size };
+  }
+  return null;
+}
 
 /** The saved list, keeping only entries that are whole — a malformed one is
  *  dropped rather than taking the rest down with it. */
@@ -52,26 +81,27 @@ export function parseViews(raw: string | null): Array<FloatingView> {
 
   const views: Array<FloatingView> = [];
   for (const entry of value as Array<Record<string, unknown> | null>) {
-    if (typeof entry?.documentId !== "string" || typeof entry.blockId !== "string") continue;
+    const ref = entry ? toRef(entry) : null;
+    if (!entry || !ref) continue;
     const frame = toFrame(entry.frame);
     // Nothing this app writes has no width, and the ratio would be NaN.
     if (!frame || frame.width <= 0) continue;
     const base = toSize(entry.base);
-    const view: FloatingView = { documentId: entry.documentId, blockId: entry.blockId, frame };
+    const view: FloatingView = { ...ref, frame };
     if (base) view.base = base;
-    if (!views.some((open) => sameBlock(open, view))) views.push(view);
+    if (!views.some((open) => sameRef(open, view))) views.push(view);
   }
   return views;
 }
 
-/** Adds a view of `ref`, or leaves the list alone if that block is already
- *  open — two windows mirroring one block show nothing the first did not. */
+/** Adds a view of `ref`, or leaves the list alone if that source is already
+ *  open — two windows of one block or file show nothing the first did not. */
 export function openView(
   views: Array<FloatingView>,
-  ref: BlockRef,
+  ref: ViewRef,
   viewport: Viewport,
 ): Array<FloatingView> {
-  if (views.some((view) => sameBlock(view, ref))) return views;
+  if (views.some((view) => sameRef(view, ref))) return views;
 
   const slot = (i: number) =>
     clamp(
@@ -96,29 +126,29 @@ export function openView(
   return [...views, { ...ref, frame: slot(i) }];
 }
 
-export function closeView(views: Array<FloatingView>, ref: BlockRef): Array<FloatingView> {
-  return views.filter((view) => !sameBlock(view, ref));
+export function closeView(views: Array<FloatingView>, ref: ViewRef): Array<FloatingView> {
+  return views.filter((view) => !sameRef(view, ref));
 }
 
 export function moveView(
   views: Array<FloatingView>,
-  ref: BlockRef,
+  ref: ViewRef,
   frame: Frame,
 ): Array<FloatingView> {
-  return views.map((view) => (sameBlock(view, ref) ? { ...view, frame } : view));
+  return views.map((view) => (sameRef(view, ref) ? { ...view, frame } : view));
 }
 
 /** Records the measured content size and fits the window to it at scale 1,
  *  keeping its right edge — new windows cascade from the top right. */
 export function fitView(
   views: Array<FloatingView>,
-  ref: BlockRef,
+  ref: ViewRef,
   measured: Size,
   viewport: Viewport,
 ): Array<FloatingView> {
   const base = { ...measured, width: Math.max(measured.width, MIN_FIT_WIDTH) };
   return views.map((view) => {
-    if (!sameBlock(view, ref)) return view;
+    if (!sameRef(view, ref)) return view;
     const { frame } = view;
     const sized = {
       x: frame.x + frame.width - base.width,

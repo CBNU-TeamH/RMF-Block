@@ -1,10 +1,10 @@
 # Chat — Module Design (Version A: text and file attachments)
 
-- **Status**: Agreed. Built through file attachments; link attachments and the file panel
-  are still out of scope — see below.
+- **Status**: Agreed. Built through file attachments and the chat file list (UC-061, #146);
+  link attachments are still out of scope — see below.
 - **Owns**: `lib/chat/`, `lib/files/` (the upload/serving mechanism — see "Module structure"
   below; reused by the PDF block in `docs/design/document-editing.md`, not re-explained there),
-  `app/(workspace)/chat-message.tsx`, `app/(workspace)/chat-panel.tsx`,
+  `app/(workspace)/chat-message.tsx`, `app/(workspace)/chat-panel.tsx`, `app/(workspace)/chat-files.tsx`,
   `app/(workspace)/chat-window.tsx`, `app/api/chat/`, `app/api/files/`.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(b) (Chat API group); [`docs/design/api.md`](api.md) §5 (Version A vs Version B); [`docs/SRS-ko.md`](../SRS-ko.md) FR-060, SIR006
 
@@ -17,8 +17,8 @@ FR-060-07 (failure surfaced to sender).
 
 Still out, and each for its own reason: **URL and block/document-link attachments**
 (FR-060-03/06) are a second attachment kind carrying no bytes, and the `attachment` field below
-is shaped so they join as a sibling rather than a special case; **UC-061's file-management
-panel** is a screen over the same store, on its own branch.
+is shaped so they join as a sibling rather than a special case. Until they land, the file list
+below has no 링크 tab.
 
 The UI is a **prototype**. There is no chat artboard in [`docs/ui/`](../ui/), so the panel and
 its floating window borrow the shell's own tokens and are meant to be replaced once a design
@@ -38,6 +38,7 @@ lib/chat/
   chat-repository.ts   — JSON-file-backed ChatRepository
   chat-service.ts       — ChatService(repository, broadcaster): send()/list()
   window-frame.ts      — the floating window's geometry, as pure functions
+  attachments.ts       — the file list's grouping: kindOf, sharedFiles
 lib/files/
   types.ts             — StoredFile metadata
   file-repository.ts   — bytes on disk, metadata in JSON
@@ -58,6 +59,7 @@ app/(workspace)/
   chat-window.tsx         — the floating window and the bar that opens it
   chat-panel.tsx          — history, live feed, composer
   chat-message.tsx        — one message row
+  chat-files.tsx          — the file list (UC-061)
 .data/chat/messages.json — persisted history (gitignored; `.data/` is the app's own state directory, per ADR-002)
 .data/files/             — uploaded bytes, named by id; `index.json` alongside them
 ```
@@ -115,6 +117,26 @@ type ChatMessage = {
 `attachment` is optional rather than a second message type, because FR-060-04 has the message
 and its attachment info travelling together and UC-060 step 1 has the user typing text *or*
 attaching a file.
+
+## The file list
+
+UC-061 is a "파일" switch at the top of the chat panel, beside "대화". It lists every attachment
+in the history, newest first, in tabs by kind — 이미지, PDF, 문서 — each row with its name,
+kind, size, sender and time (FR-061-01/02).
+
+- **Derived from the messages, not the file store.** `.data/files/` also holds document uploads,
+  and a message already carries who sent its file and when. The panel's own `messages` feed it,
+  so a file sent while the list is open appears without a second fetch.
+- **Kind comes from the stored type**: any `image/*` is 이미지, `application/pdf` is PDF,
+  everything else is 문서. An SVG is listed as an image but has no preview, because the tab says
+  what a file is and the preview route decides what opens.
+- **미리보기** opens the file in a floating view (FR-061-03; `floating-view.md`, "A file as the
+  source"), offered only for the types the preview route serves inline. **내려받기** is the
+  opaque download route (FR-061-04).
+- **The conversation is hidden, not unmounted**, while the list shows, so coming back finds it
+  scrolled where it was left.
+- **Not built**: jumping from a file to the message that carried it. UC-061's overview mentions
+  it, but no FR asks for it.
 
 ## The floating window
 

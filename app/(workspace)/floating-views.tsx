@@ -25,13 +25,17 @@ import {
   closeView,
   fitFloating,
   fitView,
+  isFileRef,
   moveView,
   openView,
   parseViews,
+  refKey,
   type BlockRef,
+  type FileRef,
   type FloatingGesture,
   type FloatingView,
   type Size,
+  type ViewRef,
 } from "@/lib/floating/views";
 
 import { CODE_SURFACE } from "./documents/[id]/text-block";
@@ -39,13 +43,15 @@ import { FloatingFrame } from "./floating-frame";
 import { useWorkspacePresence } from "./presence-provider";
 import { useFrameGesture, viewport, type FrameRules } from "./use-frame-gesture";
 
-/** Floating views (UC-070): blocks pinned into windows over the workspace. The
- *  provider sits in the workspace layout, which never remounts across document
- *  navigation — that is all FR-070-03 takes. Each window is a read-only mirror
- *  of its block, sharing the editor's attachment when both show one document. */
+/** Floating views (UC-070): blocks and stored files pinned into windows over the
+ *  workspace. The provider sits in the workspace layout, which never remounts
+ *  across document navigation — that is all FR-070-03 takes. A block's window is
+ *  a read-only mirror of it, sharing the editor's attachment when both show one
+ *  document; a file's is just the file, which never changes once stored. */
 
-/** Opens a view of a block — the one thing the editor needs from here. */
-const FloatingViewsContext = createContext<(ref: BlockRef) => void>(() => undefined);
+/** Opens a view of a block or a file — the one thing the editor and the chat
+ *  need from here. */
+const FloatingViewsContext = createContext<(ref: ViewRef) => void>(() => undefined);
 
 export const useFloatingViews = () => useContext(FloatingViewsContext);
 
@@ -95,16 +101,16 @@ export function FloatingViewProvider({
   }, []);
 
   const open = useCallback(
-    (ref: BlockRef) => update((current) => openView(current, ref, viewport())),
+    (ref: ViewRef) => update((current) => openView(current, ref, viewport())),
     [update],
   );
-  const close = useCallback((ref: BlockRef) => update((current) => closeView(current, ref)), [update]);
+  const close = useCallback((ref: ViewRef) => update((current) => closeView(current, ref)), [update]);
   const move = useCallback(
-    (ref: BlockRef, frame: Frame) => update((current) => moveView(current, ref, frame)),
+    (ref: ViewRef, frame: Frame) => update((current) => moveView(current, ref, frame)),
     [update],
   );
   const fit = useCallback(
-    (ref: BlockRef, base: Size) => update((current) => fitView(current, ref, base, viewport())),
+    (ref: ViewRef, base: Size) => update((current) => fitView(current, ref, base, viewport())),
     [update],
   );
 
@@ -131,11 +137,11 @@ export function FloatingViewProvider({
       {children}
       {views.map((view) => (
         <FloatingWindow
-          key={`${view.documentId}:${view.blockId}`}
+          key={refKey(view)}
           client={client}
           colorTag={colorTag}
           nickname={nickname}
-          documentName={names.get(view.documentId)}
+          documentName={isFileRef(view) ? undefined : names.get(view.documentId)}
           onClose={close}
           onFit={fit}
           onMove={move}
@@ -202,17 +208,20 @@ type Mirror =
   | { status: "failed" };
 
 /** One block, live. Never writes — no seed, no presence beyond `activeBlockId:
- *  null`, which occupancy already ignores, so the viewer shows up nowhere. */
+ *  null`, which occupancy already ignores, so the viewer shows up nowhere.
+ *  `null` for a file's window, which has nothing to mirror. */
 function useMirroredBlock(
   client: Client | null,
-  { documentId, blockId }: BlockRef,
+  ref: BlockRef | null,
   colorTag: string,
   nickname: string,
 ): Mirror {
   const [mirror, setMirror] = useState<Mirror>({ status: "loading" });
+  const documentId = ref?.documentId;
+  const blockId = ref?.blockId;
 
   useEffect(() => {
-    if (!client) return undefined;
+    if (!client || !documentId || !blockId) return undefined;
 
     let cancelled = false;
     let held = false;
@@ -270,6 +279,13 @@ function useMirroredBlock(
 /** The types a floating view can show — the editor offers the button only on these. */
 export function canFloat(block: Block): boolean {
   return isTextBearing(block) || block.type === "image" || block.type === "pdf";
+}
+
+/** A stored file drawn the way a block holding it is. An attached file and an
+ *  embedded one are one thing seen from two places (`docs/design/chat.md`). */
+function fileAsBlock({ fileId, fileName, fileType, size }: FileRef): Block {
+  const type = fileType === "application/pdf" ? "pdf" : "image";
+  return { id: fileId, type, fileId, fileName, size };
 }
 
 /** The widest (and, for an image, tallest) a block's content is measured at
@@ -333,14 +349,16 @@ const FloatingWindow = memo(function FloatingWindow({
   client: Client | null;
   colorTag: string;
   nickname: string;
-  /** `undefined` until the catalogue arrives, `null` once the document is deleted. */
+  /** `undefined` until the catalogue arrives (and always, for a file), `null`
+   *  once the document is deleted. */
   documentName: string | null | undefined;
-  onClose: (ref: BlockRef) => void;
-  onFit: (ref: BlockRef, base: Size) => void;
-  onMove: (ref: BlockRef, frame: Frame) => void;
+  onClose: (ref: ViewRef) => void;
+  onFit: (ref: ViewRef, base: Size) => void;
+  onMove: (ref: ViewRef, frame: Frame) => void;
 }) {
-  const { documentId, blockId, base } = view;
-  const mirror = useMirroredBlock(client, view, colorTag, nickname);
+  const { base } = view;
+  const file = isFileRef(view) ? view : null;
+  const mirror = useMirroredBlock(client, isFileRef(view) ? null : view, colorTag, nickname);
 
   // Only while a gesture runs; otherwise the saved frame is the frame. The saved
   // list is written once per drag, not per pointer move.
@@ -348,10 +366,10 @@ const FloatingWindow = memo(function FloatingWindow({
   const frame = dragging ?? view.frame;
   const onEnd = useCallback(
     (next: Frame) => {
-      onMove({ documentId, blockId }, next);
+      onMove(view, next);
       setDragging(null);
     },
-    [onMove, documentId, blockId],
+    [onMove, view],
   );
   const rules = useMemo<FrameRules<FloatingGesture>>(
     () => ({
@@ -366,33 +384,32 @@ const FloatingWindow = memo(function FloatingWindow({
   // it. Before paint, so the unfitted window never shows. An image waits for
   // its bytes — `onImage` below.
   const content = useRef<HTMLDivElement>(null);
-  const block = mirror.status === "ready" ? mirror.block : null;
+  // `file` is `view` itself, so this changes only when the window does.
+  const fileBlock = useMemo(() => (file ? fileAsBlock(file) : null), [file]);
+  const block = fileBlock ?? (mirror.status === "ready" ? mirror.block : null);
   useLayoutEffect(() => {
     if (base || !block || block.type === "image" || !content.current) return;
     if (block.type === "pdf") {
-      onFit({ documentId, blockId }, PDF_BASE);
+      onFit(view, PDF_BASE);
       return;
     }
     const { offsetWidth, offsetHeight } = content.current;
-    onFit({ documentId, blockId }, { width: offsetWidth, height: offsetHeight });
-  }, [base, block, documentId, blockId, onFit]);
+    onFit(view, { width: offsetWidth, height: offsetHeight });
+  }, [base, block, view, onFit]);
   const onImage = useCallback(
     (img: HTMLImageElement) => {
       if (base) return;
       const shrink = Math.min(1, MEASURE_MAX / img.naturalWidth, MEASURE_MAX / img.naturalHeight);
-      onFit(
-        { documentId, blockId },
-        {
-          width: Math.round(img.naturalWidth * shrink) + PAD,
-          height: Math.round(img.naturalHeight * shrink) + PAD,
-        },
-      );
+      onFit(view, {
+        width: Math.round(img.naturalWidth * shrink) + PAD,
+        height: Math.round(img.naturalHeight * shrink) + PAD,
+      });
     },
-    [base, documentId, blockId, onFit],
+    [base, view, onFit],
   );
 
   const gone = documentName === null;
-  const title = gone ? "삭제된 문서" : (documentName ?? "…");
+  const title = file ? file.fileName : gone ? "삭제된 문서" : (documentName ?? "…");
 
   return (
     <FloatingFrame
@@ -405,7 +422,7 @@ const FloatingWindow = memo(function FloatingWindow({
       }
       closeLabel="플로팅 뷰 닫기"
       closeClassName="text-ink-faint hover:text-danger"
-      onClose={() => onClose({ documentId, blockId })}
+      onClose={() => onClose(view)}
       className="z-[35]"
     >
       <div className="min-h-0 flex-1 overflow-auto">

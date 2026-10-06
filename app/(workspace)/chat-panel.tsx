@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ChatMessage } from "@/lib/chat/types";
 
+import { ChatFiles } from "./chat-files";
 import { ChatMessageRow } from "./chat-message";
 import { useWorkspacePresence } from "./presence-provider";
 
@@ -27,12 +28,18 @@ type Pending = {
   failed: boolean;
 };
 
+const switchClass = (on: boolean) =>
+  `rounded-control px-2 py-0.5 text-[12.5px] font-medium ${on ? "bg-paper-2 text-ink" : "text-ink-faint hover:text-ink"}`;
+
 export function ChatPanel({ me }: { me: string }) {
   const [messages, setMessages] = useState<Array<ChatMessage>>([]);
   const [pending, setPending] = useState<Array<Pending>>([]);
   const [draft, setDraft] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
+  // UC-061 step 1: the file list is a menu in this panel, fed by the same
+  // `messages`, so it is live without a second fetch.
+  const [showFiles, setShowFiles] = useState(false);
 
   const scroller = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -200,7 +207,30 @@ export function ChatPanel({ me }: { me: string }) {
       }}
       className={`flex min-h-0 flex-1 flex-col ${dragging ? "bg-sky-soft" : "bg-elev"}`}
     >
-      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+      <div className="flex flex-none gap-1 border-b border-line px-3 py-1.5">
+        <button
+          type="button"
+          aria-pressed={!showFiles}
+          onClick={() => setShowFiles(false)}
+          className={switchClass(!showFiles)}
+        >
+          대화
+        </button>
+        <button
+          type="button"
+          aria-pressed={showFiles}
+          onClick={() => setShowFiles(true)}
+          className={switchClass(showFiles)}
+        >
+          파일
+        </button>
+      </div>
+
+      {showFiles ? <ChatFiles messages={messages} /> : null}
+
+      {/* Hidden rather than unmounted, so coming back from the file list finds
+          the conversation where it was left. */}
+      <div ref={scroller} hidden={showFiles} className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
         {messages.length === 0 && pending.length === 0 ? (
           <p className="pt-8 text-center text-[13px] text-ink-faint">
             아직 대화가 없습니다.
@@ -238,7 +268,7 @@ export function ChatPanel({ me }: { me: string }) {
         )}
       </div>
 
-      <div className="flex-none px-3 pt-2.5 pb-3">
+      <div hidden={showFiles} className="flex-none px-3 pt-2.5 pb-3">
         {file ? (
           <div className="mb-2 flex items-center gap-2 rounded-control bg-paper-2 px-2.5 py-1.5">
             <span className="min-w-0 flex-1 truncate text-[12px] text-ink">{file.name}</span>
