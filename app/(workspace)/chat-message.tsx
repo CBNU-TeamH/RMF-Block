@@ -67,9 +67,8 @@ function Attachment({ attachment }: { attachment: ChatAttachment }) {
   );
 }
 
-/** FR-070-01's "or a file": only the types the preview route serves inline,
- *  since anything else would open a window the server refuses to fill. */
-export function FloatButton({ attachment }: { attachment: ChatAttachment }) {
+/** FR-070-01's "or a file" — which types float: `docs/design/floating-view.md`. */
+function FloatButton({ attachment }: { attachment: ChatAttachment }) {
   const openFloating = useFloatingViews();
   if (!isInlineType(attachment.fileType)) return null;
 

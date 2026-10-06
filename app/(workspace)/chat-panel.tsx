@@ -28,6 +28,9 @@ type Pending = {
   failed: boolean;
 };
 
+const switchClass = (on: boolean) =>
+  `rounded-control px-2 py-0.5 text-[12.5px] font-medium ${on ? "bg-paper-2 text-ink" : "text-ink-faint hover:text-ink"}`;
+
 export function ChatPanel({ me }: { me: string }) {
   const [messages, setMessages] = useState<Array<ChatMessage>>([]);
   const [pending, setPending] = useState<Array<Pending>>([]);
@@ -205,24 +208,22 @@ export function ChatPanel({ me }: { me: string }) {
       className={`flex min-h-0 flex-1 flex-col ${dragging ? "bg-sky-soft" : "bg-elev"}`}
     >
       <div className="flex flex-none gap-1 border-b border-line px-3 py-1.5">
-        {(
-          [
-            [false, "대화"],
-            [true, "파일"],
-          ] as const
-        ).map(([files, label]) => (
-          <button
-            key={label}
-            type="button"
-            aria-pressed={showFiles === files}
-            onClick={() => setShowFiles(files)}
-            className={`rounded-control px-2 py-0.5 text-[12.5px] font-medium ${
-              showFiles === files ? "bg-paper-2 text-ink" : "text-ink-faint hover:text-ink"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+        <button
+          type="button"
+          aria-pressed={!showFiles}
+          onClick={() => setShowFiles(false)}
+          className={switchClass(!showFiles)}
+        >
+          대화
+        </button>
+        <button
+          type="button"
+          aria-pressed={showFiles}
+          onClick={() => setShowFiles(true)}
+          className={switchClass(showFiles)}
+        >
+          파일
+        </button>
       </div>
 
       {showFiles ? <ChatFiles messages={messages} /> : null}

@@ -10,8 +10,7 @@ import { readableSize } from "@/lib/files/size";
 import { useFloatingViews } from "./floating-views";
 import { FileIcon } from "./ui";
 
-/** The chat file list (UC-061, FR-061-01..04). **Prototype**, like the rest of
- *  the chat panel — no artboard in `docs/ui/`. */
+/** The chat file list (UC-061, FR-061-01..04) — a prototype, like the panel. */
 
 const LABEL: Record<AttachmentKind, string> = { image: "이미지", pdf: "PDF", document: "문서" };
 
@@ -32,13 +31,12 @@ export function ChatFiles({ messages }: { messages: Array<ChatMessage> }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div role="tablist" aria-label="파일 종류" className="flex flex-none gap-1 px-3 pt-2">
+      <div role="group" aria-label="파일 종류" className="flex flex-none gap-1 px-3 pt-2">
         {KINDS.map((k) => (
           <button
             key={k}
             type="button"
-            role="tab"
-            aria-selected={k === kind}
+            aria-pressed={k === kind}
             onClick={() => setKind(k)}
             className={`rounded-control px-2 py-1 text-[12.5px] font-medium ${
               k === kind ? "bg-sky-soft text-sky-text" : "text-ink-soft hover:bg-hover"
@@ -49,7 +47,7 @@ export function ChatFiles({ messages }: { messages: Array<ChatMessage> }) {
         ))}
       </div>
 
-      <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
         {files.length === 0 ? (
           <p className="pt-8 text-center text-[13px] text-ink-faint">
             공유된 {LABEL[kind]} 파일이 없습니다.

@@ -1,13 +1,12 @@
 import type { ChatAttachment, ChatMessage } from "./types.ts";
 
-/** The chat file list (UC-061), derived from the history rather than the file
- *  store — the store also holds document uploads, and a message already says who
- *  sent its file and when (FR-061-02). */
+/** The chat file list (UC-061), grouped from the history — why not the file
+ *  store: `docs/design/chat.md`, "The file list". */
 
 /** UC-061 step 3's tabs. A link attachment (FR-060-03, #147) joins as a fourth. */
-export type AttachmentKind = "image" | "pdf" | "document";
+export const KINDS = ["image", "pdf", "document"] as const;
 
-export const KINDS: Array<AttachmentKind> = ["image", "pdf", "document"];
+export type AttachmentKind = (typeof KINDS)[number];
 
 export type SharedFile = {
   messageId: string;

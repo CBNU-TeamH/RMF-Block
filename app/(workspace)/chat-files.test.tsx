@@ -37,8 +37,8 @@ describe("ChatFiles", () => {
     render(<ChatFiles messages={messages} />);
 
     assert.deepEqual(
-      screen.getAllByRole("tab").map((tab) => tab.textContent),
-      ["이미지 2", "PDF 1", "문서 1"],
+      ["이미지 2", "PDF 1", "문서 1"].map((name) => screen.getByRole("button", { name }).getAttribute("aria-pressed")),
+      ["true", "false", "false"],
     );
     assert.deepEqual(
       screen.getAllByRole("listitem").map((row) => row.textContent?.split("이미지")[0]),
@@ -59,7 +59,7 @@ describe("ChatFiles", () => {
     await user.click(screen.getByRole("button", { name: "photo.png 미리보기" }));
     assert.equal(openFloating.mock.calls[0][0].fileId, "f-1");
 
-    await user.click(screen.getByRole("tab", { name: "문서 1" }));
+    await user.click(screen.getByRole("button", { name: "문서 1" }));
     assert.equal(screen.queryByRole("button", { name: "notes.zip 미리보기" }), null);
   });
 
@@ -67,7 +67,7 @@ describe("ChatFiles", () => {
     const user = userEvent.setup();
     render(<ChatFiles messages={messages} />);
 
-    await user.click(screen.getByRole("tab", { name: "PDF 1" }));
+    await user.click(screen.getByRole("button", { name: "PDF 1" }));
     assert.equal(
       screen.getByRole("link", { name: "plan.pdf 내려받기" }).getAttribute("href"),
       "/api/files/f-3/download",

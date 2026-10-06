@@ -384,8 +384,7 @@ const FloatingWindow = memo(function FloatingWindow({
   // it. Before paint, so the unfitted window never shows. An image waits for
   // its bytes — `onImage` below.
   const content = useRef<HTMLDivElement>(null);
-  // On `file`, which is this view: a new object only when this window changed,
-  // so the fit below does not re-run on every render.
+  // `file` is `view` itself, so this changes only when the window does.
   const fileBlock = useMemo(() => (file ? fileAsBlock(file) : null), [file]);
   const block = fileBlock ?? (mirror.status === "ready" ? mirror.block : null);
   useLayoutEffect(() => {
