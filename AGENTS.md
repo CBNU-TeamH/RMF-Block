@@ -78,6 +78,7 @@ Which document to open for which job.
 | Skills for Claude Code | [`.claude/skills/README.md`](.claude/skills/README.md) — pointer files for external plugins plus the repo's own skills; suggest one to the user, don't run it unprompted |
 | Doc-code drift audit (a `drift-audit` issue is open) | [`.claude/skills/doc-drift-audit/SKILL.md`](.claude/skills/doc-drift-audit/SKILL.md) — a runbook any agent can follow |
 | How to run the app (Docker, LAN setup) | [`README.md`](README.md) |
+| Development setup, the checks, where things are, the path to a PR | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Host/guest auth entry flow | [`docs/design/api.md`](docs/design/api.md) — "Authentication model", "Entry gotchas" |
 
 ---
