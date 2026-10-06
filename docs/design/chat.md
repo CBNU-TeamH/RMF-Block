@@ -89,14 +89,14 @@ but it is Yorkie's internal store, and ADR-002 fixes the boundary that the app n
 So app-owned state stays as JSON files under `.data/`, and this module is the reference
 implementation of that pattern.
 
-**Repository pattern.** `chat-repository.ts` serializes concurrent writes through one promise chain.
-`lib/auth/member-repository.ts`, `lib/documents/documents.ts` and `lib/files/file-repository.ts`
-follow the same pattern synchronously. **A read-modify-write with no `await` in it cannot be
+**Repository pattern.** `chat-repository.ts` and `lib/files/file-repository.ts` serialize concurrent
+writes through a promise chain; the other JSON stores (`lib/auth/member-repository.ts`,
+`lib/documents/documents.ts`) are synchronous. **A read-modify-write with no `await` in it cannot be
 interleaved by a second call on Node's single thread, so there is nothing for a queue to
-serialize.** The queue here earns its place only because its appends are `async`: an `await`
+serialize.** A queue earns its place only where the appends are `async`: an `await`
 mid-sequence is a point where a second call can land between the read and the write, and the second
-write would drop the first. Choosing sync is therefore choosing to *not need* the queue, and any of
-the three growing an `await` inside its read-modify-write needs the promise chain back. Writes go
+write would drop the first. Choosing sync is therefore choosing to *not need* the queue, and a sync
+store that grows an `await` inside its read-modify-write needs the promise chain back. Writes go
 through a temp file and a `rename`, because `writeFileSync` truncates before it writes and a crash
 mid-write would otherwise leave a half-written store; `rename` within one filesystem is atomic, so a
 concurrent reader sees the whole old file or the whole new one.
@@ -190,7 +190,7 @@ history draws without a round trip per message. The copy cannot go stale because
 files no rename. Its four fields are deliberately the same as `FileBlock`'s in `lib/blocks/types.ts`: an
 attached file and an embedded one are one thing seen from two places.
 
-## Two things the socket layer must do
+## What the socket layer must do
 
 **Every socket needs an `'error'` listener.** A protocol error — a malformed frame — or a failed
 send emits `'error'` on the socket, and with no listener `EventEmitter` rethrows it and takes the

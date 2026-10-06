@@ -74,11 +74,10 @@ prefixed so neither can read as the other — and open, close, move, fit and the
 the same for both.
 
 - **It saves the attachment's four fields** (`fileId`, `fileName`, `fileType`, `size`), so a
-  window restored after a reload needs no lookup. They cannot go stale: the SRS gives files no
-  rename.
+  window restored after a reload needs no lookup. Why they cannot go stale:
+  [`chat.md`](chat.md#what-the-server-decides-and-what-it-refuses-to-be-told).
 - **It draws through the block path.** The window builds an image or PDF block from those fields
-  and hands it to the same renderer, so fitting and scaling are the block rules below. An
-  attached file and an embedded one are one thing seen from two places (`chat.md`).
+  and hands it to the same renderer, so fitting and scaling are the block rules below.
 - **Nothing is mirrored.** A stored file never changes, so FR-070-04 holds without a
   subscription, and there is no Yorkie attach. FR-070-05 has nothing to watch: attachments
   cannot be deleted (`chat.md`, "Open questions").

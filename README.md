@@ -1,138 +1,88 @@
 # RMF-Block
 
-<img width="494" height="323" alt="image" src="https://github.com/user-attachments/assets/d5665375-05d7-4712-93d3-d4afd5536fdc" />
-<img width="488" height="324" alt="image" src="https://github.com/user-attachments/assets/9c04c817-f92d-4f66-91ec-469c0997bfee" />
+A real-time block editor for a team on one local network — no cloud service, no accounts.
 
+![Two people editing one document; the block the other person is in is outlined in their colour](docs/images/editor.png)
 
-A LAN-based real-time document collaboration system. A **host** runs the system as a Docker container; users on the **same subnet** open a URL in their browser and collaborate in real time.
+One person, the **host**, runs RMF-Block as a Docker container. Everyone else on the **same
+subnet** opens a link in their browser, joins with a nickname and the workspace password, and edits
+the same documents together. CBNU Team H capstone project.
 
-CBNU Team H capstone project.
+## Features
 
-> **This README is a working document for development** — it maps the repository so teammates and AI agents can find things. The user-facing README comes once the product is done.
+- **Block editor** — text, headings, lists, checklists, quotes, code, dividers, images, PDFs,
+  files and links to other documents. A `/` menu and Markdown shortcuts (`# `, `- `, `[] `,
+  `` ``` ``) create them.
+- **Real-time co-editing** — edits reach everyone as they type, Hangul composition included, and
+  the block someone is in is outlined in their colour.
+- **Presence and focus following** — see who is connected, and share your screen position so
+  others can follow it.
+- **Document tree and version history** — nested documents; browse, name and restore past versions.
+- **Chat with files** — messages and attachments, and a file list grouped into images, PDFs and
+  other files.
+- **Floating views** — pin a text, image or PDF block, or an image or PDF from chat, in a window
+  that stays put while you move between documents.
 
-## Start here
+![The chat file list beside a floating view of a shared image](docs/images/chat-floating.png)
 
-Read [`AGENTS.md`](AGENTS.md) first. It is the single entry point: workflow, coding principles, doc routing, and team conventions.
+## How it works
 
-**Stack:** TypeScript · Next.js (App Router) · [Yorkie](https://yorkie.dev) (CRDT) for real-time sync, document persistence, and version history, backed by MongoDB · host-held JSON files for the app's own state. Single package, single app process, pnpm. Decided in [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2 and [`docs/adr/002-persistence-on-yorkie-mongo.md`](docs/adr/002-persistence-on-yorkie-mongo.md).
+The host machine runs three containers: the app — a Next.js custom server for pages, REST and
+WebSockets — and a self-hosted [Yorkie](https://yorkie.dev) server with MongoDB behind it. Yorkie
+syncs every document as a CRDT and keeps its content and history; the app keeps its own state as
+JSON under `.data/`. Documents, chat and uploaded files are stored on the host and shared over
+the LAN.
 
-## Structure
+[`ARCHITECTURE.md`](ARCHITECTURE.md) has the diagram; [`docs/design/architecture.md`](docs/design/architecture.md)
+the contracts.
 
-| Path | Contents |
-| :--- | :--- |
-| [`AGENTS.md`](AGENTS.md) | Entry point — read first. Workflow, coding principles, doc routing. |
-| [`CLAUDE.md`](CLAUDE.md) | Imports `AGENTS.md` for Claude Code. |
-| [`ROADMAP.md`](ROADMAP.md) | Overall plan and milestones. |
-| [`docs/`](docs/) | Deliverable docs: requirements ([`SRS-ko.md`](docs/SRS-ko.md), canonical; [`SRS-en.md`](docs/SRS-en.md), its English translation), module design, UI wireframes, architecture decisions (ADRs). |
-| [`tasks/`](tasks/) | Work in progress (`active/`) and finished work (`archive/YYYY/MM/`). See [`tasks/README.md`](tasks/README.md). |
-| [`scripts/`](scripts/) | Verification, doc-check and task helpers — see the `package.json` scripts. `detect-host-ip.sh` is what `pnpm docker:up` runs first to fill in `HOST_LAN_IP`. |
-| [`app/`](app/) | Next.js App Router — pages, layouts, route handlers. |
-| [`lib/`](lib/) | Shared code that both the app and server-side processes import. |
-| [`server/`](server/) | The custom server entry point and the WebSocket hub. |
-| [`public/`](public/) | Static assets served as-is. |
-| [`instrumentation.ts`](instrumentation.ts) | Server startup hook — prints the host link and the guest join address. |
-| [`Dockerfile`](Dockerfile) · [`docker-compose.yml`](docker-compose.yml) | The image the host runs, plus the self-hosted Yorkie server and its MongoDB store. |
-| [`.claude/skills/`](.claude/skills/) | Pointer files for the review plugins and one optional skill, plus the repo's own skills (mirrored to `.agents/skills/`) — see [`.claude/skills/README.md`](.claude/skills/README.md). |
+## Getting started
 
-Root config files (`next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, `postcss.config.mjs`) are the real, live settings — not templates.
-
-## Running it
-
-**As the host would** — one command, the way the product ships:
+You need Docker with Compose 2.20 or newer and bash — on Linux or macOS, or on Windows from WSL.
 
 ```bash
-pnpm docker:up
+cp .env.sample .env        # fill it in — each variable is explained there
+bash scripts/detect-host-ip.sh && docker compose up --build
 ```
 
-This runs [`scripts/detect-host-ip.sh`](scripts/detect-host-ip.sh), which finds the host's LAN IP and
-writes it to `.env` as `HOST_LAN_IP`, then `docker compose up --build`. Every later run reuses the same
-`.env`, no retyping addresses. (`pnpm start` runs the server process directly, without the Yorkie
-container behind it — the host wants the image.) Detection asks the routing table which interface
-carries the default route and takes that one's address, rather than guessing from the address itself —
-so it still picks the right adapter on a campus LAN that hands out `172.x` addresses, where guessing
-would mistake the real address for a Docker or WSL virtual one.
-
-Linux and macOS only. On Windows that means **run it from WSL**, which is where Docker Desktop's backend
-lives anyway; from Git Bash the script says so and stops rather than guessing. Under WSL it also checks
-for mirrored networking (see below) — without it WSL sits on its own NAT and the detected address is
-WSL's rather than your LAN's, so the check warns and continues rather than blocking.
-
-Prefer to do it by hand, or on a host with no default route to read? `docker compose up --build` still
-works — copy [`.env.sample`](.env.sample) to `.env` and fill in `HOST_LAN_IP` yourself (`ip -4 addr` on
-Linux, `ipconfig getifaddr en0` on macOS, `ipconfig` on Windows), or pass it inline:
-`HOST_LAN_IP=192.168.0.14 docker compose up`.
-
-Startup prints two lines. The `Host:` link proves you are the host — opening it gives you a cookie
-and drops the secret from the address bar. The secret stays valid until the container restarts, so
-treat the line as a credential, not a used-up ticket. The `Guest:` line is what anyone else on the
-same subnet types into their browser.
+With Node.js and pnpm installed, `pnpm docker:up` is the same two commands. The script finds the
+host's LAN address and writes it to `.env` as `HOST_LAN_IP`. Among the startup output are these
+two lines:
 
 ```
 rmf-app  |   Host:  http://localhost:3000/api/auth/host?secret=…
 rmf-app  |   Guest: http://192.168.0.14:3000
 ```
 
-Guests reach the `Guest:` link only if they're on the **same subnet** *and* that subnet doesn't apply
-**client/AP isolation** (common on campus and guest Wi-Fi — it blocks devices from reaching each other
-even on the same network). If a guest can't connect, that's the first thing to rule out, not the IP —
-and it's not something any script here can detect or fix, since it's a router/AP setting outside the
-host machine.
+- **Open the `Host:` link yourself.** It makes you the host and drops the secret from the address
+  bar. Treat the line as a credential: it stays valid until the container restarts.
+- **Give everyone else the `Guest:` address.**
+- **Restarting the container signs everyone out** — that is how access is revoked
+  ([`docs/design/api.md`](docs/design/api.md)).
+- **Documents and app state survive** restarts and rebuilds on named volumes — members keep their
+  colours — and `docker compose down -v` wipes them.
 
-**Windows hosts — mirrored networking:** if `HOST_LAN_IP` prints correctly but guests still can't reach
-it, Docker Desktop's WSL2 backend is likely only forwarding the port to `127.0.0.1`, not the real network
-adapter. `pnpm docker:up` detects this and prints the fix; by hand, add `networkingMode=mirrored` under
-`[wsl2]` in `%UserProfile%\.wslconfig`, then run `wsl --shutdown` and restart Docker Desktop. Requires
-Windows 11 22H2+; on older Windows, forward the port to the host's LAN IP yourself (e.g.
-`netsh interface portproxy`). `wsl --shutdown` closes every WSL session, not just this project's, so
-finish other WSL work first.
+### If a guest cannot connect
 
-Restarting the container mints a new secret and invalidates every host session — that is the revoke
-path ([`docs/design/api.md`](docs/design/api.md)), not an accident.
+- **Client/AP isolation.** Campus and guest Wi-Fi often block devices from reaching each other even
+  on one network. Rule this out first — it is a router setting no script here can detect.
+- **Windows hosts.** Docker Desktop's WSL2 backend may forward the port only to `127.0.0.1`; the
+  start script checks whether WSL mirrored networking is enabled and prints configuration
+  guidance. Mirrored networking needs Windows 11 22H2+; on older Windows, forward the port to
+  the host's LAN address yourself (`netsh interface portproxy`).
+- **Wrong address detected**, or no default route to read: set `HOST_LAN_IP` in `.env` yourself —
+  `.env.sample` says how to find it on each OS — and run `docker compose up --build`.
 
-**While developing:**
+## Documentation
 
-```bash
-pnpm install
-docker compose up -d yorkie   # Yorkie on :8080 — realtime sync needs it
-pnpm dev                      # http://localhost:3000, same two lines on stdout
-pnpm lint
-pnpm test                     # Vitest
-pnpm build
-```
+| Read | For |
+| :--- | :--- |
+| [`AGENTS.md`](AGENTS.md) | The working rules — workflow, coding principles, which doc answers what |
+| [`docs/SRS-ko.md`](docs/SRS-ko.md) · [`docs/SRS-en.md`](docs/SRS-en.md) | Requirements: the agreed Korean text and its English translation |
+| [`docs/design/`](docs/design/) · [`docs/adr/`](docs/adr/) | Module design and architecture decisions |
+| [`ROADMAP.md`](ROADMAP.md) | What is built and what comes next |
 
-Three traps worth knowing before you hit them, all found the hard way:
+## Contributing
 
-- **Run `pnpm build` last, not before `pnpm dev`.** A production build leaves a `.next` the dev
-  server cannot use, and it fails with `Could not parse module '[project]/instrumentation.ts', file
-  not found` for a file that plainly exists. `rm -rf .next` fixes it. The block above is in a safe
-  order; reversing the last two lines is not.
-- **Docker Compose must be 2.20 or newer.** `docker-compose.yml` uses `attach: false` on the mongo
-  service to keep the host's terminal readable. Older Compose (2.13 was measured) refuses the whole
-  file with `services.mongo Additional property attach is not allowed`.
-- **`pnpm dev` is reachable from this machine only — test other devices against `pnpm start`.**
-  Next's dev server refuses `/_next/*` to any host but `localhost`, so a phone at
-  `http://<LAN-IP>:3000` gets the server-rendered HTML and no client JavaScript. Nothing errors on
-  screen: the page draws, React never hydrates, and the join form quietly falls back to a plain
-  `GET /join?nickname=…&password=…` that never attempts a login — which reads exactly like a wrong
-  password. Build first (`pnpm build && pnpm start`, or `pnpm docker:up`) and the restriction is
-  gone.
-
-Documents live in Yorkie, which persists them to MongoDB — see [`docs/SRS-ko.md`](docs/SRS-ko.md) §2.3.2.
-The app's own state is written as JSON under `.data/` (see [`docs/design/architecture.md`](docs/design/architecture.md)),
-so a nickname keeps its colour across a restart. Sessions are
-deliberately not written (see [`docs/design/api.md`](docs/design/api.md)).
-
-It survives `down` and `up --build` on the `app-data` volume, the same way documents survive on
-`mongo-data`. Both are named volumes, so `docker compose down -v` still wipes them — that is the
-"start the session over" button, and it is the only thing that does.
-
-## Ground rules
-
-- **This repo is canonical.** Discussion may happen elsewhere (e.g., Notion), but the source of truth is here; sync is one-way _into_ this repo.
-- **Docs live with the code.** A change and the doc describing it belong in the same commit.
-- **Commit prefixes and doc language:** see [`AGENTS.md`](AGENTS.md) §5.
-- **Line endings:** enforced by `.gitattributes` (`eol=lf`). On first clone run the same command on Windows / macOS / Linux:
-
-```bash
-git config --global core.autocrlf input
-```
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the development setup, the checks, and how a change
+becomes a pull request.

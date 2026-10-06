@@ -10,10 +10,11 @@
 //       are generated from tasks/active/ and tasks/archive/ (scripts/tasks-index.sh).
 //       Report only, never auto-mutate a tracked file — if they're stale, say
 //       so and name the command to fix it.
-//   (c) dead links — every markdown link and backtick-quoted repo-relative
-//       path inside docs/**/*.md, AGENTS.md, and tasks/active/*.md actually
-//       exists on disk, and a `#anchor` on a link to a .md file names a real
-//       heading there. External URLs are skipped.
+//   (c) dead links — every markdown link in docs/**/*.md, AGENTS.md, README.md,
+//       CONTRIBUTING.md and tasks/active/*.md, and every backtick-quoted
+//       repo-relative path in docs/ and AGENTS.md, actually exists on disk, and
+//       a `#anchor` on a link to a .md file names a real heading there.
+//       External URLs are skipped.
 //
 // Exit 1 if (a) or (c) fail. (b) is informational.
 
@@ -226,11 +227,14 @@ function checkDeadLinks() {
     .filter((f) => f.endsWith(".md"))
     .map((f) => join(ROOT, "tasks", "active", f));
   const agentsFile = join(ROOT, "AGENTS.md");
+  // The two a newcomer reads first. Markdown links only: their backticks
+  // name branch prefixes (`feat/`) that are not paths.
+  const entryFiles = [join(ROOT, "README.md"), join(ROOT, "CONTRIBUTING.md")];
 
   const broken = [];
 
   // Markdown-link syntax: checked everywhere, real hyperlinks either way.
-  for (const file of [...docsFiles, agentsFile, ...activeFiles]) {
+  for (const file of [...docsFiles, agentsFile, ...entryFiles, ...activeFiles]) {
     const text = readFileSync(file, "utf8");
     const dir = dirname(file);
     for (const candidate of extractMarkdownLinks(text)) {
@@ -259,7 +263,9 @@ function checkDeadLinks() {
     for (const candidate of extractBacktickPaths(text)) {
       const target = resolveCandidate(dir, candidate);
       if (!existsSync(target)) {
-        broken.push({ file: relative(ROOT, file), candidate: candidate.path });
+        // A planned directory is written without its slash — docs/conventions.md.
+        const hint = candidate.path.endsWith("/") ? " (not built yet? drop the trailing slash)" : "";
+        broken.push({ file: relative(ROOT, file), candidate: candidate.path + hint });
       }
     }
   }

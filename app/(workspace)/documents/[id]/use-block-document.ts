@@ -226,9 +226,6 @@ export function useBlockDocument(
     [publishActiveBlock],
   );
 
-  /** Patches a textarea with an edit that did not come from the network — a
-   *  split or merge (#59). Deliberately the same handler a remote edit uses;
-   *  why that matters: `docs/design/document-editing.md`. */
   /**
    * Undo and redo, floored at the state this document was opened in.
    *
@@ -251,6 +248,9 @@ export function useBlockDocument(
     doc.history.undo();
   }, []);
 
+  /** Patches a textarea with an edit that did not come from the network — a
+   *  split or merge (#59). Deliberately the same handler a remote edit uses;
+   *  why that matters: `docs/design/document-editing.md`. */
   const patchBlockText = useCallback((blockId: BlockId, patch: TextPatch) => {
     handlersRef.current.get(blockId)?.(patch);
   }, []);

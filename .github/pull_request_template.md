@@ -35,11 +35,11 @@ Which checks were actually run — not whether the diff was read carefully.
 
 - [ ] `pnpm lint` / `pnpm test` / `pnpm build` locally
 - [ ] `pnpm comments` / `pnpm verify:docs` locally
-- [ ] `/simplify`, **from a Sonnet session** — ran · or not applicable because:
-- [ ] `/code-review low`, **from a Sonnet session** — ran · or not applicable because:
+- [ ] `/simplify` — ran · or not applicable because:
+- [ ] `/code-review low` — ran · or not applicable because:
 
-Sub-agents inherit the session's model, so an Opus session runs the review on Opus and
-spends the saving that `low` exists to make.
+Cost guidance and how to verify the review agents' models:
+[`.claude/skills/README.md`](../.claude/skills/README.md), "Model".
 
 Findings raised but **not fixed here** — filed as issues rather than dropped:
 
