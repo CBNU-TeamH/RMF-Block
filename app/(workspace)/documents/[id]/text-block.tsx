@@ -225,6 +225,9 @@ export function TextBlockView({
 
   const composingRef = useRef(false);
   const pendingRemoteRef = useRef<Array<TextPatch>>([]);
+  // What the open composition replaced, in Yorkie's offsets — recorded when it
+  // starts, because inside a run of one character a diff cannot say where it is.
+  const compositionRef = useRef({ from: 0, to: 0 });
   // What Yorkie holds for this block — the diff baseline for the next local
   // keystroke. Has to advance on *every* path that touches the text, remote
   // patches included, or the next local edit reinserts whatever the textarea
@@ -238,43 +241,19 @@ export function TextBlockView({
     el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
   };
 
+  /** Outside a composition the textarea and Yorkie hold the same text, so a
+   *  patch lands at its own offsets. */
   const patchRange = (el: HTMLTextAreaElement, op: TextPatch) => {
     const { from, to, value } = op;
     const selStart = el.selectionStart ?? 0;
     const selEnd = el.selectionEnd ?? 0;
 
-    // The edit's offsets are Yorkie's. A composition is the one thing the
-    // textarea holds that Yorkie does not (#52), so the edit is mapped around
-    // it — the identity when nothing was composed. Where a character repeats,
-    // which side of it the composed text sits on is `diffRange`'s guess; the
-    // commit after the flush converges either way.
-    const local = diffRange(lastSyncedRef.current, el.value);
-    const composedEnd = local.from + local.value.length;
-    const toDom = (pos: number) =>
-      pos >= local.to ? pos + composedEnd - local.to : pos <= local.from ? pos : composedEnd;
-    const domFrom = toDom(from);
-    const domTo = toDom(to);
-    // An edit spanning the composed text applies around it, never through it:
-    // the peer removed what Yorkie held there, not what this person just typed.
-    const spans = local.from < composedEnd && domFrom < composedEnd && domTo > local.from;
-    const head = Math.min(domFrom, local.from);
-    const dom = el.value;
-    el.value = spans
-      ? dom.slice(0, head) + value.content + dom.slice(local.from, composedEnd) +
-        dom.slice(Math.max(domTo, composedEnd))
-      : dom.slice(0, domFrom) + value.content + dom.slice(domTo);
-    const base = lastSyncedRef.current;
-    lastSyncedRef.current = base.slice(0, from) + value.content + base.slice(to);
+    el.value = el.value.slice(0, from) + value.content + el.value.slice(to);
+    lastSyncedRef.current = el.value;
 
     const insertedLength = value.content.length;
-    if (spans) {
-      // The caret was at the end of the composition; it stays there.
-      el.selectionStart = el.selectionEnd = head + insertedLength + composedEnd - local.from;
-      autoGrow(el);
-      return;
-    }
-    const newStart = shiftCaret(selStart, { from: domFrom, to: domTo, insertedLength });
-    const newEnd = shiftCaret(selEnd, { from: domFrom, to: domTo, insertedLength });
+    const newStart = shiftCaret(selStart, { from, to, insertedLength });
+    const newEnd = shiftCaret(selEnd, { from, to, insertedLength });
     if (newStart !== null && newEnd !== null) {
       el.selectionStart = newStart;
       el.selectionEnd = newEnd;
@@ -322,12 +301,45 @@ export function TextBlockView({
     lastSyncedRef.current = newValue;
   };
 
+  /** The edits that arrived while a composition was open (#52). Their offsets
+   *  are Yorkie's, so they apply to the baseline — Yorkie's text — and the
+   *  composed text goes back where the composition was, carried through each. */
   const flushQueuedRemoteEdits = () => {
     const el = textareaRef.current;
-    if (!el) return;
     const queued = pendingRemoteRef.current;
     pendingRemoteRef.current = [];
-    for (const op of queued) patchRange(el, op);
+    if (!el || queued.length === 0) return;
+
+    const base = lastSyncedRef.current;
+    let { from, to } = compositionRef.current;
+    // simple: an IME that composed away from where it started breaks the
+    // recorded range; the diff's guess is the fallback.
+    const fits =
+      from + base.length - to <= el.value.length &&
+      el.value.startsWith(base.slice(0, from)) &&
+      el.value.endsWith(base.slice(to));
+    if (!fits) {
+      ({ from, to } = diffRange(base, el.value));
+    }
+    const composed = el.value.slice(from, el.value.length - (base.length - to));
+
+    const through = (pos: number, op: TextPatch) =>
+      pos <= op.from
+        ? pos
+        : pos >= op.to
+          ? pos + op.value.content.length - (op.to - op.from)
+          : op.from + op.value.content.length;
+    let text = base;
+    for (const op of queued) {
+      text = text.slice(0, op.from) + op.value.content + text.slice(op.to);
+      from = through(from, op);
+      to = through(to, op);
+    }
+
+    lastSyncedRef.current = text;
+    el.value = text.slice(0, from) + composed + text.slice(to);
+    el.selectionStart = el.selectionEnd = from + composed.length;
+    autoGrow(el);
   };
 
   return (
@@ -482,8 +494,10 @@ export function TextBlockView({
         event.preventDefault();
         onPasteBlocks(blockId, text);
       }}
-      onCompositionStart={() => {
+      onCompositionStart={(event) => {
         composingRef.current = true;
+        const el = event.currentTarget;
+        compositionRef.current = { from: el.selectionStart, to: el.selectionEnd };
       }}
       onCompositionEnd={(event) => {
         composingRef.current = false;

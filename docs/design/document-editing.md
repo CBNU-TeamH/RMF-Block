@@ -287,10 +287,11 @@ Measured against a real two-client Yorkie session, on the exact storage shape ab
    typing Hangul into the same block concurrently: remote edits arriving mid-composition are
    queued rather than applied and flushed once `compositionend` fires. Non-composing keystrokes
    (plain ASCII, Enter, space) sync per keystroke with no queuing needed. A queued edit carries
-   Yorkie's offsets, so the flush maps it around the open composition — the one thing the
-   textarea holds that Yorkie does not — and the baseline advances at Yorkie's offsets rather than
-   copying the textarea. The flush runs *before* the composition's commit, which then diffs
-   Yorkie's own text and is always an edit Yorkie can apply
+   Yorkie's offsets, so the flush applies it to the baseline (Yorkie's text) and puts the composed
+   text back where the composition started — the range recorded at `compositionstart`, carried
+   through each edit, not inferred by a diff, which cannot place it inside a run of one character.
+   The flush runs *before* the composition's commit, which then diffs Yorkie's own text and is
+   always an edit Yorkie can apply
    ([#52](https://github.com/CBNU-TeamH/RMF-Block/issues/52), `e2e/ime-replay.e2e.ts`).
 3. **The SDK's own `EditOpInfo` carries what patching needs**: character offsets against the
    pre-edit string, so an edit entirely before the caret shifts it by the size difference and

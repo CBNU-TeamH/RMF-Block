@@ -157,6 +157,7 @@ describe("TextBlockView's remote edits", () => {
     const { doc, peer, live } = seeded();
     const { textarea, remote } = renderBlock({ type: "text" }, doc, "abc");
 
+    textarea.setSelectionRange(3, 3);
     fireEvent.compositionStart(textarea);
     fireEvent.input(textarea, { target: { value: "abc안" } });
     // Yorkie's offsets: X before the composition point, Z at Yorkie's end —
@@ -173,12 +174,28 @@ describe("TextBlockView's remote edits", () => {
     const { doc, peer, live } = seeded("abcd");
     const { textarea, remote } = renderBlock({ type: "text" }, doc, "abcd");
 
+    textarea.setSelectionRange(2, 2);
     fireEvent.compositionStart(textarea);
     fireEvent.input(textarea, { target: { value: "ab안cd" } });
     remote(peer(1, 3, "")); // "bc", on both sides of the composition point
     fireEvent.compositionEnd(textarea);
 
     assert.equal(live(), "a안d");
+    assert.equal(textarea.value, live());
+  });
+
+  it("keeps a composition where it started inside a run of the same character", () => {
+    // A diff of 가가b → 가가가b cannot say which 가 is new; the caret can.
+    const { doc, peer, live } = seeded("가가b");
+    const { textarea, remote } = renderBlock({ type: "text" }, doc, "가가b");
+
+    textarea.setSelectionRange(1, 1);
+    fireEvent.compositionStart(textarea);
+    fireEvent.input(textarea, { target: { value: "가가가b" } });
+    remote(peer(1, 2, "X")); // the second of the original two 가
+    fireEvent.compositionEnd(textarea);
+
+    assert.equal(live(), "가가Xb");
     assert.equal(textarea.value, live());
   });
 });
