@@ -10,9 +10,9 @@ the same documents together. CBNU Team H capstone project.
 
 ## Features
 
-- **Block editor** — text, headings, lists, checklists, quotes, code, dividers, images, PDFs and
-  files, plus links to other documents and blocks. A `/` menu and Markdown shortcuts (`# `, `- `,
-  `[] `, `` ``` ``) create them.
+- **Block editor** — text, headings, lists, checklists, quotes, code, dividers, images, PDFs,
+  files and links to other documents. A `/` menu and Markdown shortcuts (`# `, `- `, `[] `,
+  `` ``` ``) create them.
 - **Real-time co-editing** — edits reach everyone as they type, Hangul composition included, and
   the block someone is in is outlined in their colour.
 - **Presence and focus following** — see who is connected, and share your screen position so
@@ -20,8 +20,8 @@ the same documents together. CBNU Team H capstone project.
 - **Document tree and version history** — nested documents; browse, name and restore past versions.
 - **Chat with files** — messages and attachments, and a file list grouped into images, PDFs and
   other files.
-- **Floating views** — pin a block, or an image or PDF from chat, in a window that stays put while
-  you move between documents.
+- **Floating views** — pin a text, image or PDF block, or an image or PDF from chat, in a window
+  that stays put while you move between documents.
 
 ![The chat file list beside a floating view of a shared image](docs/images/chat-floating.png)
 
@@ -46,7 +46,7 @@ pnpm docker:up
 ```
 
 `pnpm docker:up` finds the host's LAN address, writes it to `.env` as `HOST_LAN_IP`, and starts the
-stack. Startup prints two lines:
+stack. Among its startup output are these two lines:
 
 ```
 rmf-app  |   Host:  http://localhost:3000/api/auth/host?secret=…
@@ -57,7 +57,9 @@ rmf-app  |   Guest: http://192.168.0.14:3000
   bar. Treat the line as a credential: it stays valid until the container restarts.
 - **Give everyone else the `Guest:` address.**
 - **Restarting the container signs everyone out** — that is how access is revoked. Documents and
-  app state survive restarts and rebuilds on named volumes; `docker compose down -v` wipes them.
+  app state (members keep their colours) survive restarts and rebuilds on named volumes;
+  `docker compose down -v` wipes them. Run the image, not `pnpm start`: that starts the app alone,
+  without the Yorkie container behind it.
 
 ### If a guest cannot connect
 
@@ -65,10 +67,12 @@ rmf-app  |   Guest: http://192.168.0.14:3000
   on one network. Rule this out first — it is a router setting no script here can detect.
 - **Windows hosts.** Docker Desktop's WSL2 backend may forward the port only to `127.0.0.1`.
   `pnpm docker:up` detects this and prints the fix: `networkingMode=mirrored` under `[wsl2]` in
-  `%UserProfile%\.wslconfig`, then `wsl --shutdown` and restart Docker Desktop (Windows 11 22H2+;
-  `wsl --shutdown` closes every WSL session).
+  `%UserProfile%\.wslconfig`, then `wsl --shutdown` and restart Docker Desktop (`wsl --shutdown`
+  closes every WSL session). Mirrored networking needs Windows 11 22H2+; on older Windows, forward
+  the port to the host's LAN address yourself (`netsh interface portproxy`).
 - **Wrong address detected**, or no default route to read: set `HOST_LAN_IP` in `.env` yourself
-  (`ip -4 addr` on Linux, `ipconfig getifaddr en0` on macOS) and run `docker compose up --build`.
+  (`ip -4 addr` on Linux, `ipconfig getifaddr en0` on macOS, `ipconfig` in Windows itself — not
+  WSL's address) and run `docker compose up --build`.
 
 ## Documentation
 
