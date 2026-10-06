@@ -90,7 +90,7 @@ So app-owned state stays as JSON files under `.data/`, and this module is the re
 implementation of that pattern.
 
 **Repository pattern.** `chat-repository.ts` serializes concurrent writes through one promise chain,
-and so does `lib/files/file-repository.ts`, which is async for the same reason.
+and so does `lib/files/file-repository.ts`, whose appends are async too.
 `lib/auth/member-repository.ts` and `lib/documents/documents.ts` follow the same pattern
 synchronously. **A read-modify-write with no `await` in it cannot be
 interleaved by a second call on Node's single thread, so there is nothing for a queue to

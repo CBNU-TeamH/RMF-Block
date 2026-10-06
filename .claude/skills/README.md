@@ -98,11 +98,11 @@ session.
 The same applies to `/simplify`: it is a sub-agent doing a mechanical comparison against a
 rule list, which is Sonnet-shaped work.
 
-**Run as sub-agents from an authoring session, both are report-only.** Launching the two passes
-as Sonnet sub-agents in parallel works (the sub-agent's own model setting overrides inheritance),
-but they share one working tree, so two agents applying fixes collide. Have each report, and let
-the session that wrote the change decide and apply — that also keeps a judgement call with
-whoever is accountable for it (`AGENTS.md` §2).
+**Two passes running at once are report-only.** When `/code-review` and `/simplify` run in
+parallel — two sessions, or two sub-agents launched from one — they share one working tree, and
+two of them applying fixes collide. Have each report, and let the session that wrote the change
+decide and apply — that also keeps a judgement call with whoever is accountable for it
+(`AGENTS.md` §2).
 
 ### Settled by reading the plugins, so nobody has to re-check
 
