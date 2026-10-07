@@ -5,6 +5,7 @@ import { sessionRegistry } from "@/lib/auth/session-registry";
 import { isHost } from "@/lib/auth/current-member";
 import { getWorkspaceName, isWorkspaceOpen } from "@/lib/workspace-config";
 
+import { AdminIcon } from "../(workspace)/ui";
 import { GuestList, PasswordForm, SetupForm } from "./admin-forms";
 
 /** The host's page (UC-010/UC-011): the setup screen until the workspace is
@@ -20,6 +21,10 @@ export default async function AdminPage() {
     <main className="flex flex-1 justify-center overflow-auto bg-paper p-6">
       <div className="flex w-full max-w-[440px] flex-col gap-8 pt-[8vh]">
         <div className="flex flex-col gap-1.5">
+          <span className="flex items-center gap-1.5 self-start rounded-control border border-line-strong px-2 py-0.5 text-[12px] font-semibold tracking-wide text-ink-soft">
+            <AdminIcon size={13} />
+            ADMIN · 호스트 전용
+          </span>
           <h1 className="text-2xl font-bold tracking-tight text-ink">
             {open ? `${getWorkspaceName()} 관리` : "워크스페이스 열기"}
           </h1>

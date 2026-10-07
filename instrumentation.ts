@@ -6,7 +6,7 @@ export async function register() {
 
   const { getHostSecret } = await import("./lib/host-secret");
   const { isNatRange, lanAddresses } = await import("./lib/lan-address");
-  const { isWorkspaceOpen, seedWorkspaceFromEnv } = await import("./lib/workspace-config");
+  const { getWorkspaceName, isWorkspaceOpen, seedWorkspaceFromEnv } = await import("./lib/workspace-config");
   const { registerAuthWebhook } = await import("./lib/yorkie-admin");
 
   // Development and CI only: an env password opens a workspace never set up.
@@ -71,6 +71,11 @@ export async function register() {
   // and until then `/join` says the workspace is not open.
   if (!isWorkspaceOpen()) {
     lines.push("         host user의 workspace setting이 완료되지 않았습니다.");
+  } else {
+    // Said out loud because emptying `.env` does not undo it — the saved
+    // settings win, and without this line a host waiting for the setup screen
+    // has no clue why it never comes.
+    lines.push(`         Workspace "${getWorkspaceName()}" — saved settings in .data/workspace.json`);
   }
 
   if (!joinAddress) {

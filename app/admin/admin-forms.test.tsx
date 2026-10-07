@@ -50,6 +50,12 @@ describe("GuestList — kick (FR-011-01~03)", () => {
     render(<GuestList guests={[]} />);
     assert.ok(screen.getByText("접속 중인 게스트가 없습니다."));
   });
+
+  it("re-reads the list on 새로고침, without reloading the page", () => {
+    render(<GuestList guests={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: "새로고침" }));
+    assert.equal(refresh.mock.calls.length, 1);
+  });
 });
 
 describe("SetupForm (UC-010)", () => {

@@ -19,6 +19,7 @@ import { FocusFollowProvider } from "./focus-follow-provider";
 import { FocusShare } from "./focus-share";
 import { PresenceProvider } from "./presence-provider";
 import { PresenceStack } from "./presence-stack";
+import { AdminIcon } from "./ui";
 
 /**
  * The workspace shell — the sidebar document tree and the header of
@@ -97,10 +98,17 @@ export default async function WorkspaceLayout({
                 <Breadcrumb documents={documents} />
                 <PresenceStack memberId={me.id} known={known} />
                 <FocusShare memberId={me.id} />
-                {/* Host only — the page itself refuses anyone else. */}
+                {/* Host only — the page itself refuses anyone else. Outlined, with
+                    the shield, so it reads as a different kind of place than
+                    the share controls beside it. */}
                 {isHost ? (
-                  <Link href="/admin" className="flex h-[30px] items-center rounded-control px-2.5 text-[13.5px] font-medium text-ink-soft hover:bg-hover">
-                    관리자
+                  <Link
+                    href="/admin"
+                    title="관리자 페이지 — 호스트에게만 보입니다"
+                    className="flex h-[30px] items-center gap-1.5 rounded-control border border-line-strong px-2.5 text-[13px] font-semibold text-ink hover:bg-hover"
+                  >
+                    <AdminIcon />
+                    Admin
                   </Link>
                 ) : null}
               </header>

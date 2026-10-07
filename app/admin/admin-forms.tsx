@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import type { WorkspaceMember } from "@/lib/auth/types";
 
@@ -125,6 +125,9 @@ export function GuestList({ guests }: { guests: Array<WorkspaceMember> }) {
   const { pending, error, run } = useRequest();
   const [target, setTarget] = useState<WorkspaceMember | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  // The list is the server's snapshot at render; this re-reads it without
+  // reloading the page (and without losing a half-typed password above).
+  const [refreshing, startRefresh] = useTransition();
 
   // `showModal()` has no declarative equivalent — the same effect `join-form.tsx` uses.
   useEffect(() => {
@@ -134,13 +137,24 @@ export function GuestList({ guests }: { guests: Array<WorkspaceMember> }) {
     if (!target && dialog.open) dialog.close();
   }, [target]);
 
-  if (guests.length === 0) {
-    return <p className="text-[13px] text-ink-faint">접속 중인 게스트가 없습니다.</p>;
-  }
-
   return (
     <>
-      <ul className="flex flex-col divide-y divide-line rounded-card border border-line">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] text-ink-soft">{guests.length}명 접속 중</span>
+        <button
+          type="button"
+          disabled={refreshing}
+          onClick={() => startRefresh(() => router.refresh())}
+          className="flex h-[28px] items-center gap-1.5 rounded-control px-2 text-[13px] font-medium text-ink-soft hover:bg-hover disabled:opacity-60"
+        >
+          {refreshing ? <Spinner /> : null}
+          새로고침
+        </button>
+      </div>
+
+      {guests.length === 0 ? <p className="text-[13px] text-ink-faint">접속 중인 게스트가 없습니다.</p> : null}
+
+      <ul hidden={guests.length === 0} className="flex flex-col divide-y divide-line rounded-card border border-line">
         {guests.map((guest) => (
           <li key={guest.id} className="flex items-center gap-2.5 px-3 py-2">
             <span aria-hidden style={{ backgroundColor: guest.colorTag }} className="size-3 rounded-full" />
