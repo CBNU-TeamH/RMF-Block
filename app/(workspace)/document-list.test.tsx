@@ -1,12 +1,17 @@
 // @vitest-environment happy-dom
 import assert from "node:assert/strict";
-import { afterEach, describe, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
   usePathname: () => "/documents/wk1",
 }));
+
+const jumpTo = vi.fn();
+const presence = { members: [] as Array<unknown>, memberId: "me" };
+vi.mock("./presence-provider", () => ({ useWorkspacePresence: () => presence }));
+vi.mock("./focus-follow-provider", () => ({ useFocusFollow: () => ({ jumpTo }) }));
 
 import type { WorkspaceDocument } from "@/lib/documents/documents";
 import { DocumentList } from "./document-list.tsx";
@@ -22,6 +27,8 @@ class FakeWebSocket {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.clearAllMocks();
+  presence.members = [];
 });
 
 const doc = (id: string, name: string, parentId: string | null = null): WorkspaceDocument => ({
@@ -57,5 +64,45 @@ describe("DocumentList — sidebar tree", () => {
     const [parent, child] = screen.getAllByRole("link");
     assert.equal(parent.style.paddingLeft, "4px");
     assert.equal(child.style.paddingLeft, "18px");
+  });
+});
+
+describe("DocumentList — who is where (UC-040)", () => {
+  const at = (documentId: string) => ({ documentId, blockId: null });
+
+  beforeEach(() => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+  });
+
+  it("dots a document with someone else in it, and a dot jumps to them", () => {
+    presence.members = [
+      { id: "me", nickname: "나", colorTag: "#111", location: at("a") },
+      { id: "bob", nickname: "밥", colorTag: "#222", location: at("b") },
+    ];
+    render(<DocumentList documents={[doc("a", "가"), doc("b", "나")]} />);
+
+    // Only the other member's document carries a dot; mine does not.
+    assert.equal(screen.getAllByRole("button", { name: /에게 이동/ }).length, 1);
+    fireEvent.click(screen.getByRole("button", { name: "밥에게 이동" }));
+    assert.equal(jumpTo.mock.calls[0]?.[0], "bob");
+  });
+
+  it("shows no dot when nobody else is in any document", () => {
+    presence.members = [{ id: "me", nickname: "나", colorTag: "#111", location: at("a") }];
+    render(<DocumentList documents={[doc("a", "가")]} />);
+
+    assert.equal(screen.queryAllByRole("button", { name: /에게 이동/ }).length, 0);
+  });
+
+  it("folds past three into a +N that opens a jump for each of them", () => {
+    presence.members = [
+      { id: "me", nickname: "나", colorTag: "#111" },
+      ...["a", "b", "c", "d"].map((id) => ({ id, nickname: id, colorTag: "#222", location: at("x") })),
+    ];
+    render(<DocumentList documents={[doc("x", "문서")]} />);
+    assert.equal(screen.getAllByRole("button", { name: /에게 이동/ }).length, 3);
+
+    fireEvent.click(screen.getByRole("button", { name: "+1" }));
+    assert.equal(screen.getAllByRole("button", { name: /에게 이동/ }).length, 4);
   });
 });

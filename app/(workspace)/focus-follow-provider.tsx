@@ -1,11 +1,15 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { documentIdFromPathname } from "@/lib/focus/pathname";
 
+import type { WorkspacePresence } from "@/lib/presence/types";
+
 import { useWorkspacePresence } from "./presence-provider";
+
+type Place = NonNullable<WorkspacePresence["location"]>;
 
 type FocusFollowState = {
   /** Local UI state, never published — who is *presenting* is shared presence,
@@ -13,12 +17,25 @@ type FocusFollowState = {
   followingId: string | null;
   follow: (memberId: string) => void;
   unfollow: () => void;
+  /** UC-040: go to where a member is (FR-040-02). Ends any follow. */
+  jumpTo: (memberId: string) => void;
+  /** Where `jumpTo` left from — a place, or `"home"` for the page with no document — or `null`. One place, replaced by the next jump (FR-040-03). */
+  returnTo: Place | "home" | null;
+  goBack: () => void;
+  /** A block the editor of `documentId` should scroll to once it has loaded. */
+  scrollTarget: Place | null;
+  clearScrollTarget: () => void;
 };
 
 const FocusFollowContext = createContext<FocusFollowState>({
   followingId: null,
   follow: () => undefined,
   unfollow: () => undefined,
+  jumpTo: () => undefined,
+  returnTo: null,
+  goBack: () => undefined,
+  scrollTarget: null,
+  clearScrollTarget: () => undefined,
 });
 
 export function useFocusFollow(): FocusFollowState {
@@ -30,8 +47,10 @@ export function useFocusFollow(): FocusFollowState {
  *  presenter's document on join (FR-030-05), which in `editor.tsx` would never
  *  fire for someone pressing 참여하기 from the document list. */
 export function FocusFollowProvider({ children }: { children: React.ReactNode }) {
-  const { members } = useWorkspacePresence();
+  const { members, memberId } = useWorkspacePresence();
   const [rawFollowingId, setRawFollowingId] = useState<string | null>(null);
+  const [returnTo, setReturnTo] = useState<Place | "home" | null>(null);
+  const [scrollTarget, setScrollTarget] = useState<Place | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -51,10 +70,53 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
     router.push(`/documents/${documentId}`);
   }, [followingId, members, pathname, router]);
 
+  function goTo(place: Place) {
+    setScrollTarget(place);
+    if (place.documentId !== documentIdFromPathname(pathname)) {
+      router.push(`/documents/${place.documentId}`);
+    }
+  }
+
+  const clearScrollTarget = useCallback(() => setScrollTarget(null), []);
+
+  function jumpTo(targetId: string) {
+    const place = members.find((m) => m.id === targetId)?.location;
+    if (!place) return;
+
+    // A follow would pull this browser straight back to the presenter, so
+    // moving on means leaving it — ask first.
+    if (followingId) {
+      if (!window.confirm("따라가기를 종료하고 이동하시겠습니까?")) return;
+      setRawFollowingId(null);
+    }
+    setReturnTo(members.find((m) => m.id === memberId)?.location ?? "home");
+    goTo(place);
+  }
+
+  function goBack() {
+    if (!returnTo) return;
+    if (returnTo === "home") router.push("/");
+    else goTo(returnTo);
+    setReturnTo(null);
+  }
+
+  // A jump whose document never loads (deleted, navigation failed) must not
+  // linger and scroll the next time that document opens.
+  useEffect(() => {
+    if (!scrollTarget) return;
+    const timer = setTimeout(clearScrollTarget, 10_000);
+    return () => clearTimeout(timer);
+  }, [scrollTarget, clearScrollTarget]);
+
   const value: FocusFollowState = {
     followingId,
     follow: setRawFollowingId,
     unfollow: () => setRawFollowingId(null),
+    jumpTo,
+    returnTo,
+    goBack,
+    scrollTarget,
+    clearScrollTarget,
   };
 
   return <FocusFollowContext.Provider value={value}>{children}</FocusFollowContext.Provider>;

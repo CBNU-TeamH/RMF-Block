@@ -53,6 +53,8 @@ export default async function WorkspaceLayout({
   const me = member ?? HOST_PRESENCE;
   const workspaceName = getWorkspaceName();
   const documents = readDocumentsOnce();
+  // Only the identity fields: `lastJoinedAt` has no business in the client payload.
+  const known = sessionRegistry.members().map(({ id, nickname, colorTag }) => ({ id, nickname, colorTag }));
 
   return (
     <PresenceProvider
@@ -87,7 +89,7 @@ export default async function WorkspaceLayout({
             <div className="flex min-w-0 flex-1 flex-col">
               <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">
                 <Breadcrumb documents={documents} />
-                <PresenceStack memberId={me.id} />
+                <PresenceStack memberId={me.id} known={known} />
                 <FocusShare memberId={me.id} />
               </header>
               <main className="min-h-0 flex-1 overflow-hidden">{children}</main>

@@ -51,6 +51,18 @@ The extension is `presenting`: set while a member is sharing their view, cleared
 sending it — `undefined` does not survive that round trip, so a field meant to signal "no longer
 sharing" has to use a value the wire format can actually carry.
 
+The second extension is `location` (UC-040): the document the member has open, and the block they
+last focused in it. `PresenceProvider` publishes the document from the route; the editor adds the
+block on focus. A block is deliberately *not* cleared on blur — a jump to someone who clicked
+away should still land where they were working, which the per-document `activeBlockId` (30s
+heartbeat) cannot promise. `FocusFollowProvider` owns the jump: it asks first if this browser is following someone (a follow
+would pull it straight back), remembers one place to return to, and hands the editor a block to
+scroll to once the document has loaded.
+
+Where it surfaces: the header roster lists only the members in the open document (and, dimmed at
+the end, the ones not connected); the document tree is where you find the rest — a dot per other
+member on the row of the document they are in, and the dot is the jump. Past three, a `+N` opens the rest. The place a jump leaves from is remembered even when it is the page with no document (`"home"`).
+
 ## Two subscriptions, not one
 
 `others` covers watched, unwatched, and a peer changing their own presence. It does **not** cover

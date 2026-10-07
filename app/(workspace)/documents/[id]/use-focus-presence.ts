@@ -24,6 +24,8 @@ export function useFocusPresence({
   followingId,
   isPresenting,
   setPresenting,
+  scrollTarget,
+  clearScrollTarget,
 }: {
   documentId: string;
   containerRef: RefObject<HTMLDivElement | null>;
@@ -37,6 +39,10 @@ export function useFocusPresence({
   followingId: string | null;
   isPresenting: boolean;
   setPresenting: (anchor: { documentId: string; blockId: string; ratio: number } | null) => void;
+  /** A jump's destination (UC-040). Scrolled to once, when this document has
+   *  loaded, then cleared. */
+  scrollTarget: { documentId: string; blockId: string | null } | null;
+  clearScrollTarget: () => void;
 }) {
   // The last anchor published, so an unchanged one is not sent again.
   const lastPublishedAnchorRef = useRef<FocusAnchor | null>(null);
@@ -52,6 +58,23 @@ export function useFocusPresence({
   const followedDocumentId = followed?.documentId ?? null;
   const followedBlockId = followed?.blockId ?? null;
   const followedRatio = followed?.ratio ?? null;
+
+  // A jump's landing (FR-040-02). A target with no block — its owner never
+  // focused one — leaves the document at the top.
+  const target = scrollTarget?.documentId === documentId ? scrollTarget : null;
+  useEffect(() => {
+    if (!target || !blocksLoaded) return;
+    const container = containerRef.current;
+    if (container) {
+      // Not `scrollIntoView`, which walks every ancestor scroller — the same
+      // reason `lib/blocks/slash-menu.ts` avoids it. Centres the block; with none
+      // to centre (its owner never focused one), the top.
+      const box = target.blockId ? readBoxes(container).find((b) => b.id === target.blockId) : undefined;
+      if (box) container.scrollTop = box.top - (container.clientHeight - box.height) / 2;
+      else if (!target.blockId) container.scrollTop = 0;
+    }
+    clearScrollTarget();
+  }, [target, blocksLoaded, containerRef, clearScrollTarget]);
 
   // Presenter side (FR-030-07): publish this scroller's anchor as it moves,
   // throttled to one per `PUBLISH_MS`, trailing edge.

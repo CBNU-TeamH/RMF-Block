@@ -7,9 +7,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceDocument } from "@/lib/documents/documents";
 import { treeRows } from "@/lib/documents/tree";
 import { documentIdFromPathname } from "@/lib/focus/pathname";
+import { occupantsByDocument } from "@/lib/presence/roster";
 
 import { DocumentActionDialog, type DocumentAction } from "./document-actions";
 import { DocumentRowMenu } from "./document-row-menu";
+import { useFocusFollow } from "./focus-follow-provider";
+import { useWorkspacePresence } from "./presence-provider";
 import { CANCEL, DIALOG, DIALOG_TITLE, FIELD_LABEL, FileIcon, Spinner, confirmClass, inputClass } from "./ui";
 
 /** The sidebar's 16px line icons (`docs/ui/redesign/HANDOFF.md` §3). */
@@ -29,6 +32,8 @@ const icon = (path: React.ReactNode, size = 15) => (
   </svg>
 );
 const PLUS = <path d="M8 3v10M3 8h10" />;
+/** Dots a row shows for the others in a document before folding into `+N`. */
+const MAX_DOTS = 3;
 
 /**
  * The workspace's document tree (FR-020-06, the document half) in the sidebar,
@@ -46,6 +51,11 @@ const PLUS = <path d="M8 3v10M3 8h10" />;
 export function DocumentList({ documents }: { documents: Array<WorkspaceDocument> }) {
   const router = useRouter();
   const currentId = documentIdFromPathname(usePathname());
+  const { members, memberId } = useWorkspacePresence();
+  const { jumpTo } = useFocusFollow();
+  // The one row whose `+N` is open, so its folded members can be jumped to too.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const occupants = useMemo(() => occupantsByDocument(members, memberId), [members, memberId]);
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   // Where a "하위 문서 추가" click puts the next one, or `null` for the root.
@@ -213,13 +223,14 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
         <ul className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-px overflow-y-auto px-1.5 pb-2">
           {rows.map(({ document: doc, depth, hasChildren }) => {
             const current = doc.id === currentId;
+            const here = occupants.get(doc.id) ?? [];
             return (
               <li key={doc.id} className="group/row relative">
                 <Link
                   href={`/documents/${doc.id}`}
                   aria-current={current ? "page" : undefined}
                   style={{ paddingLeft: 4 + depth * 14 }}
-                  className={`flex h-8 items-center gap-1 rounded-control pr-14 outline-none focus-visible:ring-2 focus-visible:ring-sky-deep focus-visible:ring-inset ${
+                  className={`flex h-8 items-center gap-1 rounded-control pr-24 outline-none focus-visible:ring-2 focus-visible:ring-sky-deep focus-visible:ring-inset ${
                     current ? "bg-sky-soft font-semibold text-ink" : "font-medium text-ink-soft hover:bg-hover"
                   }`}
                 >
@@ -238,6 +249,36 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                   )}
                   <span className="truncate">{doc.name}</span>
                 </Link>
+
+                {/* UC-040: who else is in this document; a dot jumps to them. Beside
+                  * the `<Link>`, not in it — a button inside an anchor is invalid
+                  * HTML. `right-14` clears the hover-only row actions. */}
+                {here.length > 0 ? (
+                  <span className="absolute inset-y-0 right-14 flex items-center gap-0.5">
+                    {(expandedId === doc.id ? here : here.slice(0, MAX_DOTS)).map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        title={`${m.nickname}에게 이동`}
+                        aria-label={`${m.nickname}에게 이동`}
+                        onClick={() => jumpTo(m.id)}
+                        style={{ backgroundColor: m.colorTag }}
+                        className="size-3.5 rounded-full outline-none hover:ring-2 hover:ring-sky-deep focus-visible:ring-2 focus-visible:ring-sky-deep"
+                      />
+                    ))}
+                    {here.length > MAX_DOTS ? (
+                      <button
+                        type="button"
+                        aria-expanded={expandedId === doc.id}
+                        title={here.slice(MAX_DOTS).map((m) => m.nickname).join(", ")}
+                        onClick={() => setExpandedId(expandedId === doc.id ? null : doc.id)}
+                        className="rounded px-0.5 text-[10px] font-semibold text-ink-faint outline-none hover:bg-sky-soft focus-visible:ring-2 focus-visible:ring-sky-deep"
+                      >
+                        {expandedId === doc.id ? "접기" : `+${here.length - MAX_DOTS}`}
+                      </button>
+                    ) : null}
+                  </span>
+                ) : null}
 
                 {hasChildren ? (
                   <button

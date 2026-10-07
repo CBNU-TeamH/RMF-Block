@@ -441,14 +441,10 @@ carries `session:revoked` plus chat — `WsHub.broadcast()` writes to every open
 regardless of which path it upgraded on, so a `chat:message` reaches workspace sockets as well
 and is ignored client-side.
 
-What is **not** answered is which document each connected user has open. Yorkie presence is
-per-document, so nothing workspace-wide covers it; the design for that is a server-held
-`userId → documentId | null` index, not built.
-
-| Direction | Event | Meaning |
-| --- | --- | --- |
-| client → server | `presence:attach` | Opened a document; server sets the value |
-| client → server | `presence:detach` | Closed the document; server resets to `null` |
+Which document each user has open (UC-040) rides the same channel: the workspace presence
+carries `location: { documentId, blockId } | null`, set from the route and the focused block, so
+it vanishes with the connection and needs no server event. Members who are not connected come
+from `.data/members.json` (`sessionRegistry.members()`), not from presence.
 
 ### 4.2 Presentation session (FR-030) — draft, implementation deferred
 

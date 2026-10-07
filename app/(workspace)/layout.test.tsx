@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 vi.mock("@/lib/auth/session-registry", () => ({
-  sessionRegistry: { resolve: vi.fn() },
+  sessionRegistry: { resolve: vi.fn(), members: () => [] },
 }));
 vi.mock("@/lib/host-secret", () => ({ isHostSecret: vi.fn() }));
 // Not under test here — stubbed so the "gate holds open" case doesn't depend
