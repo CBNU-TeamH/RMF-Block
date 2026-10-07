@@ -99,6 +99,14 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
     setReturnTo(null);
   }
 
+  // A jump whose document never loads (deleted, navigation failed) must not
+  // linger and scroll the next time that document opens.
+  useEffect(() => {
+    if (!scrollTarget) return;
+    const timer = setTimeout(clearScrollTarget, 10_000);
+    return () => clearTimeout(timer);
+  }, [scrollTarget, clearScrollTarget]);
+
   // Not a toast library: one line that clears itself.
   useEffect(() => {
     if (!notice) return;

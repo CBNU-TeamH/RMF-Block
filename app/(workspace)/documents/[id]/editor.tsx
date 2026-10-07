@@ -166,6 +166,11 @@ export function DocumentEditor({
   // The last block published as this browser's location, so a click inside the
   // same block is not sent again.
   const lastLocatedBlockRef = useRef<string | null>(null);
+  // `PresenceProvider` resets the published block on every navigation, so what
+  // this ref remembers is stale the moment the document changes.
+  useEffect(() => {
+    lastLocatedBlockRef.current = null;
+  }, [documentId]);
   // The footer's hidden file input, so the `/` menu's PDF item can open the
   // same picker the button does rather than growing a second one…
   const fileInputRef = useRef<HTMLInputElement | null>(null);
