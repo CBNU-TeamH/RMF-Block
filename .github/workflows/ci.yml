@@ -265,7 +265,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          secret=$(docker compose logs app | sed -n 's/.*secret=\([a-z0-9-]*\).*/\1/p' | tail -1)
+          secret=$(docker compose logs app | sed -n 's/.*Host:.*secret=\([a-z0-9-]*\).*/\1/p' | tail -1)
           [ -n "$secret" ] || { echo "::error::no host bootstrap secret"; exit 1; }
           echo "::add-mask::$secret"
           E2E_HOST_SECRET="$secret" pnpm e2e
