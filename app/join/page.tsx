@@ -26,8 +26,6 @@ export default async function JoinPage({
   }
 
   const { reason } = await searchParams;
-  const open = isWorkspaceOpen();
-
   return (
     <main className="flex flex-1 items-center justify-center overflow-auto bg-paper p-6">
       <div className="flex w-full max-w-[380px] flex-col gap-7">
@@ -49,7 +47,7 @@ export default async function JoinPage({
           </p>
         ) : null}
         {/* UC-010: nothing to join until the host has set a password. */}
-        {open ? (
+        {isWorkspaceOpen() ? (
           <JoinForm />
         ) : (
           <p className="text-[14px] text-ink-soft">호스트가 아직 워크스페이스를 열지 않았습니다. 잠시 후 다시 시도해 주세요.</p>

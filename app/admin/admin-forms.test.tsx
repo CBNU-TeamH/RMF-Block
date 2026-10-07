@@ -29,7 +29,9 @@ describe("GuestList — kick (FR-011-01~03)", () => {
     // The dialog's confirm is the second 퇴장 button in the DOM.
     fireEvent.click(screen.getAllByRole("button", { name: "퇴장", hidden: true })[1]!);
     await waitFor(() => assert.equal(refresh.mock.calls.length, 1));
-    assert.deepEqual(fetchMock.mock.calls[0], ["/api/workspace/members/m-1", { method: "DELETE", headers: undefined, body: undefined }]);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    assert.equal(url, "/api/workspace/members/m-1");
+    assert.equal(init.method, "DELETE");
   });
 
   it("cancel sends nothing", () => {

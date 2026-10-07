@@ -8,20 +8,18 @@ import type { WorkspaceMember } from "@/lib/auth/types";
 import { CANCEL, DIALOG, DIALOG_TITLE, FIELD_LABEL, Spinner, confirmClass, inputClass } from "../(workspace)/ui";
 
 /** One request, its pending flag and its error — the shape `join-form.tsx`
- *  handles by hand, shared by the three actions here. */
+ *  handles by hand, shared by the three actions here. Each call site writes
+ *  its own `fetch` with a literal URL and method, which is what lets
+ *  `scripts/gen-endpoints.mjs` find it. */
 function useRequest() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function send(url: string, method: string, body?: unknown): Promise<boolean> {
+  async function run(request: () => Promise<Response>): Promise<boolean> {
     setPending(true);
     setError(null);
     try {
-      const response = await fetch(url, {
-        method,
-        headers: body ? { "Content-Type": "application/json" } : undefined,
-        body: body ? JSON.stringify(body) : undefined,
-      });
+      const response = await request();
       if (response.ok) return true;
       const answer = await response.json().catch(() => ({}));
       setError(answer.error ?? "요청을 처리하지 못했습니다.");
@@ -34,8 +32,10 @@ function useRequest() {
     }
   }
 
-  return { pending, error, send };
+  return { pending, error, run };
 }
+
+const json = (body: unknown) => ({ headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 const ErrorLine = ({ message }: { message: string | null }) =>
   message ? (
@@ -47,14 +47,15 @@ const ErrorLine = ({ message }: { message: string | null }) =>
 /** UC-010's setup screen (FR-010-01/02). */
 export function SetupForm() {
   const router = useRouter();
-  const { pending, error, send } = useRequest();
+  const { pending, error, run } = useRequest();
 
   return (
     <form
       onSubmit={async (event) => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
-        if (await send("/api/workspace", "POST", { name: form.get("name"), password: form.get("password") })) {
+        const body = { name: form.get("name"), password: form.get("password") };
+        if (await run(() => fetch("/api/workspace", { method: "POST", ...json(body) }))) {
           router.refresh();
           router.push("/");
         }
@@ -80,7 +81,7 @@ export function SetupForm() {
 
 /** UC-011 E1: connected users keep their sessions (FR-011-05). */
 export function PasswordForm() {
-  const { pending, error, send } = useRequest();
+  const { pending, error, run } = useRequest();
   const [done, setDone] = useState(false);
 
   return (
@@ -89,7 +90,7 @@ export function PasswordForm() {
         event.preventDefault();
         const input = event.currentTarget.elements.namedItem("password") as HTMLInputElement;
         setDone(false);
-        if (await send("/api/workspace/password", "PATCH", { password: input.value })) {
+        if (await run(() => fetch("/api/workspace/password", { method: "PATCH", ...json({ password: input.value }) }))) {
           input.value = "";
           setDone(true);
         }
@@ -117,7 +118,7 @@ export function PasswordForm() {
 /** FR-011-01~03: the connected guests, each kicked only after a confirmation. */
 export function GuestList({ guests }: { guests: Array<WorkspaceMember> }) {
   const router = useRouter();
-  const { pending, error, send } = useRequest();
+  const { pending, error, run } = useRequest();
   const [target, setTarget] = useState<WorkspaceMember | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -162,7 +163,7 @@ export function GuestList({ guests }: { guests: Array<WorkspaceMember> }) {
               type="button"
               disabled={pending}
               onClick={async () => {
-                if (target && (await send(`/api/workspace/members/${target.id}`, "DELETE"))) {
+                if (target && (await run(() => fetch(`/api/workspace/members/${target.id}`, { method: "DELETE" })))) {
                   setTarget(null);
                   router.refresh();
                 }

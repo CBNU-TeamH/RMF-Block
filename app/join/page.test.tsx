@@ -1,5 +1,7 @@
+// @vitest-environment happy-dom
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 
 vi.mock("next/headers", () => ({ cookies: vi.fn() }));
 vi.mock("next/navigation", () => ({
@@ -20,6 +22,7 @@ import { isHostSecret } from "@/lib/host-secret";
 import JoinPage from "./page.tsx";
 
 afterEach(() => {
+  cleanup();
   vi.clearAllMocks();
   config.open = true;
 });
@@ -49,18 +52,6 @@ describe("JoinPage — already-signed-in redirect", () => {
   });
 });
 
-/** Every node of a rendered server component, flattened, so a test can ask
- *  whether some text or component appears without a DOM. */
-function texts(node: unknown): Array<unknown> {
-  if (node == null || typeof node === "boolean") return [];
-  if (Array.isArray(node)) return node.flatMap(texts);
-  if (typeof node === "object" && "props" in node) {
-    const element = node as { type: unknown; props: { children?: unknown } };
-    return [element.type, ...texts(element.props.children)];
-  }
-  return [node];
-}
-
 describe("JoinPage — what a signed-out visitor sees", () => {
   const signedOut = () => {
     vi.mocked(cookies).mockResolvedValue(jar as never);
@@ -70,16 +61,16 @@ describe("JoinPage — what a signed-out visitor sees", () => {
 
   it("tells a kicked guest so (UC-011 step 5)", async () => {
     signedOut();
-    const page = await JoinPage({ searchParams: Promise.resolve({ reason: "kicked" }) });
-    assert.ok(texts(page).includes("워크스페이스에서 퇴장되었습니다."));
+    config.open = false;
+    render(await JoinPage({ searchParams: Promise.resolve({ reason: "kicked" }) }));
+    assert.ok(screen.getByText("워크스페이스에서 퇴장되었습니다."));
   });
 
   it("shows no form before the host has opened the workspace (UC-010)", async () => {
     signedOut();
     config.open = false;
-    const page = await JoinPage(noParams);
-    const nodes = texts(page);
-    assert.ok(nodes.some((n) => typeof n === "string" && n.includes("아직 워크스페이스를 열지 않았습니다")));
-    assert.equal(nodes.some((n) => typeof n === "function" && n.name === "JoinForm"), false);
+    render(await JoinPage(noParams));
+    assert.ok(screen.getByText(/아직 워크스페이스를 열지 않았습니다/));
+    assert.equal(screen.queryByRole("textbox"), null);
   });
 });

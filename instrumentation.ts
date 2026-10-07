@@ -6,8 +6,11 @@ export async function register() {
 
   const { getHostSecret } = await import("./lib/host-secret");
   const { isNatRange, lanAddresses } = await import("./lib/lan-address");
-  const { isWorkspaceOpen } = await import("./lib/workspace-config");
+  const { isWorkspaceOpen, seedWorkspaceFromEnv } = await import("./lib/workspace-config");
   const { registerAuthWebhook } = await import("./lib/yorkie-admin");
+
+  // Development and CI only: an env password opens a workspace never set up.
+  await seedWorkspaceFromEnv();
 
   // Yorkie only asks about tokens if told to, and that is a project setting —
   // so it must be written after Yorkie is up (`docs/design/api.md` §2).

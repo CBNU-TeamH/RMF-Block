@@ -6,6 +6,7 @@ vi.mock("@/lib/workspace-config", async (actual) => ({
   ...(await actual<typeof import("@/lib/workspace-config")>()),
   openWorkspace: vi.fn(),
   changeWorkspacePassword: vi.fn(),
+  isWorkspaceOpen: vi.fn(() => false),
 }));
 vi.mock("@/lib/auth/session-registry", () => ({ sessionRegistry: { kick: vi.fn() } }));
 vi.mock("@/server/ws-hub.mts", () => ({ wsHub: { revoke: vi.fn() } }));
@@ -13,9 +14,9 @@ vi.mock("@/server/ws-hub.mts", () => ({ wsHub: { revoke: vi.fn() } }));
 import { isHost } from "@/lib/auth/current-member";
 import { sessionRegistry } from "@/lib/auth/session-registry";
 import {
-  WorkspaceAlreadyOpenError,
   WorkspaceConfigError,
   changeWorkspacePassword,
+  isWorkspaceOpen,
   openWorkspace,
 } from "@/lib/workspace-config";
 import { wsHub } from "@/server/ws-hub.mts";
@@ -57,14 +58,11 @@ describe("POST /api/workspace — setup (FR-010-01~04)", () => {
   it("maps an already-open workspace to 409 and bad input to 400", async () => {
     vi.mocked(isHost).mockResolvedValue(true);
 
-    vi.mocked(openWorkspace).mockImplementationOnce(() => {
-      throw new WorkspaceAlreadyOpenError("이미 열린 워크스페이스입니다.");
-    });
+    vi.mocked(isWorkspaceOpen).mockReturnValueOnce(true);
     assert.equal((await POST(json({ password: "1234" }))).status, 409);
+    assert.equal(vi.mocked(openWorkspace).mock.calls.length, 0);
 
-    vi.mocked(openWorkspace).mockImplementationOnce(() => {
-      throw new WorkspaceConfigError("짧음");
-    });
+    vi.mocked(openWorkspace).mockRejectedValueOnce(new WorkspaceConfigError("짧음"));
     assert.equal((await POST(json({ password: "1" }))).status, 400);
   });
 });
@@ -82,9 +80,7 @@ describe("PATCH /api/workspace/password (FR-011-04~06)", () => {
 
   it("maps a too-short password to 400", async () => {
     vi.mocked(isHost).mockResolvedValue(true);
-    vi.mocked(changeWorkspacePassword).mockImplementationOnce(() => {
-      throw new WorkspaceConfigError("짧음");
-    });
+    vi.mocked(changeWorkspacePassword).mockRejectedValueOnce(new WorkspaceConfigError("짧음"));
 
     assert.equal((await PATCH(json({ password: "1" }))).status, 400);
   });

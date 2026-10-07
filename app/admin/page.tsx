@@ -1,9 +1,8 @@
-import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { sessionRegistry } from "@/lib/auth/session-registry";
-import { isHostSecret } from "@/lib/host-secret";
+import { isHost } from "@/lib/auth/current-member";
 import { getWorkspaceName, isWorkspaceOpen } from "@/lib/workspace-config";
 
 import { GuestList, PasswordForm, SetupForm } from "./admin-forms";
@@ -13,8 +12,7 @@ import { GuestList, PasswordForm, SetupForm } from "./admin-forms";
  *  `(workspace)` shell, like `/join` — before setup there is no workspace to
  *  frame. A guest is sent home, not shown a refusal. */
 export default async function AdminPage() {
-  const jar = await cookies();
-  if (!isHostSecret(jar.get("role")?.value)) redirect("/");
+  if (!(await isHost())) redirect("/");
 
   const open = isWorkspaceOpen();
 

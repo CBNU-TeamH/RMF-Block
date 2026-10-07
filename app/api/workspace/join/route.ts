@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
   // FR-020-05: the message names the password because that is the only thing
   // this branch can mean (`docs/design/api.md`).
-  if (!isWorkspacePassword(password)) {
+  if (!(await isWorkspacePassword(password))) {
     return NextResponse.json({ error: "비밀번호가 틀렸습니다." }, { status: 401 });
   }
 

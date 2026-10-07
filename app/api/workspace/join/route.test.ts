@@ -29,7 +29,7 @@ describe("POST /api/workspace/join before setup (UC-010)", () => {
 
   it("checks the password once the workspace is open", async () => {
     vi.mocked(isWorkspaceOpen).mockReturnValue(true);
-    vi.mocked(isWorkspacePassword).mockReturnValue(false);
+    vi.mocked(isWorkspacePassword).mockResolvedValue(false);
 
     assert.equal((await join()).status, 401);
   });
