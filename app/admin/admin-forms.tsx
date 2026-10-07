@@ -143,12 +143,27 @@ export function GuestList({ guests }: { guests: Array<WorkspaceMember> }) {
         <span className="text-[13px] text-ink-soft">{guests.length}명 접속 중</span>
         <button
           type="button"
+          aria-label="새로고침"
+          title="접속자 목록 새로고침"
           disabled={refreshing}
           onClick={() => startRefresh(() => router.refresh())}
-          className="flex h-[28px] items-center gap-1.5 rounded-control px-2 text-[13px] font-medium text-ink-soft hover:bg-hover disabled:opacity-60"
+          className="flex size-[28px] items-center justify-center rounded-control text-ink-soft hover:bg-hover hover:text-ink disabled:opacity-60"
         >
-          {refreshing ? <Spinner /> : null}
-          새로고침
+          <svg
+            aria-hidden
+            width="15"
+            height="15"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.4}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={refreshing ? "animate-spin" : ""}
+          >
+            <path d="M13 8a5 5 0 1 1-1.5-3.5" />
+            <path d="M13 2.5v3h-3" />
+          </svg>
         </button>
       </div>
 
