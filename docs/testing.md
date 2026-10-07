@@ -30,6 +30,32 @@ had tests* (`serving.test.mts`, `upload.test.mts`). The missing thing was never 
 was a boundary value inside one. A layer having tests at all says nothing about whether the one
 value that mattered was checked.
 
+## Select tests for each change
+
+For every feature or bug fix, record the changed behavior and its success criteria in the task,
+then assess the existing tests at each relevant layer before implementation. Revisit that
+assessment after the feature works, when the final behavior and affected paths are known.
+
+| Changed behavior | Coverage to assess |
+| --- | --- |
+| Logic, limits, component interactions, server gates or route responses | The relevant Vitest layer below; extend an existing case when it reaches the behavior, otherwise add a regression or feature case. |
+| A user journey after hydration, browser-native input, multiple clients, live updates or outage recovery | Playwright in `e2e/`; cover the observable result through the real browser and stack. A mocked component/route test alone cannot prove it. |
+| Container startup, printed LAN/bootstrap addresses, cookie/redirect wiring, auth or service networking | The container smoke steps in [CI](../.github/workflows/ci.yml); extend their HTTP/startup checks when the changed contract is missing. Use browser E2E as well when hydration or interaction is part of that contract. |
+
+Choose the cheapest layer that proves each result. E2E and smoke are assessed separately;
+running an unchanged suite is not evidence that it covers a new behavior. Reuse or update an
+existing test if it already reaches the path; add a case for a missing path. If a layer needs no
+change, name the existing test that covers the result or explain why that layer cannot add
+useful evidence. Documentation-only changes can say there is no runtime behavior change.
+
+Before opening the PR, include all required test additions/updates **in the same PR as the
+feature or fix** and run the relevant checks against the final implementation. Record test
+paths, commands, observed outcomes and any environment gaps in the task and PR. An unavailable
+LAN device can leave a measurement gap, but it does not defer writing an automated test that
+can run on the disposable stack. File unrelated defects separately and link them; report their
+failures without silently skipping them. The PR records smoke and E2E results separately,
+including when CI keeps E2E non-blocking.
+
 ## The five layers
 
 | Layer | A test here answers | How | Status |
@@ -38,7 +64,7 @@ value that mattered was checked.
 | `app/` client components (`"use client"`) | Did the right thing render, and does it react correctly to focus, event order, and async completion? | Vitest + `@testing-library/react` / `@testing-library/user-event`, opt into a DOM with `// @vitest-environment happy-dom` | In place |
 | `app/` server components — async leaves | Does the server-only gate, redirect, or lookup run correctly before anything reaches the client? | Call `await Page(props)` directly with `next/headers`/`next/navigation` mocked; assert on the thrown redirect/`notFound`, or on the returned element's props | Tier 1 in place; Tier 2 in #112 |
 | `app/api/**/route.ts` — route handlers | Does the auth gate reject before touching data, and does an error map to the right status code? | Call the exported `GET`/`POST`/etc. directly with a constructed `Request` | In place |
-| E2E — a real browser against the running stack (`e2e/`) | Does it still work after hydration, between two clients through Yorkie, and through a real IME composition? | Playwright, Chromium, `pnpm e2e` against the container or `pnpm dev` | In place; a non-blocking step of CI's `container smoke test` |
+| E2E — a real browser against the running stack (`e2e/`) | Does it still work after hydration, between two clients through Yorkie, and through a real IME composition? | Playwright, Chromium, `pnpm e2e:isolated` or `pnpm e2e` against a disposable running container | In place; a non-blocking step of CI's `container smoke test` |
 
 ### `lib/` + `server/`
 
@@ -153,32 +179,74 @@ For what nothing above can reach: behaviour after hydration, two clients converg
 and a real browser's IME composition. Not for anything a component or route test already covers —
 a browser run costs seconds per test against milliseconds.
 
-- **Running it.** The tests drive a stack that is already up — `pnpm docker:up`, or `pnpm dev`
-  beside `docker compose up -d yorkie` — and need its password:
-  `E2E_WORKSPACE_PASSWORD=<WORKSPACE_PASSWORD> pnpm e2e`. `E2E_BASE_URL` overrides
-  `http://localhost:3000`. Restart `pnpm dev` after editing a client component before trusting a
-  run: on a `/mnt/c` checkout its file watching can keep serving the old module.
-- **Files are `*.e2e.ts`**, not `*.spec.ts` — Vitest's default glob would collect a `.spec.ts`.
-- **Getting in.** `e2e/helpers.ts` joins through `POST /api/workspace/join` and creates documents
-  through the API; the form has its own tests. Nicknames are unique per run, so reruns against the
-  same `.data/` never collide.
-- **What it leaves behind.** Every run adds `e2e-…` members and `e2e sync/ime …` documents (plus
+- **Isolated runs.** `pnpm e2e:isolated` derives a disposable project from the existing Compose
+  configuration, builds this checkout, publishes app/Yorkie on `127.0.0.1:3100` / `127.0.0.1:8180`,
+  and sets the app's `YORKIE_PORT`. An occupied port fails without stopping its owner. Container
+  names, network, volumes and app image are unique; teardown removes only that project's resources.
+  Run it three times to check repeatability on independent stacks. Arguments pass through to
+  Playwright, e.g. `pnpm e2e:isolated --grep diagnostic`, or `--grep-invert @slow` to skip the
+  20-second outage while iterating.
+- **Existing stacks.** `E2E_WORKSPACE_PASSWORD=<password> E2E_HOST_SECRET=<startup-secret> pnpm e2e`
+  targets an already running container (`pnpm docker:up`). `E2E_BASE_URL` defaults to
+  `http://localhost:3000`. Use a disposable stack nobody else is connected to: tests assert exact
+  roster counts ("N명 접속 중"), so an open host tab fails them, and they leave members,
+  documents, messages and files in app/Yorkie storage. Never reset a shared development volume to clean a test run.
+- **What it leaves behind.** Every run adds `e2e-…` members and test documents (plus
   the files and chat lines the chat test uploads) to `.data/` — the `app-data` volume, when the
-  stack is the container. Nothing removes them, so clean up once the testing is done. Stop the
+  stack is the container. Shared-stack runs do not remove them, so clean up once testing is done. Stop the
   stack first: the app holds members in memory and rewrites `members.json` from them. Then match
   by field, since one prefix does not cover them all: members by `nickname` and chat lines by
   `sender` starting `e2e-`; files by `uploadedBy` of an E2E member or a name starting `e2e-`;
-  documents by a name starting `e2e sync` / `e2e ime`, or by `createdBy` in the E2E members' ids
+  documents by `createdBy` in the E2E members' ids
   (collect those ids before removing the members). A file's bytes are `.data/files/<id>`, apart
   from its row in the files index — delete both. This clears the app's catalogue only: the
   documents' content and history stay in Yorkie's Mongo (`mongo-data`). `docker compose down -v`
   is the complete reset of a disposable test stack, and wipes real members and documents too.
-- **Anchors.** A block's textarea is `[data-block-id] textarea`, never a bare `textarea`. Wait for
-  an element, never `networkidle` — the workspace socket and Yorkie's watch stream never go idle.
-- **IME.** A CDP session drives a composition the way a Korean IME does:
-  `Input.imeSetComposition` opens it, `Input.insertText` confirms it (`e2e/ime-replay.e2e.ts`).
-- **In CI** it runs after the smoke test in `container smoke test`, against the same container, as
-  a `continue-on-error` step until it has run green for a while; a failure uploads the report.
+- **Users and setup.** `e2e/fixtures.ts` owns independent contexts/sessions/pages, closes every
+  context even on failure; Playwright automatically records those contexts into the failure
+  trace archive. A run-specific prefix plus reusable slots limits membership additions within
+  that run. Repeated runs on a shared stack still accumulate members. A second tab shares its user's context. API
+  joining/document creation prepare data; password admission, takeover, tree actions, chat send
+  and attachment upload under test use the UI.
+- **Coverage.** Existing sync, Hangul IME and image-preview regressions remain. Tests additionally
+  cover guest/host admission, takeover cancel/confirm and third-party isolation, tab deduplication,
+  arrival/departure, bidirectional/late/reloaded reads, concurrent same-position insertion and
+  disjoint-range edits, split/merge ordering, local undo/redo preserving remote input, eight-user
+  block/shared-text convergence, live tree create/rename/move/delete, chat sender attribution and
+  remote attachment preview. Recovery holds an activated client offline for 20 seconds while both
+  sides edit, then checks convergence and chat backfill/deduplication.
+- **Anchors and timing.** Capture block IDs and address `[data-block-id="<id>"] textarea`; inspect
+  text and block order from the DOM. Wait on DOM values, roster counts and observed network events,
+  never `networkidle` or settling sleeps. Chromium, one worker, no retries; ordinary assertions
+  allow 15 seconds, eight-user/recovery cases at most 120 seconds. These are test wait budgets,
+  not performance thresholds. The deliberate 20-second outage timer defines the experiment.
+- **Network evidence.** `e2e/network.ts` observes Yorkie watch response/termination through CDP and
+  browser WebSocket open/close events. It aborts live watch fetches and closes the browser's real sockets during an outage, then verifies
+  their termination through CDP/events; Chromium's offline toggle alone can leave existing
+  streaming responses and sockets open. New requests remain offline until restoration.
+  Concurrent-edit cases sever every client's Yorkie stream while they type, so no edit can see
+  another first. The page closes sockets itself (code 4000) rather than losing them (1006); a
+  recovery path that tells the two apart would need a server-side cut.
+  Initial Yorkie setup and session-notification reconnection are `diagnostic:` tests marked
+  `test.fail` against #37: reported as expected failures, so the step stays readable, and failing
+  as "unexpected pass" once #37 lands — the cue to drop the mark. Never a skip. An expected
+  failure passes whatever throws, so check its error in the report still points at the last
+  assertion (the reconnect), not at the setup before it.
+- **IME.** A CDP session drives composition with `Input.imeSetComposition` and confirms through
+  `Input.insertText`; a third observer verifies delivery while the first user is composing.
+- **Artifacts and secrets.** Reports live in `playwright-report`, traces in `test-results`.
+  Isolated server logs live in `e2e-artifacts/<project>/server.log` and redact bootstrap secrets
+  and the generated password. Host bootstrap tests disable tracing so secret URLs and role
+  cookies cannot enter trace archives. The secret is read from the isolated startup log and
+  passed in process environment only. Normal guest traces contain test session credentials;
+  artifacts belong to the disposable stack.
+- **CI.** Expanded tests run after the existing smoke test on its container, with E2E's
+  `continue-on-error` policy preserved. CI masks the bootstrap secret and uploads failure traces,
+  the HTML report and redacted server logs.
+- **Follow-up.** Admin setup/access/password/kick/restart plus integrated user-location navigation
+  are tracked in [the admin E2E task](../tasks/active/20261007-admin-e2e-todo.md); admin merged in PR #170, and this coverage remains a separate task. Long-running load, 1-second propagation, 500MB client memory, real LAN
+  devices and Firefox/WebKit remain separate from functional correctness.
+
 
 ## Vitest worker count
 

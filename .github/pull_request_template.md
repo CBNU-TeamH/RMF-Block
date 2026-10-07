@@ -13,9 +13,20 @@ Fixes #
 - [ ] Changes follow [`AGENTS.md`](../AGENTS.md) §3 and §5 and [`docs/conventions.md`](../docs/conventions.md); any deviation is explained in *Why* above.
 - [ ] Agreed docs (`docs/SRS-ko.md`) are unchanged, or the team already agreed to the change — and `docs/SRS-en.md` carries the same change, translation reviewed.
 - [ ] Owning docs (see the owning-docs reminder comment): updated · or not needed because: …
+- [ ] I revisited [test selection](../docs/testing.md#select-tests-for-each-change) for the final behavior; required new/updated tests are included in this PR, and coverage or a concrete reason no change is needed is recorded below.
 - [ ] If AI tools assisted with this PR, I noted where in *Notes for Reviewers* below.
 
 ## Verification
+
+### Test selection
+
+For each layer, name the existing coverage, new/updated test paths, or why no change is needed.
+Record commands and outcomes in the sections below; running a suite alone does not show that
+it covers the changed behavior.
+
+- Vitest (logic / component / server / route):
+- Browser E2E:
+- Container smoke:
 
 ### Automated
 

@@ -9,6 +9,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 | Task | Lessons |
 | :--- | :--- |
 | [User location tracking — who is in which document, and jump to them](2026/10/20261007-user-location-tracking-todo.md) | [lessons](2026/10/20261007-user-location-tracking-lessons.md) |
+| [Functional E2E coverage on an isolated stack](2026/10/20261007-e2e-coverage-todo.md) | [lessons](2026/10/20261007-e2e-coverage-lessons.md) |
 | [Drift audit: the parts that changed since 2026-10-05](2026/10/20261007-drift-audit-todo.md) | [lessons](2026/10/20261007-drift-audit-lessons.md) |
 | [Admin page — setup, password change, guest kick; webhook cache TTL](2026/10/20261007-admin-page-todo.md) | [lessons](2026/10/20261007-admin-page-lessons.md) |
 | [Perf criteria — scope to "our performance under conditions"](2026/10/20261006-perf-criteria-scope-todo.md) | [lessons](2026/10/20261006-perf-criteria-scope-lessons.md) |

@@ -385,9 +385,10 @@ NFR-PER 항목은 아니지만 network degradation 상황의 성능을 보여주
 
 - **단위 테스트는 지금처럼 코드 옆에 둔다** (`*.test.ts(x)` / `*.test.mts`).
 - **성능 하네스는 E2E 레이어 안에 둔다**: `e2e/perf/*.perf.ts`.
-  - `e2e/helpers.ts`의 `joinedPage`·`createDocument`·`openDocument`와 `E2E_BASE_URL`·`E2E_WORKSPACE_PASSWORD`
-    규약을 그대로 쓴다. 측정 기기마다 `E2E_BASE_URL`을 호스트의 LAN 주소로 두고 Playwright 프로세스를
-    하나씩 띄운다.
+  - Reuse `users.join` from `e2e/fixtures.ts`, `createDocument` / `openDocument` from
+    `e2e/helpers.ts`, and the `E2E_BASE_URL` / `E2E_WORKSPACE_PASSWORD` conventions.
+    On each measurement device, set `E2E_BASE_URL` to the host's LAN address and start one
+    Playwright process.
   - `playwright.config.ts`는 `**/*.e2e.ts`만 수집하므로 `.perf.ts`는 `pnpm e2e`와 CI에 걸리지 않는다.
     10분짜리 세션이 CI에서 돌 일이 없다. 별도 설정 파일과 `pnpm perf` 스크립트는 하네스와 함께 추가한다.
   - background load Node 스크립트도 같은 폴더에 둔다.
