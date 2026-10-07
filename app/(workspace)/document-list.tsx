@@ -11,6 +11,7 @@ import { occupantsByDocument } from "@/lib/presence/roster";
 
 import { DocumentActionDialog, type DocumentAction } from "./document-actions";
 import { DocumentRowMenu } from "./document-row-menu";
+import { useFocusFollow } from "./focus-follow-provider";
 import { useWorkspacePresence } from "./presence-provider";
 import { CANCEL, DIALOG, DIALOG_TITLE, FIELD_LABEL, FileIcon, Spinner, confirmClass, inputClass } from "./ui";
 
@@ -48,7 +49,8 @@ const PLUS = <path d="M8 3v10M3 8h10" />;
 export function DocumentList({ documents }: { documents: Array<WorkspaceDocument> }) {
   const router = useRouter();
   const currentId = documentIdFromPathname(usePathname());
-  const { members } = useWorkspacePresence();
+  const { members, memberId } = useWorkspacePresence();
+  const { jumpTo } = useFocusFollow();
   const occupants = useMemo(() => occupantsByDocument(members), [members]);
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
@@ -217,14 +219,14 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
         <ul className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-px overflow-y-auto px-1.5 pb-2">
           {rows.map(({ document: doc, depth, hasChildren }) => {
             const current = doc.id === currentId;
-            const here = occupants.get(doc.id) ?? [];
+            const here = (occupants.get(doc.id) ?? []).filter((m) => m.id !== memberId);
             return (
               <li key={doc.id} className="group/row relative">
                 <Link
                   href={`/documents/${doc.id}`}
                   aria-current={current ? "page" : undefined}
                   style={{ paddingLeft: 4 + depth * 14 }}
-                  className={`flex h-8 items-center gap-1 rounded-control pr-14 outline-none focus-visible:ring-2 focus-visible:ring-sky-deep focus-visible:ring-inset ${
+                  className={`flex h-8 items-center gap-1 rounded-control pr-24 outline-none focus-visible:ring-2 focus-visible:ring-sky-deep focus-visible:ring-inset ${
                     current ? "bg-sky-soft font-semibold text-ink" : "font-medium text-ink-soft hover:bg-hover"
                   }`}
                 >
@@ -242,27 +244,34 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                     </span>
                   )}
                   <span className="truncate">{doc.name}</span>
-                  {/* UC-040: only a document two or more people are in — one is
-                      just somebody reading. A small copy of the header chips. */}
-                  {here.length >= 2 ? (
-                    <span className="ml-auto flex items-center" title={here.map((m) => m.nickname).join(", ")}>
-                      {here.slice(0, 3).map((m) => (
-                        <span
-                          key={m.id}
-                          aria-hidden
-                          style={{ backgroundColor: m.colorTag }}
-                          className="-ml-1 size-3 rounded-full shadow-[0_0_0_1.5px_var(--color-paper-2)] first:ml-0"
-                        />
-                      ))}
-                      {here.length > 3 ? (
-                        <span aria-hidden className="ml-1 text-[10px] font-semibold text-ink-faint">
-                          +{here.length - 3}
-                        </span>
-                      ) : null}
-                      <span className="sr-only">{here.length}명이 보는 중</span>
-                    </span>
-                  ) : null}
                 </Link>
+
+                {/* UC-040: who else is in this document; a dot jumps to them. Beside
+                  * the `<Link>`, not in it — a button inside an anchor is invalid
+                  * HTML. `right-14` clears the hover-only row actions. */}
+                {here.length > 0 ? (
+                  <span className="absolute inset-y-0 right-14 flex items-center gap-0.5">
+                    {here.slice(0, 3).map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        title={`${m.nickname}에게 이동`}
+                        aria-label={`${m.nickname}에게 이동`}
+                        onClick={() => jumpTo(m.id)}
+                        style={{ backgroundColor: m.colorTag }}
+                        className="size-3.5 rounded-full outline-none hover:ring-2 hover:ring-sky-deep focus-visible:ring-2 focus-visible:ring-sky-deep"
+                      />
+                    ))}
+                    {here.length > 3 ? (
+                      <span
+                        title={here.slice(3).map((m) => m.nickname).join(", ")}
+                        className="text-[10px] font-semibold text-ink-faint"
+                      >
+                        +{here.length - 3}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : null}
 
                 {hasChildren ? (
                   <button

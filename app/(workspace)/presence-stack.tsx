@@ -1,9 +1,10 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 
-import type { WorkspaceDocument } from "@/lib/documents/documents";
 import type { WorkspaceMember } from "@/lib/auth/types";
+import { documentIdFromPathname } from "@/lib/focus/pathname";
 import { withOffline } from "@/lib/presence/roster";
 
 import { useFocusFollow } from "./focus-follow-provider";
@@ -22,19 +23,27 @@ const MAX_AVATARS = 4;
 export function PresenceStack({
   memberId,
   known,
-  documents,
 }: {
   memberId: string;
   /** Every member the workspace has recorded, so the ones not connected still
    *  show (FR-040-04). */
   known: Array<WorkspaceMember>;
-  documents: Array<WorkspaceDocument>;
 }) {
   const { status, members } = useWorkspacePresence();
-  const { jumpTo, returnTo, goBack } = useFocusFollow();
+  const { returnTo, goBack } = useFocusFollow();
+  const currentId = documentIdFromPathname(usePathname());
 
-  const ordered = useMemo(() => withOffline(members, known, memberId), [members, known, memberId]);
-  const documentName = (id: string | undefined) => documents.find((d) => d.id === id)?.name;
+  // Who is *here*: the viewer, the others in this document, then the members
+  // who are not connected. Everyone else is found in the document tree.
+  const ordered = useMemo(
+    () =>
+      withOffline(members, known, memberId).filter(
+        ({ member, presence }) =>
+          !presence || member.id === memberId || presence.location?.documentId === currentId,
+      ),
+    [members, known, memberId, currentId],
+  );
+  const online = ordered.filter(({ presence }) => presence).length;
 
   if (status === "connecting") {
     return (
@@ -59,22 +68,20 @@ export function PresenceStack({
 
   return (
     <div className="flex items-center gap-2 pr-1.5">
-      <span className="sr-only">{members.length}명 접속 중</span>
+      <span className="sr-only">{online}명 접속 중</span>
       <ul className="flex items-center">
         {shown.map(({ member, presence }) => {
-          const where = documentName(presence?.location?.documentId);
           return (
             <li key={member.id} className="-ml-1.5 rounded-full shadow-[0_0_0_2px_var(--color-paper)] first:ml-0">
               <Avatar
                 colorTag={member.colorTag}
                 label={member.nickname.slice(0, 1)}
                 dimmed={!presence}
-                onClick={member.id !== memberId && presence?.location ? () => jumpTo(member.id) : undefined}
                 name={
                   <>
                     {member.nickname}
                     {member.id === memberId ? " (나)" : ""}
-                    {!presence ? " · 오프라인" : where ? ` · ${where}` : ""}
+                    {!presence ? " · 오프라인" : ""}
                   </>
                 }
               />

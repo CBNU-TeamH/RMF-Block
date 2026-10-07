@@ -51,7 +51,6 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
   const [rawFollowingId, setRawFollowingId] = useState<string | null>(null);
   const [returnTo, setReturnTo] = useState<Place | null>(null);
   const [scrollTarget, setScrollTarget] = useState<Place | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -84,10 +83,11 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
     const place = members.find((m) => m.id === targetId)?.location;
     if (!place) return;
 
-    // A follow would pull this browser straight back to the presenter.
+    // A follow would pull this browser straight back to the presenter, so
+    // moving on means leaving it — ask first.
     if (followingId) {
+      if (!window.confirm("따라가기를 종료하고 이동하시겠습니까?")) return;
       setRawFollowingId(null);
-      setNotice("직접 이동해서 따라가기를 종료했어요.");
     }
     setReturnTo(members.find((m) => m.id === memberId)?.location ?? null);
     goTo(place);
@@ -107,13 +107,6 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
     return () => clearTimeout(timer);
   }, [scrollTarget, clearScrollTarget]);
 
-  // Not a toast library: one line that clears itself.
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), 4000);
-    return () => clearTimeout(timer);
-  }, [notice]);
-
   const value: FocusFollowState = {
     followingId,
     follow: setRawFollowingId,
@@ -125,17 +118,5 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
     clearScrollTarget,
   };
 
-  return (
-    <FocusFollowContext.Provider value={value}>
-      {children}
-      {notice ? (
-        <p
-          role="alert"
-          className="fixed top-14 left-1/2 z-50 -translate-x-1/2 rounded-md bg-ink px-3 py-2 text-[13px] text-paper shadow-lg"
-        >
-          {notice}
-        </p>
-      ) : null}
-    </FocusFollowContext.Provider>
-  );
+  return <FocusFollowContext.Provider value={value}>{children}</FocusFollowContext.Provider>;
 }
