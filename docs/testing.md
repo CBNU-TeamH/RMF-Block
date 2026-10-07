@@ -226,7 +226,7 @@ a browser run costs seconds per test against milliseconds.
   tests. Missing recovery remains a reported failure, never a skip or expected failure.
 - **IME.** A CDP session drives composition with `Input.imeSetComposition` and confirms through
   `Input.insertText`; a third observer verifies delivery while the first user is composing.
-- **Artifacts and secrets.** Reports live in `playwright-report/`, traces in `test-results`.
+- **Artifacts and secrets.** Reports live in `playwright-report`, traces in `test-results`.
   Isolated server logs live in `e2e-artifacts/<project>/server.log` and redact bootstrap secrets
   and the generated password. Host bootstrap tests disable tracing so secret URLs and role
   cookies cannot enter trace archives. The secret is read from the isolated startup log and

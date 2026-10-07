@@ -165,3 +165,7 @@ Required test changes must ship in the feature/fix PR, with existing coverage or
 for layers that need no change. Codex reviewed this documentation delta for duplicate rules,
 links, test-layer distinctions and truthful evidence; the earlier Claude review passes above
 still describe their actual scope and limitations.
+
+CI's first rebased-head doc check found `playwright-report/` treated as a dead directory link on
+its clean checkout. Local generated reports had hidden this. Removed the trailing slash from
+that generated-artifact reference and checked docs from a fresh source export without reports.
