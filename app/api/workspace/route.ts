@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { isHost } from "@/lib/auth/current-member";
-import { WorkspaceConfigError, isWorkspaceOpen, openWorkspace } from "@/lib/workspace-config";
+import { WorkspaceConfigError, openWorkspace } from "@/lib/workspace-config";
 
 /** UC-010's setup screen: name and access password, after which guests can
  *  join (FR-010-01~04). Host only (FR-011-07). */
@@ -12,19 +12,19 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json().catch(() => null)) ?? {};
 
-  // Once open, never again: a second tab must not replace a password guests
-  // were already given. Changing it is `PATCH /api/workspace/password`.
-  if (isWorkspaceOpen()) {
-    return NextResponse.json({ error: "이미 열린 워크스페이스입니다." }, { status: 409 });
-  }
-
+  let opened: boolean;
   try {
-    await openWorkspace(body);
+    opened = await openWorkspace(body);
   } catch (error) {
     if (error instanceof WorkspaceConfigError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     throw error;
+  }
+
+  // Once open, never again — changing it is `PATCH /api/workspace/password`.
+  if (!opened) {
+    return NextResponse.json({ error: "이미 열린 워크스페이스입니다." }, { status: 409 });
   }
 
   return new NextResponse(null, { status: 204 });

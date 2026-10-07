@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "vitest";
@@ -67,6 +67,33 @@ describe("openWorkspace", () => {
   it("refuses a password below the floor", async () => {
     await assert.rejects(openWorkspace({ password: "123" }, storePath), WorkspaceConfigError);
     assert.equal(isWorkspaceOpen(storePath), false);
+  });
+});
+
+describe("openWorkspace twice", () => {
+  it("lets only one of two concurrent setups through", async () => {
+    const results = await Promise.all([
+      openWorkspace({ name: "A", password: "aaaa" }, storePath),
+      openWorkspace({ name: "B", password: "bbbb" }, storePath),
+    ]);
+
+    assert.deepEqual(results.toSorted(), [false, true]);
+    const winner = getWorkspaceName(storePath);
+    assert.equal(await isWorkspacePassword(winner === "A" ? "aaaa" : "bbbb", storePath), true);
+  });
+
+  it("refuses once open", async () => {
+    await openWorkspace({ password: "1234" }, storePath);
+    assert.equal(await openWorkspace({ password: "5678" }, storePath), false);
+    assert.equal(await isWorkspacePassword("1234", storePath), true);
+  });
+});
+
+describe("isWorkspacePassword on a damaged file", () => {
+  it("answers false rather than throwing", async () => {
+    await openWorkspace({ password: "1234" }, storePath);
+    writeFileSync(storePath, JSON.stringify({ name: "x", salt: "s", passwordHash: "abcd" }));
+    assert.equal(await isWorkspacePassword("1234", storePath), false);
   });
 });
 

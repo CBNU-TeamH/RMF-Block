@@ -6,7 +6,6 @@ vi.mock("@/lib/workspace-config", async (actual) => ({
   ...(await actual<typeof import("@/lib/workspace-config")>()),
   openWorkspace: vi.fn(),
   changeWorkspacePassword: vi.fn(),
-  isWorkspaceOpen: vi.fn(() => false),
 }));
 vi.mock("@/lib/auth/session-registry", () => ({ sessionRegistry: { kick: vi.fn() } }));
 vi.mock("@/server/ws-hub.mts", () => ({ wsHub: { revoke: vi.fn() } }));
@@ -16,7 +15,6 @@ import { sessionRegistry } from "@/lib/auth/session-registry";
 import {
   WorkspaceConfigError,
   changeWorkspacePassword,
-  isWorkspaceOpen,
   openWorkspace,
 } from "@/lib/workspace-config";
 import { wsHub } from "@/server/ws-hub.mts";
@@ -48,6 +46,7 @@ describe("host-only workspace routes (FR-011-07)", () => {
 describe("POST /api/workspace — setup (FR-010-01~04)", () => {
   it("opens the workspace", async () => {
     vi.mocked(isHost).mockResolvedValue(true);
+    vi.mocked(openWorkspace).mockResolvedValueOnce(true);
 
     const response = await POST(json({ name: "Team H", password: "1234" }));
 
@@ -58,9 +57,8 @@ describe("POST /api/workspace — setup (FR-010-01~04)", () => {
   it("maps an already-open workspace to 409 and bad input to 400", async () => {
     vi.mocked(isHost).mockResolvedValue(true);
 
-    vi.mocked(isWorkspaceOpen).mockReturnValueOnce(true);
+    vi.mocked(openWorkspace).mockResolvedValueOnce(false);
     assert.equal((await POST(json({ password: "1234" }))).status, 409);
-    assert.equal(vi.mocked(openWorkspace).mock.calls.length, 0);
 
     vi.mocked(openWorkspace).mockRejectedValueOnce(new WorkspaceConfigError("짧음"));
     assert.equal((await POST(json({ password: "1" }))).status, 400);

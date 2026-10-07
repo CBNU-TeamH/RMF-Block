@@ -65,10 +65,21 @@ export async function isWorkspacePassword(
 ): Promise<boolean> {
   const stored = readStored(storePath);
   if (!candidate || !stored) return false;
-  return timingSafeEqual(await hash(candidate, stored.salt), Buffer.from(stored.passwordHash, "hex"));
+  const expected = Buffer.from(stored.passwordHash, "hex");
+  const given = await hash(candidate, stored.salt);
+  // timingSafeEqual throws on a length mismatch — a hand-edited file would
+  // otherwise turn every wrong password into a 500.
+  return given.length === expected.length && timingSafeEqual(given, expected);
 }
 
-async function store(name: string, password: unknown, storePath: string): Promise<void> {
+/** `onlyIfNew` is checked after the hash and right before the write, with no
+ *  await between them — the one place two setup requests cannot both pass. */
+async function store(
+  name: string,
+  password: unknown,
+  storePath: string,
+  onlyIfNew = false,
+): Promise<boolean> {
   if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH) {
     throw new WorkspaceConfigError(`비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.`);
   }
@@ -77,23 +88,26 @@ async function store(name: string, password: unknown, storePath: string): Promis
   }
 
   const salt = randomBytes(16).toString("hex");
-  writeStored(storePath, { name, salt, passwordHash: (await hash(password, salt)).toString("hex") });
+  const passwordHash = (await hash(password, salt)).toString("hex");
+  if (onlyIfNew && isWorkspaceOpen(storePath)) return false;
+  writeStored(storePath, { name, salt, passwordHash });
+  return true;
 }
 
-/** FR-010-01~04: the setup screen's one action. The caller refuses it once the
- *  workspace is open, so a second tab cannot replace a password guests were
- *  already given. */
+/** FR-010-01~04: the setup screen's one action. `false` once the workspace is
+ *  open, so a second tab cannot replace a password guests were already given —
+ *  changing it is `changeWorkspacePassword`. */
 export function openWorkspace(
   input: { name?: unknown; password?: unknown },
   storePath = DEFAULT_WORKSPACE_PATH,
-): Promise<void> {
+): Promise<boolean> {
   const name = typeof input.name === "string" ? input.name.trim() : "";
-  return store(name || DEFAULT_WORKSPACE_NAME, input.password, storePath);
+  return store(name || DEFAULT_WORKSPACE_NAME, input.password, storePath, true);
 }
 
 /** FR-011-04~06: sessions are not touched — only the next join checks this. */
-export function changeWorkspacePassword(password: unknown, storePath = DEFAULT_WORKSPACE_PATH): Promise<void> {
-  return store(getWorkspaceName(storePath), password, storePath);
+export async function changeWorkspacePassword(password: unknown, storePath = DEFAULT_WORKSPACE_PATH): Promise<void> {
+  await store(getWorkspaceName(storePath), password, storePath);
 }
 
 /** Development and CI only, run once at startup: `WORKSPACE_PASSWORD` (and
