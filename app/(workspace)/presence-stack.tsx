@@ -1,11 +1,12 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef } from "react";
 
 import type { WorkspaceMember } from "@/lib/auth/types";
 import { documentIdFromPathname } from "@/lib/focus/pathname";
 import { withOffline } from "@/lib/presence/roster";
+import { HOST_PRESENCE } from "@/lib/presence/types";
 
 import { useFocusFollow } from "./focus-follow-provider";
 import { Avatar } from "./presence-avatar";
@@ -32,6 +33,21 @@ export function PresenceStack({
   const { status, members } = useWorkspacePresence();
   const { returnTo, goBack } = useFocusFollow();
   const currentId = documentIdFromPathname(usePathname());
+
+  // `known` is read when the layout renders, so someone who joined since is not
+  // in it, and would not show dimmed once they leave. Re-read it, once per
+  // newcomer (the host is never recorded, and must not loop this).
+  const router = useRouter();
+  const asked = useRef(new Set<string>());
+  useEffect(() => {
+    const recorded = new Set(known.map((m) => m.id));
+    const unseen = members.filter(
+      (m) => m.id !== HOST_PRESENCE.id && !recorded.has(m.id) && !asked.current.has(m.id),
+    );
+    if (unseen.length === 0) return;
+    unseen.forEach((m) => asked.current.add(m.id));
+    router.refresh();
+  }, [members, known, router]);
 
   const ordered = useMemo(
     () => withOffline(members, known, memberId, currentId),

@@ -65,11 +65,13 @@ export function useFocusPresence({
   useEffect(() => {
     if (!target || !blocksLoaded) return;
     const container = containerRef.current;
-    // Not `scrollIntoView`, which walks every ancestor scroller — the same
-    // reason `lib/blocks/slash-menu.ts` avoids it. Centres the block.
-    const box = target.blockId && container ? readBoxes(container).find((b) => b.id === target.blockId) : undefined;
-    if (container && box) {
-      container.scrollTop = box.top - (container.clientHeight - box.height) / 2;
+    if (container) {
+      // Not `scrollIntoView`, which walks every ancestor scroller — the same
+      // reason `lib/blocks/slash-menu.ts` avoids it. Centres the block; with none
+      // to centre (its owner never focused one), the top.
+      const box = target.blockId ? readBoxes(container).find((b) => b.id === target.blockId) : undefined;
+      if (box) container.scrollTop = box.top - (container.clientHeight - box.height) / 2;
+      else if (!target.blockId) container.scrollTop = 0;
     }
     clearScrollTarget();
   }, [target, blocksLoaded, containerRef, clearScrollTarget]);

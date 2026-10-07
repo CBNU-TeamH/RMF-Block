@@ -53,6 +53,8 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
   const currentId = documentIdFromPathname(usePathname());
   const { members, memberId } = useWorkspacePresence();
   const { jumpTo } = useFocusFollow();
+  // The one row whose `+N` is open, so its folded members can be jumped to too.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const occupants = useMemo(() => occupantsByDocument(members, memberId), [members, memberId]);
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
@@ -253,7 +255,7 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                   * HTML. `right-14` clears the hover-only row actions. */}
                 {here.length > 0 ? (
                   <span className="absolute inset-y-0 right-14 flex items-center gap-0.5">
-                    {here.slice(0, MAX_DOTS).map((m) => (
+                    {(expandedId === doc.id ? here : here.slice(0, MAX_DOTS)).map((m) => (
                       <button
                         key={m.id}
                         type="button"
@@ -265,12 +267,15 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                       />
                     ))}
                     {here.length > MAX_DOTS ? (
-                      <span
+                      <button
+                        type="button"
+                        aria-expanded={expandedId === doc.id}
                         title={here.slice(MAX_DOTS).map((m) => m.nickname).join(", ")}
-                        className="text-[10px] font-semibold text-ink-faint"
+                        onClick={() => setExpandedId(expandedId === doc.id ? null : doc.id)}
+                        className="rounded px-0.5 text-[10px] font-semibold text-ink-faint outline-none hover:bg-sky-soft focus-visible:ring-2 focus-visible:ring-sky-deep"
                       >
-                        +{here.length - MAX_DOTS}
-                      </span>
+                        {expandedId === doc.id ? "접기" : `+${here.length - MAX_DOTS}`}
+                      </button>
                     ) : null}
                   </span>
                 ) : null}

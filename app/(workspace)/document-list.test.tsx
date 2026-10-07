@@ -93,4 +93,16 @@ describe("DocumentList — who is where (UC-040)", () => {
 
     assert.equal(screen.queryAllByRole("button", { name: /에게 이동/ }).length, 0);
   });
+
+  it("folds past three into a +N that opens a jump for each of them", () => {
+    presence.members = [
+      { id: "me", nickname: "나", colorTag: "#111" },
+      ...["a", "b", "c", "d"].map((id) => ({ id, nickname: id, colorTag: "#222", location: at("x") })),
+    ];
+    render(<DocumentList documents={[doc("x", "문서")]} />);
+    assert.equal(screen.getAllByRole("button", { name: /에게 이동/ }).length, 3);
+
+    fireEvent.click(screen.getByRole("button", { name: "+1" }));
+    assert.equal(screen.getAllByRole("button", { name: /에게 이동/ }).length, 4);
+  });
 });

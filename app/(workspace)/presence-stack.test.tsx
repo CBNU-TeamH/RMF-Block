@@ -7,7 +7,11 @@ const goBack = vi.fn();
 const presence = { status: "active", members: [] as Array<unknown> };
 const follow = { returnTo: null as unknown };
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/documents/d1" }));
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/documents/d1",
+  useRouter: () => ({ refresh }),
+}));
 vi.mock("./presence-provider", () => ({ useWorkspacePresence: () => presence }));
 vi.mock("./focus-follow-provider", () => ({
   useFocusFollow: () => ({ goBack, returnTo: follow.returnTo }),
@@ -54,5 +58,18 @@ describe("PresenceStack", () => {
     rerender(<PresenceStack memberId="me" known={[me, bob]} />);
     fireEvent.click(screen.getByText("돌아가기"));
     assert.equal(goBack.mock.calls.length, 1);
+  });
+
+  it("re-reads the recorded members once when someone joins after the layout rendered", () => {
+    presence.members = [me, bob];
+    const { rerender } = render(<PresenceStack memberId="me" known={[me]} />);
+    rerender(<PresenceStack memberId="me" known={[me]} />);
+    assert.equal(refresh.mock.calls.length, 1);
+  });
+
+  it("does not ask for a refresh over the host, who is never recorded", () => {
+    presence.members = [me, { id: "host", nickname: "Host", colorTag: "#64748b" }];
+    render(<PresenceStack memberId="me" known={[me]} />);
+    assert.equal(refresh.mock.calls.length, 0);
   });
 });

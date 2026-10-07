@@ -19,8 +19,8 @@ type FocusFollowState = {
   unfollow: () => void;
   /** UC-040: go to where a member is (FR-040-02). Ends any follow. */
   jumpTo: (memberId: string) => void;
-  /** Where `jumpTo` left from, or `null` — one place, replaced by the next jump (FR-040-03). */
-  returnTo: Place | null;
+  /** Where `jumpTo` left from — a place, or `"home"` for the page with no document — or `null`. One place, replaced by the next jump (FR-040-03). */
+  returnTo: Place | "home" | null;
   goBack: () => void;
   /** A block the editor of `documentId` should scroll to once it has loaded. */
   scrollTarget: Place | null;
@@ -49,7 +49,7 @@ export function useFocusFollow(): FocusFollowState {
 export function FocusFollowProvider({ children }: { children: React.ReactNode }) {
   const { members, memberId } = useWorkspacePresence();
   const [rawFollowingId, setRawFollowingId] = useState<string | null>(null);
-  const [returnTo, setReturnTo] = useState<Place | null>(null);
+  const [returnTo, setReturnTo] = useState<Place | "home" | null>(null);
   const [scrollTarget, setScrollTarget] = useState<Place | null>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -89,13 +89,14 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
       if (!window.confirm("따라가기를 종료하고 이동하시겠습니까?")) return;
       setRawFollowingId(null);
     }
-    setReturnTo(members.find((m) => m.id === memberId)?.location ?? null);
+    setReturnTo(members.find((m) => m.id === memberId)?.location ?? "home");
     goTo(place);
   }
 
   function goBack() {
     if (!returnTo) return;
-    goTo(returnTo);
+    if (returnTo === "home") router.push("/");
+    else goTo(returnTo);
     setReturnTo(null);
   }
 
