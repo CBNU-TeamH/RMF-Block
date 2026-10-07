@@ -21,7 +21,7 @@ export function SessionWatch() {
     const socket = new WebSocket(`${protocol}//${window.location.host}/api/workspace/ws`);
 
     socket.addEventListener("message", (event) => {
-      let frame: { event?: string };
+      let frame: { event?: string; payload?: { reason?: string } | null };
       try {
         frame = JSON.parse(event.data);
       } catch {
@@ -34,7 +34,8 @@ export function SessionWatch() {
       // router cache the join page could render from a payload produced while
       // this device was still signed in.
       router.refresh();
-      router.replace("/join");
+      // A kick says so on the join screen (UC-011 step 5); a takeover does not.
+      router.replace(frame.payload?.reason === "kicked" ? "/join?reason=kicked" : "/join");
     });
 
     // A dropped connection is not an eviction — the server says so explicitly.
