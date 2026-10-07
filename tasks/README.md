@@ -25,6 +25,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 | Task | Lessons |
 | :--- | :--- |
 | [User location tracking — who is in which document, and jump to them](active/20261007-user-location-tracking-todo.md) | [lessons](active/20261007-user-location-tracking-lessons.md) |
+| [Admin page — setup, password change, guest kick; webhook cache TTL](active/20261007-admin-page-todo.md) | [lessons](active/20261007-admin-page-lessons.md) |
 
 ## Archive
 
