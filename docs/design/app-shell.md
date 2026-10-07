@@ -26,7 +26,9 @@ shell.
 
 The auth gate lives in the layout, not in a page, so every screen in the group inherits it — no
 live session and no valid host-secret cookie means the join form (FR-020-03/04). The session model itself is
-[`api.md`](api.md), "Authentication model".
+[`api.md`](api.md), "Authentication model". Before the workspace is open the gate sends the host
+to `/admin`, the setup screen (UC-010) — outside the group like `/join`, since there is no
+workspace yet to frame. The header shows the host, and only the host, an outlined **Admin** link with a shield (`AdminIcon` in `ui.tsx`) to the same page.
 
 Below the gate the layout nests `PresenceProvider`, `FocusFollowProvider` and
 `FloatingViewProvider` around the sidebar/header/`<main>` frame, with the fixed `ChatWindow`

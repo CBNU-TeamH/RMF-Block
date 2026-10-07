@@ -23,6 +23,14 @@ export const Spinner = () => (
   <span aria-hidden className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
 );
 
+/** A shield — marks the host-only admin page wherever it is linked or titled. */
+export const AdminIcon = ({ size = 15 }: { size?: number }) => (
+  <svg aria-hidden width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round">
+    <path d="M8 1.75l5 2v4c0 3-2.2 5.3-5 6.5-2.8-1.2-5-3.5-5-6.5v-4z" />
+    <path d="M5.75 8l1.5 1.5 3-3" strokeLinecap="round" />
+  </svg>
+);
+
 export const FileIcon = ({ size = 16 }: { size?: number }) => (
   <svg aria-hidden width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinejoin="round">
     <path d="M4 2.5h5l3 3v8H4z" />

@@ -7,7 +7,7 @@ import {
   MemberStoreError,
   WorkspaceFullError,
 } from "@/lib/auth/types";
-import { isWorkspacePassword } from "@/lib/workspace-config";
+import { isWorkspaceOpen, isWorkspacePassword } from "@/lib/workspace-config";
 import { wsHub } from "@/server/ws-hub.mts";
 
 /** FR-020-02~05/08. Nickname plus the workspace password; the session lands in
@@ -26,9 +26,15 @@ export async function POST(request: NextRequest) {
   // Set by the client only after the guest has seen the takeover warning below.
   const force = body.force === true;
 
+  // Before the password check: until the host finishes setup there is no
+  // password to be wrong about (UC-010).
+  if (!isWorkspaceOpen()) {
+    return NextResponse.json({ error: "워크스페이스가 아직 열리지 않았습니다." }, { status: 503 });
+  }
+
   // FR-020-05: the message names the password because that is the only thing
   // this branch can mean (`docs/design/api.md`).
-  if (!isWorkspacePassword(password)) {
+  if (!(await isWorkspacePassword(password))) {
     return NextResponse.json({ error: "비밀번호가 틀렸습니다." }, { status: 401 });
   }
 

@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { sessionRegistry } from "@/lib/auth/session-registry";
@@ -6,7 +7,7 @@ import { SESSION_COOKIE } from "@/lib/auth/types";
 import { readDocumentsOnce } from "./read-documents";
 import { isHostSecret } from "@/lib/host-secret";
 import { HOST_PRESENCE } from "@/lib/presence/types";
-import { getWorkspaceName } from "@/lib/workspace-config";
+import { getWorkspaceName, isWorkspaceOpen } from "@/lib/workspace-config";
 import { yorkieClientConfig } from "@/lib/yorkie-address";
 
 import { SessionWatch } from "../session-watch";
@@ -18,6 +19,7 @@ import { FocusFollowProvider } from "./focus-follow-provider";
 import { FocusShare } from "./focus-share";
 import { PresenceProvider } from "./presence-provider";
 import { PresenceStack } from "./presence-stack";
+import { AdminIcon } from "./ui";
 
 /**
  * The workspace shell — the sidebar document tree and the header of
@@ -43,6 +45,11 @@ export default async function WorkspaceLayout({
 
   if (!isHost && !member) {
     redirect("/join");
+  }
+
+  // UC-010: the host's first stop is the setup screen.
+  if (isHost && !isWorkspaceOpen()) {
+    redirect("/admin");
   }
 
   // Only the port and an optional override — the host is the browser's own, so
@@ -91,6 +98,19 @@ export default async function WorkspaceLayout({
                 <Breadcrumb documents={documents} />
                 <PresenceStack memberId={me.id} known={known} />
                 <FocusShare memberId={me.id} />
+                {/* Host only — the page itself refuses anyone else. Outlined, with
+                    the shield, so it reads as a different kind of place than
+                    the share controls beside it. */}
+                {isHost ? (
+                  <Link
+                    href="/admin"
+                    title="관리자 페이지 — 호스트에게만 보입니다"
+                    className="flex h-[30px] items-center gap-1.5 rounded-control border border-line-strong px-2.5 text-[13px] font-semibold text-ink hover:bg-hover"
+                  >
+                    <AdminIcon />
+                    Admin
+                  </Link>
+                ) : null}
               </header>
               <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
             </div>

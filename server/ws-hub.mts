@@ -13,7 +13,12 @@ import { WebSocketServer, type WebSocket } from 'ws';
  * range reserved for application use, so it cannot collide with a protocol code. */
 const REVOKED_CLOSE_CODE = 4001;
 const REVOKED_CLOSE_REASON = 'session revoked';
-const REVOKED_FRAME = JSON.stringify({ event: 'session:revoked', payload: null });
+/** Why a session ended, for the screen it lands on: a takeover (FR-020-08)
+ *  sends none, a kick (UC-011) says so. */
+export type RevokeReason = 'kicked';
+
+const revokedFrame = (reason?: RevokeReason) =>
+  JSON.stringify({ event: 'session:revoked', payload: reason ? { reason } : null });
 
 class WsHub {
   private readonly server = new WebSocketServer({ noServer: true });
@@ -63,16 +68,16 @@ class WsHub {
 
   /** Tell every socket held by `sessionId` it was displaced, then close it —
    *  message first (`docs/design/chat.md`). */
-  revoke(sessionId: string): void {
+  revoke(sessionId: string, reason?: RevokeReason): void {
     for (const [ws, id] of this.connections) {
       if (id !== sessionId) continue;
-      this.sendRevoked(ws);
+      this.sendRevoked(ws, reason);
     }
   }
 
-  private sendRevoked(ws: WebSocket): void {
+  private sendRevoked(ws: WebSocket, reason?: RevokeReason): void {
     if (ws.readyState === ws.OPEN) {
-      ws.send(REVOKED_FRAME);
+      ws.send(revokedFrame(reason));
     }
     ws.close(REVOKED_CLOSE_CODE, REVOKED_CLOSE_REASON);
   }

@@ -108,6 +108,19 @@ test("revoke() warns the displaced session before closing it", async () => {
   }, sessionFromPath);
 });
 
+test("revoke() names a kick, so the guest's screen can say so", async () => {
+  await withServer(async (port) => {
+    const client = await connect(port, "/session-a");
+    const received = nextMessage(client);
+    const closed = nextClose(client);
+
+    wsHub.revoke("session-a", "kicked");
+
+    assert.deepEqual(await received, { event: "session:revoked", payload: { reason: "kicked" } });
+    await closed;
+  }, sessionFromPath);
+});
+
 test("revoke() leaves other sessions connected", async () => {
   await withServer(async (port) => {
     const [evicted, bystander] = await Promise.all([

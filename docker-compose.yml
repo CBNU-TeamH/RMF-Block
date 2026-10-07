@@ -21,8 +21,9 @@ services:
       # then either `HOST_LAN_IP=192.168.0.14 docker compose up` or put the same
       # line in a `.env` file next to this one.
       HOST_LAN_IP: ${HOST_LAN_IP:-}
-      # Set by the host in `.env` before starting — see `.env.sample`. The
-      # server refuses to start without a password of at least 4 characters.
+      # Development and CI only: a seed that stands in for the setup screen until
+      # the host has used it. Left unset, the host sets the name and password on
+      # the admin page after opening the Host link — `.data/workspace.json` keeps them.
       WORKSPACE_NAME: ${WORKSPACE_NAME:-}
       WORKSPACE_PASSWORD: ${WORKSPACE_PASSWORD:-}
       # Both are addresses on the compose network, and they point opposite ways.
@@ -51,7 +52,22 @@ services:
     # document and revision is lost on restart, and there is no other durable
     # store. `--mongo-yorkie-database` defaults to `yorkie-meta`, so the URI
     # needs no database suffix.
-    command: ["server", "--mongo-connection-uri", "mongodb://mongo:27017"]
+    #
+    # `--auth-webhook-cache-auth-ttl` is how long Yorkie trusts an allow before
+    # asking the app again — so it is how long a kicked guest (UC-011) can keep
+    # writing after their session is gone; refusals are never cached. The 10s
+    # default suits a webhook across a network serving many projects. Here it is
+    # a call inside this compose network for a workspace of about eight (SRS
+    # §2.4), so 1s still absorbs a typing burst's PushPulls and a kick reads as
+    # instant (#48).
+    command:
+      [
+        "server",
+        "--mongo-connection-uri",
+        "mongodb://mongo:27017",
+        "--auth-webhook-cache-auth-ttl",
+        "1s",
+      ]
     # Yorkie exits(1) if it cannot ping Mongo at startup — it is fail-fast, not
     # lazily initialized. Plain `depends_on` only orders startup, so Yorkie could
     # lose the race to Mongo's first accepting connection and crash-loop; waiting

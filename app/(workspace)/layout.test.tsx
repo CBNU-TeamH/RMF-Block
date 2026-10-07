@@ -14,7 +14,8 @@ vi.mock("@/lib/host-secret", () => ({ isHostSecret: vi.fn() }));
 // Not under test here — stubbed so the "gate holds open" case doesn't depend
 // on real env/config reads that already have their own lib tests.
 vi.mock("@/lib/yorkie-address", () => ({ yorkieClientConfig: () => ({ port: 3000 }) }));
-vi.mock("@/lib/workspace-config", () => ({ getWorkspaceName: () => "workspace" }));
+const config = { open: true };
+vi.mock("@/lib/workspace-config", () => ({ getWorkspaceName: () => "workspace", isWorkspaceOpen: () => config.open }));
 vi.mock("@/lib/documents/documents", () => ({ readDocuments: () => [] }));
 
 import { cookies } from "next/headers";
@@ -24,6 +25,7 @@ import WorkspaceLayout from "./layout.tsx";
 
 afterEach(() => {
   vi.clearAllMocks();
+  config.open = true;
 });
 
 // `isHostSecret`/`sessionRegistry.resolve` are mocked directly below, so the
@@ -41,6 +43,15 @@ describe("WorkspaceLayout — auth gate", () => {
       WorkspaceLayout({ children: null }),
       /NEXT_REDIRECT;\/join/,
     );
+  });
+
+  it("sends the host to the setup screen before the workspace is open (UC-010)", async () => {
+    vi.mocked(cookies).mockResolvedValue(jar as never);
+    vi.mocked(isHostSecret).mockReturnValue(true);
+    vi.mocked(sessionRegistry.resolve).mockReturnValue(null);
+    config.open = false;
+
+    await assert.rejects(WorkspaceLayout({ children: null }), /NEXT_REDIRECT;\/admin/);
   });
 
   it("does not redirect when the host cookie is present", async () => {

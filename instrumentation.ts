@@ -6,12 +6,17 @@ export async function register() {
 
   const { getHostSecret } = await import("./lib/host-secret");
   const { isNatRange, lanAddresses } = await import("./lib/lan-address");
-  const { assertWorkspaceConfigured } = await import("./lib/workspace-config");
+  const { getWorkspaceName, isWorkspaceOpen, seedWorkspaceFromEnv } = await import("./lib/workspace-config");
   const { registerAuthWebhook } = await import("./lib/yorkie-admin");
 
-  // Before anything is printed: a workspace with no access password cannot be
-  // joined, and the host should find that out here rather than from a guest.
-  assertWorkspaceConfigured();
+  // Development and CI only: an env password opens a workspace never set up.
+  // Caught, not left to throw: Next swallows a rejection here and the process
+  // stays up without listening (`docs/design/api.md` §2) — a seed is not worth that.
+  try {
+    await seedWorkspaceFromEnv();
+  } catch (error) {
+    console.error(`\n  ✗ Could not seed the workspace from WORKSPACE_PASSWORD: ${error instanceof Error ? error.message : String(error)}\n`);
+  }
 
   // Yorkie only asks about tokens if told to, and that is a project setting —
   // so it must be written after Yorkie is up (`docs/design/api.md` §2).
@@ -61,6 +66,17 @@ export async function register() {
     `  Host:  http://localhost:${port}/api/auth/host?secret=${getHostSecret()}`,
     `  Guest: http://${joinAddress ?? "<the host machine's LAN IP>"}:${port}`,
   ];
+
+  // Not a refusal to start: the host finishes setup in the browser (UC-010),
+  // and until then `/join` says the workspace is not open.
+  if (!isWorkspaceOpen()) {
+    lines.push("         host user의 workspace setting이 완료되지 않았습니다.");
+  } else {
+    // Said out loud because emptying `.env` does not undo it — the saved
+    // settings win, and without this line a host waiting for the setup screen
+    // has no clue why it never comes.
+    lines.push(`         Workspace "${getWorkspaceName()}" — saved settings in .data/workspace.json`);
+  }
 
   if (!joinAddress) {
     lines.push(

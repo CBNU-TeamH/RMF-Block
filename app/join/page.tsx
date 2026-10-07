@@ -4,12 +4,16 @@ import { redirect } from "next/navigation";
 import { sessionRegistry } from "@/lib/auth/session-registry";
 import { SESSION_COOKIE } from "@/lib/auth/types";
 import { isHostSecret } from "@/lib/host-secret";
-import { getWorkspaceName } from "@/lib/workspace-config";
+import { getWorkspaceName, isWorkspaceOpen } from "@/lib/workspace-config";
 
 import { JoinForm } from "./join-form";
 
 /** FR-020-01: the join screen names the workspace the guest is entering. */
-export default async function JoinPage() {
+export default async function JoinPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reason?: string }>;
+}) {
   const jar = await cookies();
 
   // Already inside — sending them back to the form would be a dead end they
@@ -21,6 +25,7 @@ export default async function JoinPage() {
     redirect("/");
   }
 
+  const { reason } = await searchParams;
   return (
     <main className="flex flex-1 items-center justify-center overflow-auto bg-paper p-6">
       <div className="flex w-full max-w-[380px] flex-col gap-7">
@@ -36,7 +41,17 @@ export default async function JoinPage() {
             <p className="leading-relaxed text-ink-soft">같은 네트워크의 팀원과 문서를 실시간으로 함께 편집합니다.</p>
           </div>
         </div>
-        <JoinForm />
+        {reason === "kicked" ? (
+          <p role="status" className="rounded-control bg-paper-2 px-3 py-2 text-[13.5px] text-ink">
+            워크스페이스에서 퇴장되었습니다.
+          </p>
+        ) : null}
+        {/* UC-010: nothing to join until the host has set a password. */}
+        {isWorkspaceOpen() ? (
+          <JoinForm />
+        ) : (
+          <p className="text-[14px] text-ink-soft">호스트가 아직 워크스페이스를 열지 않았습니다. 잠시 후 다시 시도해 주세요.</p>
+        )}
       </div>
     </main>
   );
