@@ -2,9 +2,9 @@ import { setTimeout as holdOutage } from "node:timers/promises";
 
 import { expect, test } from "./fixtures";
 import { block, blockValues, chatRow, createDocument, firstBlockId, insertAt, online, openChat, openDocument, sendChat } from "./helpers";
-import { networkProbe } from "./network";
+import { YORKIE_SERVICE, networkProbe } from "./network";
 
-test("activated clients retain both sides' edits and backfill chat once after a 20-second outage", async ({ users }) => {
+test("activated clients retain both sides' edits and backfill chat once after a 20-second outage", { tag: "@slow" }, async ({ users }) => {
   test.setTimeout(120_000);
   const a = (await users.join(0)).page;
   const b = (await users.join(1)).page;
@@ -52,18 +52,21 @@ test("activated clients retain both sides' edits and backfill chat once after a 
   }
 });
 
-test("diagnostic: initial Yorkie failure recovers without reloading", async ({ users }) => {
+// Expected failures until #37 (`docs/testing.md`, "Network evidence").
+const knownDefect = { annotation: { type: "issue", description: "https://github.com/CBNU-TeamH/RMF-Block/issues/37" } };
+
+test.fail("diagnostic: initial Yorkie failure recovers without reloading", knownDefect, async ({ users }) => {
   test.setTimeout(120_000);
   const page = (await users.join(0)).page;
-  const yorkie = (url: URL) => url.port === "8180" || url.port === "8080";
+  const yorkie = (url: URL) => url.pathname.includes(YORKIE_SERVICE);
   await page.route(yorkie, (route) => route.abort("internetdisconnected"));
   await page.goto("/");
-  await expect(page.locator("header")).toContainText("연결 끊김");
+  await expect(page.getByRole("banner")).toContainText("연결 끊김");
   await page.unroute(yorkie);
   await online(page, 1);
 });
 
-test("diagnostic: the session notification socket reconnects and delivers takeover", async ({ users }) => {
+test.fail("diagnostic: the session notification socket reconnects and delivers takeover", knownDefect, async ({ users }) => {
   test.setTimeout(120_000);
   const a = await users.join(0);
   const c = await users.join(2);

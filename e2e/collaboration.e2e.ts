@@ -1,16 +1,31 @@
 import { expect, test, type Users } from "./fixtures";
 import { block, blockValues, createDocument, firstBlock, firstBlockId, insertAt, online, openDocument, selectRange } from "./helpers";
+import { yorkieCut } from "./network";
 
-async function pair(users: Users) {
+type Probe = Awaited<ReturnType<typeof yorkieCut>>;
+
+async function pair(users: Users, sever = false) {
   const a = (await users.join(0)).page;
   const b = (await users.join(1)).page;
+  // Installed before navigation: the probe patches the page's `fetch`.
+  const probes = sever ? [await yorkieCut(a), await yorkieCut(b)] : [];
   const document = await createDocument(a, `e2e collaboration ${Date.now()}`);
   await openDocument(a, document);
   await openDocument(b, document);
   await online(a, 2);
   const id = await firstBlockId(a);
   await expect(block(b, id)).toBeVisible();
-  return { a, b, id, document };
+  return { a, b, id, document, probes };
+}
+
+/** Run `edit` with every client cut off from Yorkie, so no edit can see
+ *  another before it is made — `Promise.all` over pages alone does not
+ *  guarantee that. */
+async function concurrently(probes: Probe[], edit: () => Promise<void>) {
+  await Promise.all(probes.map((probe) => probe.ready()));
+  await Promise.all(probes.map((probe) => probe.disconnect()));
+  await edit();
+  await Promise.all(probes.map((probe) => probe.restore()));
 }
 
 test("edits go both ways and late/reloaded readers see the final content", async ({ users }) => {
@@ -26,11 +41,17 @@ test("edits go both ways and late/reloaded readers see the final content", async
   await expect(block(b, id)).toHaveValue("alpha beta");
 });
 
-test("simultaneous inserts and independent range changes converge without duplicate input", async ({ users }) => {
-  const { a, b, id } = await pair(users);
+test("concurrent inserts and independent range changes converge without duplicate input", async ({ users }) => {
+  const { a, b, id, probes } = await pair(users, true);
   await insertAt(a, id, 0, "left middle right");
   await expect(block(b, id)).toHaveValue("left middle right");
-  await Promise.all([insertAt(a, id, 5, "[A]"), insertAt(b, id, 5, "[B]")]);
+  await concurrently(probes, async () => {
+    await insertAt(a, id, 5, "[A]");
+    await insertAt(b, id, 5, "[B]");
+    // Each side holds only its own insert: the edits really were concurrent.
+    await expect(block(a, id)).toHaveValue("left [A]middle right");
+    await expect(block(b, id)).toHaveValue("left [B]middle right");
+  });
   await expect.poll(async () => {
     const left = await block(a, id).inputValue();
     const right = await block(b, id).inputValue();
@@ -39,11 +60,12 @@ test("simultaneous inserts and independent range changes converge without duplic
   const value = await block(a, id).inputValue();
   expect(value.split("[A]")).toHaveLength(2);
   expect(value.split("[B]")).toHaveLength(2);
-  await Promise.all([
-    selectRange(a, id, 0, 4),
-    selectRange(b, id, value.length - 5, value.length),
-  ]);
-  await Promise.all([a.keyboard.insertText("LEFT"), b.keyboard.insertText("RIGHT")]);
+  await concurrently(probes, async () => {
+    await selectRange(a, id, 0, 4);
+    await a.keyboard.insertText("LEFT");
+    await selectRange(b, id, value.length - 5, value.length);
+    await b.keyboard.insertText("RIGHT");
+  });
   await expect(block(a, id)).toHaveValue(value.replace(/^left/, "LEFT").replace(/right$/, "RIGHT"));
   await expect(block(b, id)).toHaveValue(await block(a, id).inputValue());
 });
@@ -84,6 +106,7 @@ test("one user's undo and redo preserve another user's input", async ({ users })
 test("eight users preserve edits in separate blocks and single concurrent inserts in one block", async ({ users }) => {
   test.setTimeout(120_000);
   const first = (await users.join(0)).page;
+  const probes = [await yorkieCut(first)];
   const document = await createDocument(first, `e2e eight ${Date.now()}`);
   await openDocument(first, document);
   // Seed before peers attach so initialization is not part of the concurrency case.
@@ -97,6 +120,7 @@ test("eight users preserve edits in separate blocks and single concurrent insert
   const pages = [first];
   for (let slot = 1; slot < 8; slot++) {
     const page = (await users.join(slot)).page;
+    probes.push(await yorkieCut(page));
     await openDocument(page, document);
     pages.push(page);
   }
@@ -106,7 +130,9 @@ test("eight users preserve edits in separate blocks and single concurrent insert
   const separate = seeds.map((row, slot) => ({ ...row, text: slot < 8 ? `seed${slot}[${slot}]` : "" }));
   await Promise.all(pages.map((page) => expect.poll(() => blockValues(page)).toEqual(separate)));
   const shared = seeds[0].id;
-  await Promise.all(pages.map((page, slot) => insertAt(page, shared, 0, `{${slot}}`)));
+  await concurrently(probes, async () => {
+    for (const [slot, page] of pages.entries()) await insertAt(page, shared, 0, `{${slot}}`);
+  });
   await expect.poll(async () => {
     const values = await Promise.all(pages.map((page) => block(page, shared).inputValue()));
     return values.every((value) => value === values[0]) &&

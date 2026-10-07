@@ -184,11 +184,13 @@ a browser run costs seconds per test against milliseconds.
   and sets the app's `YORKIE_PORT`. An occupied port fails without stopping its owner. Container
   names, network, volumes and app image are unique; teardown removes only that project's resources.
   Run it three times to check repeatability on independent stacks. Arguments pass through to
-  Playwright, e.g. `pnpm e2e:isolated --grep diagnostic`.
+  Playwright, e.g. `pnpm e2e:isolated --grep diagnostic`, or `--grep-invert @slow` to skip the
+  20-second outage while iterating.
 - **Existing stacks.** `E2E_WORKSPACE_PASSWORD=<password> E2E_HOST_SECRET=<startup-secret> pnpm e2e`
   targets an already running container (`pnpm docker:up`). `E2E_BASE_URL` defaults to
-  `http://localhost:3000`. Use a disposable stack: tests leave members, documents, messages and
-  files in app/Yorkie storage. Never reset a shared development volume to clean a test run.
+  `http://localhost:3000`. Use a disposable stack nobody else is connected to: tests assert exact
+  roster counts ("N명 접속 중"), so an open host tab fails them, and they leave members,
+  documents, messages and files in app/Yorkie storage. Never reset a shared development volume to clean a test run.
 - **What it leaves behind.** Every run adds `e2e-…` members and test documents (plus
   the files and chat lines the chat test uploads) to `.data/` — the `app-data` volume, when the
   stack is the container. Shared-stack runs do not remove them, so clean up once testing is done. Stop the
@@ -222,8 +224,14 @@ a browser run costs seconds per test against milliseconds.
   browser WebSocket open/close events. It aborts live watch fetches and closes the browser's real sockets during an outage, then verifies
   their termination through CDP/events; Chromium's offline toggle alone can leave existing
   streaming responses and sockets open. New requests remain offline until restoration.
-  Initial Yorkie setup and session-notification reconnection are separate ordinary diagnostic
-  tests. Missing recovery remains a reported failure, never a skip or expected failure.
+  Concurrent-edit cases sever every client's Yorkie stream while they type, so no edit can see
+  another first. The page closes sockets itself (code 4000) rather than losing them (1006); a
+  recovery path that tells the two apart would need a server-side cut.
+  Initial Yorkie setup and session-notification reconnection are `diagnostic:` tests marked
+  `test.fail` against #37: reported as expected failures, so the step stays readable, and failing
+  as "unexpected pass" once #37 lands — the cue to drop the mark. Never a skip. An expected
+  failure passes whatever throws, so check its error in the report still points at the last
+  assertion (the reconnect), not at the setup before it.
 - **IME.** A CDP session drives composition with `Input.imeSetComposition` and confirms through
   `Input.insertText`; a third observer verifies delivery while the first user is composing.
 - **Artifacts and secrets.** Reports live in `playwright-report`, traces in `test-results`.

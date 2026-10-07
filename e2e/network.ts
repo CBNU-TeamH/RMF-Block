@@ -1,27 +1,31 @@
 import { expect, type Page } from "@playwright/test";
 
-/** Observe actual streaming requests and socket events, then sever both transports.
- * Chromium offline alone does not reliably close an already-open WebSocket. */
-export async function networkProbe(page: Page, socketPath: "chat" | "workspace") {
+export const YORKIE_SERVICE = "/yorkie.v1.YorkieService/";
+
+/** Cut a page off from Yorkie and observe it happen. Chromium's offline toggle
+ *  stops new requests but can leave a live Watch stream open, so those are
+ *  aborted too. Install before the page navigates: it patches `fetch`. */
+export async function yorkieCut(page: Page) {
+  const watch = `${YORKIE_SERVICE}Watch`;
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Network.enable");
   const watches = new Set<string>();
   let endedWatches = 0;
   cdp.on("Network.responseReceived", (event) => {
-    if (event.response.url.includes("/yorkie.v1.YorkieService/Watch")) watches.add(event.requestId);
+    if (event.response.url.includes(watch)) watches.add(event.requestId);
   });
   const ended = (event: { requestId: string }) => {
     if (watches.delete(event.requestId)) endedWatches++;
   };
   cdp.on("Network.loadingFailed", ended);
   cdp.on("Network.loadingFinished", ended);
-  await page.addInitScript(() => {
+  await page.addInitScript((watch) => {
     const nativeFetch = window.fetch;
     const watches: AbortController[] = [];
     (window as Window & { e2eWatchControllers?: AbortController[] }).e2eWatchControllers = watches;
     window.fetch = (input, init) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (!url.includes("/yorkie.v1.YorkieService/Watch")) return nativeFetch(input, init);
+      if (!url.includes(watch)) return nativeFetch(input, init);
       const controller = new AbortController();
       watches.push(controller);
       const original = init?.signal ?? (input instanceof Request ? input.signal : null);
@@ -30,6 +34,30 @@ export async function networkProbe(page: Page, socketPath: "chat" | "workspace")
         signal: original ? AbortSignal.any([original, controller.signal]) : controller.signal,
       });
     };
+  }, watch);
+
+  return {
+    ready: () => expect.poll(() => watches.size).toBeGreaterThan(0),
+    disconnect: async () => {
+      const endedBefore = endedWatches;
+      await page.context().setOffline(true);
+      await page.evaluate(() => {
+        const controllers = (window as Window & { e2eWatchControllers?: AbortController[] }).e2eWatchControllers ?? [];
+        for (const controller of controllers) controller.abort(new TypeError("E2E network disconnected"));
+      });
+      await expect.poll(() => endedWatches).toBeGreaterThan(endedBefore);
+    },
+    restore: () => page.context().setOffline(false),
+  };
+}
+
+/** `yorkieCut` plus one of the app's sockets, observed through open/close
+ *  events. The page closes the socket itself (code 4000) rather than losing it
+ *  (1006): a recovery path that tells the two apart would need a server-side
+ *  cut instead. */
+export async function networkProbe(page: Page, socketPath: "chat" | "workspace") {
+  const yorkie = await yorkieCut(page);
+  await page.addInitScript(() => {
     const Native = window.WebSocket;
     const events: { url: string; type: string }[] = [];
     const sockets: WebSocket[] = [];
@@ -52,29 +80,21 @@ export async function networkProbe(page: Page, socketPath: "chat" | "workspace")
 
   return {
     ready: async () => {
-      await expect.poll(() => watches.size).toBeGreaterThan(0);
+      await yorkie.ready();
       await expect.poll(() => events("open")).toBeGreaterThan(0);
     },
     disconnect: async (offline: boolean) => {
       const before = await events("close");
-      const endedBefore = endedWatches;
-      if (offline) await page.context().setOffline(true);
-      await page.evaluate(({ path, offline }) => {
+      if (offline) await yorkie.disconnect();
+      await page.evaluate((path) => {
         const sockets = (window as Window & { e2eSockets?: WebSocket[] }).e2eSockets ?? [];
         for (const socket of sockets) {
           if (socket.url.endsWith(`/api/${path}/ws`)) socket.close(4000, "E2E outage");
         }
-        if (offline) {
-          const controllers = (window as Window & { e2eWatchControllers?: AbortController[] }).e2eWatchControllers ?? [];
-          for (const controller of controllers) controller.abort(new TypeError("E2E network disconnected"));
-        }
-      }, { path: socketPath, offline });
+      }, socketPath);
       await expect.poll(() => events("close")).toBeGreaterThan(before);
-      if (offline) await expect.poll(() => endedWatches).toBeGreaterThan(endedBefore);
     },
-    restore: async () => {
-      await page.context().setOffline(false);
-    },
+    restore: yorkie.restore,
     opens: () => events("open"),
   };
 }
