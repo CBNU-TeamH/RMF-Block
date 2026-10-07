@@ -140,6 +140,23 @@ export class SessionRegistry {
     return sessionId !== undefined && this.memberBySession.has(sessionId);
   }
 
+  /** UC-011's kick: ends the member's live session and returns it so the
+   *  caller can close its sockets. Not a ban — the record stays, and the same
+   *  nickname and password let them straight back in. `null` if they had none. */
+  kick(memberId: string): string | null {
+    const sessionId = this.sessionByMemberId.get(memberId);
+    if (!sessionId || !this.memberBySession.has(sessionId)) return null;
+
+    this.memberBySession.delete(sessionId);
+    this.sessionByMemberId.delete(memberId);
+    return sessionId;
+  }
+
+  /** Members holding a live session — who the host can kick (FR-011-01). */
+  liveMembers(): Array<WorkspaceMember> {
+    return [...this.memberBySession.values()];
+  }
+
   /** The member a session belongs to, or null once it has been displaced. */
   resolve(sessionId: string | undefined): WorkspaceMember | null {
     if (!sessionId) return null;

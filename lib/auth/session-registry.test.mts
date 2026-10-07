@@ -334,3 +334,44 @@ describe("SessionRegistry when the store cannot be written", () => {
     }
   });
 });
+
+describe("SessionRegistry.kick", () => {
+  it("ends the live session and returns it, keeping the member", () => {
+    const registry = new SessionRegistry();
+    const { member, sessionId } = registry.join("alice");
+
+    assert.equal(registry.kick(member.id), sessionId);
+    assert.equal(registry.resolve(sessionId), null);
+    assert.equal(registry.hasLiveSession("alice"), false);
+    // Not a ban: the same nickname comes back as the same member.
+    assert.equal(registry.join("alice").member.id, member.id);
+  });
+
+  it("returns null for a member with no live session, or an unknown id", () => {
+    const registry = new SessionRegistry();
+    const { member } = registry.join("alice");
+    registry.kick(member.id);
+
+    assert.equal(registry.kick(member.id), null);
+    assert.equal(registry.kick("nobody"), null);
+  });
+});
+
+describe("SessionRegistry.liveMembers", () => {
+  it("lists only the members holding a session", () => {
+    const registry = new SessionRegistry();
+    const alice = registry.join("alice").member;
+    const bob = registry.join("bob").member;
+    registry.kick(bob.id);
+
+    assert.deepEqual(registry.liveMembers(), [alice]);
+  });
+
+  it("does not list a displaced device twice", () => {
+    const registry = new SessionRegistry();
+    registry.join("alice");
+    registry.join("alice");
+
+    assert.equal(registry.liveMembers().length, 1);
+  });
+});

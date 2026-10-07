@@ -19,3 +19,10 @@ export async function currentMember(): Promise<WorkspaceMember | null> {
 
   return null;
 }
+
+/** Whether the caller is the host — the one check UC-011's actions make
+ *  (FR-011-07). */
+export async function isHost(): Promise<boolean> {
+  const jar = await cookies();
+  return isHostSecret(jar.get("role")?.value);
+}
