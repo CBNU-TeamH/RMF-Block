@@ -170,7 +170,7 @@ a browser run costs seconds per test against milliseconds.
   `sender` starting `e2e-`; files by `uploadedBy` of an E2E member or a name starting `e2e-`;
   documents by a name starting `e2e sync` / `e2e ime`, or by `createdBy` in the E2E members' ids
   (collect those ids before removing the members). A file's bytes are `.data/files/<id>`, apart
-  from its row in `files/index.json` — delete both. This clears the app's catalogue only: the
+  from its row in the files index — delete both. This clears the app's catalogue only: the
   documents' content and history stay in Yorkie's Mongo (`mongo-data`). `docker compose down -v`
   is the complete reset of a disposable test stack, and wipes real members and documents too.
 - **Anchors.** A block's textarea is `[data-block-id] textarea`, never a bare `textarea`. Wait for
