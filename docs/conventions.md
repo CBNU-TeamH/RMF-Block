@@ -395,3 +395,33 @@ the directory exists.
 A function that takes the viewport as an argument instead of reading `window` itself is testable
 without a browser, and is worth the extra parameter wherever a mistake is unrecoverable — a
 window dragged off-screen cannot be dragged back (`lib/chat/window-frame.ts`).
+
+## Scroll a container, never `scrollIntoView`
+
+`element.scrollIntoView()` scrolls every scrollable ancestor until the element shows, so in a
+floating view or a nested scroller it moves containers the code never meant to touch. Compute the
+target in the container's own coordinates and set its `scrollTop` — `readBoxes` in
+`lib/focus/dom.ts` gives each block's offset. `lib/blocks/slash-menu.ts` already does the arithmetic
+for this reason; the jump-to-a-member landing in `use-focus-presence.ts` does the same.
+
+**Cited by**: [`20261007-user-location-tracking-lessons.md`](../tasks/archive/2026/10/20261007-user-location-tracking-lessons.md).
+
+## Put a check-then-write after the last `await`
+
+A guard that decides whether to write — "not open yet", "still the owner" — must run with no
+`await` between it and the write. Any `await` in between lets a second request pass the same check
+before the first one has written. `store()` in `lib/workspace-config.ts` hashes first and checks
+right before `writeStored`; with the check before the async hash, two setup requests could both
+open the workspace and the later one replaced the password.
+
+**Cited by**: [`20261007-admin-page-lessons.md`](../tasks/archive/2026/10/20261007-admin-page-lessons.md).
+
+## Call `fetch` with the URL and method at the call site
+
+`scripts/gen-endpoints.mjs` finds a route's client caller by a `fetch` call whose URL and method are
+written out where it is made. A helper that takes them as arguments hides every caller, and the
+generated table in `docs/design/api.md` then reports the route as having none. To share pending
+and error handling, wrap the request instead of building it: `run(() => fetch("/api/…", { method:
+"PATCH", … }))`, as `app/admin/admin-forms.tsx` does.
+
+**Cited by**: [`20261007-admin-page-lessons.md`](../tasks/archive/2026/10/20261007-admin-page-lessons.md).

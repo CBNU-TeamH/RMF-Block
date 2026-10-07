@@ -5,8 +5,8 @@ how-to.
 
 ## TL;DR
 
-1. Branch from `main` as `<type>/<slug>` — one branch and one squash-merged PR per task
-   (`AGENTS.md` §6).
+1. Branch from `CBNU-TeamH/RMF-Block`'s `main` — `upstream/main` on a fork, see below — as
+   `<type>/<slug>`; one branch and one squash-merged PR per task (`AGENTS.md` §6).
 2. Register the work as a todo + lessons pair in `tasks/active/` and plan it there (`AGENTS.md` §2).
 3. Build it; `pnpm verify:fast` and `pnpm verify:docs` clean.
 4. Run the review passes ([`.claude/skills/README.md`](.claude/skills/README.md)), then open a PR
@@ -22,8 +22,10 @@ pnpm install
 cp .env.sample .env
 ```
 
-Before starting, set `WORKSPACE_PASSWORD` in `.env` (at least four characters) and configure
-both Yorkie addresses. For the app running natively beside Yorkie on Docker Desktop:
+`WORKSPACE_PASSWORD` is optional: left empty, the server starts unopened and the Host link leads to
+the setup screen; set (at least four characters), it seeds a workspace that has never been set up —
+handy for development and E2E, ignored once the setup screen has saved its own. Configure both
+Yorkie addresses. For the app running natively beside Yorkie on Docker Desktop:
 
 ```dotenv
 YORKIE_ADMIN_ADDR=http://localhost:8080
@@ -93,6 +95,15 @@ which checks block a merge: `AGENTS.md` §6. How the layers of tests divide the 
 ## Pull requests
 
 - **Commit prefixes, doc language, ground rules**: `AGENTS.md` §5.
+- **Branch from `CBNU-TeamH/RMF-Block`'s `main`.** Cloned directly, that is `origin/main`. On a
+  fork, never your fork's `main`: after a squash merge it lags until someone syncs it, and a branch
+  cut from it silently misses the last merge. Add the original once
+  (`git remote add upstream https://github.com/CBNU-TeamH/RMF-Block.git`), then
+  `git fetch upstream && git checkout -b <type>/<slug> upstream/main`.
 - **When the work is done**, archive its task with `pnpm tasks:archive <slug>` (`AGENTS.md` §2,
   step 5); an archive-only PR starts from
-  [`.github/PULL_REQUEST_TEMPLATE/archive.md`](.github/PULL_REQUEST_TEMPLATE/archive.md).
+  [`.github/PULL_REQUEST_TEMPLATE/archive.md`](.github/PULL_REQUEST_TEMPLATE/archive.md). It is
+  **`docs:`** work — branch `docs/archive-<slug>`, commit and PR titled `docs: archive …` — since it
+  only moves task documents and regenerates the two task indexes; no application code or behaviour
+  changes. Earlier archives used `chore:`;
+  they stay as they are.
