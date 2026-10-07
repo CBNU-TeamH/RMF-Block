@@ -9,13 +9,13 @@ test("UI create, rename, move and delete update the peer's tree without reload",
   await a.goto("/");
   await b.goto("/");
   await online(a, 2);
-  const aside = a.locator("aside");
-  const peer = b.locator("aside");
+  const aside = a.getByRole("complementary");
+  const peer = b.getByRole("complementary");
   // A full navigation would hide a dead notification socket by reseeding the tree.
   const timeOrigin = await b.evaluate(() => performance.timeOrigin);
   const name = `e2e tree ${Date.now()}`;
   await aside.getByRole("button", { name: "새 문서", exact: true }).click();
-  const dialog = a.locator("dialog[open]");
+  const dialog = a.getByRole("dialog");
   await dialog.getByLabel("문서 이름").fill(name);
   await dialog.getByRole("button", { name: "만들기", exact: true }).click();
   await expect(a).toHaveURL(/\/documents\//);
@@ -32,7 +32,10 @@ test("UI create, rename, move and delete update the peer's tree without reload",
   await a.getByRole("menuitem", { name: "이동", exact: true }).click();
   await dialog.getByLabel("옮길 위치").selectOption(parent);
   await dialog.getByRole("button", { name: "이동", exact: true }).click();
-  await expect(peerLink).toHaveCSS("padding-left", "18px");
+  // Nested = indented past its parent; the step size is the design's to change.
+  const indent = (doc: string) =>
+    peer.locator(`a[href="/documents/${doc}"]`).evaluate((link) => parseFloat(getComputedStyle(link).paddingLeft));
+  await expect.poll(async () => (await indent(id)) - (await indent(parent))).toBeGreaterThan(0);
   const order = await peer.locator('a[href^="/documents/"]').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
   expect(order.indexOf(`/documents/${id}`)).toBe(order.indexOf(`/documents/${parent}`) + 1);
   await aside.getByRole("button", { name: `${renamed} 메뉴` }).click();

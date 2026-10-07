@@ -12,15 +12,15 @@ test("a valid bootstrap grants host and strips the secret from the address", asy
   await page.evaluate((credential) => {
     window.location.assign(`/api/auth/host?secret=${encodeURIComponent(credential)}`);
   }, secret);
-  await expect(page.locator("aside").getByRole("textbox", { name: "문서 제목 검색" })).toBeVisible();
-  await expect(page.locator("header")).toContainText("Host (나)");
-  expect(new URL(page.url()).search === "").toBe(true);
-  expect((await context.cookies()).some((cookie) => cookie.name === "role")).toBe(true);
+  await expect(page.getByRole("complementary").getByRole("textbox", { name: "문서 제목 검색" })).toBeVisible();
+  await expect(page.getByRole("banner")).toContainText("Host (나)");
+  expect(new URL(page.url()).search).toBe("");
+  expect((await context.cookies()).map((cookie) => cookie.name)).toContain("role");
 });
 
 test("a wrong bootstrap cannot grant host", async ({ page, context }) => {
   await page.goto("/api/auth/host?secret=invalid-e2e-bootstrap");
   await expect(page).toHaveURL(/\/join$/);
-  expect((await context.cookies()).some((cookie) => cookie.name === "role")).toBe(false);
+  expect((await context.cookies()).map((cookie) => cookie.name)).not.toContain("role");
   expect((await page.request.get("/api/documents")).status()).toBe(401);
 });

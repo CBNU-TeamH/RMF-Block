@@ -49,7 +49,7 @@ export async function insertAt(page: Page, id: string, offset: number, text: str
 }
 
 export function online(page: Page, count: number) {
-  return expect(page.locator("header").getByText(`${count}명 접속 중`, { exact: true })).toHaveCount(1);
+  return expect(page.getByRole("banner").getByText(`${count}명 접속 중`, { exact: true })).toHaveCount(1);
 }
 
 export async function openChat(page: Page): Promise<void> {
