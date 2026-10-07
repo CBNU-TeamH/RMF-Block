@@ -21,10 +21,10 @@ Decisions settled with the user (2026-10-07):
 
 ### 1. Workspace settings on disk
 
-- **What**: `lib/workspace-config.ts` gains `isWorkspaceOpen`, `openWorkspace`, `changeWorkspacePassword`; `getWorkspaceName`/`isWorkspacePassword` read the file, falling back to the env seed.
+- **What**: `lib/workspace-config.ts` gains `isWorkspaceOpen`, `openWorkspace`, `changeWorkspacePassword`, `seedWorkspaceFromEnv`; every reader reads only `workspace.json` — the env seed is written into it once at startup, never read after. A damaged file counts as not set up.
 - **Files**: `lib/workspace-config.ts`, `lib/workspace-config.test.mts`, `instrumentation.ts`.
 - **Reuse**: write-then-rename from `lib/auth/member-repository.ts`; `MIN_PASSWORD_LENGTH`.
-- **Done**: tests for seed, hash compare, open/change, too short, already open; the server boots with no password.
+- **Done**: tests for seed, hash compare, open/change, too short, already open, change before setup, damaged file; the server boots with no password.
 
 ### 2. Host-only routes
 
@@ -35,7 +35,7 @@ Decisions settled with the user (2026-10-07):
 
 ### 3. Admin page and the kicked guest's screen
 
-- **What**: `/admin` (setup or manage), header 설정 link, `/` → `/admin` for a host before setup, `/join` closed state and kicked message, `SessionWatch` passing the reason on.
+- **What**: `/admin` (setup or manage), the host-only 관리자 link in the top nav, `/` → `/admin` for a host before setup, `/join` closed state and kicked message, `SessionWatch` passing the reason on.
 - **Files**: `app/admin/page.tsx`, `app/admin/admin-forms.tsx`, `app/(workspace)/layout.tsx`, `app/join/page.tsx`, `app/session-watch.tsx`.
 - **Reuse**: `join-form.tsx`'s fetch/error pattern; `DIALOG`, `CANCEL`, `confirmClass`, `inputClass`, `FIELD_LABEL` from `app/(workspace)/ui.tsx`.
 - **Done**: component tests for the confirm-before-kick flow and the kicked message.

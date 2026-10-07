@@ -63,7 +63,10 @@ connected users stay), and a restart resumes them (FR-010-05). The password is s
 hash with its salt, never as itself, and compared in constant time (async scrypt, so a join
 never stalls the process). For development and CI, startup writes `WORKSPACE_PASSWORD`/`WORKSPACE_NAME`
 into the file when it does not exist yet (`seedWorkspaceFromEnv()`); once it exists they are never
-read. The server boots either way — `/join` answers 503 until the workspace is open, and
+read. A file that does not parse, or lacks a valid salt and 64-hex hash, counts as not set up (logged
+once) rather than an error — the setup screen rewriting it is the recovery, where throwing would
+fail every page; `PATCH /api/workspace/password` refuses before setup (409) so it cannot create the
+workspace and skip the name. The server boots either way — `/join` answers 503 until the workspace is open, and
 startup prints that setup is unfinished.
 
 `lib/yorkie-admin.ts` registers this server's auth webhook with Yorkie at startup
@@ -420,10 +423,9 @@ Two tabs therefore share a token, which is correct: the token authorizes a *sess
 tabs are that session. Handing back a token with minutes left on it is fine too, since the SDK
 asks for a replacement the moment the webhook refuses one.
 
-One thing worth knowing wherever revocation is being reasoned about: **Yorkie caches an auth
-decision for ten seconds by default** (`--auth-webhook-cache-auth-ttl`). A guest removed through
-UC-011 keeps whatever Yorkie last decided about them until that expires. Choosing the value is
-[#48](https://github.com/CBNU-TeamH/RMF-Block/issues/48).
+One thing worth knowing wherever revocation is being reasoned about: **Yorkie caches an allow
+for `--auth-webhook-cache-auth-ttl`, 1s here** (the reasoning is under the webhook above; a refusal
+is never cached). A guest removed through UC-011 can keep writing for up to that second.
 
 Document keys carry no type prefix — a Yorkie key can only contain `a-z A-Z 0-9 - . _ ~` (120 chars max), which rules out a `:`-delimited scheme and makes any other delimiter ambiguous against UUIDs. Instead the key **is** the document's id as issued by `POST /api/documents`. The webhook does not read the key today; once it checks document access it would resolve the type by looking the id up in the App/WS Server's own document table, and `chat` would be a reserved literal key (version B, §5) rather than an id, since it's a workspace-wide singleton.
 
