@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 import assert from "node:assert/strict";
-import { useEffect } from "react";
 import { afterEach, describe, it, vi } from "vitest";
 import { act, cleanup, render } from "@testing-library/react";
 
@@ -24,12 +23,8 @@ afterEach(() => {
 const bob = { id: "bob", nickname: "밥", colorTag: "#222", location: { documentId: "d2", blockId: "b" } };
 const presenter = { ...bob, presenting: { documentId: "d1", blockId: "b", ratio: 0 } };
 
-/** Follows `bob`, then jumps — the order a person does it in. */
 function Probe({ onState }: { onState: (state: ReturnType<typeof useFocusFollow>) => void }) {
-  const state = useFocusFollow();
-  useEffect(() => {
-    onState(state);
-  });
+  onState(useFocusFollow());
   return null;
 }
 
@@ -67,6 +62,7 @@ describe("FocusFollowProvider — jumpTo while following", () => {
     act(() => state().jumpTo("bob"));
 
     assert.equal(state().followingId, null);
+    assert.equal(push.mock.calls[0]?.[0], "/documents/d2");
   });
 
   it("moves without asking when not following", () => {

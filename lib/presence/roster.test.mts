@@ -83,26 +83,39 @@ describe("rosterFrom with unusable entries", () => {
 
 describe("withOffline", () => {
   const carol = { id: "id-carol", nickname: "carol", colorTag: "#22c55e" };
+  const at = (documentId: string) => ({ documentId, blockId: null });
+  const a = { ...alice, location: at("d1") };
+  const b = { ...bob, location: at("d1") };
+  const c = { ...carol, location: at("d2") };
 
-  it("puts the viewer first, then the other online members, then the offline", () => {
-    const entries = withOffline([alice, bob], [alice, bob, carol], "id-bob");
+  it("lists the viewer first, then those in the document, then the offline", () => {
+    const entries = withOffline([b, a], [a, b, carol], "id-alice", "d1");
     assert.deepEqual(
       entries.map((e) => [e.member.id, e.presence !== undefined]),
-      [["id-bob", true], ["id-alice", true], ["id-carol", false]],
+      [["id-alice", true], ["id-bob", true], ["id-carol", false]],
     );
   });
 
-  it("lists a connected member the stored list does not know yet", () => {
-    assert.deepEqual(withOffline([alice], [], "id-alice").map((e) => e.member.id), ["id-alice"]);
+  it("leaves out a connected member who is in another document", () => {
+    const ids = withOffline([a, c], [a, c], "id-alice", "d1").map((e) => e.member.id);
+    assert.deepEqual(ids, ["id-alice"]);
+  });
+
+  it("lists only the viewer on a page with no document", () => {
+    assert.deepEqual(withOffline([a, b], [a, b], "id-alice", null).map((e) => e.member.id), ["id-alice"]);
+  });
+
+  it("lists a connected viewer the stored list does not know yet", () => {
+    assert.deepEqual(withOffline([a], [], "id-alice", "d1").map((e) => e.member.id), ["id-alice"]);
   });
 });
 
 describe("occupantsByDocument", () => {
-  it("groups members by their document and skips those with none", () => {
+  it("groups the others by document, skipping the viewer and those with none", () => {
     const a = { ...alice, location: { documentId: "d1", blockId: null } };
     const b = { ...bob, location: { documentId: "d1", blockId: "b1" } };
-    const grouped = occupantsByDocument([a, b, { ...HOST_PRESENCE, location: null }]);
+    const grouped = occupantsByDocument([a, b, { ...HOST_PRESENCE, location: null }], "id-alice");
     assert.deepEqual([...grouped.keys()], ["d1"]);
-    assert.equal(grouped.get("d1")?.length, 2);
+    assert.deepEqual(grouped.get("d1")?.map((m) => m.id), ["id-bob"]);
   });
 });

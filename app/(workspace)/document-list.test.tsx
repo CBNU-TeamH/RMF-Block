@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import assert from "node:assert/strict";
-import { afterEach, describe, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 vi.mock("next/navigation", () => ({
@@ -70,8 +70,11 @@ describe("DocumentList — sidebar tree", () => {
 describe("DocumentList — who is where (UC-040)", () => {
   const at = (documentId: string) => ({ documentId, blockId: null });
 
-  it("dots a document with someone else in it, and a dot jumps to them", () => {
+  beforeEach(() => {
     vi.stubGlobal("WebSocket", FakeWebSocket);
+  });
+
+  it("dots a document with someone else in it, and a dot jumps to them", () => {
     presence.members = [
       { id: "me", nickname: "나", colorTag: "#111", location: at("a") },
       { id: "bob", nickname: "밥", colorTag: "#222", location: at("b") },
@@ -85,7 +88,6 @@ describe("DocumentList — who is where (UC-040)", () => {
   });
 
   it("shows no dot when nobody else is in any document", () => {
-    vi.stubGlobal("WebSocket", FakeWebSocket);
     presence.members = [{ id: "me", nickname: "나", colorTag: "#111", location: at("a") }];
     render(<DocumentList documents={[doc("a", "가")]} />);
 

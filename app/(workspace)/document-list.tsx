@@ -32,6 +32,8 @@ const icon = (path: React.ReactNode, size = 15) => (
   </svg>
 );
 const PLUS = <path d="M8 3v10M3 8h10" />;
+/** Dots a row shows for the others in a document before folding into `+N`. */
+const MAX_DOTS = 3;
 
 /**
  * The workspace's document tree (FR-020-06, the document half) in the sidebar,
@@ -51,7 +53,7 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
   const currentId = documentIdFromPathname(usePathname());
   const { members, memberId } = useWorkspacePresence();
   const { jumpTo } = useFocusFollow();
-  const occupants = useMemo(() => occupantsByDocument(members), [members]);
+  const occupants = useMemo(() => occupantsByDocument(members, memberId), [members, memberId]);
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   // Where a "하위 문서 추가" click puts the next one, or `null` for the root.
@@ -219,7 +221,7 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
         <ul className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-px overflow-y-auto px-1.5 pb-2">
           {rows.map(({ document: doc, depth, hasChildren }) => {
             const current = doc.id === currentId;
-            const here = (occupants.get(doc.id) ?? []).filter((m) => m.id !== memberId);
+            const here = occupants.get(doc.id) ?? [];
             return (
               <li key={doc.id} className="group/row relative">
                 <Link
@@ -251,7 +253,7 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                   * HTML. `right-14` clears the hover-only row actions. */}
                 {here.length > 0 ? (
                   <span className="absolute inset-y-0 right-14 flex items-center gap-0.5">
-                    {here.slice(0, 3).map((m) => (
+                    {here.slice(0, MAX_DOTS).map((m) => (
                       <button
                         key={m.id}
                         type="button"
@@ -262,12 +264,12 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                         className="size-3.5 rounded-full outline-none hover:ring-2 hover:ring-sky-deep focus-visible:ring-2 focus-visible:ring-sky-deep"
                       />
                     ))}
-                    {here.length > 3 ? (
+                    {here.length > MAX_DOTS ? (
                       <span
-                        title={here.slice(3).map((m) => m.nickname).join(", ")}
+                        title={here.slice(MAX_DOTS).map((m) => m.nickname).join(", ")}
                         className="text-[10px] font-semibold text-ink-faint"
                       >
-                        +{here.length - 3}
+                        +{here.length - MAX_DOTS}
                       </span>
                     ) : null}
                   </span>

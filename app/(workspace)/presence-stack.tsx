@@ -33,17 +33,10 @@ export function PresenceStack({
   const { returnTo, goBack } = useFocusFollow();
   const currentId = documentIdFromPathname(usePathname());
 
-  // Who is *here*: the viewer, the others in this document, then the members
-  // who are not connected. Everyone else is found in the document tree.
   const ordered = useMemo(
-    () =>
-      withOffline(members, known, memberId).filter(
-        ({ member, presence }) =>
-          !presence || member.id === memberId || presence.location?.documentId === currentId,
-      ),
+    () => withOffline(members, known, memberId, currentId),
     [members, known, memberId, currentId],
   );
-  const online = ordered.filter(({ presence }) => presence).length;
 
   if (status === "connecting") {
     return (
@@ -68,26 +61,24 @@ export function PresenceStack({
 
   return (
     <div className="flex items-center gap-2 pr-1.5">
-      <span className="sr-only">{online}명 접속 중</span>
+      <span className="sr-only">{members.length}명 접속 중</span>
       <ul className="flex items-center">
-        {shown.map(({ member, presence }) => {
-          return (
-            <li key={member.id} className="-ml-1.5 rounded-full shadow-[0_0_0_2px_var(--color-paper)] first:ml-0">
-              <Avatar
-                colorTag={member.colorTag}
-                label={member.nickname.slice(0, 1)}
-                dimmed={!presence}
-                name={
-                  <>
-                    {member.nickname}
-                    {member.id === memberId ? " (나)" : ""}
-                    {!presence ? " · 오프라인" : ""}
-                  </>
-                }
-              />
-            </li>
-          );
-        })}
+        {shown.map(({ member, presence }) => (
+          <li key={member.id} className="-ml-1.5 rounded-full shadow-[0_0_0_2px_var(--color-paper)] first:ml-0">
+            <Avatar
+              colorTag={member.colorTag}
+              label={member.nickname.slice(0, 1)}
+              dimmed={!presence}
+              name={
+                <>
+                  {member.nickname}
+                  {member.id === memberId ? " (나)" : ""}
+                  {!presence ? " · 오프라인" : ""}
+                </>
+              }
+            />
+          </li>
+        ))}
         {hidden.length > 0 ? (
           <li tabIndex={0}
             className="group/avatar relative -ml-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-paper-2 px-1.5 text-[11px] font-semibold text-ink-soft shadow-[0_0_0_2px_var(--color-paper)] outline-none focus-visible:ring-2 focus-visible:ring-sky-deep">
