@@ -34,6 +34,7 @@ const eslintConfig = defineConfig([
     "test-results/**",
     "playwright-report/**",
     "blob-report/**",
+    "e2e-artifacts/**",
   ]),
 ]);
 

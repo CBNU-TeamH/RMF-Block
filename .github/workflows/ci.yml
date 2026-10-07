@@ -94,7 +94,7 @@ jobs:
       WORKSPACE_PASSWORD: ci-smoke-test
     # A container that accepts the connection but never answers would otherwise
     # hold a runner for the 6h default.
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -256,12 +256,26 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: E2E
+        timeout-minutes: 24
         id: e2e
         if: ${{ steps.browsers.outcome == 'success' }}
         continue-on-error: true
         env:
           E2E_WORKSPACE_PASSWORD: ${{ env.WORKSPACE_PASSWORD }}
-        run: pnpm e2e
+        shell: bash
+        run: |
+          set -euo pipefail
+          secret=$(docker compose logs app | sed -n 's/.*secret=\([a-z0-9-]*\).*/\1/p' | tail -1)
+          [ -n "$secret" ] || { echo "::error::no host bootstrap secret"; exit 1; }
+          echo "::add-mask::$secret"
+          E2E_HOST_SECRET="$secret" pnpm e2e
+
+      - name: Server log
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p e2e-artifacts
+          docker compose logs app yorkie | sed -E 's/secret=[^[:space:]]+/secret=[REDACTED]/g' | tee e2e-artifacts/server.log
 
       - name: E2E report
         if: ${{ steps.e2e.outcome == 'failure' }}
@@ -271,10 +285,7 @@ jobs:
           path: |
             playwright-report/
             test-results/
-
-      - name: Server log
-        if: always()
-        run: docker compose logs app yorkie
+            e2e-artifacts/
 
       - name: Fail on the Yorkie invariants
         if: ${{ steps.invariants.outcome == 'failure' }}

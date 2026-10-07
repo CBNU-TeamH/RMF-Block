@@ -1,16 +1,17 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
-import { createDocument, firstBlock, joinedPage, nickname, openDocument } from "./helpers";
+import { block, createDocument, firstBlockId, openDocument } from "./helpers";
 
-test("an edit in one browser shows in the other", async ({ browser }) => {
-  const a = await joinedPage(browser, nickname("sync-a"));
-  const b = await joinedPage(browser, nickname("sync-b"));
+test("an edit in one browser shows in the other", async ({ users }) => {
+  const a = (await users.join(0)).page;
+  const b = (await users.join(1)).page;
   const id = await createDocument(a, `e2e sync ${Date.now()}`);
   await openDocument(a, id);
   await openDocument(b, id);
+  const blockId = await firstBlockId(a);
 
-  await firstBlock(a).click();
+  await block(a, blockId).click();
   await a.keyboard.type("hello from a");
 
-  await expect(firstBlock(b)).toHaveValue("hello from a");
+  await expect(block(b, blockId)).toHaveValue("hello from a");
 });

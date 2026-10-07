@@ -84,6 +84,7 @@ line.
 | `pnpm verify:fast` | `pnpm lint` and `pnpm test` (Vitest) |
 | `pnpm verify:docs` | The doc checks — what they cover: [`.claude/skills/README.md`](.claude/skills/README.md), "Run the free checks first" |
 | `pnpm comments` | The comment budget ([`docs/conventions.md`](docs/conventions.md)) |
+| `pnpm e2e:isolated` | Disposable Docker stack and functional E2E on loopback ports 3100/8180 |
 | `pnpm e2e` | Playwright against a running stack — how to run it: [`docs/testing.md`](docs/testing.md), "E2E" |
 | `pnpm build` | The production build |
 
