@@ -68,12 +68,20 @@ describe("POST /api/workspace — setup (FR-010-01~04)", () => {
 describe("PATCH /api/workspace/password (FR-011-04~06)", () => {
   it("changes the password without touching any session", async () => {
     vi.mocked(isHost).mockResolvedValue(true);
+    vi.mocked(changeWorkspacePassword).mockResolvedValueOnce(true);
 
     const response = await PATCH(json({ password: "5678" }));
 
     assert.equal(response.status, 204);
     assert.equal(vi.mocked(changeWorkspacePassword).mock.calls[0]?.[0], "5678");
     assert.equal(vi.mocked(sessionRegistry.kick).mock.calls.length, 0);
+  });
+
+  it("answers 409 before setup", async () => {
+    vi.mocked(isHost).mockResolvedValue(true);
+    vi.mocked(changeWorkspacePassword).mockResolvedValueOnce(false);
+
+    assert.equal((await PATCH(json({ password: "5678" }))).status, 409);
   });
 
   it("maps a too-short password to 400", async () => {

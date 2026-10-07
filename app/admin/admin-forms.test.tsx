@@ -4,9 +4,10 @@ import { afterEach, describe, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const refresh = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push: vi.fn() }) }));
+const push = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push }) }));
 
-import { GuestList } from "./admin-forms.tsx";
+import { GuestList, SetupForm } from "./admin-forms.tsx";
 
 afterEach(() => {
   cleanup();
@@ -48,5 +49,27 @@ describe("GuestList — kick (FR-011-01~03)", () => {
   it("says so when nobody is connected", () => {
     render(<GuestList guests={[]} />);
     assert.ok(screen.getByText("접속 중인 게스트가 없습니다."));
+  });
+});
+
+describe("SetupForm (UC-010)", () => {
+  const submit = () => {
+    render(<SetupForm />);
+    fireEvent.change(screen.getByLabelText("접속 비밀번호"), { target: { value: "1234" } });
+    fireEvent.submit(screen.getByRole("button", { name: "워크스페이스 열기" }));
+  };
+
+  it("goes into the workspace once opened", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+    submit();
+    await waitFor(() => assert.equal(push.mock.calls[0]?.[0], "/"));
+  });
+
+  it("re-renders on a refusal, so a workspace another tab opened shows its manage view", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: "이미 열린 워크스페이스입니다." }, { status: 409 })));
+    submit();
+    await waitFor(() => assert.equal(refresh.mock.calls.length, 1));
+    assert.equal(push.mock.calls.length, 0);
+    assert.ok(screen.getByText("이미 열린 워크스페이스입니다."));
   });
 });

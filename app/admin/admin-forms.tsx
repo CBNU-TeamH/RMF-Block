@@ -58,6 +58,10 @@ export function SetupForm() {
         if (await run(() => fetch("/api/workspace", { method: "POST", ...json(body) }))) {
           router.refresh();
           router.push("/");
+        } else {
+          // Another tab may have opened it (409): re-render, and this page
+          // becomes the manage view. A 400 re-renders as the same form, error kept.
+          router.refresh();
         }
       }}
       className="flex flex-col gap-[18px]"

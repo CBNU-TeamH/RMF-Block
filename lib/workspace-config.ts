@@ -28,15 +28,47 @@ export class WorkspaceConfigError extends Error {}
 const scryptAsync = promisify(scrypt) as (password: string, salt: string, length: number) => Promise<Buffer>;
 const hash = (password: string, salt: string) => scryptAsync(password, salt, 32);
 
+const isStored = (value: unknown): value is StoredWorkspace => {
+  const v = value as Partial<StoredWorkspace> | null;
+  return (
+    typeof v?.name === "string" &&
+    typeof v.salt === "string" &&
+    typeof v.passwordHash === "string" &&
+    /^[0-9a-f]{64}$/.test(v.passwordHash)
+  );
+};
+
+const reportedDamaged = new Set<string>();
+
+/** `null` when there is nothing usable to read. Unlike `readMembers`, a file
+ *  that does not parse, or parses into the wrong shape, counts as "not set up"
+ *  rather than an error: a broken hash protects nothing worth keeping, and the
+ *  setup screen rewriting the file is the recovery — where throwing would 500
+ *  every page and leave the host no way back through the UI. An I/O error
+ *  (permissions, disk) still throws; writing would fail the same way. */
 function readStored(storePath: string): StoredWorkspace | null {
+  let raw: string;
   try {
-    return JSON.parse(readFileSync(storePath, "utf8"));
+    raw = readFileSync(storePath, "utf8");
   } catch (error) {
-    // Only a missing file means "not set up yet" — the same rule, and the same
-    // reason, as `readMembers`.
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw error;
   }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = null;
+  }
+  if (isStored(parsed)) return parsed;
+
+  // Once per path: this is read on every request.
+  if (!reportedDamaged.has(storePath)) {
+    reportedDamaged.add(storePath);
+    console.error(`  ✗ ${storePath} is damaged — treating the workspace as not set up; the host can set it up again.`);
+  }
+  return null;
 }
 
 function writeStored(storePath: string, stored: StoredWorkspace): void {
@@ -65,20 +97,19 @@ export async function isWorkspacePassword(
 ): Promise<boolean> {
   const stored = readStored(storePath);
   if (!candidate || !stored) return false;
-  const expected = Buffer.from(stored.passwordHash, "hex");
-  const given = await hash(candidate, stored.salt);
-  // timingSafeEqual throws on a length mismatch — a hand-edited file would
-  // otherwise turn every wrong password into a 500.
-  return given.length === expected.length && timingSafeEqual(given, expected);
+  // Both 32 bytes — `isStored` checked the hash's length, which
+  // timingSafeEqual would otherwise throw on.
+  return timingSafeEqual(await hash(candidate, stored.salt), Buffer.from(stored.passwordHash, "hex"));
 }
 
-/** `onlyIfNew` is checked after the hash and right before the write, with no
- *  await between them — the one place two setup requests cannot both pass. */
+/** `mode` is checked after the hash and right before the write, with no await
+ *  between them — the one place two requests cannot both pass: setup only
+ *  creates (`"new"`), a password change only replaces (`"existing"`). */
 async function store(
   name: string,
   password: unknown,
   storePath: string,
-  onlyIfNew = false,
+  mode: "new" | "existing",
 ): Promise<boolean> {
   if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH) {
     throw new WorkspaceConfigError(`비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.`);
@@ -89,7 +120,7 @@ async function store(
 
   const salt = randomBytes(16).toString("hex");
   const passwordHash = (await hash(password, salt)).toString("hex");
-  if (onlyIfNew && isWorkspaceOpen(storePath)) return false;
+  if (isWorkspaceOpen(storePath) !== (mode === "existing")) return false;
   writeStored(storePath, { name, salt, passwordHash });
   return true;
 }
@@ -102,12 +133,14 @@ export function openWorkspace(
   storePath = DEFAULT_WORKSPACE_PATH,
 ): Promise<boolean> {
   const name = typeof input.name === "string" ? input.name.trim() : "";
-  return store(name || DEFAULT_WORKSPACE_NAME, input.password, storePath, true);
+  return store(name || DEFAULT_WORKSPACE_NAME, input.password, storePath, "new");
 }
 
-/** FR-011-04~06: sessions are not touched — only the next join checks this. */
-export async function changeWorkspacePassword(password: unknown, storePath = DEFAULT_WORKSPACE_PATH): Promise<void> {
-  await store(getWorkspaceName(storePath), password, storePath);
+/** FR-011-04~06: sessions are not touched — only the next join checks this.
+ *  `false` before setup: changing a password must not create the workspace and
+ *  skip the setup screen's name. */
+export function changeWorkspacePassword(password: unknown, storePath = DEFAULT_WORKSPACE_PATH): Promise<boolean> {
+  return store(getWorkspaceName(storePath), password, storePath, "existing");
 }
 
 /** Development and CI only, run once at startup: `WORKSPACE_PASSWORD` (and

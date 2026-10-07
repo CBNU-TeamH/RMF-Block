@@ -89,22 +89,38 @@ describe("openWorkspace twice", () => {
   });
 });
 
-describe("isWorkspacePassword on a damaged file", () => {
-  it("answers false rather than throwing", async () => {
-    await openWorkspace({ password: "1234" }, storePath);
-    writeFileSync(storePath, JSON.stringify({ name: "x", salt: "s", passwordHash: "abcd" }));
-    assert.equal(await isWorkspacePassword("1234", storePath), false);
-  });
+describe("a damaged workspace.json", () => {
+  for (const [label, content] of [
+    ["unparsable", "{ not json"],
+    ["the wrong shape", JSON.stringify({ name: "x", salt: "s", passwordHash: "abcd" })],
+    ["missing fields", JSON.stringify({ name: "x" })],
+  ] as const) {
+    it(`counts as not set up when ${label}, and setup repairs it`, async () => {
+      writeFileSync(storePath, content);
+
+      assert.equal(isWorkspaceOpen(storePath), false);
+      assert.equal(await isWorkspacePassword("1234", storePath), false);
+      assert.equal(getWorkspaceName(storePath), "RMF Block");
+
+      assert.equal(await openWorkspace({ name: "Again", password: "1234" }, storePath), true);
+      assert.equal(await isWorkspacePassword("1234", storePath), true);
+    });
+  }
 });
 
 describe("changeWorkspacePassword", () => {
   it("replaces the password and keeps the name", async () => {
     await openWorkspace({ name: "Team H", password: "1234" }, storePath);
-    await changeWorkspacePassword("5678", storePath);
+    assert.equal(await changeWorkspacePassword("5678", storePath), true);
 
     assert.equal(await isWorkspacePassword("1234", storePath), false);
     assert.equal(await isWorkspacePassword("5678", storePath), true);
     assert.equal(getWorkspaceName(storePath), "Team H");
+  });
+
+  it("does nothing before setup, so setup still asks for the name", async () => {
+    assert.equal(await changeWorkspacePassword("5678", storePath), false);
+    assert.equal(isWorkspaceOpen(storePath), false);
   });
 
   it("refuses a password below the floor", async () => {

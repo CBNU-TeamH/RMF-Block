@@ -10,7 +10,13 @@ export async function register() {
   const { registerAuthWebhook } = await import("./lib/yorkie-admin");
 
   // Development and CI only: an env password opens a workspace never set up.
-  await seedWorkspaceFromEnv();
+  // Caught, not left to throw: Next swallows a rejection here and the process
+  // stays up without listening (`docs/design/api.md` §2) — a seed is not worth that.
+  try {
+    await seedWorkspaceFromEnv();
+  } catch (error) {
+    console.error(`\n  ✗ Could not seed the workspace from WORKSPACE_PASSWORD: ${error instanceof Error ? error.message : String(error)}\n`);
+  }
 
   // Yorkie only asks about tokens if told to, and that is a project setting —
   // so it must be written after Yorkie is up (`docs/design/api.md` §2).
