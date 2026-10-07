@@ -26,6 +26,13 @@
 - **Reuse**: the fixture and runner built here.
 - **Done**: no unmerged admin changes are copied, staged or altered; restart/setup tests get their own stack.
 
+### 4. Integrate the merged baseline and test-selection workflow
+
+- **What**: rebase on the actual admin merge, preserve shared-stack cleanup guidance, and require each feature/fix to assess E2E and container smoke coverage before its PR.
+- **Files**: `AGENTS.md`, `CONTRIBUTING.md`, `docs/testing.md`, task and PR templates, this task pair.
+- **Reuse**: existing five test layers, disposable runner and CI smoke steps; keep test-selection rules in `docs/testing.md` and link them from workflow entry points.
+- **Done**: merged-baseline E2E outcomes are recorded, required new/updated tests belong in the feature PR, and each unneeded layer has a concrete reason in its task/PR.
+
 ## Acceptance
 
 - [x] Lint, unit tests, production build, doc checks and comment budget run.
@@ -113,8 +120,48 @@ terminated all 11 owned subprocesses, and removed its containers, volumes, netwo
   IME scenario is reached. The PR verification retains separate E2E outcomes, and the existing
   CDP composition plus third-observer propagation checks remain. No product IME code changed.
 
-Admin integration is **not verified**: PR #170 is still open. Its setup/access/password/kick/
-location/restart coverage remains the separate `20261007-admin-e2e` task and will use the actual
-merged baseline. Sustained load, performance thresholds, LAN devices and other browsers remain
+At the first-phase baseline, admin integration was **not verified** because PR #170 was open.
+Its setup/access/password/kick/location/restart coverage remains the separate
+`20261007-admin-e2e` task; the post-merge compatibility run is recorded below. Sustained load, performance thresholds, LAN devices and other browsers remain
 separate work. This task completes coverage implementation and reports remaining defects; it
 does not claim those product paths are fixed.
+
+## Post-merge verification and workflow completion
+
+Rebased onto `upstream/main` at `2608675` after admin PR #170 and archive/conventions PRs #172/#173
+merged. Resolved `docs/testing.md` by keeping #169's shared-stack storage cleanup instructions
+alongside isolated execution; regenerated both task indexes from all task files. No application,
+admin API, type or storage-format changes were needed. The original workspace's unrelated edits
+were left alone.
+
+On fresh stack `rmf-e2e-714f8265`, all 18 tests ran: **16 passed / 2 failed**, 105.8s,
+zero skipped/flaky/retried cases. Only the same two #37 diagnostics failed. Eight-user edits,
+active 20-second outage recovery, IME, tree updates and host/guest admission passed against the
+actual admin merge. This is compatibility evidence, not completion of the separate admin E2E task.
+The runner removed its containers, volumes, network and app image; Docker listings confirmed no
+remaining project resources. The report, traces and logs contained no bootstrap credential URL.
+
+`pnpm verify:fast` passed (705 unit tests), as did `pnpm exec tsc --noEmit`, `pnpm build`,
+`pnpm verify:docs` and `pnpm comments`. The existing instrumentation Edge warning persists.
+The CI host/guest/join/chat smoke shell was extracted without changing assertions and run on
+this stack with loopback port 3100 and the generated password; it passed. Yorkie invariants
+passed with `RPC=http://127.0.0.1:8180`. These are local results; CI results are reported separately
+in the PR.
+
+### Test selection
+
+- **Vitest**: no new runtime behavior in the rebase/workflow update; the existing 705 tests cover
+  the integrated baseline. The workflow text is checked by doc-link/consistency verification.
+- **Browser E2E**: the new/updated `e2e/*.e2e.ts` cases and fixtures in this PR prove functional
+  journeys and multi-user/recovery outcomes. The post-merge full suite above checks compatibility.
+- **Container smoke**: existing CI HTTP/startup assertions cover the unchanged startup/auth
+  contracts; no new smoke assertion is required by this test/tooling/documentation change. The
+  shell and Yorkie invariant outcomes are recorded above.
+
+At the user's request, this PR also closes the process gap: existing docs described layers and
+bug regressions but did not require feature authors to assess smoke/E2E coverage. `docs/testing.md`
+now owns that decision procedure; `AGENTS.md`, `CONTRIBUTING.md` and task/PR templates route to it.
+Required test changes must ship in the feature/fix PR, with existing coverage or reasons recorded
+for layers that need no change. Codex reviewed this documentation delta for duplicate rules,
+links, test-layer distinctions and truthful evidence; the earlier Claude review passes above
+still describe their actual scope and limitations.

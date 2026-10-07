@@ -30,6 +30,32 @@ had tests* (`serving.test.mts`, `upload.test.mts`). The missing thing was never 
 was a boundary value inside one. A layer having tests at all says nothing about whether the one
 value that mattered was checked.
 
+## Select tests for each change
+
+For every feature or bug fix, record the changed behavior and its success criteria in the task,
+then assess the existing tests at each relevant layer before implementation. Revisit that
+assessment after the feature works, when the final behavior and affected paths are known.
+
+| Changed behavior | Coverage to assess |
+| --- | --- |
+| Logic, limits, component interactions, server gates or route responses | The relevant Vitest layer below; extend an existing case when it reaches the behavior, otherwise add a regression or feature case. |
+| A user journey after hydration, browser-native input, multiple clients, live updates or outage recovery | Playwright in `e2e/`; cover the observable result through the real browser and stack. A mocked component/route test alone cannot prove it. |
+| Container startup, printed LAN/bootstrap addresses, cookie/redirect wiring, auth or service networking | The container smoke steps in [CI](../.github/workflows/ci.yml); extend their HTTP/startup checks when the changed contract is missing. Use browser E2E as well when hydration or interaction is part of that contract. |
+
+Choose the cheapest layer that proves each result. E2E and smoke are assessed separately;
+running an unchanged suite is not evidence that it covers a new behavior. Reuse or update an
+existing test if it already reaches the path; add a case for a missing path. If a layer needs no
+change, name the existing test that covers the result or explain why that layer cannot add
+useful evidence. Documentation-only changes can say there is no runtime behavior change.
+
+Before opening the PR, include all required test additions/updates **in the same PR as the
+feature or fix** and run the relevant checks against the final implementation. Record test
+paths, commands, observed outcomes and any environment gaps in the task and PR. An unavailable
+LAN device can leave a measurement gap, but it does not defer writing an automated test that
+can run on the disposable stack. File unrelated defects separately and link them; report their
+failures without silently skipping them. The PR records smoke and E2E results separately,
+including when CI keeps E2E non-blocking.
+
 ## The five layers
 
 | Layer | A test here answers | How | Status |

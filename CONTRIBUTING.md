@@ -8,7 +8,9 @@ how-to.
 1. Branch from `CBNU-TeamH/RMF-Block`'s `main` — `upstream/main` on a fork, see below — as
    `<type>/<slug>`; one branch and one squash-merged PR per task (`AGENTS.md` §6).
 2. Register the work as a todo + lessons pair in `tasks/active/` and plan it there (`AGENTS.md` §2).
-3. Build it; `pnpm verify:fast` and `pnpm verify:docs` clean.
+3. [Select tests for the change](docs/testing.md#select-tests-for-each-change), build it, then
+   revisit coverage for the final behavior, including E2E and container smoke. Include required
+   new/updated tests in this PR; run the relevant checks plus `pnpm verify:fast` and `pnpm verify:docs`.
 4. Run the review passes ([`.claude/skills/README.md`](.claude/skills/README.md)), then open a PR
    from [`.github/pull_request_template.md`](.github/pull_request_template.md).
 

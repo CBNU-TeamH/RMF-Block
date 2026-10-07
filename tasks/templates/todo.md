@@ -17,10 +17,22 @@
 
 ...
 
+## Test selection
+
+Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+building and revisit it for the final behavior. For each relevant layer, name existing tests
+that cover it, required updates/new cases, or a concrete reason no change is needed.
+
+- Vitest (logic / component / server / route):
+- Browser E2E (`e2e/`):
+- Container smoke (`.github/workflows/ci.yml`):
+- Commands and observed results (fill in before the PR):
+
 ## Acceptance
 
 What has to be true for this task to be finished. Runnable checks beat prose.
 
+- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
 - [ ] ...
 
 ## Cross-cutting

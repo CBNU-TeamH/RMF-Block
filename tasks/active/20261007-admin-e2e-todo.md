@@ -21,7 +21,7 @@
 
 ## Acceptance
 
-- [ ] Admin is merged before implementation starts.
+- [x] Admin is merged before implementation starts (PR #170).
 - [ ] All scenarios run against the actual merge and report observed results.
 - [ ] Lint, unit tests, build, docs and three independent E2E runs are recorded.
 
@@ -31,4 +31,4 @@ FR-010-01~05, FR-011-01~07, FR-040-01~04, NFR-REL-002. No product API/type/stora
 
 ## Review
 
-Deferred dependency: admin is unmerged at first-phase baseline `550dc2b`. User location is already merged; integrated revalidation still belongs to this separate task. Performance/LAN/multibrowser checks remain separate.
+Admin merged in PR #170. The first-phase suite was revalidated against `2608675`; admin-specific scenarios and integrated user-location navigation still belong to this separate task. Performance/LAN/multibrowser checks remain separate.
