@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-07
 **Issue**: #106 (UC-010/UC-011, WBS 18.1) + #48 (WBS 14.7), milestone v0.0.1
-**Design**: [`docs/design/api.md`](../../docs/design/api.md) (Authentication model, endpoint table, Yorkie auth webhook) and [`docs/design/app-shell.md`](../../docs/design/app-shell.md); both are updated in this PR.
+**Design**: [`docs/design/api.md`](../../../../docs/design/api.md) (Authentication model, endpoint table, Yorkie auth webhook) and [`docs/design/app-shell.md`](../../../../docs/design/app-shell.md); both are updated in this PR.
 
 ## Plan
 
@@ -48,11 +48,11 @@ Decisions settled with the user (2026-10-07):
 
 ## Acceptance
 
-- [ ] FR-010-01~05, FR-011-01~07 each covered by a unit, route or component test
-- [ ] By hand, against the container with an empty `WORKSPACE_PASSWORD`: setup → join → password change keeps the connected guest, a new join needs the new password → kick asks first, the guest sees the message and leaves everyone's roster, their edits stop within a second → a restart keeps the settings
-- [ ] CI smoke test and E2E still pass on the env seed
-- [ ] `pnpm verify:docs`, pre-push hook (test + build) green
-- [ ] `/simplify` and `/code-review low` run in this session, findings applied
+- [x] FR-010-01~05, FR-011-01~07 each covered by a unit, route or component test
+- [x] By hand, against the container with an empty `WORKSPACE_PASSWORD`: setup → join → password change keeps the connected guest, a new join needs the new password → kick asks first, the guest sees the message and leaves everyone's roster, their edits stop within a second → a restart keeps the settings
+- [x] CI smoke test and E2E still pass on the env seed
+- [x] `pnpm verify:docs`, pre-push hook (test + build) green
+- [x] `/simplify` and `/code-review low` run in this session, findings applied
 
 ## Cross-cutting
 
@@ -60,4 +60,8 @@ FR-010-01~06, FR-011-01~07, NFR-REL-002. Touches the auth model (`api.md` "resta
 
 ## Review
 
-_Filled in at the end._
+Shipped in #170 (closes #106, #48), all of the plan, plus what review and the by-hand run added:
+
+- **From review**: async scrypt (a sync hash stalled the process per join), which then needed the already-open check moved after the hash and right before the write (two setups could both pass); a damaged `workspace.json` counts as not set up instead of failing every page; `PATCH …/password` refuses before setup; the env seed at startup is caught; admin forms call `fetch` with literal URLs so the generated endpoint table finds them.
+- **From the by-hand run**: an outlined **Admin** link with a shield and an ADMIN badge instead of "관리자", a refresh icon for the guest list, the way back at the top left; startup names the saved workspace, because emptying `.env` does not bring the setup screen back.
+- **Cut / moved**: renaming after setup, member-record pruning and IP bans (out of scope); the shared `.data/` JSON helper → #114; moving the older hand-written host checks onto `isHost()` — noted in the PR, not filed.

@@ -8,7 +8,9 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [User location tracking — who is in which document, and jump to them](2026/10/20261007-user-location-tracking-todo.md) | [lessons](2026/10/20261007-user-location-tracking-lessons.md) |
 | [Drift audit: the parts that changed since 2026-10-05](2026/10/20261007-drift-audit-todo.md) | [lessons](2026/10/20261007-drift-audit-lessons.md) |
+| [Admin page — setup, password change, guest kick; webhook cache TTL](2026/10/20261007-admin-page-todo.md) | [lessons](2026/10/20261007-admin-page-lessons.md) |
 | [Perf criteria — scope to "our performance under conditions"](2026/10/20261006-perf-criteria-scope-todo.md) | [lessons](2026/10/20261006-perf-criteria-scope-lessons.md) |
 | [Chat attachments in floating views, and the chat file list](2026/10/20261006-chat-media-floating-todo.md) | [lessons](2026/10/20261006-chat-media-floating-lessons.md) |
 | [The `/` menu's query: IME input, prefix matching, every text block, no-results row](2026/10/20261005-slash-menu-query-todo.md) | [lessons](2026/10/20261005-slash-menu-query-lessons.md) |

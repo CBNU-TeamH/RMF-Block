@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-07
 **Issue**: #142 (UC-040, WBS 8.1, milestone v0.0.1)
-**Design**: [`docs/design/api.md`](../../docs/design/api.md) ("What is **not** answered…") and [`docs/design/presence-and-focus.md`](../../docs/design/presence-and-focus.md); the server-index design in api.md is superseded by Plan §1 below and gets rewritten in the same PR.
+**Design**: [`docs/design/api.md`](../../../../docs/design/api.md) ("What is **not** answered…") and [`docs/design/presence-and-focus.md`](../../../../docs/design/presence-and-focus.md); the server-index design in api.md is superseded by Plan §1 below and gets rewritten in the same PR.
 
 ## Plan
 
@@ -54,8 +54,8 @@ Decisions the issue left open (settled with the user 2026-10-07):
 
 - [x] FR-040-01 … FR-040-04: unit and component tests (`roster.test.mts`, `presence-stack.test.tsx`, `document-list.test.tsx`, `focus-follow-provider.test.tsx`)
 - [x] Two-browser check against the container — run by the author on the first design (all passed); the reworked nav/tree/confirm is re-checked by hand before merge
-- [ ] `pnpm verify:docs`, and pre-push hook (test + build) green
-- [ ] `/simplify` and `/code-review low` run, findings applied
+- [x] `pnpm verify:docs`, and pre-push hook (test + build) green
+- [x] `/simplify` and `/code-review low` run, findings applied (twice — first design and the rework), plus CodeRabbit's four
 
 ## Cross-cutting
 
@@ -63,4 +63,8 @@ FR-040-01..04, NFR-USA-003, SIR009. Presence shape changes overlap #124 (followe
 
 ## Review
 
-_Filled in at the end._
+Shipped in #167. What landed differs from the plan above in one place, decided after the first by-hand run:
+
+- **Shipped**: `location { documentId, blockId }` on workspace presence; the header roster lists the viewer and the members in the open document, then every recorded member not connected (dimmed); the **document tree** carries a dot per other member and a dot is the jump; 돌아가기 returns to one remembered place, including the page with no document; a jump while following asks first (`window.confirm`).
+- **Changed from the plan**: the jump moved from the header avatars to the tree, and the tree's "2 or more people" threshold was dropped — one other person is enough. The nav no longer jumps.
+- **Cut / moved**: a home page and tabbed documents → #168. Swapping `window.confirm` for a `<dialog>` and a flex row for the tree dots were left as notes in the PR, not filed.
