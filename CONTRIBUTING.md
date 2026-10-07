@@ -93,6 +93,12 @@ which checks block a merge: `AGENTS.md` §6. How the layers of tests divide the 
 ## Pull requests
 
 - **Commit prefixes, doc language, ground rules**: `AGENTS.md` §5.
+- **Branch from `upstream/main`**, not your fork's `main`. After a squash merge the fork lags until
+  someone syncs it, and a branch cut from it silently misses the last merge:
+  `git fetch upstream && git checkout -b <type>/<slug> upstream/main`.
 - **When the work is done**, archive its task with `pnpm tasks:archive <slug>` (`AGENTS.md` §2,
   step 5); an archive-only PR starts from
-  [`.github/PULL_REQUEST_TEMPLATE/archive.md`](.github/PULL_REQUEST_TEMPLATE/archive.md).
+  [`.github/PULL_REQUEST_TEMPLATE/archive.md`](.github/PULL_REQUEST_TEMPLATE/archive.md). It is
+  **`docs:`** work — branch `docs/archive-<slug>`, commit and PR titled `docs: archive …` — since it
+  moves task documents and changes nothing a build or a tool reads. Earlier archives used `chore:`;
+  they stay as they are.
