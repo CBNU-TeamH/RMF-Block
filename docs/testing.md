@@ -162,6 +162,12 @@ a browser run costs seconds per test against milliseconds.
 - **Getting in.** `e2e/helpers.ts` joins through `POST /api/workspace/join` and creates documents
   through the API; the form has its own tests. Nicknames are unique per run, so reruns against the
   same `.data/` never collide.
+- **What it leaves behind.** Every run adds `e2e-…` members and `e2e sync/ime …` documents (plus
+  the files and chat lines the chat test uploads) to `.data/` — the `app-data` volume, when the
+  stack is the container. Nothing removes them, so clean up once the testing is done: stop the
+  stack first, because the app holds members in memory and rewrites `members.json` from it, then
+  delete those rows (the `e2e-` prefix is the handle). `docker compose down -v` is the blunt
+  version and wipes real members and documents too.
 - **Anchors.** A block's textarea is `[data-block-id] textarea`, never a bare `textarea`. Wait for
   an element, never `networkidle` — the workspace socket and Yorkie's watch stream never go idle.
 - **IME.** A CDP session drives a composition the way a Korean IME does:
