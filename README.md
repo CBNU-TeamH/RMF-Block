@@ -41,7 +41,7 @@ the contracts.
 You need Docker with Compose 2.20 or newer and bash — on Linux or macOS, or on Windows from WSL.
 
 ```bash
-cp .env.sample .env        # fill it in — each variable is explained there
+cp .env.sample .env        # nothing to fill in by hand — each variable is explained there
 bash scripts/detect-host-ip.sh && docker compose up --build
 ```
 
@@ -56,8 +56,12 @@ rmf-app  |   Guest: http://192.168.0.14:3000
 
 - **Open the `Host:` link yourself.** It makes you the host and drops the secret from the address
   bar. Treat the line as a credential: it stays valid until the container restarts.
+- **The first time, it opens the setup screen.** Choose the workspace name and the access password
+  there, then tell guests the password. Until then the startup output says
+  `host user의 workspace setting이 완료되지 않았습니다.` and guests cannot join. The 관리자 link in
+  the top bar, shown only to the host, is where you change the password later or remove a guest.
 - **Give everyone else the `Guest:` address.**
-- **Restarting the container signs everyone out** — that is how access is revoked
+- **Restarting the container signs everyone out**; removing one guest is the admin page's 퇴장
   ([`docs/design/api.md`](docs/design/api.md)).
 - **Documents and app state survive** restarts and rebuilds on named volumes — members keep their
   colours — and `docker compose down -v` wipes them.
