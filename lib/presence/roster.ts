@@ -19,7 +19,8 @@ export function rosterFrom(
   return [...byId.values()];
 }
 
-export type RosterEntry = { member: WorkspaceMember; online: boolean; presence?: WorkspacePresence };
+/** `presence` is set exactly when the member is connected. */
+export type RosterEntry = { member: WorkspaceMember; presence?: WorkspacePresence };
 
 /** Everyone the workspace has recorded, connected or not (FR-040-04). Online
  *  members come first, the viewer first among them; a connected member the
@@ -31,12 +32,12 @@ export function withOffline(
   memberId: string,
 ): Array<RosterEntry> {
   const online = connected
-    .map((presence): RosterEntry => ({ member: presence, online: true, presence }))
+    .map((presence): RosterEntry => ({ member: presence, presence }))
     .sort((a, b) => Number(b.member.id === memberId) - Number(a.member.id === memberId));
   const here = new Set(connected.map((m) => m.id));
   const offline = known
     .filter((m) => !here.has(m.id))
-    .map((member): RosterEntry => ({ member, online: false }));
+    .map((member): RosterEntry => ({ member }));
 
   return [...online, ...offline];
 }
@@ -49,7 +50,9 @@ export function occupantsByDocument(
   for (const member of connected) {
     const documentId = member.location?.documentId;
     if (!documentId) continue;
-    byDocument.set(documentId, [...(byDocument.get(documentId) ?? []), member]);
+    const list = byDocument.get(documentId);
+    if (list) list.push(member);
+    else byDocument.set(documentId, [member]);
   }
   return byDocument;
 }

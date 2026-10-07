@@ -71,15 +71,12 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
     router.push(`/documents/${documentId}`);
   }, [followingId, members, pathname, router]);
 
-  const goTo = useCallback(
-    (place: Place) => {
-      setScrollTarget(place);
-      if (place.documentId !== documentIdFromPathname(pathname)) {
-        router.push(`/documents/${place.documentId}`);
-      }
-    },
-    [pathname, router],
-  );
+  function goTo(place: Place) {
+    setScrollTarget(place);
+    if (place.documentId !== documentIdFromPathname(pathname)) {
+      router.push(`/documents/${place.documentId}`);
+    }
+  }
 
   const clearScrollTarget = useCallback(() => setScrollTarget(null), []);
 

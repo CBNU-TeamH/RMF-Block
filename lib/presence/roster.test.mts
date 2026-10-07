@@ -87,7 +87,7 @@ describe("withOffline", () => {
   it("puts the viewer first, then the other online members, then the offline", () => {
     const entries = withOffline([alice, bob], [alice, bob, carol], "id-bob");
     assert.deepEqual(
-      entries.map((e) => [e.member.id, e.online]),
+      entries.map((e) => [e.member.id, e.presence !== undefined]),
       [["id-bob", true], ["id-alice", true], ["id-carol", false]],
     );
   });

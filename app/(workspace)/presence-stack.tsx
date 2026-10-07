@@ -61,20 +61,20 @@ export function PresenceStack({
     <div className="flex items-center gap-2 pr-1.5">
       <span className="sr-only">{members.length}명 접속 중</span>
       <ul className="flex items-center">
-        {shown.map(({ member, online, presence }) => {
+        {shown.map(({ member, presence }) => {
           const where = documentName(presence?.location?.documentId);
           return (
             <li key={member.id} className="-ml-1.5 rounded-full shadow-[0_0_0_2px_var(--color-paper)] first:ml-0">
               <Avatar
                 colorTag={member.colorTag}
                 label={member.nickname.slice(0, 1)}
-                dimmed={!online}
+                dimmed={!presence}
                 onClick={member.id !== memberId && presence?.location ? () => jumpTo(member.id) : undefined}
                 name={
                   <>
                     {member.nickname}
                     {member.id === memberId ? " (나)" : ""}
-                    {!online ? " · 오프라인" : where ? ` · ${where}` : ""}
+                    {!presence ? " · 오프라인" : where ? ` · ${where}` : ""}
                   </>
                 }
               />

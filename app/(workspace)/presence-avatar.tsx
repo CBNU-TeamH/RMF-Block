@@ -22,14 +22,14 @@ export function Avatar({
   className?: string;
   /** Makes it a button (UC-040's jump). Omitted, it stays a plain focusable circle. */
   onClick?: () => void;
-  /** A member who is not connected: faded, and never a button. */
+  /** A member who is not connected: faded. The caller leaves `onClick` off. */
   dimmed?: boolean;
 }) {
-  const Root = onClick && !dimmed ? "button" : "span";
+  const Root = onClick ? "button" : "span";
   return (
     <Root
-      type={Root === "button" ? "button" : undefined}
-      onClick={Root === "button" ? onClick : undefined}
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
       style={{ backgroundColor: colorTag }}
       tabIndex={0}
       className={`group/avatar relative flex ${size} items-center justify-center rounded-full text-[11px] font-semibold text-white outline-none hover:ring-2 hover:ring-sky-deep focus-visible:ring-2 focus-visible:ring-sky-deep ${dimmed ? "opacity-40" : ""} ${className}`}

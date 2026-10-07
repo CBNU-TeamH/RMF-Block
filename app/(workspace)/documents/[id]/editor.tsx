@@ -163,6 +163,9 @@ export function DocumentEditor({
   // by both the presenter effect (this browser's own scroll → published
   // anchor) and the follower effect (a followed anchor → `scrollTo`).
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  // The last block published as this browser's location, so a click inside the
+  // same block is not sent again.
+  const lastLocatedBlockRef = useRef<string | null>(null);
   // The footer's hidden file input, so the `/` menu's PDF item can open the
   // same picker the button does rather than growing a second one…
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -774,7 +777,10 @@ export function DocumentEditor({
             onSlashSelect={handleSlashSelect}
             onFocusBlock={(blockId) => {
               setActiveBlockId(blockId);
-              if (blockId) setLocation({ documentId, blockId });
+              if (blockId && blockId !== lastLocatedBlockRef.current) {
+                lastLocatedBlockRef.current = blockId;
+                setLocation({ documentId, blockId });
+              }
             }}
             onIndent={handleIndent}
             onPasteBlocks={handlePaste}

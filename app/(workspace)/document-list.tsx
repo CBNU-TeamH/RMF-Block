@@ -217,6 +217,7 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
         <ul className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-px overflow-y-auto px-1.5 pb-2">
           {rows.map(({ document: doc, depth, hasChildren }) => {
             const current = doc.id === currentId;
+            const here = occupants.get(doc.id) ?? [];
             return (
               <li key={doc.id} className="group/row relative">
                 <Link
@@ -243,12 +244,9 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                   <span className="truncate">{doc.name}</span>
                   {/* UC-040: only a document two or more people are in — one is
                       just somebody reading. A small copy of the header chips. */}
-                  {(occupants.get(doc.id)?.length ?? 0) >= 2 ? (
-                    <span
-                      className="ml-auto flex items-center"
-                      title={occupants.get(doc.id)!.map((m) => m.nickname).join(", ")}
-                    >
-                      {occupants.get(doc.id)!.slice(0, 3).map((m) => (
+                  {here.length >= 2 ? (
+                    <span className="ml-auto flex items-center" title={here.map((m) => m.nickname).join(", ")}>
+                      {here.slice(0, 3).map((m) => (
                         <span
                           key={m.id}
                           aria-hidden
@@ -256,12 +254,12 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                           className="-ml-1 size-3 rounded-full shadow-[0_0_0_1.5px_var(--color-paper-2)] first:ml-0"
                         />
                       ))}
-                      {occupants.get(doc.id)!.length > 3 ? (
+                      {here.length > 3 ? (
                         <span aria-hidden className="ml-1 text-[10px] font-semibold text-ink-faint">
-                          +{occupants.get(doc.id)!.length - 3}
+                          +{here.length - 3}
                         </span>
                       ) : null}
-                      <span className="sr-only">{occupants.get(doc.id)!.length}명이 보는 중</span>
+                      <span className="sr-only">{here.length}명이 보는 중</span>
                     </span>
                   ) : null}
                 </Link>

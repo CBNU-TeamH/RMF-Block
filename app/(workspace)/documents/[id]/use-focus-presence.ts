@@ -61,17 +61,18 @@ export function useFocusPresence({
 
   // A jump's landing (FR-040-02). A target with no block — its owner never
   // focused one — leaves the document at the top.
-  const targetBlockId = scrollTarget?.documentId === documentId ? scrollTarget.blockId : null;
-  const hasTarget = scrollTarget?.documentId === documentId;
+  const target = scrollTarget?.documentId === documentId ? scrollTarget : null;
   useEffect(() => {
-    if (!hasTarget || !blocksLoaded) return;
-    if (targetBlockId) {
-      containerRef.current
-        ?.querySelector(`[data-block-id="${CSS.escape(targetBlockId)}"]`)
-        ?.scrollIntoView({ block: "center" });
+    if (!target || !blocksLoaded) return;
+    const container = containerRef.current;
+    // Not `scrollIntoView`, which walks every ancestor scroller — the same
+    // reason `lib/blocks/slash-menu.ts` avoids it. Centres the block.
+    const box = target.blockId && container ? readBoxes(container).find((b) => b.id === target.blockId) : undefined;
+    if (container && box) {
+      container.scrollTop = box.top - (container.clientHeight - box.height) / 2;
     }
     clearScrollTarget();
-  }, [hasTarget, targetBlockId, blocksLoaded, containerRef, clearScrollTarget]);
+  }, [target, blocksLoaded, containerRef, clearScrollTarget]);
 
   // Presenter side (FR-030-07): publish this scroller's anchor as it moves,
   // throttled to one per `PUBLISH_MS`, trailing edge.
