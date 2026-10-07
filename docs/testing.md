@@ -162,6 +162,17 @@ a browser run costs seconds per test against milliseconds.
 - **Getting in.** `e2e/helpers.ts` joins through `POST /api/workspace/join` and creates documents
   through the API; the form has its own tests. Nicknames are unique per run, so reruns against the
   same `.data/` never collide.
+- **What it leaves behind.** Every run adds `e2e-…` members and `e2e sync/ime …` documents (plus
+  the files and chat lines the chat test uploads) to `.data/` — the `app-data` volume, when the
+  stack is the container. Nothing removes them, so clean up once the testing is done. Stop the
+  stack first: the app holds members in memory and rewrites `members.json` from them. Then match
+  by field, since one prefix does not cover them all: members by `nickname` and chat lines by
+  `sender` starting `e2e-`; files by `uploadedBy` of an E2E member or a name starting `e2e-`;
+  documents by a name starting `e2e sync` / `e2e ime`, or by `createdBy` in the E2E members' ids
+  (collect those ids before removing the members). A file's bytes are `.data/files/<id>`, apart
+  from its row in the files index — delete both. This clears the app's catalogue only: the
+  documents' content and history stay in Yorkie's Mongo (`mongo-data`). `docker compose down -v`
+  is the complete reset of a disposable test stack, and wipes real members and documents too.
 - **Anchors.** A block's textarea is `[data-block-id] textarea`, never a bare `textarea`. Wait for
   an element, never `networkidle` — the workspace socket and Yorkie's watch stream never go idle.
 - **IME.** A CDP session drives a composition the way a Korean IME does:
