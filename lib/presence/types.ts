@@ -17,6 +17,11 @@ export type WorkspacePresence = WorkspaceMember & {
     blockId: BlockId;
     ratio: number;
   } | null;
+  /** Where this member is (FR-040-01): the document they have open and the
+   *  block they last focused in it. Not cleared on blur, so a jump to someone
+   *  who clicked away still lands where they were working. `null`, never
+   *  `undefined`, for "not in a document", for the same reason as `presenting`. */
+  location?: { documentId: string; blockId: BlockId | null } | null;
 };
 
 /** The host has no session to mint a `WorkspaceMember` from (UC-011). */

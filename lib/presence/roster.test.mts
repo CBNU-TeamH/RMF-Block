@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
-import { rosterFrom } from "./roster.ts";
+import { occupantsByDocument, rosterFrom, withOffline } from "./roster.ts";
 import { HOST_PRESENCE, type WorkspacePresence } from "./types.ts";
 
 const alice: WorkspacePresence = {
@@ -78,5 +78,31 @@ describe("rosterFrom with unusable entries", () => {
     const second = { nickname: "two" } as WorkspacePresence;
 
     assert.deepEqual(rosterFrom([client(first), client(second)]), []);
+  });
+});
+
+describe("withOffline", () => {
+  const carol = { id: "id-carol", nickname: "carol", colorTag: "#22c55e" };
+
+  it("puts the viewer first, then the other online members, then the offline", () => {
+    const entries = withOffline([alice, bob], [alice, bob, carol], "id-bob");
+    assert.deepEqual(
+      entries.map((e) => [e.member.id, e.online]),
+      [["id-bob", true], ["id-alice", true], ["id-carol", false]],
+    );
+  });
+
+  it("lists a connected member the stored list does not know yet", () => {
+    assert.deepEqual(withOffline([alice], [], "id-alice").map((e) => e.member.id), ["id-alice"]);
+  });
+});
+
+describe("occupantsByDocument", () => {
+  it("groups members by their document and skips those with none", () => {
+    const a = { ...alice, location: { documentId: "d1", blockId: null } };
+    const b = { ...bob, location: { documentId: "d1", blockId: "b1" } };
+    const grouped = occupantsByDocument([a, b, { ...HOST_PRESENCE, location: null }]);
+    assert.deepEqual([...grouped.keys()], ["d1"]);
+    assert.equal(grouped.get("d1")?.length, 2);
   });
 });

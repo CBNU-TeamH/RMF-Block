@@ -87,7 +87,7 @@ export default async function WorkspaceLayout({
             <div className="flex min-w-0 flex-1 flex-col">
               <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">
                 <Breadcrumb documents={documents} />
-                <PresenceStack memberId={me.id} />
+                <PresenceStack memberId={me.id} known={sessionRegistry.members().map(({ id, nickname, colorTag }) => ({ id, nickname, colorTag }))} documents={documents} />
                 <FocusShare memberId={me.id} />
               </header>
               <main className="min-h-0 flex-1 overflow-hidden">{children}</main>

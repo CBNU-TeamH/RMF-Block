@@ -12,18 +12,27 @@ export function Avatar({
   name,
   size = "size-6",
   className = "",
+  onClick,
+  dimmed = false,
 }: {
   colorTag: string;
   label: string;
   name: React.ReactNode;
   size?: string;
   className?: string;
+  /** Makes it a button (UC-040's jump). Omitted, it stays a plain focusable circle. */
+  onClick?: () => void;
+  /** A member who is not connected: faded, and never a button. */
+  dimmed?: boolean;
 }) {
+  const Root = onClick && !dimmed ? "button" : "span";
   return (
-    <span
+    <Root
+      type={Root === "button" ? "button" : undefined}
+      onClick={Root === "button" ? onClick : undefined}
       style={{ backgroundColor: colorTag }}
       tabIndex={0}
-      className={`group/avatar relative flex ${size} items-center justify-center rounded-full text-[11px] font-semibold text-white outline-none hover:ring-2 hover:ring-sky-deep focus-visible:ring-2 focus-visible:ring-sky-deep ${className}`}
+      className={`group/avatar relative flex ${size} items-center justify-center rounded-full text-[11px] font-semibold text-white outline-none hover:ring-2 hover:ring-sky-deep focus-visible:ring-2 focus-visible:ring-sky-deep ${dimmed ? "opacity-40" : ""} ${className}`}
     >
       <span aria-hidden>{label}</span>
       {/* Below rather than above, where HANDOFF draws it: these sit in a 46px
@@ -31,6 +40,6 @@ export function Avatar({
       <span className="pointer-events-none absolute top-full left-1/2 z-10 mt-1.5 -translate-x-1/2 rounded-md bg-ink px-2 py-1 text-xs font-medium whitespace-nowrap text-paper opacity-0 transition-opacity duration-[120ms] group-hover/avatar:opacity-100 group-focus-visible/avatar:opacity-100">
         {name}
       </span>
-    </span>
+    </Root>
   );
 }

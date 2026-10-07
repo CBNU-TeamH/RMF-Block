@@ -1,6 +1,7 @@
 "use client";
 
 import yorkie, { type Client, type Document } from "@yorkie-js/sdk";
+import { usePathname } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -11,6 +12,7 @@ import {
   useState,
 } from "react";
 
+import { documentIdFromPathname } from "@/lib/focus/pathname";
 import { rosterFrom } from "@/lib/presence/roster";
 import { WORKSPACE_DOC_KEY, type WorkspacePresence } from "@/lib/presence/types";
 
@@ -31,6 +33,9 @@ export type PresenceState = {
   /** Publishes this browser's `presenting` anchor, or clears it with `null`
    *  (see `WorkspacePresence` for why not `undefined`). A no-op before attach. */
   setPresenting: (presenting: WorkspacePresence["presenting"]) => void;
+  /** Publishes where this browser is (FR-040-01). The document half follows the
+   *  route on its own; the editor calls this for the block half. */
+  setLocation: (location: WorkspacePresence["location"]) => void;
 };
 
 /** Exported only for `.design-sync/` previews, which have no Yorkie server to
@@ -42,6 +47,7 @@ export const PresenceContext = createContext<PresenceState>({
   memberId: "",
   isPresenting: false,
   setPresenting: () => undefined,
+  setLocation: () => undefined,
 });
 
 /** Read the workspace roster. Every consumer shares one Yorkie connection. */
@@ -165,9 +171,23 @@ export function PresenceProvider({
     setIsPresenting(presenting != null);
   }, []);
 
+  const setLocation = useCallback((location: WorkspacePresence["location"]) => {
+    docRef.current?.update((_root, presence) => {
+      presence.set({ location });
+    });
+  }, []);
+
+  // The route is the document. Keyed on `client` so it also fires once the
+  // attach has finished, when `docRef` first accepts a write.
+  const documentId = documentIdFromPathname(usePathname());
+  useEffect(() => {
+    if (!client) return;
+    setLocation(documentId ? { documentId, blockId: null } : null);
+  }, [client, documentId, setLocation]);
+
   const value = useMemo<PresenceState>(
-    () => ({ status, members, client, memberId, isPresenting, setPresenting }),
-    [status, members, client, memberId, isPresenting, setPresenting],
+    () => ({ status, members, client, memberId, isPresenting, setPresenting, setLocation }),
+    [status, members, client, memberId, isPresenting, setPresenting, setLocation],
   );
 
   return <PresenceContext.Provider value={value}>{children}</PresenceContext.Provider>;

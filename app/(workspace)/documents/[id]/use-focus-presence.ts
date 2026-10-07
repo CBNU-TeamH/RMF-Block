@@ -24,6 +24,8 @@ export function useFocusPresence({
   followingId,
   isPresenting,
   setPresenting,
+  scrollTarget,
+  clearScrollTarget,
 }: {
   documentId: string;
   containerRef: RefObject<HTMLDivElement | null>;
@@ -37,6 +39,10 @@ export function useFocusPresence({
   followingId: string | null;
   isPresenting: boolean;
   setPresenting: (anchor: { documentId: string; blockId: string; ratio: number } | null) => void;
+  /** A jump's destination (UC-040). Scrolled to once, when this document has
+   *  loaded, then cleared. */
+  scrollTarget: { documentId: string; blockId: string | null } | null;
+  clearScrollTarget: () => void;
 }) {
   // The last anchor published, so an unchanged one is not sent again.
   const lastPublishedAnchorRef = useRef<FocusAnchor | null>(null);
@@ -52,6 +58,20 @@ export function useFocusPresence({
   const followedDocumentId = followed?.documentId ?? null;
   const followedBlockId = followed?.blockId ?? null;
   const followedRatio = followed?.ratio ?? null;
+
+  // A jump's landing (FR-040-02). A target with no block — its owner never
+  // focused one — leaves the document at the top.
+  const targetBlockId = scrollTarget?.documentId === documentId ? scrollTarget.blockId : null;
+  const hasTarget = scrollTarget?.documentId === documentId;
+  useEffect(() => {
+    if (!hasTarget || !blocksLoaded) return;
+    if (targetBlockId) {
+      containerRef.current
+        ?.querySelector(`[data-block-id="${CSS.escape(targetBlockId)}"]`)
+        ?.scrollIntoView({ block: "center" });
+    }
+    clearScrollTarget();
+  }, [hasTarget, targetBlockId, blocksLoaded, containerRef, clearScrollTarget]);
 
   // Presenter side (FR-030-07): publish this scroller's anchor as it moves,
   // throttled to one per `PUBLISH_MS`, trailing edge.

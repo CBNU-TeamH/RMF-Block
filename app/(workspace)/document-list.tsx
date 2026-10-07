@@ -7,9 +7,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceDocument } from "@/lib/documents/documents";
 import { treeRows } from "@/lib/documents/tree";
 import { documentIdFromPathname } from "@/lib/focus/pathname";
+import { occupantsByDocument } from "@/lib/presence/roster";
 
 import { DocumentActionDialog, type DocumentAction } from "./document-actions";
 import { DocumentRowMenu } from "./document-row-menu";
+import { useWorkspacePresence } from "./presence-provider";
 import { CANCEL, DIALOG, DIALOG_TITLE, FIELD_LABEL, FileIcon, Spinner, confirmClass, inputClass } from "./ui";
 
 /** The sidebar's 16px line icons (`docs/ui/redesign/HANDOFF.md` §3). */
@@ -46,6 +48,8 @@ const PLUS = <path d="M8 3v10M3 8h10" />;
 export function DocumentList({ documents }: { documents: Array<WorkspaceDocument> }) {
   const router = useRouter();
   const currentId = documentIdFromPathname(usePathname());
+  const { members } = useWorkspacePresence();
+  const occupants = useMemo(() => occupantsByDocument(members), [members]);
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   // Where a "하위 문서 추가" click puts the next one, or `null` for the root.
@@ -237,6 +241,29 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                     </span>
                   )}
                   <span className="truncate">{doc.name}</span>
+                  {/* UC-040: only a document two or more people are in — one is
+                      just somebody reading. A small copy of the header chips. */}
+                  {(occupants.get(doc.id)?.length ?? 0) >= 2 ? (
+                    <span
+                      className="ml-auto flex items-center"
+                      title={occupants.get(doc.id)!.map((m) => m.nickname).join(", ")}
+                    >
+                      {occupants.get(doc.id)!.slice(0, 3).map((m) => (
+                        <span
+                          key={m.id}
+                          aria-hidden
+                          style={{ backgroundColor: m.colorTag }}
+                          className="-ml-1 size-3 rounded-full shadow-[0_0_0_1.5px_var(--color-paper-2)] first:ml-0"
+                        />
+                      ))}
+                      {occupants.get(doc.id)!.length > 3 ? (
+                        <span aria-hidden className="ml-1 text-[10px] font-semibold text-ink-faint">
+                          +{occupants.get(doc.id)!.length - 3}
+                        </span>
+                      ) : null}
+                      <span className="sr-only">{occupants.get(doc.id)!.length}명이 보는 중</span>
+                    </span>
+                  ) : null}
                 </Link>
 
                 {hasChildren ? (

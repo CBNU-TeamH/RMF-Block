@@ -124,8 +124,9 @@ export function DocumentEditor({
   name: string;
 }) {
   const router = useRouter();
-  const { client, members, memberId, isPresenting, setPresenting } = useWorkspacePresence();
-  const { followingId } = useFocusFollow();
+  const { client, members, memberId, isPresenting, setPresenting, setLocation } =
+    useWorkspacePresence();
+  const { followingId, scrollTarget, clearScrollTarget } = useFocusFollow();
   const openFloating = useFloatingViews();
   // Falls back to a neutral color/blank name before the roster carries this
   // browser's own entry yet — `useBlockDocument`'s attach doesn't wait on it.
@@ -217,6 +218,8 @@ export function DocumentEditor({
     followingId,
     isPresenting,
     setPresenting,
+    scrollTarget,
+    clearScrollTarget,
   });
 
   /** Read live, never from `blocks` state, and by iteration rather than `.find`
@@ -769,7 +772,10 @@ export function DocumentEditor({
             onNavigateDown={handleNavigateDown}
             onTextCommitted={ensureTrailingEmptyBlock}
             onSlashSelect={handleSlashSelect}
-            onFocusBlock={setActiveBlockId}
+            onFocusBlock={(blockId) => {
+              setActiveBlockId(blockId);
+              if (blockId) setLocation({ documentId, blockId });
+            }}
             onIndent={handleIndent}
             onPasteBlocks={handlePaste}
             onHistory={history}
