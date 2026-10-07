@@ -35,7 +35,7 @@ Decisions settled with the user (2026-10-07):
 
 ### 3. Admin page and the kicked guest's screen
 
-- **What**: `/admin` (setup or manage), the host-only 관리자 link in the top nav, `/` → `/admin` for a host before setup, `/join` closed state and kicked message, `SessionWatch` passing the reason on.
+- **What**: `/admin` (setup or manage), the host-only **Admin** link (shield icon) in the top nav, a 새로고침 button for the guest list, `/` → `/admin` for a host before setup, `/join` closed state and kicked message, `SessionWatch` passing the reason on.
 - **Files**: `app/admin/page.tsx`, `app/admin/admin-forms.tsx`, `app/(workspace)/layout.tsx`, `app/join/page.tsx`, `app/session-watch.tsx`.
 - **Reuse**: `join-form.tsx`'s fetch/error pattern; `DIALOG`, `CANCEL`, `confirmClass`, `inputClass`, `FIELD_LABEL` from `app/(workspace)/ui.tsx`.
 - **Done**: component tests for the confirm-before-kick flow and the kicked message.

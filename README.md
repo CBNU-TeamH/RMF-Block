@@ -58,8 +58,11 @@ rmf-app  |   Guest: http://192.168.0.14:3000
   bar. Treat the line as a credential: it stays valid until the container restarts.
 - **The first time, it opens the setup screen.** Choose the workspace name and the access password
   there, then tell guests the password. Until then the startup output says
-  `host user의 workspace setting이 완료되지 않았습니다.` and guests cannot join. The 관리자 link in
-  the top bar, shown only to the host, is where you change the password later or remove a guest.
+  `host user의 workspace setting이 완료되지 않았습니다.` and guests cannot join. The **Admin** link (with
+  a shield) in the top bar, shown only to the host, is where you change the password later or remove
+  a guest. The settings persist on the volume — emptying `.env` does not reset them; startup prints
+  `Workspace "<name>" — saved settings …` when they exist. To see the setup screen again, stop the
+  stack and delete `workspace.json` from the `app-data` volume.
 - **Give everyone else the `Guest:` address.**
 - **Restarting the container signs everyone out**; removing one guest is the admin page's 퇴장
   ([`docs/design/api.md`](docs/design/api.md)).
