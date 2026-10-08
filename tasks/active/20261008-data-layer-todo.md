@@ -58,9 +58,10 @@ stays, like its revisions), sweeping unattached uploads, content-hash dedup.
 - **What**: a trash entry older than 30 days is removed from `deleted.json`, and its files' bytes
   and index rows are removed from `.data/files/`. No timer: the purge runs whenever the trash is
   read (`/admin`) or written (a delete), so it needs no startup wiring. The cost is that it waits
-  until one of those happens. `/admin` shows "n일 후 영구 삭제" on each entry.
-- **Files**: `lib/documents/documents.ts` (`TRASH_TTL_MS`, purge inside `readTrash`/`deleteDocument`
-  returning the purged ids), `lib/files/file-repository.ts` (`purge(documentIds)`), the callers in
+  until one of those happens. `/admin` shows the date each entry goes ("11월 7일 영구 삭제") rather
+  than "n일 후": a date needs no clock at render time, so the server and browser render the same text.
+- **Files**: `lib/documents/documents.ts` (`TRASH_TTL_MS`, `purgeExpiredTrash()` returning the
+  purged ids, kept separate from `readTrash` so a read has no side effect), `lib/files/file-repository.ts` (`purge(documentIds)`), the callers in
   `app/admin/page.tsx` and `app/api/documents/[id]/route.ts`, and `admin-forms.tsx` for the label.
 - **Reuse**: `setDeletedAt`'s matching by `documentId`; the existing `unlink` in `save()`'s rollback.
 - **Done**: an entry with `deletedAt` older than 30 days disappears from the trash, and its files'
@@ -101,6 +102,12 @@ stays, like its revisions), sweeping unattached uploads, content-hash dedup.
 - Container smoke (`.github/workflows/ci.yml`): no change. Startup, auth wiring and networking are
   untouched, and `/admin`'s host gate is already exercised.
 - Commands and observed results (fill in before the PR):
+  - `pnpm test` → 66 files, 726 tests passed (2026-10-08).
+  - `pnpm e2e:isolated e2e/host.e2e.ts e2e/tree.e2e.ts` → 4 passed on a disposable stack,
+    including the new restore case (2026-10-08).
+  - `pnpm verify:docs` → clean; the endpoint table is regenerated.
+  - `npx tsc --noEmit` and `eslint` on the changed files → clean.
+  - By hand on the container: not done yet. It is listed under Acceptance for the host to run.
 
 ## Acceptance
 
