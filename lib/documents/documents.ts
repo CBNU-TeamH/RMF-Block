@@ -226,7 +226,10 @@ export function restoreDocument(
   const entry = trash.find((candidate) => candidate.documents[0]?.id === rootId);
   if (!entry) throw new DocumentNotFoundError(rootId);
 
-  const documents = readDocuments(storePath);
+  // A delete that failed between its two writes leaves a document in both
+  // places; the trash's copy replaces it, so restoring cannot duplicate an id.
+  const entryIds = new Set(entry.documents.map((document) => document.id));
+  const documents = readDocuments(storePath).filter((document) => !entryIds.has(document.id));
   const [root, ...descendants] = entry.documents;
   const parentId = documents.some((document) => document.id === root!.parentId)
     ? root!.parentId!

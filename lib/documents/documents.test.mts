@@ -338,6 +338,20 @@ describe("restoreDocument", () => {
     assert.equal(restoreDocument(first.id, storePath)[0]!.name, "회의록 (2)");
   });
 
+  it("does not duplicate a document a half-finished delete left in both places", () => {
+    const storePath = path.join(scratch(), "documents.json");
+    const d = createDocument("회의록", "m-1", storePath);
+    // The trash written, the catalogue not: what a crash between the two leaves.
+    writeFileSync(
+      path.join(path.dirname(storePath), "deleted.json"),
+      JSON.stringify([{ deletedAt: new Date().toISOString(), documents: [d] }]),
+    );
+
+    restoreDocument(d.id, storePath);
+
+    assert.deepEqual(readDocuments(storePath).map((row) => [row.id, row.name]), [[d.id, "회의록"]]);
+  });
+
   it("refuses an id that is not a trash entry's root", () => {
     const storePath = path.join(scratch(), "documents.json");
     const parent = createDocument("기획", "m-1", storePath);
