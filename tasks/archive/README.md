@@ -8,6 +8,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [The app-side `.data/` layer — shared JSON helpers, soft delete and a host trash](2026/10/20261008-data-layer-todo.md) | [lessons](2026/10/20261008-data-layer-lessons.md) |
 | [User location tracking — who is in which document, and jump to them](2026/10/20261007-user-location-tracking-todo.md) | [lessons](2026/10/20261007-user-location-tracking-lessons.md) |
 | [Functional E2E coverage on an isolated stack](2026/10/20261007-e2e-coverage-todo.md) | [lessons](2026/10/20261007-e2e-coverage-lessons.md) |
 | [Drift audit: the parts that changed since 2026-10-05](2026/10/20261007-drift-audit-todo.md) | [lessons](2026/10/20261007-drift-audit-lessons.md) |
