@@ -29,8 +29,8 @@ stays, like its revisions), sweeping unattached uploads, content-hash dedup.
 ### 2. Soft delete: documents and their files
 
 - **What**: deleting a document moves its subtree to `.data/documents/deleted.json` as one trash
-  entry `{ deletedAt, documents }`, instead of dropping the rows. Its files get `deletedAt` and
-  disappear from list, find, download and preview. Their bytes stay on disk.
+  entry `{ deletedAt, documents }`, instead of dropping the rows. Its files disappear from list,
+  find, download and preview while the document is out of the catalogue. Their bytes stay on disk.
 - **Files**: `lib/documents/documents.ts`, `lib/files/{types,file-repository}.ts`,
   `app/api/documents/[id]/route.ts` (DELETE), `app/api/documents/[id]/files/route.ts` (records `documentId`).
 - **Reuse**: `subtreeIds`, `uniqueName`, `childrenOf`. `find()` already goes through `list()`, so
@@ -63,7 +63,7 @@ stays, like its revisions), sweeping unattached uploads, content-hash dedup.
 - **Files**: `lib/documents/documents.ts` (`TRASH_TTL_MS`, `purgeExpiredTrash()` returning the
   purged ids, kept separate from `readTrash` so a read has no side effect), `lib/files/file-repository.ts` (`purge(documentIds)`), the callers in
   `app/admin/page.tsx` and `app/api/documents/[id]/route.ts`, and `admin-forms.tsx` for the label.
-- **Reuse**: `setDeletedAt`'s matching by `documentId`; the existing `unlink` in `save()`'s rollback.
+- **Reuse**: matching files by `documentId`; the existing `unlink` in `save()`'s rollback.
 - **Done**: an entry with `deletedAt` older than 30 days disappears from the trash, and its files'
   bytes are gone from disk. The Yorkie document stays.
 
@@ -74,7 +74,7 @@ stays, like its revisions), sweeping unattached uploads, content-hash dedup.
 - `chat.md` "Storage": every store is sync through `lib/json-file.ts`.
 - `version-history.md` "Deleting a document": the constraint is now met, because `deleted.json`
   keeps the ids.
-- `api.md` §1: `documentId`/`deletedAt` on files, and the restore endpoint (generated table).
+- `api.md` §1: `documentId` on files (visibility follows the catalogue), and the restore endpoint (generated table).
 
 ## Test selection
 
@@ -89,10 +89,10 @@ stays, like its revisions), sweeping unattached uploads, content-hash dedup.
     its root and descendant ids are returned; one inside the TTL stays.
   - `lib/files/file-repository.test.mts`: `purge` removes bytes and index rows only for matching
     `documentId`s.
-  - `lib/files/file-repository.test.mts`: `setDeletedAt` hides a file from `list`/`find` and keeps its
-    bytes; clearing it shows the file again; only matching `documentId`s are touched.
-  - `app/api/documents/[id]/route.test.ts` (DELETE) marks the document's files; `[id]/files/route.test.ts`
-    stores `documentId`.
+  - `lib/files/file-repository.test.mts`: a file is hidden from `list`/`find` while its document is
+    out of the catalogue, keeps its bytes, and shows again once the document is back.
+  - `app/api/documents/[id]/route.test.ts` (DELETE) purges what expired and answers 200 even if
+    that fails; `[id]/files/route.test.ts` stores `documentId`.
   - `app/api/workspace/trash/[id]/restore/route.test.ts` (new): 401 for a non-host, 404 for an unknown
     id, 200 with a broadcast per restored row.
   - `app/admin/admin-forms.test.tsx`: `TrashList` renders entries and the empty state, and 복원 posts to the route.
@@ -107,18 +107,20 @@ stays, like its revisions), sweeping unattached uploads, content-hash dedup.
     including the new restore case (2026-10-08).
   - `pnpm verify:docs` → clean; the endpoint table is regenerated.
   - `npx tsc --noEmit` and `eslint` on the changed files → clean.
-  - By hand on the container: not done yet. It is listed under Acceptance for the host to run.
+  - By hand on the container: done by the host, 2026-10-08 (see Review).
+  - After the CodeRabbit round: `pnpm e2e:isolated e2e/host.e2e.ts e2e/tree.e2e.ts e2e/chat-files.e2e.ts`
+    → 5 passed. `chat-files` was added because `FileRepository.list` changed.
 
 ## Acceptance
 
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] No store under `lib/` hand-rolls ENOENT handling or `.tmp` + rename for JSON any more
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] No store under `lib/` hand-rolls ENOENT handling or `.tmp` + rename for JSON any more
       (`workspace-config`'s damaged-file read is the documented exception).
-- [ ] A deleted document's row and its files survive in `.data/`, and none of them is reachable by a guest.
-- [ ] The host restores from `/admin`, and a guest's tree updates live.
-- [ ] A trash entry past 30 days, and its files' bytes, are gone after the next trash read or delete.
-- [ ] `pnpm verify:docs` passes, and the endpoint table is regenerated.
-- [ ] By hand on the container: delete → 404 preview → restart → still hidden → restore → previews again.
+- [x] A deleted document's row and its files survive in `.data/`, and none of them is reachable by a guest.
+- [x] The host restores from `/admin`, and a guest's tree updates live.
+- [x] A trash entry past 30 days, and its files' bytes, are gone after the next trash read or delete.
+- [x] `pnpm verify:docs` passes, and the endpoint table is regenerated.
+- [x] By hand on the container: delete → 404 preview → restart → still hidden → restore → previews again.
 
 ## Cross-cutting
 
@@ -132,4 +134,13 @@ stays, like its revisions), sweeping unattached uploads, content-hash dedup.
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+- **Shipped**: `lib/json-file.ts` with no write queues; soft delete into `deleted.json`; a host-only
+  restore on `/admin` (refresh button, guests and trash side by side); a 30-day purge.
+- **Changed after CodeRabbit on #175**:
+  - A document file's visibility is now worked out from the catalogue (`FileRepository.list`)
+    instead of a stored `deletedAt`, so a delete or restore has no second write that can fail.
+  - The purge deletes files before dropping trash entries, so a failure is retried on the next call.
+  - A restore replaces a row a half-finished delete left in both places instead of duplicating it.
+- **By hand** (host, 2026-10-08, container): delete → `deleted.json` holds the subtree and the bytes
+  stay → hidden after a restart → restore brings the tree and the image back.
+- **Moved out**: sweeping unattached uploads and chat attachments → #176 (v0.0.3).

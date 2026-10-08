@@ -19,6 +19,11 @@ that the next person does not rediscover this.
 
 ## What we would do differently
 
+- Storing `deletedAt` on files was a second write after the catalogue write, and it could fail and
+  leave the two out of step (CodeRabbit on #175). Working visibility out from the catalogue on
+  read removed the failure mode, and the retry code it would otherwise have needed, outright.
+- The first purge dropped trash entries before deleting their files, so a failed file purge was
+  never retried. Do the irreversible side effect first, and remove the record of the pending work last.
 - Recording `documentId` on document uploads from the start (FR-022-13/14) would have
   let delete, restore and purge reach every file. Files uploaded before this task have no
   owner, so they stay visible after their document is deleted.
@@ -29,5 +34,7 @@ Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
 - A new store under `.data/` goes through `lib/json-file.ts`, sync. An `await` inside its
   read-modify-write needs a queue back (`chat.md`, "Storage") — candidate for `docs/conventions.md`.
+- Prefer state derived from the source of truth over a copied flag that a second write must keep
+  in step — the `deletedAt` round on #175.
 - Render dates, not "n days left": a server-rendered client component that reads the clock
   can mismatch on hydration. Pin `timeZone: "Asia/Seoul"` as the chat components do.
