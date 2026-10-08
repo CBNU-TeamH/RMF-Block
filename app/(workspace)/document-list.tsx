@@ -17,7 +17,7 @@ import { useWorkspacePresence } from "./presence-provider";
 import { FileIcon } from "./ui";
 
 /** The sidebar's 16px line icons (`docs/ui/redesign/HANDOFF.md` §3). */
-const icon = (path: React.ReactNode, size = 15) => (
+export const icon = (path: React.ReactNode, size = 15) => (
   <svg
     aria-hidden
     width={size}
@@ -32,7 +32,13 @@ const icon = (path: React.ReactNode, size = 15) => (
     {path}
   </svg>
 );
-const PLUS = <path d="M8 3v10M3 8h10" />;
+export const PLUS = <path d="M8 3v10M3 8h10" />;
+export const SEARCH = (
+  <>
+    <circle cx="7" cy="7" r="4.5" />
+    <path d="M10.5 10.5L14 14" />
+  </>
+);
 /** Dots a row shows for the others in a document before folding into `+N`. */
 const MAX_DOTS = 3;
 
@@ -140,13 +146,7 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-col gap-px">
         <label className={`${sideRow} cursor-text focus-within:bg-hover`}>
-          {icon(
-            <>
-              <circle cx="7" cy="7" r="4.5" />
-              <path d="M10.5 10.5L14 14" />
-            </>,
-            16,
-          )}
+          {icon(SEARCH, 16)}
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}

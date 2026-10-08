@@ -21,7 +21,8 @@ import { FocusShare } from "./focus-share";
 import { NewDocumentProvider } from "./new-document";
 import { PresenceProvider } from "./presence-provider";
 import { PresenceStack } from "./presence-stack";
-import { AdminIcon } from "./ui";
+import { Sidebar } from "./sidebar";
+import { AdminIcon, SIDEBAR_COOKIE } from "./ui";
 
 /**
  * The workspace shell — the sidebar document tree and the header of
@@ -83,18 +84,12 @@ export default async function WorkspaceLayout({
           <div className="flex h-full flex-1 bg-paper">
             {member ? <SessionWatch /> : null}
 
-            <aside className="flex w-[260px] flex-none flex-col border-r border-line bg-paper-2 px-1.5 pt-2">
-              <div className="mb-1 flex h-9 items-center gap-2 px-2">
-                <span
-                  aria-hidden
-                  className="flex size-5 items-center justify-center rounded-[5px] bg-ink text-[11px] font-bold text-paper"
-                >
-                  r
-                </span>
-                <span className="truncate font-semibold text-ink">{workspaceName}</span>
-              </div>
+            <Sidebar
+              workspaceName={workspaceName}
+              initiallyCollapsed={jar.get(SIDEBAR_COOKIE)?.value === "collapsed"}
+            >
               <DocumentList documents={documents} />
-            </aside>
+            </Sidebar>
 
             <div className="flex min-w-0 flex-1 flex-col">
               <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">

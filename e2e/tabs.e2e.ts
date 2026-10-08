@@ -51,3 +51,22 @@ test("documents open as tabs that reorder, close and are landed on; only the act
   await page.goto("/");
   await expect(page).toHaveURL(new RegExp(`/documents/${secondId}$`));
 });
+
+test("the sidebar collapses to a rail, stays collapsed across a reload, and search reopens it", async ({ users }) => {
+  const { page } = await users.join(0);
+  await page.goto("/");
+  const aside = page.getByRole("complementary");
+  const search = aside.getByRole("textbox", { name: "문서 제목 검색" });
+
+  await aside.getByRole("button", { name: "사이드바 접기" }).click();
+  await expect(search).toBeHidden();
+  await page.reload();
+  await expect(aside.getByRole("button", { name: "사이드바 펼치기" })).toBeVisible();
+  await expect(search).toBeHidden();
+
+  await aside.getByRole("button", { name: "검색", exact: true }).click();
+  await expect(search).toBeFocused();
+  await aside.getByRole("button", { name: "사이드바 접기" }).click();
+  await aside.getByRole("button", { name: "새 문서", exact: true }).click();
+  await expect(page.getByRole("dialog").getByRole("heading")).toHaveText("새 문서");
+});

@@ -2,6 +2,12 @@
  *  (`docs/ui/redesign/HANDOFF.md` §3) — one place for every modal in the app,
  *  including `app/join/`'s. */
 
+/** Whether the sidebar is collapsed (`sidebar.tsx`). A cookie, so the layout
+ *  renders it collapsed from the first paint — `localStorage` is only read after
+ *  it, and would flash the full width. Here because the layout, a server
+ *  component, cannot read a constant out of a client module. */
+export const SIDEBAR_COOKIE = "rmf-sidebar";
+
 export const DIALOG =
   "mx-auto mt-[18vh] w-full max-w-[400px] rounded-card bg-elev p-5 text-ink shadow-elev backdrop:bg-scrim";
 export const DIALOG_TITLE = "text-[17px] font-bold tracking-tight text-ink";
