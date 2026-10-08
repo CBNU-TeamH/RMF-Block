@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-08
 **Issue**: #114 (WBS 15.0)
-**Design**: no new module doc — the changes land in [`architecture.md`](../../docs/design/architecture.md) §3(d), [`chat.md`](../../docs/design/chat.md) "Storage", [`version-history.md`](../../docs/design/version-history.md#deleting-a-document) and [`api.md`](../../docs/design/api.md) §1.
+**Design**: no new module doc — the changes land in [`architecture.md`](../../../../docs/design/architecture.md) §3(d), [`chat.md`](../../../../docs/design/chat.md) "Storage", [`version-history.md`](../../../../docs/design/version-history.md#deleting-a-document) and [`api.md`](../../../../docs/design/api.md) §1.
 
 Scope agreed on 2026-10-08: shared read/write helpers, **soft** delete for documents and their
 files, a trash on `/admin` where only the host restores, and a **30-day TTL** after which a trash
