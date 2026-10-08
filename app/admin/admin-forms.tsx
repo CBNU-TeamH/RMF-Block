@@ -4,8 +4,24 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import type { WorkspaceMember } from "@/lib/auth/types";
+import type { TrashEntry } from "@/lib/documents/documents";
 
 import { CANCEL, DIALOG, DIALOG_TITLE, FIELD_LABEL, Spinner, confirmClass, inputClass } from "../(workspace)/ui";
+
+const day = new Intl.DateTimeFormat("ko-KR", {
+  month: "long",
+  day: "numeric",
+  // Pinned for the same reason `chat-message.tsx` pins its own: the server
+  // renders this first, and its zone is the container's, not the host's.
+  timeZone: "Asia/Seoul",
+});
+const dayAndTime = new Intl.DateTimeFormat("ko-KR", {
+  month: "long",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "Asia/Seoul",
+});
 
 /** One request, its pending flag and its error — the shape `join-form.tsx`
  *  handles by hand, shared by the three actions here. Each call site writes
@@ -119,15 +135,46 @@ export function PasswordForm() {
   );
 }
 
+/** Both lists are the server's snapshot at render; this re-reads it without
+ *  reloading the page (and without losing a half-typed password above). */
+function RefreshButton({ title }: { title: string }) {
+  const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
+
+  return (
+    <button
+      type="button"
+      aria-label="새로고침"
+      title={title}
+      disabled={refreshing}
+      onClick={() => startRefresh(() => router.refresh())}
+      className="flex size-[28px] items-center justify-center rounded-control text-ink-soft hover:bg-hover hover:text-ink disabled:opacity-60"
+    >
+      <svg
+        aria-hidden
+        width="15"
+        height="15"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={refreshing ? "animate-spin" : ""}
+      >
+        <path d="M13 8a5 5 0 1 1-1.5-3.5" />
+        <path d="M13 2.5v3h-3" />
+      </svg>
+    </button>
+  );
+}
+
 /** FR-011-01~03: the connected guests, each kicked only after a confirmation. */
 export function GuestList({ guests }: { guests: Array<WorkspaceMember> }) {
   const router = useRouter();
   const { pending, error, run } = useRequest();
   const [target, setTarget] = useState<WorkspaceMember | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
-  // The list is the server's snapshot at render; this re-reads it without
-  // reloading the page (and without losing a half-typed password above).
-  const [refreshing, startRefresh] = useTransition();
 
   // `showModal()` has no declarative equivalent — the same effect `join-form.tsx` uses.
   useEffect(() => {
@@ -141,30 +188,7 @@ export function GuestList({ guests }: { guests: Array<WorkspaceMember> }) {
     <>
       <div className="flex items-center justify-between">
         <span className="text-[13px] text-ink-soft">{guests.length}명 접속 중</span>
-        <button
-          type="button"
-          aria-label="새로고침"
-          title="접속자 목록 새로고침"
-          disabled={refreshing}
-          onClick={() => startRefresh(() => router.refresh())}
-          className="flex size-[28px] items-center justify-center rounded-control text-ink-soft hover:bg-hover hover:text-ink disabled:opacity-60"
-        >
-          <svg
-            aria-hidden
-            width="15"
-            height="15"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.4}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={refreshing ? "animate-spin" : ""}
-          >
-            <path d="M13 8a5 5 0 1 1-1.5-3.5" />
-            <path d="M13 2.5v3h-3" />
-          </svg>
-        </button>
+        <RefreshButton title="접속자 목록 새로고침" />
       </div>
 
       {guests.length === 0 ? <p className="text-[13px] text-ink-faint">접속 중인 게스트가 없습니다.</p> : null}
@@ -209,6 +233,56 @@ export function GuestList({ guests }: { guests: Array<WorkspaceMember> }) {
           </div>
         </div>
       </dialog>
+    </>
+  );
+}
+
+/** The host's trash: each delete as one entry, restored subtree and all.
+ *  Dates rather than "n일 후", so rendering reads no clock. `ttlMs` comes from
+ *  the page, which can import the server module that defines it. */
+export function TrashList({ entries, ttlMs }: { entries: Array<TrashEntry>; ttlMs: number }) {
+  const router = useRouter();
+  const { pending, error, run } = useRequest();
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] text-ink-soft">{entries.length}건</span>
+        <RefreshButton title="휴지통 새로고침" />
+      </div>
+
+      {entries.length === 0 ? <p className="text-[13px] text-ink-faint">휴지통이 비어 있습니다.</p> : null}
+
+      <ul hidden={entries.length === 0} className="flex flex-col divide-y divide-line rounded-card border border-line">
+        {entries.map(({ deletedAt, documents: [root, ...descendants] }) => (
+          <li key={root!.id} className="flex items-center gap-2.5 px-3 py-2">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-ink">
+                {root!.name}
+                {descendants.length > 0 ? (
+                  <span className="text-[13px] text-ink-soft"> · 하위 문서 {descendants.length}개</span>
+                ) : null}
+              </span>
+              <span className="text-[12px] text-ink-faint">
+                {dayAndTime.format(new Date(deletedAt))} 삭제 · {day.format(new Date(Date.parse(deletedAt) + ttlMs))} 영구 삭제
+              </span>
+            </div>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={async () => {
+                if (await run(() => fetch(`/api/workspace/trash/${root!.id}/restore`, { method: "POST" }))) {
+                  router.refresh();
+                }
+              }}
+              className="h-[30px] rounded-control px-2.5 text-[13px] font-medium text-ink hover:bg-hover disabled:opacity-60"
+            >
+              복원
+            </button>
+          </li>
+        ))}
+      </ul>
+      <ErrorLine message={error} />
     </>
   );
 }

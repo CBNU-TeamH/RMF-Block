@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "vitest";
@@ -7,11 +7,15 @@ import { describe, it } from "vitest";
 import {
   DocumentNotFoundError,
   DocumentValidationError,
+  TRASH_TTL_MS,
   createDocument,
   deleteDocument,
   moveDocument,
+  purgeExpiredTrash,
   readDocuments,
+  readTrash,
   renameDocument,
+  restoreDocument,
 } from "./documents.ts";
 
 const scratch = () => mkdtempSync(path.join(tmpdir(), "rmf-docs-"));
@@ -265,5 +269,148 @@ describe("deleteDocument (FR-023-04/06)", () => {
     const storePath = path.join(scratch(), "documents.json");
 
     assert.throws(() => deleteDocument("no-such-id", storePath), DocumentNotFoundError);
+  });
+
+  it("keeps the subtree in the trash as one entry, parent first, next to the catalogue", () => {
+    const storePath = path.join(scratch(), "documents.json");
+    const parent = createDocument("기획", "m-1", storePath);
+    const child = createDocument("회의록", "m-1", storePath, parent.id);
+
+    deleteDocument(parent.id, storePath);
+
+    const onDisk = JSON.parse(readFileSync(path.join(path.dirname(storePath), "deleted.json"), "utf8"));
+    assert.equal(onDisk.length, 1);
+    assert.deepEqual(onDisk[0].documents, [parent, child]);
+    assert.ok(onDisk[0].deletedAt);
+  });
+});
+
+describe("readTrash", () => {
+  it("is empty before anything is deleted, then lists the newest delete first", () => {
+    const storePath = path.join(scratch(), "documents.json");
+    assert.deepEqual(readTrash(storePath), []);
+
+    const a = createDocument("A", "m-1", storePath);
+    const b = createDocument("B", "m-1", storePath);
+    deleteDocument(a.id, storePath);
+    deleteDocument(b.id, storePath);
+
+    // Two deletes in one millisecond would tie; the order is only meaningful
+    // between different instants, so assert the set and the sort separately.
+    const trash = readTrash(storePath);
+    assert.deepEqual(trash.map((entry) => entry.documents[0]!.id).sort(), [a.id, b.id].sort());
+    assert.ok(trash[0]!.deletedAt >= trash[1]!.deletedAt);
+  });
+});
+
+describe("restoreDocument", () => {
+  it("brings back the whole subtree where it was, and empties the entry", () => {
+    const storePath = path.join(scratch(), "documents.json");
+    const parent = createDocument("기획", "m-1", storePath);
+    const child = createDocument("회의록", "m-1", storePath, parent.id);
+    const grandchild = createDocument("메모", "m-1", storePath, child.id);
+
+    deleteDocument(child.id, storePath);
+    const restored = restoreDocument(child.id, storePath);
+
+    assert.deepEqual(restored, [child, grandchild]);
+    assert.deepEqual(readDocuments(storePath).map((d) => d.id).sort(), [parent.id, child.id, grandchild.id].sort());
+    assert.deepEqual(readTrash(storePath), []);
+  });
+
+  it("puts the root at the top level when its parent is gone", () => {
+    const storePath = path.join(scratch(), "documents.json");
+    const parent = createDocument("기획", "m-1", storePath);
+    const child = createDocument("회의록", "m-1", storePath, parent.id);
+
+    deleteDocument(child.id, storePath);
+    deleteDocument(parent.id, storePath);
+
+    assert.equal(restoreDocument(child.id, storePath)[0]!.parentId, null);
+  });
+
+  it("suffixes the root's name when a sibling took it meanwhile", () => {
+    const storePath = path.join(scratch(), "documents.json");
+    const first = createDocument("회의록", "m-1", storePath);
+    deleteDocument(first.id, storePath);
+    createDocument("회의록", "m-1", storePath);
+
+    assert.equal(restoreDocument(first.id, storePath)[0]!.name, "회의록 (2)");
+  });
+
+  it("does not duplicate a document a half-finished delete left in both places", () => {
+    const storePath = path.join(scratch(), "documents.json");
+    const d = createDocument("회의록", "m-1", storePath);
+    // The trash written, the catalogue not: what a crash between the two leaves.
+    writeFileSync(
+      path.join(path.dirname(storePath), "deleted.json"),
+      JSON.stringify([{ deletedAt: new Date().toISOString(), documents: [d] }]),
+    );
+
+    restoreDocument(d.id, storePath);
+
+    assert.deepEqual(readDocuments(storePath).map((row) => [row.id, row.name]), [[d.id, "회의록"]]);
+  });
+
+  it("refuses an id that is not a trash entry's root", () => {
+    const storePath = path.join(scratch(), "documents.json");
+    const parent = createDocument("기획", "m-1", storePath);
+    const child = createDocument("회의록", "m-1", storePath, parent.id);
+    deleteDocument(parent.id, storePath);
+
+    // A descendant comes back with its root, never alone.
+    assert.throws(() => restoreDocument(child.id, storePath), DocumentNotFoundError);
+    assert.throws(() => restoreDocument("no-such-id", storePath), DocumentNotFoundError);
+  });
+});
+
+describe("purgeExpiredTrash", () => {
+  const now = Date.parse("2026-10-31T00:00:00.000Z");
+  const at = (ms: number) => new Date(ms).toISOString();
+  const trashed = () => {
+    const dir = scratch();
+    writeFileSync(
+      path.join(dir, "deleted.json"),
+      JSON.stringify([
+        { deletedAt: at(now - TRASH_TTL_MS), documents: [doc("old", at(0)), doc("old-child", at(0))] },
+        { deletedAt: at(now - TRASH_TTL_MS + 1), documents: [doc("recent", at(0))] },
+      ]),
+    );
+    return path.join(dir, "documents.json");
+  };
+  const roots = (storePath: string) => readTrash(storePath).map((entry) => entry.documents[0]!.id);
+
+  it("purges the files of entries past the TTL, then drops those entries and keeps the rest", async () => {
+    const storePath = trashed();
+    const purged: Array<Array<string>> = [];
+
+    await purgeExpiredTrash(async (ids) => void purged.push(ids), storePath, now);
+
+    assert.deepEqual(purged, [["old", "old-child"]]);
+    assert.deepEqual(roots(storePath), ["recent"]);
+  });
+
+  it("keeps the entries when the files could not be purged, so the next call retries", async () => {
+    const storePath = trashed();
+
+    await assert.rejects(purgeExpiredTrash(async () => Promise.reject(new Error("disk")), storePath, now));
+
+    assert.deepEqual(roots(storePath).sort(), ["old", "recent"]);
+  });
+
+  it("keeps a delete that lands while the files are being purged", async () => {
+    const storePath = trashed();
+    let added = "";
+
+    await purgeExpiredTrash(
+      async () => {
+        added = createDocument("new", "m-1", storePath).id;
+        deleteDocument(added, storePath);
+      },
+      storePath,
+      now,
+    );
+
+    assert.deepEqual(roots(storePath).sort(), [added, "recent"].sort());
   });
 });

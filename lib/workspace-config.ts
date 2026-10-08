@@ -1,7 +1,9 @@
 import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
+
+import { writeJsonFile } from "./json-file.ts";
 
 /** The workspace name and access password (FR-010-01/02), set by the host on
  *  the setup screen and kept in `.data/` so a restart resumes the same
@@ -40,7 +42,7 @@ const isStored = (value: unknown): value is StoredWorkspace => {
 
 const reportedDamaged = new Set<string>();
 
-/** `null` when there is nothing usable to read. Unlike `readMembers`, a file
+/** `null` when there is nothing usable to read. Unlike `readJsonFile`, a file
  *  that does not parse, or parses into the wrong shape, counts as "not set up"
  *  rather than an error: a broken hash protects nothing worth keeping, and the
  *  setup screen rewriting the file is the recovery — where throwing would 500
@@ -69,15 +71,6 @@ function readStored(storePath: string): StoredWorkspace | null {
     console.error(`  ✗ ${storePath} is damaged — treating the workspace as not set up; the host can set it up again.`);
   }
   return null;
-}
-
-function writeStored(storePath: string, stored: StoredWorkspace): void {
-  mkdirSync(path.dirname(storePath), { recursive: true });
-  // Write-then-rename, as `member-repository.ts` does: a crash mid-write must
-  // not leave a workspace nobody can enter.
-  const tempPath = `${storePath}.tmp`;
-  writeFileSync(tempPath, JSON.stringify(stored, null, 2));
-  renameSync(tempPath, storePath);
 }
 
 /** Whether guests can join yet (FR-010-04). */
@@ -121,7 +114,7 @@ async function store(
   const salt = randomBytes(16).toString("hex");
   const passwordHash = (await hash(password, salt)).toString("hex");
   if (isWorkspaceOpen(storePath) !== (mode === "existing")) return false;
-  writeStored(storePath, { name, salt, passwordHash });
+  writeJsonFile(storePath, { name, salt, passwordHash });
   return true;
 }
 

@@ -192,3 +192,42 @@ describe("FileRepository.find", () => {
     assert.equal(await store.find("6f9619ff-8b86-4d01-b42d-00cf4fc964ff"), null);
   });
 });
+
+describe("FileRepository — a document's files follow the catalogue", () => {
+  it("hides a file while its document is out of the catalogue, keeps the bytes, and shows it again", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "rmf-files-"));
+    roots.push(root);
+    const live = new Set(["doc-a", "doc-b"]);
+    const store = new FileRepository(path.join(root, "files"), () => live);
+    const inTrash = await store.save(Buffer.from("a"), upload({ origin: "document", documentId: "doc-a" }));
+    const other = await store.save(Buffer.from("b"), upload({ origin: "document", documentId: "doc-b" }));
+    const chat = await store.save(Buffer.from("c"), upload());
+
+    live.delete("doc-a");
+
+    assert.equal(await store.find(inTrash.id), null);
+    assert.deepEqual((await store.list()).map((file) => file.id).sort(), [other.id, chat.id].sort());
+    assert.deepEqual(await store.read(inTrash.id), Buffer.from("a"), "the bytes stay for a restore");
+
+    live.add("doc-a");
+
+    assert.equal((await store.find(inTrash.id))?.id, inTrash.id);
+  });
+});
+
+describe("FileRepository.purge", () => {
+  it("removes the record and the bytes of only the named documents' files", async () => {
+    const store = await freshStore();
+    const gone = await store.save(Buffer.from("a"), upload({ origin: "document", documentId: "doc-a" }));
+    const kept = await store.save(Buffer.from("b"), upload({ origin: "document", documentId: "doc-b" }));
+
+    await store.purge(["doc-a"]);
+
+    assert.equal(await store.read(gone.id), null);
+    assert.deepEqual(
+      (await readdir(path.join(roots.at(-1)!, "files"))).sort(),
+      ["index.json", kept.id].sort(),
+    );
+    assert.equal((await readFile(path.join(roots.at(-1)!, "files", "index.json"), "utf8")).includes(gone.id), false);
+  });
+});

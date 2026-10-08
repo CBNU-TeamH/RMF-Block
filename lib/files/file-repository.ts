@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { readDocuments } from "../documents/documents.ts";
+import { readJsonFile, writeJsonFile } from "../json-file.ts";
 import {
   InvalidFileIdError,
   type FileOrigin,
@@ -15,17 +17,23 @@ const INDEX_FILE = "index.json";
 /** Bytes at `.data/files/<id>`, metadata in `.data/files/index.json`, under
  *  `.data/` like every other piece of app-owned state (ADR-002). **Stored under
  *  the id, never the uploaded name** — `../../` is a valid name, and a
- *  `randomUUID()` path structurally cannot leave this directory. */
+ *  `randomUUID()` path structurally cannot leave this directory.
+ *
+ *  Every index change is a synchronous read-modify-write, so two concurrent
+ *  uploads cannot drop each other's record — why no queue: `docs/design/chat.md`,
+ *  "Storage". */
 export class FileRepository {
-  // Two concurrent uploads would otherwise both read the index, both write it
-  // back, and the second would drop the first — the same read-modify-write race
-  // `lib/chat/chat-repository.ts` serializes, for the same reason.
-  private queue: Promise<unknown> = Promise.resolve();
-
   private readonly root: string;
+  private readonly liveDocumentIds: () => Set<string>;
 
-  constructor(root: string = DEFAULT_ROOT) {
+  // `liveDocumentIds` is injectable for the same reason `root` is: tests point
+  // it somewhere other than the real `.data/`.
+  constructor(
+    root: string = DEFAULT_ROOT,
+    liveDocumentIds: () => Set<string> = () => new Set(readDocuments().map((document) => document.id)),
+  ) {
     this.root = root;
+    this.liveDocumentIds = liveDocumentIds;
   }
 
   /** Writes the bytes and records the metadata. */
@@ -36,21 +44,20 @@ export class FileRepository {
       uploadedAt: new Date().toISOString(),
     };
 
+    // The bytes are not a read-modify-write, so they stay async: up to 25MB
+    // should not stall every socket this process serves.
     await mkdir(this.root, { recursive: true });
-    await this.writeAtomically(this.pathOf(stored.id), bytes);
-
-    const result = this.queue.then(() => this.appendToIndex(stored));
-    // Keep the shared chain healthy even if this write fails — one bad write
-    // must not permanently block every save after it.
-    this.queue = result.catch(() => undefined);
+    const target = this.pathOf(stored.id);
+    await writeFile(`${target}.tmp`, bytes);
+    await rename(`${target}.tmp`, target);
 
     try {
-      await result;
+      this.writeIndex([...this.readIndex(), stored]);
     } catch (error) {
       // The bytes landed but the index did not, so nothing can ever find them.
       // Removing them keeps the two in step; failing to remove them is not
       // worth masking the real error with.
-      await unlink(this.pathOf(stored.id)).catch(() => undefined);
+      await unlink(target).catch(() => undefined);
       throw error;
     }
 
@@ -74,46 +81,44 @@ export class FileRepository {
     }
   }
 
-  /** Every file, newest first, optionally narrowed to one origin. */
+  /** Every file still in use, newest first, optionally narrowed to one origin.
+   *  A document's file shows only while its document is in the catalogue — in
+   *  the trash, it is hidden, and a restore shows it again. Worked out here
+   *  rather than stored on the file, so no second write can fall out of step.
+   *  `find()` goes through here, so download and preview follow. */
   async list(origin?: FileOrigin): Promise<Array<StoredFile>> {
-    const files = await this.readIndex();
-    const wanted = origin ? files.filter((file) => file.origin === origin) : files;
+    const live = this.liveDocumentIds();
+    const files = this.readIndex().filter(
+      (file) =>
+        (!file.documentId || live.has(file.documentId)) && (!origin || file.origin === origin),
+    );
 
-    return [...wanted].sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+    return files.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+  }
+
+  /** Deletes the files of these documents for good — record first, then bytes.
+   *  A byte file that fails to go is space, not data: nothing can reach it once
+   *  its record is gone, so the failure is not worth failing the caller for. */
+  async purge(documentIds: Array<string>): Promise<void> {
+    const ids = new Set(documentIds);
+    const files = this.readIndex();
+    const gone = files.filter((file) => file.documentId && ids.has(file.documentId));
+    if (gone.length === 0) return;
+
+    this.writeIndex(files.filter((file) => !gone.includes(file)));
+    await Promise.all(gone.map((file) => unlink(this.pathOf(file.id)).catch(() => undefined)));
   }
 
   private pathOf(id: string): string {
     return path.join(this.root, id);
   }
 
-  private async appendToIndex(file: StoredFile): Promise<void> {
-    const files = await this.readIndex();
-    files.push(file);
-
-    await mkdir(this.root, { recursive: true });
-    await this.writeAtomically(
-      path.join(this.root, INDEX_FILE),
-      Buffer.from(JSON.stringify(files, null, 2)),
-    );
+  private readIndex(): Array<StoredFile> {
+    return readJsonFile(path.join(this.root, INDEX_FILE), []);
   }
 
-  private async readIndex(): Promise<Array<StoredFile>> {
-    try {
-      return JSON.parse(await readFile(path.join(this.root, INDEX_FILE), "utf8"));
-    } catch (error) {
-      // Only a missing file means "nothing uploaded yet". A permission or disk
-      // error must not become an empty list: the next save would then write an
-      // index holding one file and lose every record already on disk.
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-      throw error;
-    }
-  }
-
-  /** Write-then-rename, for the atomicity argued in `architecture.md` §(d). */
-  private async writeAtomically(target: string, bytes: Buffer): Promise<void> {
-    const temporary = `${target}.tmp`;
-    await writeFile(temporary, bytes);
-    await rename(temporary, target);
+  private writeIndex(files: Array<StoredFile>): void {
+    writeJsonFile(path.join(this.root, INDEX_FILE), files);
   }
 }
 

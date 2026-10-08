@@ -8,9 +8,11 @@ import {
   DocumentValidationError,
   deleteDocument,
   moveDocument,
+  purgeExpiredTrash,
   readDocuments,
   renameDocument,
 } from "@/lib/documents/documents";
+import { fileRepository } from "@/lib/files/file-repository";
 import { isHostSecret } from "@/lib/host-secret";
 import { wsHub } from "@/server/ws-hub.mts";
 
@@ -115,6 +117,13 @@ export async function DELETE(
     const removedIds = deleteDocument(id);
 
     wsHub.broadcast("document:deleted", { ids: removedIds });
+
+    // The trash's expired entries go for good (`purgeExpiredTrash`); the files
+    // of what was just deleted hide themselves (`FileRepository.list`). Logged
+    // rather than a 500: every client already saw the delete.
+    await purgeExpiredTrash((ids) => fileRepository.purge(ids)).catch((error) =>
+      console.error("휴지통의 만료된 문서를 정리하지 못했습니다.", error),
+    );
 
     return NextResponse.json({ ids: removedIds });
   } catch (error) {

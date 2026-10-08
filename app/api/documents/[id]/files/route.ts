@@ -19,11 +19,11 @@ export async function POST(
     return NextResponse.json({ error: "no workspace session" }, { status: 401 });
   }
 
-  // The document has to exist before its bytes do. Nothing downstream needs the
-  // id — the store is workspace-wide and a file finds its way back through the
-  // block that names it — but an upload against a document that was deleted (or
-  // never existed) is a mistake worth reporting rather than a file nobody can
-  // ever reach.
+  // The document has to exist before its bytes do: an upload against a document
+  // that was deleted (or never existed) is a mistake worth reporting rather than
+  // a file nobody can ever reach. The block that names the file is how it is
+  // found; the id recorded with it is how it follows its document into the
+  // trash and back.
   const { id } = await params;
   if (!readDocuments().some((document) => document.id === id)) {
     return NextResponse.json({ error: "no such document" }, { status: 404 });
@@ -49,6 +49,7 @@ export async function POST(
     size: upload.file.size,
     uploadedBy: member.nickname,
     origin: "document",
+    documentId: id,
   });
 
   return NextResponse.json(stored, { status: 201 });

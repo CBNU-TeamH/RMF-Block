@@ -530,7 +530,9 @@ block draws.
 
 **A link to a deleted document is a state, not an error.** FR-023-04 deletes documents and nothing
 rewrites the blocks pointing at them, so the block renders as unavailable — the same shape a file
-block whose bytes are gone already uses. The picker leaves the current document out of its own
+block whose bytes are gone already uses. The state can end: a delete goes to the host's trash, and a restore
+brings the link back to life. The deleted document's own file blocks, hidden while it is in the
+trash, come back the same way ([`api.md`](api.md#files)). The picker leaves the current document out of its own
 list, since a link to the page you are on is a loop with only a back button out.
 
 `block-link` (type 12) still has no creator: it needs a way to point at one block inside a

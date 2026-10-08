@@ -37,3 +37,13 @@ export const FileIcon = ({ size = 16 }: { size?: number }) => (
     <path d="M9 2.5v3h3" />
   </svg>
 );
+
+/** A bin — the host's trash on `/admin`. */
+export const TrashIcon = ({ size = 15 }: { size?: number }) => (
+  <svg aria-hidden width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2.75 4.25h10.5" />
+    <path d="M6.25 4.25v-1.5h3.5v1.5" />
+    <path d="M4 4.25l.75 9h6.5l.75-9" />
+    <path d="M6.75 6.75v4M9.25 6.75v4" />
+  </svg>
+);

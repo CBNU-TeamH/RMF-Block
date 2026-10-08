@@ -89,17 +89,18 @@ but it is Yorkie's internal store, and ADR-002 fixes the boundary that the app n
 So app-owned state stays as JSON files under `.data/`, and this module is the reference
 implementation of that pattern.
 
-**Repository pattern.** `chat-repository.ts` and `lib/files/file-repository.ts` serialize concurrent
-writes through a promise chain; the other JSON stores (`lib/auth/member-repository.ts`,
-`lib/documents/documents.ts`) are synchronous. **A read-modify-write with no `await` in it cannot be
+**Repository pattern.** Every JSON store reads and writes through one pair, `lib/json-file.ts`,
+and every one of them is synchronous. **A read-modify-write with no `await` in it cannot be
 interleaved by a second call on Node's single thread, so there is nothing for a queue to
-serialize.** A queue earns its place only where the appends are `async`: an `await`
-mid-sequence is a point where a second call can land between the read and the write, and the second
-write would drop the first. Choosing sync is therefore choosing to *not need* the queue, and a sync
-store that grows an `await` inside its read-modify-write needs the promise chain back. Writes go
-through a temp file and a `rename`, because `writeFileSync` truncates before it writes and a crash
-mid-write would otherwise leave a half-written store; `rename` within one filesystem is atomic, so a
-concurrent reader sees the whole old file or the whole new one.
+serialize.** An `await` mid-sequence would be a point where a second call can land between the read
+and the write, and the second write would drop the first. Choosing sync is therefore choosing to
+*not need* a queue, and a store that grows an `await` inside its read-modify-write needs a promise
+chain to serialize it. The chat store and the file index each had one until they went sync. Uploaded
+**bytes** stay async in `lib/files/file-repository.ts`, because writing them is not a
+read-modify-write and up to 25MB should not stall the process. Writes go through a temp file and a
+`rename`, because `writeFileSync` truncates before it writes and a crash mid-write would otherwise
+leave a half-written store. `rename` within one filesystem is atomic, so a concurrent reader sees the
+whole old file or the whole new one.
 
 **Message shape.**
 
