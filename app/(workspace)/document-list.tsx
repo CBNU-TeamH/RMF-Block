@@ -14,31 +14,8 @@ import { DocumentRowMenu } from "./document-row-menu";
 import { useFocusFollow } from "./focus-follow-provider";
 import { useNewDocument } from "./new-document";
 import { useWorkspacePresence } from "./presence-provider";
-import { FileIcon } from "./ui";
+import { FileIcon, PLUS, SEARCH, icon } from "./ui";
 
-/** The sidebar's 16px line icons (`docs/ui/redesign/HANDOFF.md` §3). */
-export const icon = (path: React.ReactNode, size = 15) => (
-  <svg
-    aria-hidden
-    width={size}
-    height={size}
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.4}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    {path}
-  </svg>
-);
-export const PLUS = <path d="M8 3v10M3 8h10" />;
-export const SEARCH = (
-  <>
-    <circle cx="7" cy="7" r="4.5" />
-    <path d="M10.5 10.5L14 14" />
-  </>
-);
 /** Dots a row shows for the others in a document before folding into `+N`. */
 const MAX_DOTS = 3;
 
@@ -137,7 +114,6 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
     }
     return treeRows(live, collapsed);
   }, [live, query, collapsed]);
-
 
   const sideRow =
     "flex h-8 w-full items-center gap-2 rounded-control px-2 text-ink-soft hover:bg-hover";
@@ -266,7 +242,7 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                   <DocumentRowMenu
                     label={doc.name}
                     items={[
-                      { label: "하위 문서 추가", icon: icon(PLUS), onSelect: () => openDialog(doc.id) },
+                      { label: "하위 문서 추가", icon: icon(PLUS), onSelect: () => openDialog(doc) },
                       {
                         label: "이름 변경",
                         icon: icon(<path d="M10.5 3l2.5 2.5L6 12.5H3.5V10z" />),
@@ -288,7 +264,7 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
                   <button
                     type="button"
                     aria-label={`${doc.name} 안에 새 문서`}
-                    onClick={() => openDialog(doc.id)}
+                    onClick={() => openDialog(doc)}
                     className="flex size-[22px] items-center justify-center rounded text-ink-faint hover:bg-sky-soft hover:text-ink"
                   >
                     {icon(PLUS, 14)}

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
-import { NO_TABS, closeTab, landingId, moveTab, openTab, parseTabs, pruneTabs } from "./tabs.ts";
+import { NO_TABS, closeTab, landingId, moveTab, openTab, parseTabs } from "./tabs.ts";
 
 const tabs = { open: ["a", "b", "c"], active: "b" };
 
@@ -37,34 +37,24 @@ describe("openTab", () => {
 
 describe("closeTab", () => {
   it("moves to the right neighbour of the active tab", () => {
-    assert.deepEqual(closeTab(tabs, "b"), { tabs: { open: ["a", "c"], active: "c" }, next: "c" });
+    assert.deepEqual(closeTab(tabs, "b"), { open: ["a", "c"], active: "c" });
   });
 
   it("moves to the left neighbour when the active tab was last", () => {
     const last = { open: ["a", "b"], active: "b" };
-    assert.deepEqual(closeTab(last, "b"), { tabs: { open: ["a"], active: "a" }, next: "a" });
+    assert.deepEqual(closeTab(last, "b"), { open: ["a"], active: "a" });
   });
 
   it("stays put when an inactive tab closes", () => {
-    assert.deepEqual(closeTab(tabs, "a"), { tabs: { open: ["b", "c"], active: "b" }, next: null });
+    assert.deepEqual(closeTab(tabs, "a"), { open: ["b", "c"], active: "b" });
   });
 
   it("leaves nothing to go to after the only tab", () => {
-    assert.deepEqual(closeTab({ open: ["a"], active: "a" }, "a"), { tabs: NO_TABS, next: null });
+    assert.deepEqual(closeTab({ open: ["a"], active: "a" }, "a"), NO_TABS);
   });
 
   it("ignores a tab that is not open", () => {
-    assert.deepEqual(closeTab(tabs, "z"), { tabs, next: null });
-  });
-});
-
-describe("pruneTabs", () => {
-  it("drops what is gone, and the active with it", () => {
-    assert.deepEqual(pruneTabs(tabs, (id) => id !== "b"), { open: ["a", "c"], active: null });
-  });
-
-  it("returns the same state when everything is kept", () => {
-    assert.equal(pruneTabs(tabs, () => true), tabs);
+    assert.equal(closeTab(tabs, "z"), tabs);
   });
 });
 
@@ -94,6 +84,10 @@ describe("landingId", () => {
   it("falls back to the first root document when that one is gone", () => {
     assert.equal(landingId({ open: ["gone"], active: "gone" }, documents), "root");
     assert.equal(landingId(NO_TABS, documents), "root");
+  });
+
+  it("treats a document whose parent is gone as a root, as the sidebar draws it", () => {
+    assert.equal(landingId(NO_TABS, [{ id: "orphan", parentId: "deleted" }, { id: "root" }]), "orphan");
   });
 
   it("is null in an empty workspace", () => {

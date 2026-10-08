@@ -6,25 +6,16 @@ import { useEffect, useRef, useState } from "react";
 
 import type { WorkspaceDocument } from "@/lib/documents/documents";
 import { documentIdFromPathname } from "@/lib/focus/pathname";
-import {
-  STORAGE_KEY,
-  closeTab,
-  landingId,
-  moveTab,
-  openTab,
-  parseTabs,
-  pruneTabs,
-  type Tabs,
-} from "@/lib/tabs";
+import { NO_TABS, STORAGE_KEY, closeTab, landingId, moveTab, openTab, parseTabs, type Tabs } from "@/lib/tabs";
 
 import { useNewDocument } from "./new-document";
-import { confirmClass } from "./ui";
+import { confirmClass, icon } from "./ui";
 
 function readTabs(): Tabs {
   try {
     return parseTabs(window.localStorage.getItem(STORAGE_KEY));
   } catch {
-    return parseTabs(null);
+    return NO_TABS;
   }
 }
 
@@ -65,26 +56,23 @@ export function DocumentTabs({ documents }: { documents: Array<WorkspaceDocument
 
   const byId = new Map(documents.map((doc) => [doc.id, doc]));
 
-  // Adjusted during render, like `DocumentList`'s re-seed. The current route is
-  // kept even when the catalogue lacks it: a document just created can arrive
-  // before the refresh that lists it.
-  if (tabs) {
-    let next = pruneTabs(tabs, (id) => byId.has(id) || id === currentId);
-    if (currentId !== seenId) {
-      setSeenId(currentId);
-      if (currentId) next = openTab(next, currentId);
-    }
-    if (next !== tabs) setTabs(next);
+  // Adjusted during render, like `DocumentList`'s re-seed.
+  if (tabs && currentId !== seenId) {
+    setSeenId(currentId);
+    if (currentId) setTabs(openTab(tabs, currentId));
   }
 
+  // Deleted documents stay in the stored list until a close drops them; they
+  // are only never shown.
   const shown = (tabs?.open ?? []).flatMap((id) => byId.get(id) ?? []);
-  if (shown.length === 0) return null;
+  if (!tabs || shown.length === 0) return null;
 
   function close(id: string) {
     if (!tabs) return;
-    const { tabs: rest, next } = closeTab(tabs, id);
+    // Over the tabs shown, so the neighbour moved to is never a deleted one.
+    const rest = closeTab({ ...tabs, open: shown.map((doc) => doc.id) }, id);
     setTabs(rest);
-    if (next) router.push(`/documents/${next}`);
+    if (rest.active && rest.active !== tabs.active) router.push(`/documents/${rest.active}`);
   }
 
   function drop(event: React.DragEvent<HTMLLIElement>, index: number) {
@@ -143,9 +131,7 @@ export function DocumentTabs({ documents }: { documents: Array<WorkspaceDocument
                     active ? "" : "opacity-0 group-hover/tab:opacity-100"
                   }`}
                 >
-                  <svg aria-hidden width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
-                    <path d="M2 2l6 6M8 2l-6 6" />
-                  </svg>
+                  {icon(<path d="M4 4l8 8M12 4l-8 8" />, 10)}
                 </button>
               ) : null}
             </li>

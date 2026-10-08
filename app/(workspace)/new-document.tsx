@@ -1,15 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { createContext, useContext, useRef, useState } from "react";
-
-import type { WorkspaceDocument } from "@/lib/documents/documents";
+import { createContext, useCallback, useContext, useRef, useState } from "react";
 
 import { CANCEL, DIALOG, DIALOG_TITLE, FIELD_LABEL, Spinner, confirmClass, inputClass } from "./ui";
 
-/** Opens the 새 문서 dialog; `parentId` is the document the new one goes inside,
- *  or `null` for the root (UC-021 E1a). */
-const NewDocumentContext = createContext<(parentId?: string | null) => void>(() => undefined);
+/** The document a new one goes inside, or `null` for the root (UC-021 E1a). Its
+ *  name comes from the caller — the tree's socket-fresh list — for the title. */
+type Parent = { id: string; name: string } | null;
+
+/** Opens the 새 문서 dialog. */
+const NewDocumentContext = createContext<(parent: Parent) => void>(() => undefined);
 
 export const useNewDocument = () => useContext(NewDocumentContext);
 
@@ -20,32 +21,27 @@ export const useNewDocument = () => useContext(NewDocumentContext);
  * sidebar tree because the tree, the collapsed rail and an empty workspace's
  * main area all open it (#168).
  */
-export function NewDocumentProvider({
-  documents,
-  children,
-}: {
-  documents: Array<WorkspaceDocument>;
-  children: React.ReactNode;
-}) {
+export function NewDocumentProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   // Held in state rather than passed to `create()` because the dialog sits
   // between the click and the request.
-  const [parentId, setParentId] = useState<string | null>(null);
+  const [parent, setParent] = useState<Parent>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function open(under: string | null = null) {
-    setParentId(under);
+  // Stable, so typing a name does not re-render every caller through the context.
+  const open = useCallback((under: Parent) => {
+    setParent(under);
     setName("");
     setError(null);
     dialogRef.current?.showModal();
     // showModal() moves focus to the dialog itself; the name field is what a
     // person actually wants to type into.
     requestAnimationFrame(() => nameRef.current?.focus());
-  }
+  }, []);
 
   async function create() {
     setCreating(true);
@@ -55,7 +51,7 @@ export function NewDocumentProvider({
       const response = await fetch("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, parentId }),
+        body: JSON.stringify({ name, parentId: parent?.id ?? null }),
       });
       const body = await response.json().catch(() => ({}));
 
@@ -96,9 +92,7 @@ export function NewDocumentProvider({
           className="flex flex-col gap-4"
         >
           <h2 className={DIALOG_TITLE}>
-            {parentId === null
-              ? "새 문서"
-              : `'${documents.find((d) => d.id === parentId)?.name ?? "문서"}' 아래에 새 문서`}
+            {parent === null ? "새 문서" : `'${parent.name}' 아래에 새 문서`}
           </h2>
           <label className={FIELD_LABEL}>
             문서 이름

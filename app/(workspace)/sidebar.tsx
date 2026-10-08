@@ -2,9 +2,8 @@
 
 import { useRef, useState } from "react";
 
-import { PLUS, SEARCH, icon } from "./document-list";
 import { useNewDocument } from "./new-document";
-import { SIDEBAR_COOKIE } from "./ui";
+import { PLUS, SEARCH, SIDEBAR_COOKIE, icon } from "./ui";
 
 const railButton =
   "flex size-8 items-center justify-center rounded-control text-ink-soft hover:bg-hover hover:text-ink";

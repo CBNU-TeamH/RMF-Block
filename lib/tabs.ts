@@ -1,3 +1,5 @@
+import { treeRows, type TreeNode } from "./documents/tree.ts";
+
 /** The documents one viewer has open as tabs (#168), as arithmetic on a list.
  *  Kept in `localStorage` — which tabs this person has open is worth nothing to
  *  anyone else. Ids only: names come from the catalogue, so a rename shows and
@@ -29,23 +31,13 @@ export function openTab(tabs: Tabs, id: string): Tabs {
   return { open: tabs.open.includes(id) ? tabs.open : [...tabs.open, id], active: id };
 }
 
-/** `next` is where to go: the right neighbour of a closed active tab, else its
- *  left, or `null` when the closed tab was not the one showing. */
-export function closeTab(tabs: Tabs, id: string): { tabs: Tabs; next: string | null } {
+/** Closing the active tab makes its right neighbour active, else its left. */
+export function closeTab(tabs: Tabs, id: string): Tabs {
   const index = tabs.open.indexOf(id);
-  if (index === -1) return { tabs, next: null };
+  if (index === -1) return tabs;
   const open = tabs.open.filter((other) => other !== id);
-  if (tabs.active !== id) return { tabs: { ...tabs, open }, next: null };
-  const next = open[index] ?? open[index - 1] ?? null;
-  return { tabs: { open, active: next }, next };
-}
-
-/** Drops the tabs `keep` rejects — documents deleted since — so closing a tab
- *  never moves to one that is gone. */
-export function pruneTabs(tabs: Tabs, keep: (id: string) => boolean): Tabs {
-  const open = tabs.open.filter(keep);
-  if (open.length === tabs.open.length) return tabs;
-  return { open, active: tabs.active && open.includes(tabs.active) ? tabs.active : null };
+  if (tabs.active !== id) return { ...tabs, open };
+  return { open, active: open[index] ?? open[index - 1] ?? null };
 }
 
 /** Puts `id` before `beforeId`, or last when `beforeId` is `null`. */
@@ -57,13 +49,9 @@ export function moveTab(tabs: Tabs, id: string, beforeId: string | null): Tabs {
   return { ...tabs, open };
 }
 
-/** Where `/` goes: the last document shown if it still exists, else the first
- *  root document (the sidebar's first row — both are newest first), else
- *  nowhere, which is an empty workspace. */
-export function landingId(
-  tabs: Tabs,
-  documents: Array<{ id: string; parentId?: string | null }>,
-): string | null {
+/** Where `/` goes: the last document shown if it still exists, else the
+ *  sidebar's first row, else nowhere, which is an empty workspace. */
+export function landingId(tabs: Tabs, documents: Array<TreeNode>): string | null {
   if (tabs.active && documents.some((doc) => doc.id === tabs.active)) return tabs.active;
-  return documents.find((doc) => !doc.parentId)?.id ?? null;
+  return treeRows(documents)[0]?.document.id ?? null;
 }

@@ -53,3 +53,27 @@ export const TrashIcon = ({ size = 15 }: { size?: number }) => (
     <path d="M6.75 6.75v4M9.25 6.75v4" />
   </svg>
 );
+
+/** The shell's 16px line icons (`docs/ui/redesign/HANDOFF.md` §3). */
+export const icon = (path: React.ReactNode, size = 15) => (
+  <svg
+    aria-hidden
+    width={size}
+    height={size}
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.4}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    {path}
+  </svg>
+);
+export const PLUS = <path d="M8 3v10M3 8h10" />;
+export const SEARCH = (
+  <>
+    <circle cx="7" cy="7" r="4.5" />
+    <path d="M10.5 10.5L14 14" />
+  </>
+);

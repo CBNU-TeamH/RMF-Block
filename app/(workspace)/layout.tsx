@@ -76,49 +76,49 @@ export default async function WorkspaceLayout({
     >
       <FocusFollowProvider>
         <FloatingViewProvider colorTag={me.colorTag} nickname={me.nickname}>
-          <NewDocumentProvider documents={documents}>
-          {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
-              shell has to be exactly the viewport's height, not merely at least
-              it, or the row below never bounds `<main>` and the editor's own
-              scroll container grows to fit its blocks instead of scrolling. */}
-          <div className="flex h-full flex-1 bg-paper">
-            {member ? <SessionWatch /> : null}
+          <NewDocumentProvider>
+            {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
+                shell has to be exactly the viewport's height, not merely at least
+                it, or the row below never bounds `<main>` and the editor's own
+                scroll container grows to fit its blocks instead of scrolling. */}
+            <div className="flex h-full flex-1 bg-paper">
+              {member ? <SessionWatch /> : null}
 
-            <Sidebar
-              workspaceName={workspaceName}
-              initiallyCollapsed={jar.get(SIDEBAR_COOKIE)?.value === "collapsed"}
-            >
-              <DocumentList documents={documents} />
-            </Sidebar>
+              <Sidebar
+                workspaceName={workspaceName}
+                initiallyCollapsed={jar.get(SIDEBAR_COOKIE)?.value === "collapsed"}
+              >
+                <DocumentList documents={documents} />
+              </Sidebar>
 
-            <div className="flex min-w-0 flex-1 flex-col">
-              <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">
-                <Breadcrumb documents={documents} />
-                <PresenceStack memberId={me.id} known={known} />
-                <FocusShare memberId={me.id} />
-                {/* Host only — the page itself refuses anyone else. Outlined, with
-                    the shield, so it reads as a different kind of place than
-                    the share controls beside it. */}
-                {isHost ? (
-                  <Link
-                    href="/admin"
-                    title="관리자 페이지 — 호스트에게만 보입니다"
-                    className="flex h-[30px] items-center gap-1.5 rounded-control border border-line-strong px-2.5 text-[13px] font-semibold text-ink hover:bg-hover"
-                  >
-                    <AdminIcon />
-                    Admin
-                  </Link>
-                ) : null}
-              </header>
-              <DocumentTabs documents={documents} />
-              <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">
+                  <Breadcrumb documents={documents} />
+                  <PresenceStack memberId={me.id} known={known} />
+                  <FocusShare memberId={me.id} />
+                  {/* Host only — the page itself refuses anyone else. Outlined, with
+                      the shield, so it reads as a different kind of place than
+                      the share controls beside it. */}
+                  {isHost ? (
+                    <Link
+                      href="/admin"
+                      title="관리자 페이지 — 호스트에게만 보입니다"
+                      className="flex h-[30px] items-center gap-1.5 rounded-control border border-line-strong px-2.5 text-[13px] font-semibold text-ink hover:bg-hover"
+                    >
+                      <AdminIcon />
+                      Admin
+                    </Link>
+                  ) : null}
+                </header>
+                <DocumentTabs documents={documents} />
+                <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+              </div>
+
+              {/* `fixed` — it floats over the shell rather than taking a column from it. */}
+              <ChatWindow me={me.nickname} />
             </div>
-
-            {/* `fixed` — it floats over the shell rather than taking a column from it. */}
-            <ChatWindow me={me.nickname} />
-          </div>
           </NewDocumentProvider>
-          </FloatingViewProvider>
+        </FloatingViewProvider>
       </FocusFollowProvider>
     </PresenceProvider>
   );

@@ -113,9 +113,9 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
   breaks its setup. `app/(workspace)/layout.test.tsx` tests only the server gate — no change.
 - Browser E2E (`e2e/`): new `e2e/tabs.e2e.ts` for milestone 3's and 4's **Done** (drag via
   Playwright's `dragTo`). Existing specs that `goto("/")` now land on a document: `auth.e2e.ts`'s
-  two `toHaveURL(/\/$/)` must accept `/documents/…`, and `tree.e2e.ts` reads a new document's id
-  from the URL right after `toHaveURL(/\/documents\//)` — already true after the landing, so it
-  must wait for the URL to change. Every `goto("/")` gets checked for the same assumption.
+  two `toHaveURL(/\/$/)` must accept `/documents/…`, and `tree.e2e.ts` read a new document's id
+  from the URL right after `toHaveURL(/\/documents\//)` — already true after the landing — so it
+  reads the id from the new sidebar row instead. Every `goto("/")` gets checked for the same assumption.
 - Container smoke (`.github/workflows/ci.yml`): `curl /` still gets the shell HTML with the search
   field (the landing is client-side and the collapsed tree stays in the DOM) — no change;
   confirmed by running it.
@@ -127,6 +127,8 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
   - `pnpm e2e:isolated` (full suite) → 20 passed, the two `recovery.e2e.ts` diagnostics failing as
     marked (`test.fail`), 1 failed: `tabs.e2e.ts`'s own locator (`filter({ has })` rooted at the
     sidebar). Fixed, then `pnpm e2e:isolated e2e/tabs.e2e.ts e2e/tree.e2e.ts e2e/auth.e2e.ts` → 6 passed.
+  - After the review round (below): Vitest 72 passed, `tsc`/`eslint`/`verify:docs` clean,
+    `pnpm e2e:isolated e2e/tabs.e2e.ts e2e/tree.e2e.ts e2e/auth.e2e.ts e2e/host.e2e.ts` → 9 passed.
   - Container smoke: not run locally; its `curl /` checks read the sidebar's search field, which
     the server still renders (no cookie → expanded, and collapsed only hides it). CI runs it.
 
@@ -150,4 +152,18 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+Review round (2026-10-09; `/simplify` and `/code-review low` in a separate session):
+
+- Applied: the 새 문서 provider's `open` is stable (`useCallback`) and takes the parent itself, so the
+  dialog title reads the tree's socket-fresh name again (the code-review finding — the move had
+  switched it to the layout's server list) and the provider no longer needs `documents`; the line
+  icons moved to `ui.tsx`; the tab's ✕ reuses `icon()` with the floating window's path;
+  `landingId` uses `treeRows`, so an orphan counts as a root as the sidebar draws it; `pruneTabs`
+  and its current-route exception are gone — `closeTab` runs over the tabs shown and returns only
+  the new state; `tree.e2e.ts` reads the new id from its sidebar row; small tidy-ups.
+- Declined: a server `redirect()` from `/` with the active tab in a cookie. It removes a client
+  round trip on `/`, but splits tab state across two stores and changes the CI smoke's `curl /`;
+  the round trip happens only on entry, not on navigation. Revisit if the moment on `/` shows.
+- Declined: `currentId` in place of `Tabs.active` for closing (both hold the same value whenever a
+  tab can be closed), moving `SIDEBAR_COOKIE` to its own `lib/` file, and a shared `localStorage`
+  helper for the three read/write pairs.

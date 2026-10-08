@@ -10,7 +10,6 @@ test("documents open as tabs that reorder, close and are landed on; only the act
   const firstId = await createDocument(page, first);
   const secondId = await createDocument(page, second);
   const tabs = page.getByRole("navigation", { name: "열린 문서" });
-  const names = () => tabs.getByRole("link").allInnerTexts();
 
   await openDocument(page, firstId);
   await expect(tabs.getByRole("link")).toHaveText([first]);
@@ -46,7 +45,7 @@ test("documents open as tabs that reorder, close and are landed on; only the act
   // The active tab was last, so closing it lands on its left neighbour.
   await tabs.getByRole("button", { name: `${first} 닫기` }).click();
   await expect(page).toHaveURL(new RegExp(`/documents/${secondId}$`));
-  expect(await names()).toEqual([`${second} renamed`]);
+  await expect(tabs.getByRole("link")).toHaveText([`${second} renamed`]);
 
   await page.goto("/");
   await expect(page).toHaveURL(new RegExp(`/documents/${secondId}$`));

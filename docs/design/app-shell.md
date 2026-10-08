@@ -94,7 +94,8 @@ out of a client module.
 the app's `<dialog>` modals, including `app/join/`'s, which sits outside the shell, and the
 version-history confirm dialogs. (The history panel itself is a custom overlay, not a dialog.) A
 new dialog takes these classes rather than restyling its own. `ui.tsx` also exports the non-modal
-`Spinner`, `FileIcon` and `TrashIcon` (the host's trash on `/admin`).
+`Spinner`, `FileIcon` and `TrashIcon` (the host's trash on `/admin`), and the shell's line icons
+(`icon`, `PLUS`, `SEARCH`) the sidebar tree and its collapsed rail share.
 
 ## The font is bundled
 
