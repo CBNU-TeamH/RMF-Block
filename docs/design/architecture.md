@@ -99,7 +99,7 @@ A revision outlives the document it belongs to, but only by id, so deleting a do
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 
-App-owned state is whole JSON files on the host filesystem under `.data/` — chat history, members, the document catalogue and file metadata; sessions stay in memory on purpose (a session id on disk would be a permanent bearer token), and workspace metadata is still to come. The repository pattern (sync vs. queued writes, atomic rename) is in [`chat.md`](chat.md), "Storage"; why the document catalogue exists beside Yorkie is in [`document-editing.md`](document-editing.md#why-a-catalogue-beside-yorkie).
+App-owned state is whole JSON files on the host filesystem under `.data/` — chat history, members, the document catalogue and file metadata; sessions stay in memory on purpose (a session id on disk would be a permanent bearer token), and workspace metadata is still to come. The repository pattern (sync writes, atomic rename) is in [`chat.md`](chat.md), "Storage"; why the document catalogue exists beside Yorkie is in [`document-editing.md`](document-editing.md#why-a-catalogue-beside-yorkie).
 
 The catalogue is a **tree**, not a list: a document carries a `parentId`, `null` at the root (UC-021 E1a). A catalogue written before sub-documents existed has no such field, and a missing one reads as `null` — that is the whole migration, no rewrite and no version marker. Name uniqueness is per-parent, which is what FR-021-03's "동일 위치 내" asks for.
 

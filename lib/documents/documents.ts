@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import { childrenOf, subtreeIds, wouldCycle } from "./tree.ts";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
+
+import { readJsonFile, writeJsonFile } from "../json-file.ts";
+import { childrenOf, subtreeIds, wouldCycle } from "./tree.ts";
 
 export const DEFAULT_DOCUMENTS_PATH = path.resolve(".data/documents/documents.json");
 
@@ -30,16 +31,8 @@ export type WorkspaceDocument = {
 export function readDocuments(
   storePath: string = DEFAULT_DOCUMENTS_PATH,
 ): Array<WorkspaceDocument> {
-  let documents: Array<WorkspaceDocument>;
-  try {
-    documents = JSON.parse(readFileSync(storePath, "utf8"));
-  } catch (error) {
-    // A missing file is an empty workspace, not a failure; anything else is real.
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw error;
-  }
   // Newest edit first, matching the artboard's `Modified ↓`.
-  return documents.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return readJsonFile<Array<WorkspaceDocument>>(storePath, []).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 /** Sync on purpose — why that removes the need for a write queue:
@@ -48,11 +41,7 @@ export function writeDocuments(
   documents: Array<WorkspaceDocument>,
   storePath: string = DEFAULT_DOCUMENTS_PATH,
 ): void {
-  mkdirSync(path.dirname(storePath), { recursive: true });
-  // Write-then-rename, for the atomicity argued in architecture.md §(d).
-  const tempPath = `${storePath}.tmp`;
-  writeFileSync(tempPath, JSON.stringify(documents, null, 2));
-  renameSync(tempPath, storePath);
+  writeJsonFile(storePath, documents);
 }
 
 /** UC-021 E4a, and FR-021-03's "동일 위치 내" — a name only has to be unique

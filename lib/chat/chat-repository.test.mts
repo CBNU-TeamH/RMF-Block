@@ -55,8 +55,8 @@ test("concurrent append() calls don't lose messages (the read-modify-write race)
   await withTempStore(async (repo) => {
     const messages = Array.from({ length: 10 }, (_, i) => makeMessage({ text: `msg-${i}` }));
 
-    // Fire all ten without awaiting between them — exactly the race the
-    // internal queue (chat-repository.ts) exists to prevent.
+    // Fire all ten without awaiting between them — the race a read-modify-write
+    // with an `await` inside it would lose.
     await Promise.all(messages.map((message) => repo.append(message)));
 
     const stored = await repo.list();
