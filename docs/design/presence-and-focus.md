@@ -61,7 +61,7 @@ scroll to once the document has loaded.
 
 Where it surfaces: the header roster lists only the members in the open document (and, dimmed at
 the end, the ones not connected); the document tree is where you find the rest — a dot per other
-member on the row of the document they are in, and the dot is the jump. Past three, a `+N` opens the rest. The place a jump leaves from is remembered even when it is the page with no document (`"home"`).
+member on the row of the document they are in, and the dot is the jump. Past three, a `+N` opens the rest. The place a jump leaves from is remembered even when it is the page with no document (`"home"`) — since `/` lands on a document (#168), that is only an empty workspace or the moment before the landing.
 
 ## Two subscriptions, not one
 

@@ -14,6 +14,7 @@ import { SessionWatch } from "../session-watch";
 import { Breadcrumb } from "./breadcrumb";
 import { ChatWindow } from "./chat-window";
 import { DocumentList } from "./document-list";
+import { DocumentTabs } from "./document-tabs";
 import { FloatingViewProvider } from "./floating-views";
 import { FocusFollowProvider } from "./focus-follow-provider";
 import { FocusShare } from "./focus-share";
@@ -114,6 +115,7 @@ export default async function WorkspaceLayout({
                   </Link>
                 ) : null}
               </header>
+              <DocumentTabs documents={documents} />
               <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
             </div>
 
