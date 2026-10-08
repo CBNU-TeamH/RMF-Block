@@ -73,12 +73,39 @@ export class FileRepository {
     }
   }
 
-  /** Every file, newest first, optionally narrowed to one origin. */
+  /** Every file still in use, newest first, optionally narrowed to one origin.
+   *  A file whose document is in the trash is left out — and since `find()` goes
+   *  through here, so are its download and preview. */
   async list(origin?: FileOrigin): Promise<Array<StoredFile>> {
-    const files = this.readIndex();
-    const wanted = origin ? files.filter((file) => file.origin === origin) : files;
+    const files = this.readIndex().filter(
+      (file) => !file.deletedAt && (!origin || file.origin === origin),
+    );
 
-    return [...wanted].sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+    return files.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+  }
+
+  /** Puts the files of these documents in the trash with them (`deletedAt` set)
+   *  or takes them out again (`undefined`). The bytes are never touched. */
+  async setDeletedAt(documentIds: Array<string>, deletedAt: string | undefined): Promise<void> {
+    const ids = new Set(documentIds);
+    this.writeIndex(
+      this.readIndex().map((file) =>
+        file.documentId && ids.has(file.documentId) ? { ...file, deletedAt } : file,
+      ),
+    );
+  }
+
+  /** Deletes the files of these documents for good — record first, then bytes.
+   *  A byte file that fails to go is space, not data: nothing can reach it once
+   *  its record is gone, so the failure is not worth failing the caller for. */
+  async purge(documentIds: Array<string>): Promise<void> {
+    const ids = new Set(documentIds);
+    const files = this.readIndex();
+    const gone = files.filter((file) => file.documentId && ids.has(file.documentId));
+    if (gone.length === 0) return;
+
+    this.writeIndex(files.filter((file) => !gone.includes(file)));
+    await Promise.all(gone.map((file) => unlink(this.pathOf(file.id)).catch(() => undefined)));
   }
 
   private pathOf(id: string): string {

@@ -157,13 +157,28 @@ export function moveDocument(
   return writeOne(documents, id, { parentId, name }, storePath);
 }
 
+/** One delete, as the host's trash holds it: the document and its subtree,
+ *  parent first, exactly as they were. */
+export type TrashEntry = { deletedAt: string; documents: Array<WorkspaceDocument> };
+
+/** How long a deleted document can still be restored. */
+export const TRASH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Next to the catalogue, so a test's scratch catalogue gets a scratch trash. */
+const trashPathOf = (storePath: string) => path.join(path.dirname(storePath), "deleted.json");
+
 /**
- * FR-023-04, and FR-023-06's cascade.
+ * FR-023-04, and FR-023-06's cascade. A soft delete: the subtree leaves the
+ * catalogue — every guest sees it gone — and goes to the trash as one entry,
+ * so the host can restore it (`restoreDocument`) and its ids, which are its
+ * Yorkie keys, stay known (`docs/design/version-history.md`, "Deleting a document").
  *
- * The subtree goes in **one** write. A parent-then-children cascade that failed
- * half way would leave children whose parent is gone, and while `treeRows`
- * renders those as roots rather than losing them, a catalogue that says
- * something untrue is worse than one write that either happened or did not.
+ * The catalogue changes in **one** write. A parent-then-children cascade that
+ * failed half way would leave children whose parent is gone, and while
+ * `treeRows` renders those as roots rather than losing them, a catalogue that
+ * says something untrue is worse than one write that either happened or did not.
+ * The trash is written first: a crash between the two leaves a document in both,
+ * never in neither.
  *
  * Returns the ids removed, so a caller can tell every client at once.
  */
@@ -174,13 +189,74 @@ export function deleteDocument(
   const documents = readDocuments(storePath);
   if (!documents.some((document) => document.id === id)) throw new DocumentNotFoundError(id);
 
-  const removed = new Set(subtreeIds(documents, id));
+  const ids = subtreeIds(documents, id);
+  const removed = ids.map((removedId) => documents.find((document) => document.id === removedId)!);
+  const trashPath = trashPathOf(storePath);
+  writeJsonFile(trashPath, [
+    ...readJsonFile<Array<TrashEntry>>(trashPath, []),
+    { deletedAt: new Date().toISOString(), documents: removed },
+  ]);
   writeDocuments(
-    documents.filter((document) => !removed.has(document.id)),
+    documents.filter((document) => !ids.includes(document.id)),
     storePath,
   );
 
-  return [...removed];
+  return ids;
+}
+
+/** The host's trash, newest delete first. */
+export function readTrash(storePath: string = DEFAULT_DOCUMENTS_PATH): Array<TrashEntry> {
+  return readJsonFile<Array<TrashEntry>>(trashPathOf(storePath), []).sort((a, b) =>
+    b.deletedAt.localeCompare(a.deletedAt),
+  );
+}
+
+/**
+ * Puts a trash entry back, subtree and all, and returns its documents parent
+ * first — the order a client's tree can apply them in. The root goes back
+ * where it was if that parent is still in the catalogue, at the top level if
+ * not; and gets a suffix if a sibling took its name meanwhile, as on create.
+ */
+export function restoreDocument(
+  rootId: string,
+  storePath: string = DEFAULT_DOCUMENTS_PATH,
+): Array<WorkspaceDocument> {
+  const trashPath = trashPathOf(storePath);
+  const trash = readJsonFile<Array<TrashEntry>>(trashPath, []);
+  const entry = trash.find((candidate) => candidate.documents[0]?.id === rootId);
+  if (!entry) throw new DocumentNotFoundError(rootId);
+
+  const documents = readDocuments(storePath);
+  const [root, ...descendants] = entry.documents;
+  const parentId = documents.some((document) => document.id === root!.parentId)
+    ? root!.parentId!
+    : null;
+  const restored = [
+    { ...root!, parentId, name: uniqueName(root!.name, childrenOf(documents, parentId)) },
+    ...descendants,
+  ];
+
+  // Catalogue first, for the same reason the delete writes the trash first.
+  writeDocuments([...documents, ...restored], storePath);
+  writeJsonFile(trashPath, trash.filter((candidate) => candidate !== entry));
+
+  return restored;
+}
+
+/** Drops every trash entry older than `TRASH_TTL_MS` and returns the ids it
+ *  held, so the caller can purge their files. No timer runs this: whoever reads
+ *  or adds to the trash calls it first. */
+export function purgeExpiredTrash(
+  storePath: string = DEFAULT_DOCUMENTS_PATH,
+  now: number = Date.now(),
+): Array<string> {
+  const trashPath = trashPathOf(storePath);
+  const trash = readJsonFile<Array<TrashEntry>>(trashPath, []);
+  const expired = trash.filter((entry) => now - Date.parse(entry.deletedAt) >= TRASH_TTL_MS);
+  if (expired.length === 0) return [];
+
+  writeJsonFile(trashPath, trash.filter((entry) => !expired.includes(entry)));
+  return expired.flatMap((entry) => entry.documents.map((document) => document.id));
 }
 
 /** One document changed, `updatedAt` refreshed, the rest untouched. */

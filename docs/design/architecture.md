@@ -99,7 +99,7 @@ A revision outlives the document it belongs to, but only by id, so deleting a do
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 
-App-owned state is whole JSON files on the host filesystem under `.data/` — chat history, members, the document catalogue and file metadata; sessions stay in memory on purpose (a session id on disk would be a permanent bearer token), and workspace metadata is still to come. The repository pattern (sync writes, atomic rename) is in [`chat.md`](chat.md), "Storage"; why the document catalogue exists beside Yorkie is in [`document-editing.md`](document-editing.md#why-a-catalogue-beside-yorkie).
+App-owned state is whole JSON files on the host filesystem under `.data/` — chat history, members, workspace metadata, the document catalogue and its trash, and file metadata. Sessions stay in memory on purpose (a session id on disk would be a permanent bearer token). The repository pattern (sync writes, atomic rename) is in [`chat.md`](chat.md), "Storage"; why the document catalogue exists beside Yorkie is in [`document-editing.md`](document-editing.md#why-a-catalogue-beside-yorkie).
 
 The catalogue is a **tree**, not a list: a document carries a `parentId`, `null` at the root (UC-021 E1a). A catalogue written before sub-documents existed has no such field, and a missing one reads as `null` — that is the whole migration, no rewrite and no version marker. Name uniqueness is per-parent, which is what FR-021-03's "동일 위치 내" asks for.
 
@@ -121,7 +121,7 @@ production a failure there is fatal. Why it exits rather than throws, and the de
 | Yorkie owns realtime sync **and** document persistence/history (ADR-002) | Load-test baseline *numbers* (SRS §2.4) — how to measure them is settled in [`PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) |
 | The server keeps **no** Yorkie `Watch` subscription (ADR-002) | |
 | MongoDB is Yorkie's store alone; the app never connects to it (ADR-002) | |
-| App state lives in `.data/` JSON, not in Yorkie or Mongo — chat, members, the document catalogue and files; workspace metadata still to come | |
+| App state lives in `.data/` JSON, not in Yorkie or Mongo — chat, members, workspace metadata, the document catalogue and files; a document delete is soft, to the host's trash ([`api.md`](api.md#documents)) | |
 | Component boundaries and API groups (this doc) | |
 | Presence and focus ride the client-to-Yorkie channel; no server-side present/follow state ([`presence-and-focus.md`](presence-and-focus.md)) | |
 | App/WS Server runs as one process — a Next.js custom server handling REST + WebSocket together, not split across services | |

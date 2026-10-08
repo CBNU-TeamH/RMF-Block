@@ -192,3 +192,40 @@ describe("FileRepository.find", () => {
     assert.equal(await store.find("6f9619ff-8b86-4d01-b42d-00cf4fc964ff"), null);
   });
 });
+
+describe("FileRepository.setDeletedAt", () => {
+  it("hides a document's files while it is in the trash, keeps the bytes, and brings them back", async () => {
+    const store = await freshStore();
+    const inTrash = await store.save(Buffer.from("a"), upload({ origin: "document", documentId: "doc-a" }));
+    const other = await store.save(Buffer.from("b"), upload({ origin: "document", documentId: "doc-b" }));
+    const chat = await store.save(Buffer.from("c"), upload());
+
+    await store.setDeletedAt(["doc-a"], new Date().toISOString());
+
+    assert.equal(await store.find(inTrash.id), null);
+    assert.deepEqual((await store.list()).map((file) => file.id).sort(), [other.id, chat.id].sort());
+    assert.deepEqual(await store.read(inTrash.id), Buffer.from("a"), "the bytes stay for a restore");
+
+    await store.setDeletedAt(["doc-a"], undefined);
+
+    assert.equal((await store.find(inTrash.id))?.id, inTrash.id);
+  });
+});
+
+describe("FileRepository.purge", () => {
+  it("removes the record and the bytes of only the named documents' files", async () => {
+    const store = await freshStore();
+    const gone = await store.save(Buffer.from("a"), upload({ origin: "document", documentId: "doc-a" }));
+    const kept = await store.save(Buffer.from("b"), upload({ origin: "document", documentId: "doc-b" }));
+    await store.setDeletedAt(["doc-a"], new Date().toISOString());
+
+    await store.purge(["doc-a"]);
+
+    assert.equal(await store.read(gone.id), null);
+    assert.deepEqual(
+      (await readdir(path.join(roots.at(-1)!, "files"))).sort(),
+      ["index.json", kept.id].sort(),
+    );
+    assert.equal((await store.find(kept.id))?.id, kept.id);
+  });
+});

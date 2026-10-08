@@ -109,7 +109,12 @@ would overrule a name the person just typed, so a rename says no and asks again.
 
 `DELETE /api/documents/:id` removes the document **and its whole subtree in one write**
 (FR-023-06), and answers with every id it removed. A cascade that failed half way would leave
-children whose parent is gone; one write either happened or did not.
+children whose parent is gone; one write either happened or did not. The delete is soft
+underneath: the subtree goes to the host's trash, `.data/documents/deleted.json`, as one entry,
+and its files are hidden with it ([Files](#files)). For a guest it is a delete. The host can
+restore it from `/admin` for 30 days (`TRASH_TTL_MS`), after which the entry and its files'
+bytes are purged the next time the trash is read or added to. No timer runs the purge. The
+Yorkie document stays either way ([`version-history.md`](version-history.md#deleting-a-document)).
 
 A move into the document's own subtree is refused. Nothing in the SRS forbids it, because nobody
 writes down that a document cannot be its own grandparent — but a UI that lets a person drag a
@@ -269,6 +274,11 @@ filename on disk, never the uploaded name** — a name is attacker-controlled an
 valid string. One store is shared with document files (FR-022-13/14) when those land, with an
 `origin` field recording which; FR-050-06 is a query over it. FR-061-01's chat file list is not:
 it is derived from the chat history ([`chat.md`](chat.md#the-file-list)).
+
+A document upload also records its `documentId`, so the file follows its document: `deletedAt` is
+set while the document is in the trash, and such a file is left out of every list. Download and
+preview answer 404 until a restore clears `deletedAt`. A purge removes the record and the bytes.
+Files uploaded before `documentId` was recorded stay visible after their document is deleted.
 
 **Two ceilings, not one.** An upload is refused at 25 MB, and that number is about the *file*, which
 is what the error message says. The request carrying it is larger: `content-length` covers the whole
