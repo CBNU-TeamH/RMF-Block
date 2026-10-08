@@ -9,7 +9,7 @@ vi.mock("@/lib/host-secret", () => ({ isHostSecret: vi.fn() }));
 vi.mock("@/lib/documents/documents", () => ({
   readDocuments: vi.fn(() => []),
   deleteDocument: vi.fn(() => ["doc-1", "doc-2"]),
-  purgeExpiredTrash: vi.fn(() => ["old-1"]),
+  purgeExpiredTrash: vi.fn(async (purgeFiles: (ids: Array<string>) => Promise<void>) => purgeFiles(["old-1"])),
 }));
 vi.mock("@/lib/files/file-repository", () => ({
   fileRepository: { setDeletedAt: vi.fn(async () => {}), purge: vi.fn(async () => {}) },

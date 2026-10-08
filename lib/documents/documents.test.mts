@@ -365,11 +365,10 @@ describe("restoreDocument", () => {
 });
 
 describe("purgeExpiredTrash", () => {
-  it("drops entries past the TTL, returns their ids, and keeps the rest", () => {
+  const now = Date.parse("2026-10-31T00:00:00.000Z");
+  const at = (ms: number) => new Date(ms).toISOString();
+  const trashed = () => {
     const dir = scratch();
-    const storePath = path.join(dir, "documents.json");
-    const now = Date.parse("2026-10-31T00:00:00.000Z");
-    const at = (ms: number) => new Date(ms).toISOString();
     writeFileSync(
       path.join(dir, "deleted.json"),
       JSON.stringify([
@@ -377,9 +376,41 @@ describe("purgeExpiredTrash", () => {
         { deletedAt: at(now - TRASH_TTL_MS + 1), documents: [doc("recent", at(0))] },
       ]),
     );
+    return path.join(dir, "documents.json");
+  };
+  const roots = (storePath: string) => readTrash(storePath).map((entry) => entry.documents[0]!.id);
 
-    assert.deepEqual(purgeExpiredTrash(storePath, now), ["old", "old-child"]);
-    assert.deepEqual(readTrash(storePath).map((entry) => entry.documents[0]!.id), ["recent"]);
-    assert.deepEqual(purgeExpiredTrash(storePath, now), [], "nothing left to purge");
+  it("purges the files of entries past the TTL, then drops those entries and keeps the rest", async () => {
+    const storePath = trashed();
+    const purged: Array<Array<string>> = [];
+
+    await purgeExpiredTrash(async (ids) => void purged.push(ids), storePath, now);
+
+    assert.deepEqual(purged, [["old", "old-child"]]);
+    assert.deepEqual(roots(storePath), ["recent"]);
+  });
+
+  it("keeps the entries when the files could not be purged, so the next call retries", async () => {
+    const storePath = trashed();
+
+    await assert.rejects(purgeExpiredTrash(async () => Promise.reject(new Error("disk")), storePath, now));
+
+    assert.deepEqual(roots(storePath).sort(), ["old", "recent"]);
+  });
+
+  it("keeps a delete that lands while the files are being purged", async () => {
+    const storePath = trashed();
+    let added = "";
+
+    await purgeExpiredTrash(
+      async () => {
+        added = createDocument("new", "m-1", storePath).id;
+        deleteDocument(added, storePath);
+      },
+      storePath,
+      now,
+    );
+
+    assert.deepEqual(roots(storePath).sort(), [added, "recent"].sort());
   });
 });

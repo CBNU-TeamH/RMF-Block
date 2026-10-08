@@ -246,20 +246,26 @@ export function restoreDocument(
   return restored;
 }
 
-/** Drops every trash entry older than `TRASH_TTL_MS` and returns the ids it
- *  held, so the caller can purge their files. No timer runs this: whoever reads
- *  or adds to the trash calls it first. */
-export function purgeExpiredTrash(
+/** Deletes every trash entry older than `TRASH_TTL_MS` for good: `purgeFiles`
+ *  first, then the entries, so a purge that fails leaves them for the next call
+ *  to retry. No timer runs this: whoever reads or adds to the trash calls it. */
+export async function purgeExpiredTrash(
+  purgeFiles: (documentIds: Array<string>) => Promise<void>,
   storePath: string = DEFAULT_DOCUMENTS_PATH,
   now: number = Date.now(),
-): Array<string> {
+): Promise<void> {
   const trashPath = trashPathOf(storePath);
-  const trash = readJsonFile<Array<TrashEntry>>(trashPath, []);
-  const expired = trash.filter((entry) => now - Date.parse(entry.deletedAt) >= TRASH_TTL_MS);
-  if (expired.length === 0) return [];
+  const expired = (entry: TrashEntry) => now - Date.parse(entry.deletedAt) >= TRASH_TTL_MS;
+  const ids = readJsonFile<Array<TrashEntry>>(trashPath, [])
+    .filter(expired)
+    .flatMap((entry) => entry.documents.map((document) => document.id));
+  if (ids.length === 0) return;
 
-  writeJsonFile(trashPath, trash.filter((entry) => !expired.includes(entry)));
-  return expired.flatMap((entry) => entry.documents.map((document) => document.id));
+  await purgeFiles(ids);
+
+  // Read again after the await: a delete may have added an entry meanwhile.
+  const trash = readJsonFile<Array<TrashEntry>>(trashPath, []);
+  writeJsonFile(trashPath, trash.filter((entry) => !expired(entry)));
 }
 
 /** One document changed, `updatedAt` refreshed, the rest untouched. */

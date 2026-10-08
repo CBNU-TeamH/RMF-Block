@@ -19,8 +19,13 @@ export default async function AdminPage() {
 
   const open = isWorkspaceOpen();
   // Reading the trash is one of the two moments its expired entries are
-  // purged (`purgeExpiredTrash`); a delete is the other.
-  if (open) await fileRepository.purge(purgeExpiredTrash());
+  // purged (`purgeExpiredTrash`); a delete is the other. A failure is logged, not
+  // a broken page: the entries stay, and the next visit retries them.
+  if (open) {
+    await purgeExpiredTrash((ids) => fileRepository.purge(ids)).catch((error) =>
+      console.error("휴지통의 만료된 문서를 정리하지 못했습니다.", error),
+    );
+  }
 
   return (
     <main className="flex flex-1 flex-col overflow-auto bg-paper">

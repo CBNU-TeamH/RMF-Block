@@ -123,7 +123,7 @@ export async function DELETE(
     // client already saw the delete, and a 500 would say it failed.
     await fileRepository
       .setDeletedAt(removedIds, new Date().toISOString())
-      .then(() => fileRepository.purge(purgeExpiredTrash()))
+      .then(() => purgeExpiredTrash((ids) => fileRepository.purge(ids)))
       .catch((error) => console.error("삭제한 문서의 파일을 정리하지 못했습니다.", error));
 
     return NextResponse.json({ ids: removedIds });
