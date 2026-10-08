@@ -95,6 +95,12 @@ describe("TrashList — the host's trash", () => {
     assert.ok(screen.getByText("휴지통이 비어 있습니다."));
   });
 
+  it("re-reads the trash on 새로고침, without reloading the page", () => {
+    render(<TrashList entries={[entry]} ttlMs={ttlMs} />);
+    fireEvent.click(screen.getByRole("button", { name: "새로고침" }));
+    assert.equal(refresh.mock.calls.length, 1);
+  });
+
   it("shows the root, how many documents come with it, and when it goes for good", () => {
     render(<TrashList entries={[entry]} ttlMs={ttlMs} />);
 

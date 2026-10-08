@@ -55,7 +55,7 @@ With no document open, the home page (`page.tsx`) only points at the sidebar, wh
 the app's `<dialog>` modals, including `app/join/`'s, which sits outside the shell, and the
 version-history confirm dialogs. (The history panel itself is a custom overlay, not a dialog.) A
 new dialog takes these classes rather than restyling its own. `ui.tsx` also exports the non-modal
-`Spinner` and `FileIcon`.
+`Spinner`, `FileIcon` and `TrashIcon` (the host's trash on `/admin`).
 
 ## The font is bundled
 

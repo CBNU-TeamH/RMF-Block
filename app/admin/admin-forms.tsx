@@ -135,15 +135,46 @@ export function PasswordForm() {
   );
 }
 
+/** Both lists are the server's snapshot at render; this re-reads it without
+ *  reloading the page (and without losing a half-typed password above). */
+function RefreshButton({ title }: { title: string }) {
+  const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
+
+  return (
+    <button
+      type="button"
+      aria-label="새로고침"
+      title={title}
+      disabled={refreshing}
+      onClick={() => startRefresh(() => router.refresh())}
+      className="flex size-[28px] items-center justify-center rounded-control text-ink-soft hover:bg-hover hover:text-ink disabled:opacity-60"
+    >
+      <svg
+        aria-hidden
+        width="15"
+        height="15"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={refreshing ? "animate-spin" : ""}
+      >
+        <path d="M13 8a5 5 0 1 1-1.5-3.5" />
+        <path d="M13 2.5v3h-3" />
+      </svg>
+    </button>
+  );
+}
+
 /** FR-011-01~03: the connected guests, each kicked only after a confirmation. */
 export function GuestList({ guests }: { guests: Array<WorkspaceMember> }) {
   const router = useRouter();
   const { pending, error, run } = useRequest();
   const [target, setTarget] = useState<WorkspaceMember | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
-  // The list is the server's snapshot at render; this re-reads it without
-  // reloading the page (and without losing a half-typed password above).
-  const [refreshing, startRefresh] = useTransition();
 
   // `showModal()` has no declarative equivalent — the same effect `join-form.tsx` uses.
   useEffect(() => {
@@ -157,30 +188,7 @@ export function GuestList({ guests }: { guests: Array<WorkspaceMember> }) {
     <>
       <div className="flex items-center justify-between">
         <span className="text-[13px] text-ink-soft">{guests.length}명 접속 중</span>
-        <button
-          type="button"
-          aria-label="새로고침"
-          title="접속자 목록 새로고침"
-          disabled={refreshing}
-          onClick={() => startRefresh(() => router.refresh())}
-          className="flex size-[28px] items-center justify-center rounded-control text-ink-soft hover:bg-hover hover:text-ink disabled:opacity-60"
-        >
-          <svg
-            aria-hidden
-            width="15"
-            height="15"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.4}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={refreshing ? "animate-spin" : ""}
-          >
-            <path d="M13 8a5 5 0 1 1-1.5-3.5" />
-            <path d="M13 2.5v3h-3" />
-          </svg>
-        </button>
+        <RefreshButton title="접속자 목록 새로고침" />
       </div>
 
       {guests.length === 0 ? <p className="text-[13px] text-ink-faint">접속 중인 게스트가 없습니다.</p> : null}
@@ -236,13 +244,16 @@ export function TrashList({ entries, ttlMs }: { entries: Array<TrashEntry>; ttlM
   const router = useRouter();
   const { pending, error, run } = useRequest();
 
-  if (entries.length === 0) {
-    return <p className="text-[13px] text-ink-faint">휴지통이 비어 있습니다.</p>;
-  }
-
   return (
     <>
-      <ul className="flex flex-col divide-y divide-line rounded-card border border-line">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] text-ink-soft">{entries.length}건</span>
+        <RefreshButton title="휴지통 새로고침" />
+      </div>
+
+      {entries.length === 0 ? <p className="text-[13px] text-ink-faint">휴지통이 비어 있습니다.</p> : null}
+
+      <ul hidden={entries.length === 0} className="flex flex-col divide-y divide-line rounded-card border border-line">
         {entries.map(({ deletedAt, documents: [root, ...descendants] }) => (
           <li key={root!.id} className="flex items-center gap-2.5 px-3 py-2">
             <div className="flex min-w-0 flex-1 flex-col">
