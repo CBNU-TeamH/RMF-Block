@@ -17,6 +17,7 @@ import { DocumentList } from "./document-list";
 import { FloatingViewProvider } from "./floating-views";
 import { FocusFollowProvider } from "./focus-follow-provider";
 import { FocusShare } from "./focus-share";
+import { NewDocumentProvider } from "./new-document";
 import { PresenceProvider } from "./presence-provider";
 import { PresenceStack } from "./presence-stack";
 import { AdminIcon } from "./ui";
@@ -73,6 +74,7 @@ export default async function WorkspaceLayout({
     >
       <FocusFollowProvider>
         <FloatingViewProvider colorTag={me.colorTag} nickname={me.nickname}>
+          <NewDocumentProvider documents={documents}>
           {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
               shell has to be exactly the viewport's height, not merely at least
               it, or the row below never bounds `<main>` and the editor's own
@@ -118,6 +120,7 @@ export default async function WorkspaceLayout({
             {/* `fixed` — it floats over the shell rather than taking a column from it. */}
             <ChatWindow me={me.nickname} />
           </div>
+          </NewDocumentProvider>
           </FloatingViewProvider>
       </FocusFollowProvider>
     </PresenceProvider>

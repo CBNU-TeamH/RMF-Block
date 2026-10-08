@@ -2,7 +2,8 @@
 
 - **Status**: Built, by the B · Soft redesign (#125).
 - **Owns**: `app/layout.tsx`, `app/(workspace)/layout.tsx`, `app/(workspace)/page.tsx`,
-  `app/(workspace)/breadcrumb.tsx`, `app/(workspace)/read-documents.ts`, `app/(workspace)/ui.tsx`.
+  `app/(workspace)/breadcrumb.tsx`, `app/(workspace)/read-documents.ts`, `app/(workspace)/ui.tsx`,
+  `app/(workspace)/new-document.tsx`.
 - **Related**: [`docs/ui/redesign/HANDOFF.md`](../ui/redesign/HANDOFF.md) (tokens, per-component
   visuals — not restated here); [`docs/ui/redesign/source.md`](../ui/redesign/source.md);
   [`api.md`](api.md) (the auth model behind the shell's gate); [`document-editing.md`](document-editing.md)
@@ -30,8 +31,8 @@ live session and no valid host-secret cookie means the join form (FR-020-03/04).
 to `/admin`, the setup screen (UC-010) — outside the group like `/join`, since there is no
 workspace yet to frame. The header shows the host, and only the host, an outlined **Admin** link with a shield (`AdminIcon` in `ui.tsx`) to the same page.
 
-Below the gate the layout nests `PresenceProvider`, `FocusFollowProvider` and
-`FloatingViewProvider` around the sidebar/header/`<main>` frame, with the fixed `ChatWindow`
+Below the gate the layout nests `PresenceProvider`, `FocusFollowProvider`,
+`FloatingViewProvider` and `NewDocumentProvider` around the sidebar/header/`<main>` frame, with the fixed `ChatWindow`
 outside the column layout. They live here, not in a page, so floating windows and chat never
 remount across navigation. The host has no `WorkspaceMember`, so it is given `HOST_PRESENCE` in
 place of one, and `SessionWatch` (which shows an eviction) mounts for members only. It also hands `PresenceStack` the recorded members (`sessionRegistry.members()` without `lastJoinedAt`), so the roster can show who is not connected; `PresenceStack` calls `router.refresh()` once for a connected member it has not seen recorded, which is how a later joiner reaches that list.
@@ -48,6 +49,10 @@ tree's socket calls `router.refresh()` on every catalogue change. The walk is bo
 list's length, so a corrupt catalogue with a cycle cannot loop forever.
 
 With no document open, the home page (`page.tsx`) only points at the sidebar, where the tree is.
+
+The 새 문서 dialog lives in the layout as `NewDocumentProvider` (`new-document.tsx`), a context
+exposing one `open` — the shape `FloatingViewProvider` already has — so more than the sidebar tree
+can open it.
 
 ## Shared dialog chrome
 

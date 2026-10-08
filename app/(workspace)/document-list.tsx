@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceDocument } from "@/lib/documents/documents";
 import { treeRows } from "@/lib/documents/tree";
@@ -12,8 +12,9 @@ import { occupantsByDocument } from "@/lib/presence/roster";
 import { DocumentActionDialog, type DocumentAction } from "./document-actions";
 import { DocumentRowMenu } from "./document-row-menu";
 import { useFocusFollow } from "./focus-follow-provider";
+import { useNewDocument } from "./new-document";
 import { useWorkspacePresence } from "./presence-provider";
-import { CANCEL, DIALOG, DIALOG_TITLE, FIELD_LABEL, FileIcon, Spinner, confirmClass, inputClass } from "./ui";
+import { FileIcon } from "./ui";
 
 /** The sidebar's 16px line icons (`docs/ui/redesign/HANDOFF.md` §3). */
 const icon = (path: React.ReactNode, size = 15) => (
@@ -39,12 +40,10 @@ const MAX_DOTS = 3;
  * The workspace's document tree (FR-020-06, the document half) in the sidebar,
  * and where UC-021's 기본 흐름 starts.
  *
- * Rows navigate to `/documents/[id]`; "새 문서" opens a `<dialog>` for the
- * one thing UC-021 asks for before creating one — a name — the same
- * `showModal()`-only-for-real-modality pattern `join-form.tsx` already uses,
- * not a second one invented for this file.
+ * Rows navigate to `/documents/[id]`; "새 문서" opens the layout's dialog
+ * (`new-document.tsx`).
  *
- * Client-side for the search box and the dialog. The rows themselves arrive as
+ * Client-side for the search box and the dialogs. The rows themselves arrive as
  * props from the layout, a server component, so the tree is in the HTML on
  * first paint.
  */
@@ -58,11 +57,10 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
   const occupants = useMemo(() => occupantsByDocument(members, memberId), [members, memberId]);
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  // Where a "하위 문서 추가" click puts the next one, or `null` for the root.
-  const [parentId, setParentId] = useState<string | null>(null);
   // UC-023's three operations, or null for none open. One piece of state, not
   // one flag each: they are mutually exclusive by construction this way.
   const [action, setAction] = useState<DocumentAction | null>(null);
+  const openDialog = useNewDocument();
 
   // The server component's list is the first paint; the socket keeps it current
   // from there (FR-021-06, FR-023-07).
@@ -119,12 +117,6 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
     });
   }, []);
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const nameRef = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   /**
    * The rows to draw. **A search flattens the tree on purpose**: a match three
    * levels down would otherwise be hidden behind two collapsed parents, and
@@ -140,48 +132,6 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
     return treeRows(live, collapsed);
   }, [live, query, collapsed]);
 
-  /** `under` is the document the new one goes inside, or `null` for the root
-   *  (UC-021 E1a). Held in state rather than passed to `create()` because the
-   *  dialog sits between the click and the request. */
-  function openDialog(under: string | null = null) {
-    setParentId(under);
-    setName("");
-    setError(null);
-    dialogRef.current?.showModal();
-    // showModal() moves focus to the dialog itself; the name field is what a
-    // person actually wants to type into.
-    requestAnimationFrame(() => nameRef.current?.focus());
-  }
-
-  async function create() {
-    setCreating(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/documents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, parentId }),
-      });
-      const body = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        setError(body.error ?? "문서를 만들지 못했습니다.");
-        nameRef.current?.focus();
-        return;
-      }
-
-      dialogRef.current?.close();
-      // The layout is a server component reading `readDocuments()` fresh per
-      // request; refresh() re-seeds this tree without a full reload.
-      router.refresh();
-      router.push(`/documents/${body.document.id}`);
-    } catch {
-      setError("서버에 연결할 수 없습니다.");
-    } finally {
-      setCreating(false);
-    }
-  }
 
   const sideRow =
     "flex h-8 w-full items-center gap-2 rounded-control px-2 text-ink-soft hover:bg-hover";
@@ -358,60 +308,6 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
         // keeps the layout's own read from going stale behind it.
         onDone={() => router.refresh()}
       />
-
-      <dialog
-        ref={dialogRef}
-        onCancel={(event) => {
-          if (creating) event.preventDefault();
-        }}
-        className={DIALOG}
-      >
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void create();
-          }}
-          className="flex flex-col gap-4"
-        >
-          <h2 className={DIALOG_TITLE}>
-            {parentId === null
-              ? "새 문서"
-              : `'${live.find((d) => d.id === parentId)?.name ?? "문서"}' 아래에 새 문서`}
-          </h2>
-          <label className={FIELD_LABEL}>
-            문서 이름
-            <input
-              ref={nameRef}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              required
-              aria-invalid={error !== null}
-              className={inputClass(error !== null)}
-            />
-          </label>
-
-          {error ? (
-            <p role="alert" className="-mt-2 text-[13px] text-danger">
-              {error}
-            </p>
-          ) : null}
-
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              disabled={creating}
-              onClick={() => dialogRef.current?.close()}
-              className={CANCEL}
-            >
-              취소
-            </button>
-            <button type="submit" disabled={creating} className={confirmClass(false)}>
-              {creating ? <Spinner /> : null}
-              {creating ? "만드는 중…" : "만들기"}
-            </button>
-          </div>
-        </form>
-      </dialog>
     </div>
   );
 }
