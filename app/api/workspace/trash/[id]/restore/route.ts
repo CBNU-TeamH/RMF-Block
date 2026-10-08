@@ -26,13 +26,11 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   // Parent first, so a client's tree always has the parent a child names.
   for (const document of restored) wsHub.broadcast("document:created", { document });
 
+  const ids = restored.map((document) => document.id);
   // Logged rather than a 500, as on delete: the documents are back for everyone.
   await fileRepository
-    .setDeletedAt(
-      restored.map((document) => document.id),
-      undefined,
-    )
+    .setDeletedAt(ids, undefined)
     .catch((error) => console.error("복원한 문서의 파일을 되돌리지 못했습니다.", error));
 
-  return NextResponse.json({ ids: restored.map((document) => document.id) });
+  return NextResponse.json({ ids });
 }
