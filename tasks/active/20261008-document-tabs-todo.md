@@ -26,12 +26,13 @@ documents replaces the one open document. Decided 2026-10-08, Obsidian-style:
 - **Closing** the active tab moves to its right neighbour, else its left. The last tab has no ✕,
   so there is never an empty strip to bounce between `/` and a redirect.
 - **`/` is a landing, not a home**: client-side `router.replace` to the stored active tab if it is
-  still in the catalogue, else the first root document. With no documents at all the main area
+  still in the catalogue, else the sidebar's first row. With no documents at all the main area
   shows an empty state with a **새 문서** button — what a new member lands on. Client-side because
   the tab state lives in the browser, and the container smoke's `curl /` must keep getting the shell HTML.
 - **The sidebar collapses to a rail** (added to this task 2026-10-08 at the user's request — it
   frees width for the tabs): a toggle; collapsed, a narrow column with the logo, expand, 새 문서
-  and search (which expands and focuses the field). Per browser in `localStorage`. The tree is
+  and search (which expands and focuses the field). Per browser in a cookie, so the layout renders
+  it collapsed from the first paint (`localStorage` is only read after it). The tree is
   hidden, not unmounted — its socket is what keeps the catalogue (and so the breadcrumb and the
   tab names) current.
 - **One 새 문서 dialog, three callers** (the sidebar, the rail, the empty state): the dialog and its
@@ -51,7 +52,7 @@ Out of scope: pinned/preview tabs, an empty tab, several editors mounted at once
 - **What**: `parseTabs(raw)` (anything malformed → empty), `openTab(state, id)`,
   `closeTab(state, id)` → the new state and the id to navigate to (or `null`),
   `moveTab(state, id, beforeId)`, `landingId(state, documents)` → the stored active if still
-  present, else the first root document, else `null`.
+  present, else the sidebar's first row (`treeRows`), else `null`.
 - **Files**: `lib/tabs.ts`, `lib/tabs.test.mts` (new).
 - **Reuse**: the shape of `lib/floating/views.ts` — `STORAGE_KEY`, a forgiving parse, pure updates.
 - **Done**: the cases under Test selection pass under Vitest.
@@ -86,7 +87,7 @@ Out of scope: pinned/preview tabs, an empty tab, several editors mounted at once
 - **What**: the toggle and the rail described above.
 - **Files**: `app/(workspace)/sidebar.tsx` (new — the `<aside>` moved out of the server layout so
   it can hold client state), `app/(workspace)/layout.tsx`.
-- **Reuse**: the same `localStorage` pattern; `useNewDocument()` for the rail's 새 문서.
+- **Reuse**: the layout's existing `cookies()` read; `useNewDocument()` for the rail's 새 문서.
 - **Done**: collapsing leaves the rail, survives a reload, and a peer's new document still reaches
   the breadcrumb/tabs while collapsed.
 
@@ -109,7 +110,7 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 - Vitest (logic / component / server / route): new `lib/tabs.test.mts` — opening a duplicate,
   closing the active (right neighbour, then left), closing an inactive one, the last tab,
   moving before another tab and to the end, malformed storage, landing on a deleted active (falls
-  back to the first root), empty catalogue. `document-list.test.tsx` updated if the dialog move
+  back to the first tree row, orphans included), empty catalogue. `document-list.test.tsx` updated if the dialog move
   breaks its setup. `app/(workspace)/layout.test.tsx` tests only the server gate — no change.
 - Browser E2E (`e2e/`): new `e2e/tabs.e2e.ts` for milestone 3's and 4's **Done** (drag via
   Playwright's `dragTo`). Existing specs that `goto("/")` now land on a document: `auth.e2e.ts`'s
@@ -167,3 +168,9 @@ Review round (2026-10-09; `/simplify` and `/code-review low` in a separate sessi
 - Declined: `currentId` in place of `Tabs.active` for closing (both hold the same value whenever a
   tab can be closed), moving `SIDEBAR_COOKIE` to its own `lib/` file, and a shared `localStorage`
   helper for the three read/write pairs.
+
+CodeRabbit (2026-10-09, on e0a3e0a): fixed its one finding — this doc still said `localStorage` for
+the sidebar, which is a cookie. Not changed: a guard for a JSON `null` error body in `create()` (moved
+verbatim from `DocumentList`, and the route always answers with an object) and the docstring-coverage
+warning (comments here follow the comment budget, not a coverage target). The owning-docs reminder for
+`document-editing.md` needs no edit: it owns `document-list.tsx` but never described the dialog.
