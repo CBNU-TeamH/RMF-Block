@@ -3,10 +3,12 @@ import { redirect } from "next/navigation";
 
 import { sessionRegistry } from "@/lib/auth/session-registry";
 import { isHost } from "@/lib/auth/current-member";
+import { TRASH_TTL_MS, purgeExpiredTrash, readTrash } from "@/lib/documents/documents";
+import { fileRepository } from "@/lib/files/file-repository";
 import { getWorkspaceName, isWorkspaceOpen } from "@/lib/workspace-config";
 
-import { AdminIcon } from "../(workspace)/ui";
-import { GuestList, PasswordForm, SetupForm } from "./admin-forms";
+import { AdminIcon, TrashIcon } from "../(workspace)/ui";
+import { GuestList, PasswordForm, SetupForm, TrashList } from "./admin-forms";
 
 /** The host's page (UC-010/UC-011): the setup screen until the workspace is
  *  open, then password change and the connected guests. Outside the
@@ -16,6 +18,9 @@ export default async function AdminPage() {
   if (!(await isHost())) redirect("/");
 
   const open = isWorkspaceOpen();
+  // Reading the trash is one of the two moments its expired entries are
+  // purged (`purgeExpiredTrash`); a delete is the other.
+  if (open) await fileRepository.purge(purgeExpiredTrash());
 
   return (
     <main className="flex flex-1 flex-col overflow-auto bg-paper">
@@ -54,6 +59,13 @@ export default async function AdminPage() {
             <section className="flex flex-col gap-3">
               <h2 className="text-[15px] font-semibold text-ink">접속 중인 게스트</h2>
               <GuestList guests={sessionRegistry.liveMembers()} />
+            </section>
+            <section aria-labelledby="trash-heading" className="flex flex-col gap-3">
+              <h2 id="trash-heading" className="flex items-center gap-1.5 text-[15px] font-semibold text-ink">
+                <TrashIcon />
+                휴지통
+              </h2>
+              <TrashList entries={readTrash()} ttlMs={TRASH_TTL_MS} />
             </section>
           </>
         ) : (

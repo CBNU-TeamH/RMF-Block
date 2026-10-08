@@ -4,8 +4,24 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import type { WorkspaceMember } from "@/lib/auth/types";
+import type { TrashEntry } from "@/lib/documents/documents";
 
 import { CANCEL, DIALOG, DIALOG_TITLE, FIELD_LABEL, Spinner, confirmClass, inputClass } from "../(workspace)/ui";
+
+const day = new Intl.DateTimeFormat("ko-KR", {
+  month: "long",
+  day: "numeric",
+  // Pinned for the same reason `chat-message.tsx` pins its own: the server
+  // renders this first, and its zone is the container's, not the host's.
+  timeZone: "Asia/Seoul",
+});
+const dayAndTime = new Intl.DateTimeFormat("ko-KR", {
+  month: "long",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "Asia/Seoul",
+});
 
 /** One request, its pending flag and its error — the shape `join-form.tsx`
  *  handles by hand, shared by the three actions here. Each call site writes
@@ -209,6 +225,53 @@ export function GuestList({ guests }: { guests: Array<WorkspaceMember> }) {
           </div>
         </div>
       </dialog>
+    </>
+  );
+}
+
+/** The host's trash: each delete as one entry, restored subtree and all.
+ *  Dates rather than "n일 후", so rendering reads no clock. `ttlMs` comes from
+ *  the page, which can import the server module that defines it. */
+export function TrashList({ entries, ttlMs }: { entries: Array<TrashEntry>; ttlMs: number }) {
+  const router = useRouter();
+  const { pending, error, run } = useRequest();
+
+  if (entries.length === 0) {
+    return <p className="text-[13px] text-ink-faint">휴지통이 비어 있습니다.</p>;
+  }
+
+  return (
+    <>
+      <ul className="flex flex-col divide-y divide-line rounded-card border border-line">
+        {entries.map(({ deletedAt, documents: [root, ...descendants] }) => (
+          <li key={root!.id} className="flex items-center gap-2.5 px-3 py-2">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-ink">
+                {root!.name}
+                {descendants.length > 0 ? (
+                  <span className="text-[13px] text-ink-soft"> · 하위 문서 {descendants.length}개</span>
+                ) : null}
+              </span>
+              <span className="text-[12px] text-ink-faint">
+                {dayAndTime.format(new Date(deletedAt))} 삭제 · {day.format(new Date(Date.parse(deletedAt) + ttlMs))} 영구 삭제
+              </span>
+            </div>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={async () => {
+                if (await run(() => fetch(`/api/workspace/trash/${root!.id}/restore`, { method: "POST" }))) {
+                  router.refresh();
+                }
+              }}
+              className="h-[30px] rounded-control px-2.5 text-[13px] font-medium text-ink hover:bg-hover disabled:opacity-60"
+            >
+              복원
+            </button>
+          </li>
+        ))}
+      </ul>
+      <ErrorLine message={error} />
     </>
   );
 }
