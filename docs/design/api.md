@@ -277,9 +277,11 @@ valid string. One store is shared with document files (FR-022-13/14) when those 
 `origin` field recording which; FR-050-06 is a query over it. FR-061-01's chat file list is not:
 it is derived from the chat history ([`chat.md`](chat.md#the-file-list)).
 
-A document upload also records its `documentId`, so the file follows its document: `deletedAt` is
-set while the document is in the trash, and such a file is left out of every list. Download and
-preview answer 404 until a restore clears `deletedAt`. A purge removes the record and the bytes.
+A document upload also records its `documentId`, so the file follows its document: it is listed
+only while that document is in the catalogue. While the document is in the trash, the file is
+left out of every list, and download and preview answer 404. A restore shows it again, and a
+purge removes the record and the bytes. Visibility is worked out from the catalogue on every read
+rather than stored on the file, so no second write can fall out of step with the delete.
 Files uploaded before `documentId` was recorded stay visible after their document is deleted.
 
 **Two ceilings, not one.** An upload is refused at 25 MB, and that number is about the *file*, which

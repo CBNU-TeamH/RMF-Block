@@ -118,13 +118,12 @@ export async function DELETE(
 
     wsHub.broadcast("document:deleted", { ids: removedIds });
 
-    // The files follow their documents into the trash, and the trash's expired
-    // entries go for good (`purgeExpiredTrash`). Logged rather than a 500: every
-    // client already saw the delete, and a 500 would say it failed.
-    await fileRepository
-      .setDeletedAt(removedIds, new Date().toISOString())
-      .then(() => purgeExpiredTrash((ids) => fileRepository.purge(ids)))
-      .catch((error) => console.error("삭제한 문서의 파일을 정리하지 못했습니다.", error));
+    // The trash's expired entries go for good (`purgeExpiredTrash`); the files
+    // of what was just deleted hide themselves (`FileRepository.list`). Logged
+    // rather than a 500: every client already saw the delete.
+    await purgeExpiredTrash((ids) => fileRepository.purge(ids)).catch((error) =>
+      console.error("휴지통의 만료된 문서를 정리하지 못했습니다.", error),
+    );
 
     return NextResponse.json({ ids: removedIds });
   } catch (error) {

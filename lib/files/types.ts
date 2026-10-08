@@ -20,16 +20,14 @@ export type StoredFile = {
   uploadedBy: string;
   uploadedAt: string;
   origin: FileOrigin;
-  /** The document a `"document"` upload was made into, so the file goes to the
-   *  trash, comes back and is purged with it. Absent on chat files, and on
-   *  document files uploaded before it was recorded. */
+  /** The document a `"document"` upload was made into: the file is hidden
+   *  while that document is out of the catalogue, and purged with it. Absent on
+   *  chat files, and on document files uploaded before it was recorded. */
   documentId?: string;
-  /** Set while the document is in the trash; such a file is hidden everywhere. */
-  deletedAt?: string;
 };
 
 /** What a caller supplies; `id` and `uploadedAt` are the store's to assign. */
-export type NewFile = Omit<StoredFile, "id" | "uploadedAt" | "deletedAt">;
+export type NewFile = Omit<StoredFile, "id" | "uploadedAt">;
 
 /** Thrown when an id could not have been issued by this store. */
 export class InvalidFileIdError extends Error {}

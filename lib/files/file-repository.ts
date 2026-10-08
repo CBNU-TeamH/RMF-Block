@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { readDocuments } from "../documents/documents.ts";
 import { readJsonFile, writeJsonFile } from "../json-file.ts";
 import {
   InvalidFileIdError,
@@ -23,9 +24,16 @@ const INDEX_FILE = "index.json";
  *  "Storage". */
 export class FileRepository {
   private readonly root: string;
+  private readonly liveDocumentIds: () => Set<string>;
 
-  constructor(root: string = DEFAULT_ROOT) {
+  // `liveDocumentIds` is injectable for the same reason `root` is: tests point
+  // it somewhere other than the real `.data/`.
+  constructor(
+    root: string = DEFAULT_ROOT,
+    liveDocumentIds: () => Set<string> = () => new Set(readDocuments().map((document) => document.id)),
+  ) {
     this.root = root;
+    this.liveDocumentIds = liveDocumentIds;
   }
 
   /** Writes the bytes and records the metadata. */
@@ -74,25 +82,18 @@ export class FileRepository {
   }
 
   /** Every file still in use, newest first, optionally narrowed to one origin.
-   *  A file whose document is in the trash is left out — and since `find()` goes
-   *  through here, so are its download and preview. */
+   *  A document's file shows only while its document is in the catalogue — in
+   *  the trash, it is hidden, and a restore shows it again. Worked out here
+   *  rather than stored on the file, so no second write can fall out of step.
+   *  `find()` goes through here, so download and preview follow. */
   async list(origin?: FileOrigin): Promise<Array<StoredFile>> {
+    const live = this.liveDocumentIds();
     const files = this.readIndex().filter(
-      (file) => !file.deletedAt && (!origin || file.origin === origin),
+      (file) =>
+        (!file.documentId || live.has(file.documentId)) && (!origin || file.origin === origin),
     );
 
     return files.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
-  }
-
-  /** Puts the files of these documents in the trash with them (`deletedAt` set)
-   *  or takes them out again (`undefined`). The bytes are never touched. */
-  async setDeletedAt(documentIds: Array<string>, deletedAt: string | undefined): Promise<void> {
-    const ids = new Set(documentIds);
-    this.writeIndex(
-      this.readIndex().map((file) =>
-        file.documentId && ids.has(file.documentId) ? { ...file, deletedAt } : file,
-      ),
-    );
   }
 
   /** Deletes the files of these documents for good — record first, then bytes.

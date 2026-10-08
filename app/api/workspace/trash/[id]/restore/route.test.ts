@@ -6,14 +6,10 @@ vi.mock("@/lib/documents/documents", () => {
   class DocumentNotFoundError extends Error {}
   return { DocumentNotFoundError, restoreDocument: vi.fn() };
 });
-vi.mock("@/lib/files/file-repository", () => ({
-  fileRepository: { setDeletedAt: vi.fn(async () => {}) },
-}));
 vi.mock("@/server/ws-hub.mts", () => ({ wsHub: { broadcast: vi.fn() } }));
 
 import { isHost } from "@/lib/auth/current-member";
 import { DocumentNotFoundError, restoreDocument } from "@/lib/documents/documents";
-import { fileRepository } from "@/lib/files/file-repository";
 import { wsHub } from "@/server/ws-hub.mts";
 import { POST } from "./route.ts";
 
@@ -41,7 +37,7 @@ describe("POST /api/workspace/trash/[id]/restore", () => {
     assert.equal((await call()).status, 404);
   });
 
-  it("tells every client, parent first, and brings the files back", async () => {
+  it("tells every client, parent first", async () => {
     vi.mocked(isHost).mockResolvedValue(true);
     const parent = { id: "doc-1" };
     const child = { id: "doc-2" };
@@ -54,6 +50,6 @@ describe("POST /api/workspace/trash/[id]/restore", () => {
       ["document:created", { document: parent }],
       ["document:created", { document: child }],
     ]);
-    assert.deepEqual(vi.mocked(fileRepository.setDeletedAt).mock.calls[0], [["doc-1", "doc-2"], undefined]);
+    assert.deepEqual(await response.json(), { ids: ["doc-1", "doc-2"] });
   });
 });

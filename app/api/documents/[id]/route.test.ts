@@ -12,7 +12,7 @@ vi.mock("@/lib/documents/documents", () => ({
   purgeExpiredTrash: vi.fn(async (purgeFiles: (ids: Array<string>) => Promise<void>) => purgeFiles(["old-1"])),
 }));
 vi.mock("@/lib/files/file-repository", () => ({
-  fileRepository: { setDeletedAt: vi.fn(async () => {}), purge: vi.fn(async () => {}) },
+  fileRepository: { purge: vi.fn(async () => {}) },
 }));
 vi.mock("@/server/ws-hub.mts", () => ({ wsHub: { broadcast: vi.fn() } }));
 
@@ -84,23 +84,21 @@ describe("/api/documents/[id] — auth gate (private requireMember())", () => {
 });
 
 describe("DELETE /api/documents/[id] — the trash", () => {
-  it("sends the removed documents' files to the trash and purges what has expired", async () => {
+  it("purges what has expired in the trash", async () => {
     vi.mocked(cookies).mockResolvedValue(jar as never);
     vi.mocked(isHostSecret).mockReturnValue(true);
 
     const response = await DELETE(new Request("http://x") as never, { params });
 
     assert.equal(response.status, 200);
-    const [ids, deletedAt] = vi.mocked(fileRepository.setDeletedAt).mock.calls[0]!;
-    assert.deepEqual(ids, ["doc-1", "doc-2"]);
-    assert.ok(deletedAt);
+    assert.deepEqual(await response.json(), { ids: ["doc-1", "doc-2"] });
     assert.deepEqual(vi.mocked(fileRepository.purge).mock.calls[0], [["old-1"]]);
   });
 
-  it("still answers 200 when the files cannot be updated — the delete already happened", async () => {
+  it("still answers 200 when the purge fails — the delete already happened", async () => {
     vi.mocked(cookies).mockResolvedValue(jar as never);
     vi.mocked(isHostSecret).mockReturnValue(true);
-    vi.mocked(fileRepository.setDeletedAt).mockRejectedValueOnce(new Error("disk"));
+    vi.mocked(fileRepository.purge).mockRejectedValueOnce(new Error("disk"));
     const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const response = await DELETE(new Request("http://x") as never, { params });

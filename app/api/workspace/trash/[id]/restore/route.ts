@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 import { isHost } from "@/lib/auth/current-member";
 import { DocumentNotFoundError, restoreDocument } from "@/lib/documents/documents";
-import { fileRepository } from "@/lib/files/file-repository";
 import { wsHub } from "@/server/ws-hub.mts";
 
 /** Restores a deleted document, subtree and files, from the host's trash. Host
@@ -26,11 +25,6 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   // Parent first, so a client's tree always has the parent a child names.
   for (const document of restored) wsHub.broadcast("document:created", { document });
 
-  const ids = restored.map((document) => document.id);
-  // Logged rather than a 500, as on delete: the documents are back for everyone.
-  await fileRepository
-    .setDeletedAt(ids, undefined)
-    .catch((error) => console.error("복원한 문서의 파일을 되돌리지 못했습니다.", error));
-
-  return NextResponse.json({ ids });
+  // Nothing to do for the files: they follow the catalogue (`FileRepository.list`).
+  return NextResponse.json({ ids: restored.map((document) => document.id) });
 }

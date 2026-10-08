@@ -193,20 +193,23 @@ describe("FileRepository.find", () => {
   });
 });
 
-describe("FileRepository.setDeletedAt", () => {
-  it("hides a document's files while it is in the trash, keeps the bytes, and brings them back", async () => {
-    const store = await freshStore();
+describe("FileRepository — a document's files follow the catalogue", () => {
+  it("hides a file while its document is out of the catalogue, keeps the bytes, and shows it again", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "rmf-files-"));
+    roots.push(root);
+    const live = new Set(["doc-a", "doc-b"]);
+    const store = new FileRepository(path.join(root, "files"), () => live);
     const inTrash = await store.save(Buffer.from("a"), upload({ origin: "document", documentId: "doc-a" }));
     const other = await store.save(Buffer.from("b"), upload({ origin: "document", documentId: "doc-b" }));
     const chat = await store.save(Buffer.from("c"), upload());
 
-    await store.setDeletedAt(["doc-a"], new Date().toISOString());
+    live.delete("doc-a");
 
     assert.equal(await store.find(inTrash.id), null);
     assert.deepEqual((await store.list()).map((file) => file.id).sort(), [other.id, chat.id].sort());
     assert.deepEqual(await store.read(inTrash.id), Buffer.from("a"), "the bytes stay for a restore");
 
-    await store.setDeletedAt(["doc-a"], undefined);
+    live.add("doc-a");
 
     assert.equal((await store.find(inTrash.id))?.id, inTrash.id);
   });
@@ -217,7 +220,6 @@ describe("FileRepository.purge", () => {
     const store = await freshStore();
     const gone = await store.save(Buffer.from("a"), upload({ origin: "document", documentId: "doc-a" }));
     const kept = await store.save(Buffer.from("b"), upload({ origin: "document", documentId: "doc-b" }));
-    await store.setDeletedAt(["doc-a"], new Date().toISOString());
 
     await store.purge(["doc-a"]);
 
@@ -226,6 +228,6 @@ describe("FileRepository.purge", () => {
       (await readdir(path.join(roots.at(-1)!, "files"))).sort(),
       ["index.json", kept.id].sort(),
     );
-    assert.equal((await store.find(kept.id))?.id, kept.id);
+    assert.equal((await readFile(path.join(roots.at(-1)!, "files", "index.json"), "utf8")).includes(gone.id), false);
   });
 });
