@@ -133,7 +133,11 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
   - `Check the image` against the fork's `0.0.1-rc.0`: with `GITHUB_SHA=78718b9…` it output `digest=sha256:5776b6c8…`; with another SHA it failed naming both revisions; a missing tag (`9.9.9`) passed as absent; an anonymous lookup of a missing package failed closed on 403. An authenticated manifest request for a missing package returns 404, so the first upstream push should pass as absent; the upstream rc confirms it.
   - Release lookup: an existing release failed, a missing one passed, a bad token (HTTP 401) and an unreachable host failed.
   - actionlint 1.7.7: clean. `pnpm verify:docs`, `pnpm comments` and `git diff --check`: clean.
-  - Hosted run not exercised: re-running a tag after its release was deleted, and moving `latest`, are checked on the next fork rehearsal.
+  - Fork rehearsal, `v0.0.1-rc.1` on `ca7e369`, run 37968412085:
+    - Attempt 1: success in 6m 15s. `Check the image` passed as absent, the build pushed `0.0.1-rc.1` as `sha256:ff9716d1…` (`linux/amd64`, `linux/arm64`, `revision=ca7e369`), the prerelease was created with that digest, and `Move latest` was skipped; `latest` does not exist on the fork.
+    - The release was then deleted, keeping the tag. Attempt 2: success in 36 s. `Check the image` reused the digest, metadata and build were skipped, and the prerelease was recreated with the same digest and both assets.
+    - Attempt 3: failed at `Check the release does not exist` with "Release v0.0.1-rc.1 already exists".
+  - Not exercised: `Move latest`, which runs only for a final tag. It runs first on the upstream `v0.0.1`; if it fails, CONTRIBUTING's manual command recovers it.
 - Skipped: moving the native-only variables out of `.env.sample` and removing README's per-OS lookup (both were chosen in the two previous follow-ups); generalising the image name in the `sed` pattern; the render-time state update in `document-tabs.tsx` (no failure found, and outside this PR).
 
 ## Review
