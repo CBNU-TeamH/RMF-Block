@@ -124,6 +124,18 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 - Test selection: verify sample parsing against the address expressions in `instrumentation.ts`, compare resolved full Compose configuration using the committed and edited samples, then run `pnpm verify:docs`, `pnpm comments` and `git diff --check`. No new Vitest, browser E2E or container-smoke cases: application code, Compose configuration and container startup are unchanged; the sample changes native environment preparation. No host `.env` or live containers are changed.
 - Results: Node's `parseEnv` found neither Yorkie override in the edited sample; evaluating the actual startup address expressions against it returned the documented localhost Admin URL and Docker Desktop webhook URL. `docker compose config --format json` with the old and new samples produced identical full configurations. `pnpm verify:docs`, `pnpm comments` and `git diff --check` passed. Native webhook reachability was not tested; it depends on the developer's network setup.
 
+## Retry and `latest` follow-up
+
+- Scope: [the open CodeRabbit thread](https://github.com/CBNU-TeamH/RMF-Block/pull/181#discussion_r4228429446) (a retry after a failed release re-pushes `X.Y.Z`), the `/simplify` and `/code-review` findings on `release.yml`, and short recovery and rollback guidance. Explicit deployment stages, automatic rollback and release or package cleanup are out of scope.
+- Success criteria: a retry reuses an existing `X.Y.Z` whose revision label matches the tag's commit and fails on a mismatch or a registry error; `latest` moves only after the release exists, and only for a final version; the release lookup still allows only HTTP 404.
+- Test selection: run the actual `Check the image` and release lookup blocks from `release.yml` against GHCR and the GitHub API, then actionlint. No new Vitest, browser E2E or container-smoke cases: application code, images, Compose files and startup are unchanged.
+- Results (2026-10-10):
+  - `Check the image` against the fork's `0.0.1-rc.0`: with `GITHUB_SHA=78718b9…` it output `digest=sha256:5776b6c8…`; with another SHA it failed naming both revisions; a missing tag (`9.9.9`) passed as absent; an anonymous lookup of a missing package failed closed on 403. An authenticated manifest request for a missing package returns 404, so the first upstream push should pass as absent; the upstream rc confirms it.
+  - Release lookup: an existing release failed, a missing one passed, a bad token (HTTP 401) and an unreachable host failed.
+  - actionlint 1.7.7: clean. `pnpm verify:docs`, `pnpm comments` and `git diff --check`: clean.
+  - Hosted run not exercised: re-running a tag after its release was deleted, and moving `latest`, are checked on the next fork rehearsal.
+- Skipped: moving the native-only variables out of `.env.sample` and removing README's per-OS lookup (both were chosen in the two previous follow-ups); generalising the image name in the `sed` pattern; the render-time state update in `document-tabs.tsx` (no failure found, and outside this PR).
+
 ## Review
 
 Filled in at the end: what shipped, what was cut, what moved to another task.

@@ -169,6 +169,10 @@ containers and the `app-data` and `mongo-data` volumes. `docker compose down` al
 move data between project names; changing the name selects different volumes. Do not use
 `down -v`, which deletes them.
 
+**Rolling back:** put the previous release's `docker-compose.yml` back in the folder and run the
+same upgrade commands; the volumes stay. A newer version may have changed what it stores, which an
+older one cannot always read, so back up the `app-data` and `mongo-data` volumes before upgrading.
+
 Each release's file names its own version. To pin the exact image, append the digest from the
 release notes (`…:0.0.1@sha256:…`). Use that one and not a digest from the package page, which pins
 a single architecture.

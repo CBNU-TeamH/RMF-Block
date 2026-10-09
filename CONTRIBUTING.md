@@ -130,10 +130,11 @@ Pushing the tag runs `.github/workflows/release.yml`, which works in this order:
 
 1. Checks the tag against `package.json` and that its commit is on `main`, then checks that no
    GitHub Release exists for the tag. Only an HTTP 404 allows the build to proceed; lookup errors fail.
-2. Pushes `ghcr.io/cbnu-teamh/rmf-block:X.Y.Z` for `linux/amd64` and `linux/arm64`. Only a final-version
-   tag moves `latest`; `-rc.N` tags leave it alone.
+2. Pushes `ghcr.io/cbnu-teamh/rmf-block:X.Y.Z` for `linux/amd64` and `linux/arm64`, or reuses that
+   image if an earlier run of the tag pushed it from the same commit.
 3. Only then creates the release. The release attaches `docker-compose.yml`, rewritten to `X.Y.Z`,
    and `env.sample`, and its notes give the image's digest.
+4. Only then, for a final-version tag, points `latest` at that digest; `-rc.N` tags leave it alone.
 
 To cut `X.Y.Z`:
 
@@ -149,5 +150,9 @@ To cut `X.Y.Z`:
 
 Never re-push a published version tag; publish a new version instead. Runs for the same tag cannot
 overlap and do not cancel an in-progress run. A later run stops before building if the release
-already exists. A failed run can be retried while no GitHub Release exists, including a failure
-after the image push. Only `latest` moves after publication.
+already exists. A failed run can be retried while no GitHub Release exists: re-run it, and it reuses
+an image already pushed for the tag instead of building over it. If the release was created but
+`latest` did not move, move it by hand with the digest from the release notes:
+`docker buildx imagetools create --tag ghcr.io/cbnu-teamh/rmf-block:latest ghcr.io/cbnu-teamh/rmf-block@sha256:…`.
+Only `latest` moves after publication. A faulty release is not deleted or re-tagged; publish a
+fixed version, and hosts can roll back meanwhile (README, Upgrading).

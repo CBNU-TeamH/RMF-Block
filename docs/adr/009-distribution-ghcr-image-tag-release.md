@@ -18,13 +18,15 @@ The hosts are team members' laptops: Windows and Linux on x86-64, and Apple Sili
 2. **One tag, two architectures.** The image is built for `linux/amd64` and `linux/arm64` and pushed as one manifest list. An Apple Silicon host pulls the arm64 image natively, with no emulation. The Dockerfile does not change: `node:24-alpine` is itself multi-arch, and `pnpm install` picks the matching native binaries.
 3. **A pushed git tag is the release, and the workflow orders the steps.** A human pushes `vX.Y.Z` on a commit already on `main`. One workflow then:
    1. checks the version against `package.json` and the commit is on `main`, then checks the GitHub Release for that tag; only HTTP 404 permits building, while an existing release or a lookup failure stops the workflow;
-   2. builds and pushes the image as `X.Y.Z` and moves `latest` for a final-version tag only;
-   3. only if that succeeded, creates the GitHub Release with generated notes, the compose files attached, and the image's manifest-list digest in the notes.
+   2. builds and pushes the image as `X.Y.Z`, unless an earlier run of the same tag already pushed it from the same commit, in which case it reuses that image's digest;
+   3. only if that succeeded, creates the GitHub Release with generated notes, the compose files attached, and the image's manifest-list digest in the notes;
+   4. only then, for a final-version tag, points `latest` at that digest.
 
-   A release therefore never exists without its image. A `-rc.N` tag runs the same path as a prerelease and does not move `latest`.
+   A release therefore never exists without its image, and `latest` never points past the last release. A `-rc.N` tag runs the same path as a prerelease and does not move `latest`.
 4. **No release branch.** A release is a tag on `main`. A `release/X.Y` branch is cut from the tag only if an old version ever needs a fix while `main` has moved on.
-5. **Published version tags are immutable; only `latest` moves.** Runs for the same tag share a concurrency group with `cancel-in-progress: false`, so a later run checks for the release after the earlier run finishes. Once the GitHub Release exists, the workflow refuses to build or push that version again. A failed run before release creation can be retried, including after an image push. Compose names the image by version tag, because it is readable and is bumped in one place; the notes record the manifest-list digest.
-6. **Yorkie and MongoDB stay bundled.** Compose always runs its own pinned Yorkie and MongoDB. Docker already reuses those images when they are present locally. Attaching to a Yorkie or MongoDB server the host already runs is not supported, for three reasons:
+5. **Published version tags are immutable; only `latest` moves.** Runs for the same tag share a concurrency group with `cancel-in-progress: false`, so a later run checks for the release after the earlier run finishes. Once the GitHub Release exists, the workflow refuses to build or push that version again. A failed run before release creation can be retried: it resumes rather than starts over, reusing an `X.Y.Z` image whose revision label matches the tag's commit and stopping on one that does not. Compose names the image by version tag, because it is readable and is bumped in one place; the notes record the manifest-list digest.
+6. **Recovery and rollback are different problems.** A failed run is recovered by retrying it (Decision 5). A released version found faulty is not deleted or overwritten: hosts return to the previous release's compose file, and the fix ships as a new version. Nothing rolls back automatically; each host chooses its version.
+7. **Yorkie and MongoDB stay bundled.** Compose always runs its own pinned Yorkie and MongoDB. Docker already reuses those images when they are present locally. Attaching to a Yorkie or MongoDB server the host already runs is not supported, for three reasons:
    - The browser derives Yorkie's address from the page's host and port 8080 (`lib/yorkie-address.ts`).
    - Startup writes the auth webhook onto the Yorkie project, which would overwrite another deployment's setting.
    - The client is a patched `@yorkie-js/sdk@0.7.23`, so the server version has to match.
@@ -39,7 +41,7 @@ The hosts are team members' laptops: Windows and Linux on x86-64, and Apple Sili
 - **Keep building from source on the host**: rejected. UC-010 asks for an available image, and a host should not need Node, pnpm or the repository to run a release.
 - **`amd64` only**: rejected. Apple Silicon hosts would run the image under emulation, which is slower and occasionally unstable, and an arm64 Linux host without emulation fails with `exec format error`.
 - **Trigger on `release: published`**: rejected. It runs after the release exists, so for the length of the build a release would point at an image that is not there yet.
-- **Support an external Yorkie or MongoDB**: deferred. The three reasons in Decision 6 make it a code change, not a configuration change. It is not needed for v0.0.1.
+- **Support an external Yorkie or MongoDB**: deferred. The three reasons in Decision 7 make it a code change, not a configuration change. It is not needed for v0.0.1.
 
 ## Consequences
 

@@ -1,6 +1,7 @@
-# Pushing a `v*` tag publishes the image, then the release (ADR-009). The
-# release step runs only if the push succeeded, so a release never names an
-# image that is not there.
+# Pushing a `v*` tag publishes the image, then the release, then moves
+# `latest` (ADR-009). Each step runs only if the previous one succeeded, so a
+# release never names an image that is not there, and `latest` never points
+# past the last release. A retry reuses an image an earlier run pushed.
 name: release
 
 on:
@@ -26,6 +27,8 @@ jobs:
 
       - name: Check the tag
         id: tag
+        env:
+          IS_FORK: ${{ github.event.repository.fork }}
         run: |
           version="${GITHUB_REF_NAME#v}"
           expected=$(jq -r .version package.json)
@@ -34,7 +37,7 @@ jobs:
             exit 1
           fi
           # Upstream only: a fork rehearses from a feature branch, and its main lags.
-          if [ "$GITHUB_REPOSITORY" = "CBNU-TeamH/RMF-Block" ] && ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+          if [ "$IS_FORK" != true ] && ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
             echo "::error::$GITHUB_REF_NAME is not on main."
             exit 1
           fi
@@ -42,29 +45,18 @@ jobs:
           # From the owner, so a fork publishes into its own namespace.
           echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/rmf-block" >> "$GITHUB_OUTPUT"
 
+      # Only a 404 proves absence; any other failure stops before the push.
       - name: Check the release does not exist
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
-            --connect-timeout 10 --max-time 30 \
-            --header "Authorization: Bearer $GH_TOKEN" \
-            --header "Accept: application/vnd.github+json" \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME"); then
-            echo "::error::Could not check the release for $GITHUB_REF_NAME."
+          if out=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" --silent 2>&1); then
+            echo "::error::Release $GITHUB_REF_NAME already exists; publish a new version."
+            exit 1
+          elif [[ "$out" != *"HTTP 404"* ]]; then
+            echo "::error::Could not check the release for $GITHUB_REF_NAME: $out"
             exit 1
           fi
-          case "$status" in
-            404) ;;
-            200)
-              echo "::error::Release $GITHUB_REF_NAME already exists; publish a new version."
-              exit 1
-              ;;
-            *)
-              echo "::error::Release lookup returned HTTP $status; refusing to push the image."
-              exit 1
-              ;;
-          esac
 
       # The runner is amd64; QEMU runs the arm64 half of the build.
       - uses: docker/setup-qemu-action@v3
@@ -75,16 +67,39 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # `v0.0.1` → `0.0.1` and `latest`; a prerelease such as `v0.0.1-rc.1`
-      # gets its own tag only. Also writes the OCI labels (source, revision,
-      # version, licenses), so the Dockerfile carries none.
+      # A run that pushed the image and then failed left `X.Y.Z` behind. Reuse
+      # it rather than push a different digest under the same version.
+      - name: Check the image
+        id: image
+        env:
+          IMAGE: ${{ steps.tag.outputs.image }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          if out=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .}}' 2>&1); then
+            revision=$(jq -r '.image["linux/amd64"].config.Labels["org.opencontainers.image.revision"]' <<<"$out")
+            if [ "$revision" != "$GITHUB_SHA" ]; then
+              echo "::error::$IMAGE:$VERSION was built from $revision, not $GITHUB_SHA."
+              exit 1
+            fi
+            echo "digest=$(jq -r .manifest.digest <<<"$out")" >> "$GITHUB_OUTPUT"
+          elif [[ "$out" != *"not found"* ]]; then
+            echo "::error::Could not check $IMAGE:$VERSION: $out"
+            exit 1
+          fi
+
+      # `v0.0.1` → `0.0.1`, `v0.0.1-rc.1` → `0.0.1-rc.1`; `latest` moves in the
+      # last step. Also writes the OCI labels (source, revision, version,
+      # licenses), so the Dockerfile carries none.
       - id: meta
+        if: steps.image.outputs.digest == ''
         uses: docker/metadata-action@v5
         with:
           images: ${{ steps.tag.outputs.image }}
           tags: type=semver,pattern={{version}}
+          flavor: latest=false
 
       - id: build
+        if: steps.image.outputs.digest == ''
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -92,16 +107,15 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Create the release
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
           IMAGE: ${{ steps.tag.outputs.image }}
           VERSION: ${{ steps.tag.outputs.version }}
           # The manifest list's digest: pinning it still lets each host pull its own architecture.
-          DIGEST: ${{ steps.build.outputs.digest }}
+          DIGEST: ${{ steps.image.outputs.digest || steps.build.outputs.digest }}
         run: |
           mkdir dist
           # The attached compose file runs this version whenever it is downloaded.
@@ -119,3 +133,12 @@ jobs:
           if [[ "$VERSION" == *-* ]]; then prerelease=(--prerelease); fi
           gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes "${prerelease[@]}" \
             --notes-file dist/notes.md dist/docker-compose.yml dist/env.sample
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+      # A prerelease leaves `latest` alone.
+      - name: Move latest
+        if: ${{ !contains(steps.tag.outputs.version, '-') }}
+        env:
+          IMAGE: ${{ steps.tag.outputs.image }}
+          DIGEST: ${{ steps.release.outputs.digest }}
+        run: docker buildx imagetools create --tag "$IMAGE:latest" "$IMAGE@$DIGEST"
