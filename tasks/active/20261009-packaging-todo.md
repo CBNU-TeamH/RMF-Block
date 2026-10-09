@@ -109,6 +109,14 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
   - `docker run --rm -v /mnt/c/Users/user/Desktop/rmf-block:/repo -w /repo rhysd/actionlint:1.7.7 .github/workflows/release.yml`: clean.
   - `pnpm verify:docs`, `pnpm comments`, and `git diff --check`: clean.
 
+## Host LAN IP guidance follow-up
+
+- Scope: expand the root README and `.env.sample` instructions for Windows, macOS and Linux. Keep manual release setup and the existing clone-only detector; no new scripts or runtime changes.
+- Success criteria: users can identify the IPv4 address of the connection shared with guests and set `HOST_LAN_IP`; Windows instructions run outside WSL, macOS instructions discover the device instead of assuming `en0`, and Linux instructions omit the address prefix.
+- Test selection: documentation and environment-file comments only. No new Vitest, browser E2E or container-smoke tests are needed because startup, networking and configuration values are unchanged. Run `pnpm verify:docs`, `pnpm comments` and `git diff --check`; execute the read-only Windows and Linux lookup commands where available and check macOS commands against vendor documentation.
+- Command checks: `ip -4 addr show scope global` ran successfully in the local WSL environment; Windows PowerShell `ipconfig` ran successfully and listed the connected Wi-Fi IPv4 address. These checks do not prove guest connectivity. Apple's interface lookup guide confirms `networksetup -listallhardwareports`, and its [ipconfig manual](https://github.com/apple-oss-distributions/bootp/blob/main/ipconfig.tproj/ipconfig.8) documents `getifaddr`. macOS execution requires a Mac and was not performed here.
+- Documentation checks: `pnpm verify:docs`, `pnpm comments` and `git diff --check` passed. Configuration values and runtime code are unchanged.
+
 ## Review
 
 Filled in at the end: what shipped, what was cut, what moved to another task.

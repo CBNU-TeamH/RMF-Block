@@ -59,8 +59,39 @@ curl.exe -LO https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/do
 curl.exe -L -o .env https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/env.sample
 ```
 
-Set `HOST_LAN_IP` in `.env` to this machine's address on the LAN, the one guests will type;
-`.env` says how to find it on each OS. Then:
+Set `HOST_LAN_IP` in `.env` to this machine's IPv4 address on the same LAN as the guests.
+Run the following commands on the **host machine**, outside the containers:
+
+| Host OS | Command | Which address to use |
+| :--- | :--- | :--- |
+| Windows (PowerShell or Command Prompt) | `ipconfig` | The IPv4 address of the connected Wi-Fi or Ethernet adapter. Run it in Windows, not WSL. |
+| Linux (Terminal) | `ip -4 addr show scope global` | The `inet` address of the Wi-Fi or Ethernet interface connected to the guests' LAN, without the `/…` suffix. |
+| macOS (Terminal) | `networksetup -listallhardwareports` | Find the `Device` name for the Wi-Fi or Ethernet connection you are using, then query it as below. |
+
+On macOS, if the device is `en0`, run:
+
+```bash
+ipconfig getifaddr en0
+```
+
+Replace `en0` with the device name you found; it is not always `en0`. If the command prints
+no address, check that the selected connection is active and has an IPv4 address.
+The command references are [Windows ipconfig](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig)
+and [Apple's interface lookup guide](https://developer.apple.com/documentation/network/recording-a-packet-trace).
+
+Choose the adapter connected to the guests' LAN if several addresses appear; Docker, WSL,
+VPN and loopback interfaces may also be listed. For example, if the LAN address is
+`192.168.0.14`, save this in `.env` (use your own address, not this example):
+
+```dotenv
+HOST_LAN_IP=192.168.0.14
+```
+
+The release files do not automatically detect the host's LAN IP. In a clone,
+`pnpm docker:up` runs [`scripts/detect-host-ip.sh`](scripts/detect-host-ip.sh) on the host
+to attempt detection and write `.env`; that script is not included in a release.
+If the LAN address changes, update `.env` and run `docker compose up -d` again.
+Then start the stack:
 
 ```bash
 docker compose up
