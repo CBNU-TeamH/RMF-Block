@@ -9,7 +9,7 @@ import { documentIdFromPathname } from "@/lib/focus/pathname";
 import { NO_TABS, STORAGE_KEY, closeTab, landingId, moveTab, openTab, parseTabs, type Tabs } from "@/lib/tabs";
 
 import { useNewDocument } from "./new-document";
-import { confirmClass, icon } from "./ui";
+import { PLUS, confirmClass, icon } from "./ui";
 
 function readTabs(): Tabs {
   try {
@@ -44,6 +44,7 @@ export function DocumentTabs({ documents }: { documents: Array<WorkspaceDocument
   // route still names it until the navigation to its neighbour lands.
   const [seenId, setSeenId] = useState<string | null>(null);
   const dragged = useRef<string | null>(null);
+  const openNewDocument = useNewDocument();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- a one-time read of browser-only state
@@ -65,7 +66,6 @@ export function DocumentTabs({ documents }: { documents: Array<WorkspaceDocument
   // Deleted documents stay in the stored list until a close drops them; they
   // are only never shown.
   const shown = (tabs?.open ?? []).flatMap((id) => byId.get(id) ?? []);
-  if (!tabs || shown.length === 0) return null;
 
   function close(id: string) {
     if (!tabs) return;
@@ -87,10 +87,13 @@ export function DocumentTabs({ documents }: { documents: Array<WorkspaceDocument
   }
 
   return (
-    // Tabs share the width and shrink as more open, as a browser's do; only
-    // past their minimum does the strip scroll.
-    <nav aria-label="열린 문서" className="flex-none border-b border-line px-2">
-      <ul className="flex h-9 items-end gap-px overflow-x-auto">
+    // The sidebar's surface, as tall as its first row so the two top edges
+    // line up; the active tab is the document bar's surface, so the two read as
+    // one piece (Chrome, Obsidian). Drawn even with no tabs, so nothing below
+    // jumps. Tabs share the width and shrink as more open, as a browser's do;
+    // only past their minimum does the strip scroll.
+    <nav aria-label="열린 문서" className="flex h-11 flex-none items-end gap-1 bg-paper-2 px-2">
+      <ul className="flex h-full min-w-0 items-end gap-px overflow-x-auto">
         {shown.map((doc, index) => {
           const active = doc.id === currentId;
           return (
@@ -105,8 +108,8 @@ export function DocumentTabs({ documents }: { documents: Array<WorkspaceDocument
               }}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => drop(event, index)}
-              className={`group/tab flex h-8 max-w-[200px] min-w-[72px] flex-1 basis-0 items-center rounded-t-control border border-b-0 text-[13px] ${
-                active ? "border-line bg-paper font-semibold text-ink" : "border-transparent text-ink-soft hover:bg-hover"
+              className={`group/tab flex h-9 w-[200px] min-w-[72px] shrink items-center rounded-t-control text-[13px] ${
+                active ? "bg-paper font-semibold text-ink" : "text-ink-soft hover:bg-hover"
               }`}
             >
               {/* `draggable={false}`: an anchor drags its URL by default, which
@@ -116,7 +119,7 @@ export function DocumentTabs({ documents }: { documents: Array<WorkspaceDocument
                 draggable={false}
                 aria-current={active ? "page" : undefined}
                 title={doc.name}
-                className="min-w-0 flex-1 truncate py-1.5 pl-2.5 outline-none focus-visible:ring-2 focus-visible:ring-sky-deep focus-visible:ring-inset"
+                className="min-w-0 flex-1 truncate py-2 pl-3 outline-none focus-visible:ring-2 focus-visible:ring-sky-deep focus-visible:ring-inset"
               >
                 {doc.name}
               </Link>
@@ -138,6 +141,15 @@ export function DocumentTabs({ documents }: { documents: Array<WorkspaceDocument
           );
         })}
       </ul>
+      {/* Where a browser puts a new tab. */}
+      <button
+        type="button"
+        aria-label="새 문서"
+        onClick={() => openNewDocument(null)}
+        className="mb-1.5 flex size-7 flex-none items-center justify-center rounded-control text-ink-faint hover:bg-hover hover:text-ink"
+      >
+        {icon(PLUS, 15)}
+      </button>
     </nav>
   );
 }

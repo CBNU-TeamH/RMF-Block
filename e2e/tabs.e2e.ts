@@ -14,7 +14,13 @@ test("documents open as tabs that reorder, close and are landed on; only the act
   await openDocument(page, firstId);
   await expect(tabs.getByRole("link")).toHaveText([first]);
   // The last tab cannot close.
-  await expect(tabs.getByRole("button")).toHaveCount(0);
+  await expect(tabs.getByRole("button", { name: /닫기$/ })).toHaveCount(0);
+  // Its history is in the document bar, not in the document.
+  await page.getByRole("banner").getByRole("button", { name: "버전 히스토리" }).click();
+  const history = page.getByRole("region", { name: "버전 히스토리" });
+  await expect(history).toBeVisible();
+  await history.getByRole("button", { name: "버전 히스토리 닫기" }).click();
+  await expect(history).toHaveCount(0);
 
   await page.getByRole("complementary").locator(`a[href="/documents/${secondId}"]`).click();
   await expect(page).toHaveURL(new RegExp(`/documents/${secondId}$`));
@@ -56,6 +62,8 @@ test("the sidebar collapses to a rail, stays collapsed across a reload, and sear
   await page.goto("/");
   const aside = page.getByRole("complementary");
   const search = aside.getByRole("textbox", { name: "문서 제목 검색" });
+  // Only the host gets the admin link.
+  await expect(aside.getByRole("link", { name: "관리자" })).toHaveCount(0);
 
   await aside.getByRole("button", { name: "사이드바 접기" }).click();
   await expect(search).toBeHidden();

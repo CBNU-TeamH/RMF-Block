@@ -1,5 +1,4 @@
 import { cookies } from "next/headers";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { sessionRegistry } from "@/lib/auth/session-registry";
@@ -22,7 +21,7 @@ import { NewDocumentProvider } from "./new-document";
 import { PresenceProvider } from "./presence-provider";
 import { PresenceStack } from "./presence-stack";
 import { Sidebar } from "./sidebar";
-import { AdminIcon, SIDEBAR_COOKIE } from "./ui";
+import { DOCUMENT_ACTIONS_ID, SIDEBAR_COOKIE } from "./ui";
 
 /**
  * The workspace shell — the sidebar document tree and the header of
@@ -86,31 +85,23 @@ export default async function WorkspaceLayout({
 
               <Sidebar
                 workspaceName={workspaceName}
+                isHost={isHost}
                 initiallyCollapsed={jar.get(SIDEBAR_COOKIE)?.value === "collapsed"}
               >
                 <DocumentList documents={documents} />
               </Sidebar>
 
               <div className="flex min-w-0 flex-1 flex-col">
+                {/* Tabs outermost, then one bar for the document they show — its
+                    path, who is in it, and its actions — as Obsidian, Notion and
+                    wafflebase arrange it (`app-shell.md`). */}
+                <DocumentTabs documents={documents} />
                 <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">
                   <Breadcrumb documents={documents} />
                   <PresenceStack memberId={me.id} known={known} />
                   <FocusShare memberId={me.id} />
-                  {/* Host only — the page itself refuses anyone else. Outlined, with
-                      the shield, so it reads as a different kind of place than
-                      the share controls beside it. */}
-                  {isHost ? (
-                    <Link
-                      href="/admin"
-                      title="관리자 페이지 — 호스트에게만 보입니다"
-                      className="flex h-[30px] items-center gap-1.5 rounded-control border border-line-strong px-2.5 text-[13px] font-semibold text-ink hover:bg-hover"
-                    >
-                      <AdminIcon />
-                      Admin
-                    </Link>
-                  ) : null}
+                  <div id={DOCUMENT_ACTIONS_ID} className="flex items-center empty:hidden" />
                 </header>
-                <DocumentTabs documents={documents} />
                 <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
               </div>
 

@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 
 import { useNewDocument } from "./new-document";
-import { PLUS, SEARCH, SIDEBAR_COOKIE, icon } from "./ui";
+import { AdminIcon, PLUS, SEARCH, SIDEBAR_COOKIE, icon } from "./ui";
 
 const railButton =
   "flex size-8 items-center justify-center rounded-control text-ink-soft hover:bg-hover hover:text-ink";
@@ -15,10 +16,12 @@ const railButton =
  */
 export function Sidebar({
   workspaceName,
+  isHost,
   initiallyCollapsed,
   children,
 }: {
   workspaceName: string;
+  isHost: boolean;
   initiallyCollapsed: boolean;
   children: React.ReactNode;
 }) {
@@ -79,6 +82,23 @@ export function Sidebar({
         </div>
       )}
       <div className={collapsed ? "hidden" : "flex min-h-0 flex-1 flex-col"}>{children}</div>
+      {/* Workspace-wide, so here rather than in the document bar — Notion's
+          Settings spot. Host only; the page itself refuses anyone else. */}
+      {isHost ? (
+        <Link
+          href="/admin"
+          aria-label="관리자"
+          title="관리자 페이지 — 호스트에게만 보입니다"
+          className={
+            collapsed
+              ? `mt-auto mb-2 ${railButton}`
+              : "mb-2 flex h-8 flex-none items-center gap-2 rounded-control px-2 text-ink-soft hover:bg-hover"
+          }
+        >
+          <AdminIcon size={16} />
+          {collapsed ? null : <span aria-hidden>관리자</span>}
+        </Link>
+      ) : null}
     </aside>
   );
 }

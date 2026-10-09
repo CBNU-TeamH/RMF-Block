@@ -101,6 +101,23 @@ Out of scope: pinned/preview tabs, an empty tab, several editors mounted at once
 - **Reuse**: —
 - **Done**: `pnpm verify:docs` passes (ownership included).
 
+### 6. One bar for the document (by-hand feedback on #178, 2026-10-09)
+
+- **What**: the by-hand pass found the header, the tab strip and the 버전 히스토리 button in three
+  places with three looks. Following Obsidian, Notion and wafflebase:
+  - Tabs go outermost, on the sidebar's surface, with the active tab merging into the bar below
+    and a `+` at the end.
+  - Then one document bar holds the breadcrumb, presence, sharing and the history icon.
+  - The content keeps only the title.
+  - The host's Admin link moves to the sidebar foot as 관리자.
+- **Files**: `app/(workspace)/layout.tsx`, `document-tabs.tsx`, `sidebar.tsx`, `ui.tsx`,
+  `documents/[id]/editor.tsx`, `documents/[id]/version-history.tsx`, `docs/design/app-shell.md`,
+  `e2e/tabs.e2e.ts`, `e2e/host.e2e.ts`.
+- **Reuse**: `VersionHistory` unchanged except for its trigger, drawn into the bar with
+  `createPortal`; the avatar's group-hover tooltip; `icon(PLUS)`, `useNewDocument()`, `AdminIcon`.
+- **Done**: tabs sit above the bar and read as one piece with it; the history icon opens the panel
+  from the bar; only the host sees 관리자, expanded or collapsed.
+
 ## Test selection
 
 Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
@@ -130,6 +147,9 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
     sidebar). Fixed, then `pnpm e2e:isolated e2e/tabs.e2e.ts e2e/tree.e2e.ts e2e/auth.e2e.ts` → 6 passed.
   - After the review round (below): Vitest 72 passed, `tsc`/`eslint`/`verify:docs` clean,
     `pnpm e2e:isolated e2e/tabs.e2e.ts e2e/tree.e2e.ts e2e/auth.e2e.ts e2e/host.e2e.ts` → 9 passed.
+  - After milestone 6: `tsc`, `eslint` on its files, Vitest (72), `verify:docs` and the comment
+    budget clean; `pnpm e2e:isolated` full suite → 21 passed (the two `recovery.e2e.ts`
+    diagnostics failing as marked).
   - Container smoke: not run locally; its `curl /` checks read the sidebar's search field, which
     the server still renders (no cookie → expanded, and collapsed only hides it). CI runs it.
 

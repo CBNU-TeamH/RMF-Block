@@ -30,7 +30,7 @@ The auth gate lives in the layout, not in a page, so every screen in the group i
 live session and no valid host-secret cookie means the join form (FR-020-03/04). The session model itself is
 [`api.md`](api.md), "Authentication model". Before the workspace is open the gate sends the host
 to `/admin`, the setup screen (UC-010) — outside the group like `/join`, since there is no
-workspace yet to frame. The header shows the host, and only the host, an outlined **Admin** link with a shield (`AdminIcon` in `ui.tsx`) to the same page.
+workspace yet to frame. The sidebar shows the host, and only the host, a **관리자** link with a shield (`AdminIcon` in `ui.tsx`) to the same page, at its foot.
 
 Below the gate the layout nests `PresenceProvider`, `FocusFollowProvider`,
 `FloatingViewProvider` and `NewDocumentProvider` around the sidebar/header/`<main>` frame, with the fixed `ChatWindow`
@@ -75,14 +75,34 @@ first root document — client-side, because that memory is in `localStorage`, a
 container smoke reads the shell's HTML from `/`. Only an empty workspace stays there, with a 새
 문서 button: what a new member lands on.
 
-**One 새 문서 dialog.** The tree, the collapsed rail and the empty landing all open it, so it lives
+**One 새 문서 dialog.** The tree, the collapsed rail, the tab strip's `+` and the empty landing all open it, so it lives
 in the layout as `NewDocumentProvider` (`new-document.tsx`), a context exposing one `open`, the
 shape `FloatingViewProvider` already has.
+
+## Tabs, then one bar for the document, then the document
+
+Above the content there are two rows, and the document's own controls are in neither the tab strip
+nor the content (#178's by-hand pass, which found tabs, header and the history button in three
+different places). This is the arrangement Obsidian (tab strip, then each pane's view header),
+Notion (breadcrumb with Share and history on the right, only the title in the page) and
+wafflebase (`SiteHeader` with the history toggle and presence) share:
+
+- **The tab strip** is outermost, on the sidebar's surface and as tall as its first row. The active
+  tab takes the bar's surface below it, so the two read as one piece. It always renders, even with
+  no tabs, with a `+` where a browser puts a new tab.
+- **The document bar** (`<header>`) is what is open: breadcrumb, who is in it, sharing, and the
+  document's actions. Version history is an icon there. The editor owns the trigger, because the trigger needs the
+  editor's attachment and restore function, so the editor draws it into the bar's
+  `DOCUMENT_ACTIONS_ID` slot with `createPortal`.
+- **The content** starts with the title alone.
+
+Things that belong to the whole workspace, not the open document, go in the sidebar, as Notion's
+Settings does. That is why the host's 관리자 link is there.
 
 ## The sidebar collapses to a rail
 
 `sidebar.tsx` collapses the sidebar to a column of icons — expand, search (which expands and
-focuses the field), 새 문서. The tree is hidden, not unmounted: its socket is what keeps the
+focuses the field), 새 문서, and 관리자 for the host. The tree is hidden, not unmounted: its socket is what keeps the
 catalogue, and so the breadcrumb and the tab names, current. The state is a cookie rather than
 `localStorage` so the layout renders it collapsed from the first paint instead of flashing the
 full width; `SIDEBAR_COOKIE` sits in `ui.tsx` because a server component cannot read a constant

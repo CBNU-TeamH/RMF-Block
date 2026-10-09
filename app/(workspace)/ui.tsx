@@ -8,6 +8,10 @@
  *  component, cannot read a constant out of a client module. */
 export const SIDEBAR_COOKIE = "rmf-sidebar";
 
+/** The document bar's slot that the open document's editor fills with its own
+ *  actions (`createPortal` in `editor.tsx`) — the layout cannot reach them. */
+export const DOCUMENT_ACTIONS_ID = "document-actions";
+
 export const DIALOG =
   "mx-auto mt-[18vh] w-full max-w-[400px] rounded-card bg-elev p-5 text-ink shadow-elev backdrop:bg-scrim";
 export const DIALOG_TITLE = "text-[17px] font-bold tracking-tight text-ink";
