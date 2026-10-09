@@ -74,6 +74,11 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 - Browser E2E (`e2e/`): no new cases. The suite has to stay green through the override, because the isolated runner builds from `docker compose config`. Run `pnpm e2e:isolated` once locally, and let CI run it.
 - Container smoke (`.github/workflows/ci.yml`): no change to the job. It is the check that the override still builds the app from source in CI. The published image is exercised by the fork rehearsal (milestone 4) instead, since CI never pushes.
 - Commands and observed results (fill in before the PR):
+  - `docker compose config` in the repository merges the override: `name: rmf-block`, and `app` with `build` and `image: rmf-block:dev`. In a folder with only `docker-compose.yml`: `image: ghcr.io/cbnu-teamh/rmf-block:latest`, no `build`.
+  - `docker compose up -d --build --wait` in the repository: `rmf-app` runs `rmf-block:dev` in project `rmf-block`, on the existing `rmf-block_*` volumes (`Workspace "test" — saved settings`).
+  - `pnpm e2e:isolated`: 21 passed (2.0m), through the override.
+  - actionlint 1.7.7 on `release.yml`: clean. Both `run` steps were also run locally with test inputs; the results are under milestone 4 in Review.
+  - Pre-push (Vitest and build): 748 passed, build succeeded.
 
 ## Acceptance
 
@@ -94,3 +99,14 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 ## Review
 
 Filled in at the end: what shipped, what was cut, what moved to another task.
+
+### Fork rehearsal (milestone 4), 2026-10-09
+
+- **`v0.0.1-rc.0` on `taejinchoi-cbnu/RMF-Block`, run 37899242115: success in 8m 4s.** The build-push step took 7m 12s, for amd64 and arm64 under QEMU with a cold `gha` cache.
+- **`ghcr.io/taejinchoi-cbnu/rmf-block:0.0.1-rc.0`** is the manifest list `sha256:5776b6c8…`, with `linux/amd64`, `linux/arm64` and two attestations. Both images carry `licenses=MIT`, `source` and `revision=78718b9`. No `latest` was created.
+- **The prerelease** has `docker-compose.yml` (image `…:0.0.1-rc.0`) and `env.sample`, and its notes give the same digest. With no merged PRs on the fork, the generated part is only the "Full Changelog" link.
+- **From a folder with only those two files** (`curl` as in the README, `HOST_LAN_IP` filled in), `docker compose up -d --wait` replaced only `rmf-app`, with the released image. It kept the running Yorkie and MongoDB, in the same project `rmf-block`, and reattached the existing volumes (`Workspace "test" — saved settings`). There was no `container_name` collision.
+- **`v9.9.9-rc.0`, run 37900711265**: failed at "Check the tag" with "does not match package.json's version 0.0.1". Every later step was skipped, and no image or release exists for it. The tag was deleted afterwards.
+- **Locally**, the "Check the tag" script was also run against these cases, with a `jq` stand-in:
+  - On upstream, a tag on a branch commit fails with "is not on main".
+  - On upstream, a tag on a `main` commit passes, and the image is `ghcr.io/cbnu-teamh/rmf-block`.

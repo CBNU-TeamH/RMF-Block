@@ -11,6 +11,8 @@ that the next person does not rediscover this.
 - **A stopped container still holds its `container_name`.** A second stack started from another folder failed with "The container name "/rmf-mongo" is already in use". `docker ps` showed nothing; `docker ps -a` showed the repository's stack, stopped but not removed.
 - **GHCR's package page lists the attestation as a second "OS/Arch"** (`unknown/unknown`), and its suggested `docker pull …@sha256:` pins one platform's manifest, not the multi-arch list.
 - **`gh auth refresh` uses the device flow.** It shows a one-time code to enter at github.com/login/device, and sends no GitHub Mobile prompt.
+- **GitHub renames a release asset whose name starts with a dot**, so `.env.sample` is attached as `env.sample`. The README saves it straight to `.env` with `curl -L -o .env …/env.sample`.
+- **A tag push runs the pre-push hook too**, so the full test suite and build run (about two minutes) for a push that carries no code.
 
 ## What we would do differently
 
