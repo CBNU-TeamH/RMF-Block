@@ -1,0 +1,92 @@
+# Pushing a `v*` tag publishes the image, then the release (ADR-009). The
+# release step runs only if the push succeeded, so a release never names an
+# image that is not there.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check the tag
+        id: tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          expected=$(jq -r .version package.json)
+          if [ "${version%%-*}" != "$expected" ]; then
+            echo "::error::$GITHUB_REF_NAME does not match package.json's version $expected."
+            exit 1
+          fi
+          # Upstream only: a fork rehearses from a feature branch, and its main lags.
+          if [ "$GITHUB_REPOSITORY" = "CBNU-TeamH/RMF-Block" ] && ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_REF_NAME is not on main."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # From the owner, so a fork publishes into its own namespace.
+          echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/rmf-block" >> "$GITHUB_OUTPUT"
+
+      # The runner is amd64; QEMU runs the arm64 half of the build.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # `v0.0.1` → `0.0.1` and `latest`; a prerelease such as `v0.0.1-rc.1`
+      # gets its own tag only. Also writes the OCI labels (source, revision,
+      # version, licenses), so the Dockerfile carries none.
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.tag.outputs.image }}
+          tags: type=semver,pattern={{version}}
+
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: ${{ steps.tag.outputs.image }}
+          VERSION: ${{ steps.tag.outputs.version }}
+          # The manifest list's digest: pinning it still lets each host pull its own architecture.
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir dist
+          # The attached compose file runs this version whenever it is downloaded.
+          sed "s#ghcr.io/cbnu-teamh/rmf-block:latest#$IMAGE:$VERSION#" docker-compose.yml > dist/docker-compose.yml
+          grep -q "image: $IMAGE:$VERSION\$" dist/docker-compose.yml
+          # GitHub renames an asset whose name starts with a dot.
+          cp .env.sample dist/env.sample
+          cat > dist/notes.md <<EOF
+          **Image**: \`$IMAGE:$VERSION\` for \`linux/amd64\` and \`linux/arm64\`
+          **Digest**: \`$DIGEST\`
+
+          To run it, download \`docker-compose.yml\` and \`env.sample\` below into one folder, save \`env.sample\` as \`.env\` with \`HOST_LAN_IP\` filled in, then run \`docker compose up\`. The README's Getting started has the details.
+          EOF
+          prerelease=()
+          if [[ "$VERSION" == *-* ]]; then prerelease=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes "${prerelease[@]}" \
+            --notes-file dist/notes.md dist/docker-compose.yml dist/env.sample

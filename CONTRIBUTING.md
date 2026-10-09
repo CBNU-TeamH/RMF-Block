@@ -57,6 +57,12 @@ Once per machine, so line endings match `.gitattributes` (`eol=lf`) on every OS:
 git config --global core.autocrlf input
 ```
 
+**The container from source** is `pnpm docker:up`: `scripts/detect-host-ip.sh` writes `HOST_LAN_IP`
+to `.env`, then `docker compose up --build`. In a clone, Compose merges
+`docker-compose.override.yml` over `docker-compose.yml` and builds the app from this checkout; a host
+running a release has only `docker-compose.yml`, which pulls the published image. Both use the
+Compose project `rmf-block`, and so the same volumes.
+
 **Older Docker Compose refuses the file.** `docker-compose.yml` uses `attach: false` on the mongo
 service; Compose before 2.20 (2.13 was measured) rejects the whole file with `services.mongo
 Additional property attach is not allowed`.
@@ -73,7 +79,8 @@ Additional property attach is not allowed`.
 | `tasks/` | Work in progress (`active/`) and finished work (`archive/`) — [`tasks/README.md`](tasks/README.md) |
 | `scripts/` | Doc checks and task helpers, behind the `package.json` scripts; `detect-host-ip.sh` is what `pnpm docker:up` runs first |
 | `instrumentation.ts` | Server startup — prints the Host and Guest lines |
-| `Dockerfile` · `docker-compose.yml` | The image the host runs, and the Yorkie and MongoDB containers beside it |
+| `Dockerfile` · `docker-compose.yml` | The image the host runs, and the Yorkie and MongoDB containers beside it; `docker-compose.override.yml` builds the app from source in a clone |
+| `.github/workflows/release.yml` | Publishes the image and the GitHub Release when a `v*` tag is pushed — see "Releasing" |
 | `.claude/skills/` | Review-plugin pointers and the repo's own skills — [`.claude/skills/README.md`](.claude/skills/README.md) |
 
 Which design doc owns which of these: each `docs/design/*.md` names its files on its **Owns**
@@ -110,3 +117,26 @@ which checks block a merge: `AGENTS.md` §6. How the layers of tests divide the 
   only moves task documents and regenerates the two task indexes; no application code or behaviour
   changes. Earlier archives used `chore:`;
   they stay as they are.
+
+## Releasing
+
+A release is a tag on `main`, with no release branch ([ADR-009](docs/adr/009-distribution-ghcr-image-tag-release.md)).
+Pushing the tag runs `.github/workflows/release.yml`, which works in this order:
+
+1. Checks the tag against `package.json` and that its commit is on `main`.
+2. Pushes `ghcr.io/cbnu-teamh/rmf-block:X.Y.Z` for `linux/amd64` and `linux/arm64`, and moves `latest`.
+3. Only then creates the release. The release attaches `docker-compose.yml`, rewritten to `X.Y.Z`,
+   and `env.sample`, and its notes give the image's digest.
+
+To cut `X.Y.Z`:
+
+1. Merge a PR that sets `version` in `package.json` to `X.Y.Z`, unless `main` already has it.
+2. Check that CI on `main` is green.
+3. Rehearse: `git tag vX.Y.Z-rc.1 upstream/main && git push upstream vX.Y.Z-rc.1`. An `-rc.N` tag
+   makes a prerelease and leaves `latest` alone. Run the README's Getting started from an empty
+   folder with that prerelease's two files.
+4. Release: `git tag vX.Y.Z upstream/main && git push upstream vX.Y.Z`.
+5. On the first release only, an org owner makes the `rmf-block` package public (package
+   settings → Change visibility). A new organisation package starts private.
+
+Never re-push a version tag; publish a new version instead. Only `latest` moves.

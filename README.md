@@ -38,16 +38,24 @@ the contracts.
 
 ## Getting started
 
-You need Docker with Compose 2.20 or newer and bash — on Linux or macOS, or on Windows from WSL.
+You need Docker with Compose 2.20 or newer — nothing else: no clone, no Node.js. Each
+[release](https://github.com/CBNU-TeamH/RMF-Block/releases) runs a published image built for both
+x86-64 and Apple Silicon.
 
 ```bash
-cp .env.sample .env        # nothing to fill in by hand — each variable is explained there
-bash scripts/detect-host-ip.sh && docker compose up --build
+mkdir rmf-block && cd rmf-block
+curl -LO https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/docker-compose.yml
+curl -L -o .env https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/env.sample
 ```
 
-With Node.js and pnpm installed, `pnpm docker:up` is the same two commands. The script finds the
-host's LAN address and writes it to `.env` as `HOST_LAN_IP`. Among the startup output are these
-two lines:
+Set `HOST_LAN_IP` in `.env` to this machine's address on the LAN, the one guests will type;
+`.env` says how to find it on each OS. Then:
+
+```bash
+docker compose up
+```
+
+Among the startup output are these two lines:
 
 ```
 rmf-app  |   Host:  http://localhost:3000/api/auth/host?secret=…
@@ -58,27 +66,40 @@ rmf-app  |   Guest: http://192.168.0.14:3000
   bar. Treat the line as a credential: it stays valid until the container restarts.
 - **The first time, it opens the setup screen.** Choose the workspace name and the access password
   there, then tell guests the password. Until then the startup output says
-  `host user의 workspace setting이 완료되지 않았습니다.` and guests cannot join. The **Admin** link (with
-  a shield) in the top bar, shown only to the host, is where you change the password later or remove
-  a guest. The settings persist on the volume — emptying `.env` does not reset them; startup prints
+  `host user의 workspace setting이 완료되지 않았습니다.` and guests cannot join. The **관리자** link (with
+  a shield) at the foot of the sidebar, shown only to the host, is where you change the password later
+  or remove a guest. The settings persist on the volume — emptying `.env` does not reset them; startup prints
   `Workspace "<name>" — saved settings …` when they exist. To see the setup screen again, stop the
   stack and delete `workspace.json` from the `app-data` volume.
 - **Give everyone else the `Guest:` address.**
 - **Restarting the container signs everyone out**; removing one guest is the admin page's 퇴장
   ([`docs/design/api.md`](docs/design/api.md)).
-- **Documents and app state survive** restarts and rebuilds on named volumes — members keep their
+- **Documents and app state survive** restarts and upgrades on named volumes — members keep their
   colours — and `docker compose down -v` wipes them.
+
+### Upgrading
+
+Download the new release's `docker-compose.yml` over the old one, keep `.env`, and run:
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+The documents and settings stay. The file names its Compose project `rmf-block`, so the same volumes
+reattach whichever folder it runs from. Each release's file names its own version. To pin the exact
+image, append the digest from the release notes (`…:0.0.1@sha256:…`). Use that one and not a
+digest from the package page, which pins a single architecture.
 
 ### If a guest cannot connect
 
 - **Client/AP isolation.** Campus and guest Wi-Fi often block devices from reaching each other even
   on one network. Rule this out first — it is a router setting no script here can detect.
-- **Windows hosts.** Docker Desktop's WSL2 backend may forward the port only to `127.0.0.1`; the
-  start script checks whether WSL mirrored networking is enabled and prints configuration
+- **Windows hosts.** Docker Desktop's WSL2 backend may forward the port only to `127.0.0.1`. From a
+  clone, `pnpm docker:up` checks whether WSL mirrored networking is enabled and prints configuration
   guidance. Mirrored networking needs Windows 11 22H2+; on older Windows, forward the port to
   the host's LAN address yourself (`netsh interface portproxy`).
-- **Wrong address detected**, or no default route to read: set `HOST_LAN_IP` in `.env` yourself —
-  `.env.sample` says how to find it on each OS — and run `docker compose up --build`.
+- **Wrong address in the `Guest:` line**: correct `HOST_LAN_IP` in `.env` and run
+  `docker compose up -d` again.
 
 ## Documentation
 
