@@ -1,5 +1,4 @@
 import { cookies } from "next/headers";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { sessionRegistry } from "@/lib/auth/session-registry";
@@ -14,12 +13,15 @@ import { SessionWatch } from "../session-watch";
 import { Breadcrumb } from "./breadcrumb";
 import { ChatWindow } from "./chat-window";
 import { DocumentList } from "./document-list";
+import { DocumentTabs } from "./document-tabs";
 import { FloatingViewProvider } from "./floating-views";
 import { FocusFollowProvider } from "./focus-follow-provider";
 import { FocusShare } from "./focus-share";
+import { NewDocumentProvider } from "./new-document";
 import { PresenceProvider } from "./presence-provider";
 import { PresenceStack } from "./presence-stack";
-import { AdminIcon } from "./ui";
+import { Sidebar } from "./sidebar";
+import { DOCUMENT_ACTIONS_ID, SIDEBAR_COOKIE } from "./ui";
 
 /**
  * The workspace shell — the sidebar document tree and the header of
@@ -73,52 +75,41 @@ export default async function WorkspaceLayout({
     >
       <FocusFollowProvider>
         <FloatingViewProvider colorTag={me.colorTag} nickname={me.nickname}>
-          {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
-              shell has to be exactly the viewport's height, not merely at least
-              it, or the row below never bounds `<main>` and the editor's own
-              scroll container grows to fit its blocks instead of scrolling. */}
-          <div className="flex h-full flex-1 bg-paper">
-            {member ? <SessionWatch /> : null}
+          <NewDocumentProvider>
+            {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
+                shell has to be exactly the viewport's height, not merely at least
+                it, or the row below never bounds `<main>` and the editor's own
+                scroll container grows to fit its blocks instead of scrolling. */}
+            <div className="flex h-full flex-1 bg-paper">
+              {member ? <SessionWatch /> : null}
 
-            <aside className="flex w-[260px] flex-none flex-col border-r border-line bg-paper-2 px-1.5 pt-2">
-              <div className="mb-1 flex h-9 items-center gap-2 px-2">
-                <span
-                  aria-hidden
-                  className="flex size-5 items-center justify-center rounded-[5px] bg-ink text-[11px] font-bold text-paper"
-                >
-                  r
-                </span>
-                <span className="truncate font-semibold text-ink">{workspaceName}</span>
+              <Sidebar
+                workspaceName={workspaceName}
+                isHost={isHost}
+                initiallyCollapsed={jar.get(SIDEBAR_COOKIE)?.value === "collapsed"}
+              >
+                <DocumentList documents={documents} />
+              </Sidebar>
+
+              <div className="flex min-w-0 flex-1 flex-col">
+                {/* Tabs outermost, then one bar for the document they show — its
+                    path, who is in it, and its actions — as Obsidian, Notion and
+                    wafflebase arrange it (`app-shell.md`). */}
+                <DocumentTabs documents={documents} />
+                <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">
+                  <Breadcrumb documents={documents} />
+                  <PresenceStack memberId={me.id} known={known} />
+                  <FocusShare memberId={me.id} />
+                  <div id={DOCUMENT_ACTIONS_ID} className="flex items-center empty:hidden" />
+                </header>
+                <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
               </div>
-              <DocumentList documents={documents} />
-            </aside>
 
-            <div className="flex min-w-0 flex-1 flex-col">
-              <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">
-                <Breadcrumb documents={documents} />
-                <PresenceStack memberId={me.id} known={known} />
-                <FocusShare memberId={me.id} />
-                {/* Host only — the page itself refuses anyone else. Outlined, with
-                    the shield, so it reads as a different kind of place than
-                    the share controls beside it. */}
-                {isHost ? (
-                  <Link
-                    href="/admin"
-                    title="관리자 페이지 — 호스트에게만 보입니다"
-                    className="flex h-[30px] items-center gap-1.5 rounded-control border border-line-strong px-2.5 text-[13px] font-semibold text-ink hover:bg-hover"
-                  >
-                    <AdminIcon />
-                    Admin
-                  </Link>
-                ) : null}
-              </header>
-              <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+              {/* `fixed` — it floats over the shell rather than taking a column from it. */}
+              <ChatWindow me={me.nickname} />
             </div>
-
-            {/* `fixed` — it floats over the shell rather than taking a column from it. */}
-            <ChatWindow me={me.nickname} />
-          </div>
-          </FloatingViewProvider>
+          </NewDocumentProvider>
+        </FloatingViewProvider>
       </FocusFollowProvider>
     </PresenceProvider>
   );

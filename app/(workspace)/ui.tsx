@@ -2,6 +2,16 @@
  *  (`docs/ui/redesign/HANDOFF.md` §3) — one place for every modal in the app,
  *  including `app/join/`'s. */
 
+/** Whether the sidebar is collapsed (`sidebar.tsx`). A cookie, so the layout
+ *  renders it collapsed from the first paint — `localStorage` is only read after
+ *  it, and would flash the full width. Here because the layout, a server
+ *  component, cannot read a constant out of a client module. */
+export const SIDEBAR_COOKIE = "rmf-sidebar";
+
+/** The document bar's slot that the open document's editor fills with its own
+ *  actions (`createPortal` in `editor.tsx`) — the layout cannot reach them. */
+export const DOCUMENT_ACTIONS_ID = "document-actions";
+
 export const DIALOG =
   "mx-auto mt-[18vh] w-full max-w-[400px] rounded-card bg-elev p-5 text-ink shadow-elev backdrop:bg-scrim";
 export const DIALOG_TITLE = "text-[17px] font-bold tracking-tight text-ink";
@@ -46,4 +56,28 @@ export const TrashIcon = ({ size = 15 }: { size?: number }) => (
     <path d="M4 4.25l.75 9h6.5l.75-9" />
     <path d="M6.75 6.75v4M9.25 6.75v4" />
   </svg>
+);
+
+/** The shell's 16px line icons (`docs/ui/redesign/HANDOFF.md` §3). */
+export const icon = (path: React.ReactNode, size = 15) => (
+  <svg
+    aria-hidden
+    width={size}
+    height={size}
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.4}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    {path}
+  </svg>
+);
+export const PLUS = <path d="M8 3v10M3 8h10" />;
+export const SEARCH = (
+  <>
+    <circle cx="7" cy="7" r="4.5" />
+    <path d="M10.5 10.5L14 14" />
+  </>
 );

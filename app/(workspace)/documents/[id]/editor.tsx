@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   createChecklist,
@@ -40,7 +41,7 @@ import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
 import { HOST_PRESENCE } from "@/lib/presence/types";
 
-import { CANCEL, DIALOG_TITLE, FIELD_LABEL, Spinner, confirmClass, inputClass } from "../../ui";
+import { CANCEL, DIALOG_TITLE, DOCUMENT_ACTIONS_ID, FIELD_LABEL, Spinner, confirmClass, inputClass } from "../../ui";
 import { canFloat, useFloatingViews } from "../../floating-views";
 import { useFocusFollow } from "../../focus-follow-provider";
 import { Avatar } from "../../presence-avatar";
@@ -118,9 +119,8 @@ export function DocumentEditor({
   name,
 }: {
   documentId: string;
-  /** Rendered alongside the version-history trigger, which needs `client` and
-   *  `docRef` — both only exist once this component's own hooks run, so the
-   *  title moved in here rather than the button moving out to `page.tsx`. */
+  /** Rendered here rather than in `page.tsx` so the loading and failed states
+   *  show it too. */
   name: string;
 }) {
   const router = useRouter();
@@ -128,6 +128,15 @@ export function DocumentEditor({
     useWorkspacePresence();
   const { followingId, scrollTarget, clearScrollTarget } = useFocusFollow();
   const openFloating = useFloatingViews();
+  // The header's slot for this document's actions (`layout.tsx`): the history
+  // trigger needs this component's `client`, `docRef` and `replaceBlocks`, but
+  // belongs in the document bar. The layout renders the slot, so it exists by
+  // the time this runs.
+  const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a one-time read of the layout's DOM
+    setActionsSlot(window.document.getElementById(DOCUMENT_ACTIONS_ID));
+  }, []);
   // Falls back to a neutral color/blank name before the roster carries this
   // browser's own entry yet — `useBlockDocument`'s attach doesn't wait on it.
   const me = useMemo(
@@ -889,20 +898,15 @@ export function DocumentEditor({
         void uploadFiles(files, null);
       }}
     >
+      {/* Drawn in the document bar; in this tree only for the props above. */}
+      {actionsSlot
+        ? createPortal(
+            <VersionHistory client={client} docRef={docRef} nickname={nickname} onRestore={replaceBlocks} />,
+            actionsSlot,
+          )
+        : null}
       <div className={COLUMN}>
-      {/* The title lives here, not in `page.tsx`, so it can share a row with a
-          document-level action that needs `client`/`docRef` — both only exist
-          once this component's own hooks have run (the title itself does not,
-          which is why the two early returns above render it on their own). */}
-      <div className={TITLE_ROW}>
-        {title}
-        <VersionHistory
-          client={client}
-          docRef={docRef}
-          nickname={nickname}
-          onRestore={replaceBlocks}
-        />
-      </div>
+      <div className={TITLE_ROW}>{title}</div>
       <div className="flex flex-col gap-1.5">
       {blocks.map((block, index) => {
         const occupant = occupantByBlock.get(block.id);

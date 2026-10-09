@@ -18,8 +18,10 @@ test("UI create, rename, move and delete update the peer's tree without reload",
   const dialog = a.getByRole("dialog");
   await dialog.getByLabel("문서 이름").fill(name);
   await dialog.getByRole("button", { name: "만들기", exact: true }).click();
-  await expect(a).toHaveURL(/\/documents\//);
-  const id = new URL(a.url()).pathname.split("/").at(-1)!;
+  // From the new row, not the URL: `/` has already landed on some document (#168).
+  const href = await aside.getByRole("link", { name, exact: true }).getAttribute("href");
+  const id = href!.split("/").at(-1)!;
+  await expect(a).toHaveURL(new RegExp(`/documents/${id}$`));
   const peerLink = peer.locator(`a[href="/documents/${id}"]`);
   await expect(peerLink).toHaveText(name);
   await aside.getByRole("button", { name: `${name} 메뉴` }).click();

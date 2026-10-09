@@ -19,7 +19,8 @@ test("visitor joins through the password gate and sees their identity and tree",
   await expect(page).toHaveURL(/\/join$/);
   expect(password, "E2E_WORKSPACE_PASSWORD must be configured").toBeTruthy();
   await joinForm(page, name, password!);
-  await expect(page).toHaveURL(/\/$/);
+  // `/` lands on a document unless the workspace has none (#168).
+  await expect(page).toHaveURL(/\/(documents\/[^/]+)?$/);
   await expect(page.getByRole("complementary").getByRole("textbox", { name: "문서 제목 검색" })).toBeVisible();
   await expect(page.getByRole("banner")).toContainText(`${name} (나)`);
   await online(page, 1);
@@ -44,7 +45,7 @@ test("canceling takeover preserves the session; confirming displaces only that u
   await joinForm(replacement.page, a.name, password!);
   await dialog.getByRole("button", { name: "계속", exact: true }).click();
   await expect(a.page).toHaveURL(/\/join$/);
-  await expect(replacement.page).toHaveURL(/\/$/);
+  await expect(replacement.page).toHaveURL(/\/(documents\/[^/]+)?$/);
   await online(c.page, 2);
   expect((await c.page.request.get("/api/documents")).status()).toBe(200);
   expect((await a.page.request.get("/api/documents")).status()).toBe(401);

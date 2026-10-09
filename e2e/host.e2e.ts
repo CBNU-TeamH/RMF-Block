@@ -23,6 +23,8 @@ test("a valid bootstrap grants host and strips the secret from the address", asy
   await expect(page.getByRole("banner")).toContainText("Host (나)");
   expect(new URL(page.url()).search).toBe("");
   expect((await context.cookies()).map((cookie) => cookie.name)).toContain("role");
+  await page.getByRole("complementary").getByRole("link", { name: "관리자" }).click();
+  await expect(page).toHaveURL(/\/admin$/);
 });
 
 test("a wrong bootstrap cannot grant host", async ({ page, context }) => {

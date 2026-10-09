@@ -68,17 +68,25 @@ export function VersionHistory({
 
   return (
     <>
+      {/* An icon in the document bar, as wafflebase and Notion put history —
+          the name is the label, and the same tooltip as a presence avatar's. */}
       <button
         type="button"
+        aria-label="버전 히스토리"
         aria-expanded={open}
-        className={`mt-2 ${BUTTON}`}
+        className={`group/tip relative w-[30px] justify-center px-0 ${BUTTON} ${open ? "bg-hover text-ink" : ""}`}
         onClick={() => setOpen((was) => !was)}
       >
-        <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round">
+        <svg aria-hidden width="21" height="21" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round">
           <circle cx="8" cy="8" r="5.5" />
           <path d="M8 5v3l2 1.5" />
         </svg>
-        버전 히스토리
+        <span
+          aria-hidden
+          className="pointer-events-none absolute top-full right-0 z-10 mt-1.5 rounded-md bg-ink px-2 py-1 text-xs font-medium whitespace-nowrap text-paper opacity-0 transition-opacity duration-[120ms] group-hover/tip:opacity-100 group-focus-visible/tip:opacity-100"
+        >
+          버전 히스토리
+        </span>
       </button>
       {/* Rendered only while open, so the fetch that fills it cannot land in a
           panel nobody asked for — the rule `editor.tsx`'s own overlays follow. */}
