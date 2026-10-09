@@ -32,8 +32,12 @@ export function Sidebar({
   function toggle(next: boolean, focusSearch = false) {
     setCollapsed(next);
     document.cookie = `${SIDEBAR_COOKIE}=${next ? "collapsed" : "open"}; path=/; max-age=31536000; samesite=lax`;
-    // The tree's search field is the sidebar's first input.
-    if (focusSearch) requestAnimationFrame(() => asideRef.current?.querySelector("input")?.focus());
+    // By its label, so another field added to the sidebar cannot take its place.
+    if (focusSearch) {
+      requestAnimationFrame(() =>
+        asideRef.current?.querySelector<HTMLInputElement>('input[aria-label="문서 제목 검색"]')?.focus(),
+      );
+    }
   }
 
   const logo = (

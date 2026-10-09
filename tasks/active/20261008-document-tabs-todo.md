@@ -194,3 +194,10 @@ the sidebar, which is a cookie. Not changed: a guard for a JSON `null` error bod
 verbatim from `DocumentList`, and the route always answers with an object) and the docstring-coverage
 warning (comments here follow the comment budget, not a coverage target). The owning-docs reminder for
 `document-editing.md` needs no edit: it owns `document-list.tsx` but never described the dialog.
+
+Second `/simplify` + `/code-review low` (2026-10-09, on c707340): the review session briefly dropped
+`openTab`'s `includes` check and put it back after its own code review caught it — `Tabs` does not
+type "active is open", so the check stays. Applied: the rail's search finds the field by its label,
+not as the sidebar's first input. Not changed: a shared tooltip (two copies, positioned differently),
+a context in place of the `getElementById` slot (one read on mount of an element the layout always
+renders), and the items already declined above.
