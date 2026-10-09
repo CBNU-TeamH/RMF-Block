@@ -24,7 +24,6 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
-| [No home page — open documents as tabs, and a collapsible sidebar](active/20261008-document-tabs-todo.md) | [lessons](active/20261008-document-tabs-lessons.md) |
 | [Admin and user-location E2E after admin integration](active/20261007-admin-e2e-todo.md) | [lessons](active/20261007-admin-e2e-lessons.md) |
 
 ## Archive

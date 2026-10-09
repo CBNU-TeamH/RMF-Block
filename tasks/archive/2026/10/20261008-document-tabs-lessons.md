@@ -19,8 +19,17 @@ that the next person does not rediscover this.
   `toHaveURL(/\/documents\//)` after creating a document was already true, so the test would have
   read the landed document's id. Every `goto("/")` had to be read for it.
 
+- The by-hand pass found what no test could. Every check was green while the header, the tab strip
+  and the history button sat in three places with three looks. Fixing it (milestone 6) took one more
+  round on a PR that was otherwise done.
+- A review session asked to report only still edited the shared working tree. It dropped a check
+  in `lib/tabs.ts`, then restored it after its own code review caught the change. `git status`
+  here confirmed nothing was left over.
+
 ## What we would do differently
 
+- Sketch where a new control sits against the existing rows before building it. Tabs added
+  under the header, beside a title-row button, made a third row nobody had placed on purpose.
 - Playwright's `filter({ has })` takes a locator relative to the filtered element; passing one built
   from the page root matches nothing. Build the inner locator from scratch.
 
@@ -29,3 +38,7 @@ that the next person does not rediscover this.
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
 - Constants a server component and a client component share go in a module with no directive.
+  This came up twice: `SIDEBAR_COOKIE`, then `DOCUMENT_ACTIONS_ID`, both in `ui.tsx`.
+- Top-of-page order: tabs, then one bar for the open document (path, presence, its actions),
+  then the content with only its title. Workspace-wide links go in the sidebar. This is the shape
+  `app-shell.md` now states, worth checking any new header control against.

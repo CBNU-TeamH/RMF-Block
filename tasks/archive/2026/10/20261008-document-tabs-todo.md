@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-08
 **Issue**: #168
-**Design**: no new module doc — the change lands in [`app-shell.md`](../../docs/design/app-shell.md) (the shell owns `/`, the sidebar and the frame around `<main>`).
+**Design**: no new module doc — the change lands in [`app-shell.md`](../../../../docs/design/app-shell.md) (the shell owns `/`, the sidebar and the frame around `<main>`).
 
 Found while checking #142 by hand: on first entry no document is open, so the header roster has
 nothing to scope to (the viewer plus every offline member, all dimmed), and moving between
@@ -120,7 +120,7 @@ Out of scope: pinned/preview tabs, an empty tab, several editors mounted at once
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior. For each relevant layer, name existing tests
 that cover it, required updates/new cases, or a concrete reason no change is needed.
 
@@ -172,6 +172,15 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 - E2E specs that assumed `/` stays `/`.
 
 ## Review
+
+Shipped in #178 (squash 4167d22, 2026-10-09):
+- No home page; per-browser tabs that reorder and close.
+- A collapsible sidebar rail.
+- The 새 문서 dialog as a layout provider.
+- After the by-hand pass, tabs above one document bar, with history as an icon there and 관리자 in
+  the sidebar.
+
+Moved elsewhere: several simultaneous presenters with a chooser, decided to build in #100 (v0.0.3).
 
 Review round (2026-10-09; `/simplify` and `/code-review low` in a separate session):
 
