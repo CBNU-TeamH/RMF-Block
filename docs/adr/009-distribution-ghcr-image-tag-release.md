@@ -14,16 +14,16 @@ The hosts are team members' laptops: Windows and Linux on x86-64, and Apple Sili
 
 ## Decision
 
-1. **Publish a prebuilt app image to GitHub Container Registry**, as `ghcr.io/cbnu-teamh/rmf-block`. A host downloads the compose file and `.env.sample` from a release, then runs `docker compose up` without cloning or building anything.
+1. **Publish a prebuilt app image to GitHub Container Registry**, as `ghcr.io/cbnu-teamh/rmf-block`. A host downloads the compose file and `env.sample` (the repository's `.env.sample`, renamed because GitHub renames an asset with a leading dot) from a release, then runs `docker compose up` without cloning or building anything.
 2. **One tag, two architectures.** The image is built for `linux/amd64` and `linux/arm64` and pushed as one manifest list. An Apple Silicon host pulls the arm64 image natively, with no emulation. The Dockerfile does not change: `node:24-alpine` is itself multi-arch, and `pnpm install` picks the matching native binaries.
 3. **A pushed git tag is the release, and the workflow orders the steps.** A human pushes `vX.Y.Z` on a commit already on `main`. One workflow then:
-   1. checks the commit is on `main`;
-   2. builds and pushes the image as `X.Y.Z` and moves `latest`;
+   1. checks the version against `package.json` and the commit is on `main`, then checks the GitHub Release for that tag; only HTTP 404 permits building, while an existing release or a lookup failure stops the workflow;
+   2. builds and pushes the image as `X.Y.Z` and moves `latest` for a final-version tag only;
    3. only if that succeeded, creates the GitHub Release with generated notes, the compose files attached, and the image's manifest-list digest in the notes.
 
    A release therefore never exists without its image. A `-rc.N` tag runs the same path as a prerelease and does not move `latest`.
 4. **No release branch.** A release is a tag on `main`. A `release/X.Y` branch is cut from the tag only if an old version ever needs a fix while `main` has moved on.
-5. **Version tags are immutable; only `latest` moves.** Compose names the image by version tag, because it is readable and is bumped in one place. The digest in the release notes is the exact record, since a tag can be re-pushed and a digest cannot.
+5. **Published version tags are immutable; only `latest` moves.** Runs for the same tag share a concurrency group with `cancel-in-progress: false`, so a later run checks for the release after the earlier run finishes. Once the GitHub Release exists, the workflow refuses to build or push that version again. A failed run before release creation can be retried, including after an image push. Compose names the image by version tag, because it is readable and is bumped in one place; the notes record the manifest-list digest.
 6. **Yorkie and MongoDB stay bundled.** Compose always runs its own pinned Yorkie and MongoDB. Docker already reuses those images when they are present locally. Attaching to a Yorkie or MongoDB server the host already runs is not supported, for three reasons:
    - The browser derives Yorkie's address from the page's host and port 8080 (`lib/yorkie-address.ts`).
    - Startup writes the auth webhook onto the Yorkie project, which would overwrite another deployment's setting.
@@ -45,8 +45,8 @@ The hosts are team members' laptops: Windows and Linux on x86-64, and Apple Sili
 
 - Host instructions change. The README's quick start becomes "download from the release, set `HOST_LAN_IP`, `docker compose up`", and building from source moves to `CONTRIBUTING.md`.
 - `docker-compose.yml` names the published image. Development, CI and `pnpm e2e:isolated` still build from source: `docker-compose.override.yml`, which only a clone has, adds `build: .` back, and Compose merges it whenever no `-f` is given.
-- The compose file pins `name: rmf-block`. Otherwise the project, and with it the volume names, would follow the folder it runs from, and a release run beside a clone collides with the clone's stopped containers over `container_name`. Both happened in a manual run on 2026-10-09. A clone and a release on one machine therefore share one workspace.
+- The compose file defaults to `name: rmf-block`, so a clone and a release using that name share one workspace. An older installation may have used a different project name. Before switching to release files in a separate folder without the clone's override, read the existing container's Compose label and set `COMPOSE_PROJECT_NAME` in the copied `.env` to preserve its containers and volume names ([README](../../README.md#upgrading)). `down` alone does not transfer data to a new project name.
 - The arm64 half is built under QEMU on an x86-64 runner, so a release build takes several times longer than CI's. If that becomes painful, the fix is a native `ubuntu-24.04-arm` runner and a manifest merge step, not dropping arm64.
-- An organisation package is private on its first push. An org owner makes it public once.
+- An organisation package is private on its first push. On the first release, an org owner makes it public after the rc is published and before the final tag is pushed.
 - `package.json`'s `version` and the tag have to agree. The release checklist in `CONTRIBUTING.md` says so.
 - The image is about 945 MB, mostly `node_modules`, because ADR-005 rules out `output: "standalone"`. Trimming it, starting with the unused glibc `@next/swc` binary on an Alpine base, is separate work.

@@ -42,10 +42,21 @@ You need Docker with Compose 2.20 or newer — nothing else: no clone, no Node.j
 [release](https://github.com/CBNU-TeamH/RMF-Block/releases) runs a published image built for both
 x86-64 and Apple Silicon.
 
+On Linux or macOS:
+
 ```bash
 mkdir rmf-block && cd rmf-block
 curl -LO https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/docker-compose.yml
 curl -L -o .env https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/env.sample
+```
+
+On Windows PowerShell 5.1:
+
+```powershell
+mkdir rmf-block
+Set-Location rmf-block
+curl.exe -LO https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/docker-compose.yml
+curl.exe -L -o .env https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/env.sample
 ```
 
 Set `HOST_LAN_IP` in `.env` to this machine's address on the LAN, the one guests will type;
@@ -85,10 +96,46 @@ Download the new release's `docker-compose.yml` over the old one, keep `.env`, a
 docker compose pull && docker compose up -d
 ```
 
-The documents and settings stay. The file names its Compose project `rmf-block`, so the same volumes
-reattach whichever folder it runs from. Each release's file names its own version. To pin the exact
-image, append the digest from the release notes (`…:0.0.1@sha256:…`). Use that one and not a
-digest from the package page, which pins a single architecture.
+On Windows PowerShell 5.1, run `up` only if `pull` succeeds:
+
+```powershell
+docker compose pull
+if ($LASTEXITCODE -eq 0) { docker compose up -d }
+```
+
+The documents and settings stay when the Compose project name stays the same. The release file
+defaults to `rmf-block`; an older installation may have used its folder name instead.
+
+**Switching an existing clone to a release:** before changing folders or removing containers,
+find the current project name. On Linux or macOS:
+
+```bash
+docker inspect rmf-app --format '{{ index .Config.Labels "com.docker.compose.project" }}'
+```
+
+On Windows PowerShell 5.1:
+
+```powershell
+docker inspect rmf-app | ConvertFrom-Json | ForEach-Object { $_.Config.Labels.'com.docker.compose.project' }
+```
+
+Download the new release's `docker-compose.yml` into a separate folder and copy your existing
+`.env` there, keeping `HOST_LAN_IP` and the other settings. Do not download `env.sample` over it.
+Set `COMPOSE_PROJECT_NAME` in the copied `.env` to the name printed above, for example:
+
+```dotenv
+COMPOSE_PROJECT_NAME=rmf-block
+```
+
+Run the upgrade commands from that folder. It must contain no `docker-compose.override.yml`,
+because a clone's override selects a source build. Keeping the project name reuses the existing
+containers and the `app-data` and `mongo-data` volumes. `docker compose down` alone does not
+move data between project names; changing the name selects different volumes. Do not use
+`down -v`, which deletes them.
+
+Each release's file names its own version. To pin the exact image, append the digest from the
+release notes (`…:0.0.1@sha256:…`). Use that one and not a digest from the package page, which pins
+a single architecture.
 
 ### If a guest cannot connect
 

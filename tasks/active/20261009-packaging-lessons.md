@@ -13,6 +13,9 @@ that the next person does not rediscover this.
 - **`gh auth refresh` uses the device flow.** It shows a one-time code to enter at github.com/login/device, and sends no GitHub Mobile prompt.
 - **GitHub renames a release asset whose name starts with a dot**, so `.env.sample` is attached as `env.sample`. The README saves it straight to `.env` with `curl -L -o .env …/env.sample`.
 - **A tag push runs the pre-push hook too**, so the full test suite and build run (about two minutes) for a push that carries no code.
+- **A default Compose project name does not migrate older volumes.** Read the running or stopped app container's Compose label and preserve it through `COMPOSE_PROJECT_NAME` when switching to a release folder. Removing containers alone does not transfer data.
+- **PowerShell 5.1 has a `curl` alias and cannot parse `&&`.** Use `curl.exe`, separate folder creation from `Set-Location`, and guard `up` with `$LASTEXITCODE` after `pull`.
+- **An unsuccessful release lookup does not prove absence.** Only HTTP 404 permits publishing; existing releases and lookup failures stop before building. Serialize runs for the same tag so both cannot pass the absence check at once.
 
 ## What we would do differently
 
@@ -20,4 +23,4 @@ that the next person does not rediscover this.
 
 ## Worth extracting
 
-- ...
+- None for this follow-up: the migration and shell instructions belong in the README, and the publication guard belongs in ADR-009.

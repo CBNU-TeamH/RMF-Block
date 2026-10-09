@@ -9,7 +9,7 @@
 ### 1. Split the compose file into the host's file and the clone's override
 
 - **What**: `docker-compose.yml` names the published image and pins the project name. A new `docker-compose.override.yml` adds `build: .` back, so a clone keeps building from source.
-  - The pinned name is `name: rmf-block`. With it, starting the stack from any folder replaces the same containers and reattaches the same volumes, where today it collides on `container_name` or starts an empty workspace. Both were seen in a manual run on 2026-10-09.
+  - The default name is `name: rmf-block`. Starting from any folder with the same project name replaces the same containers and reattaches the same volumes. Older installations with another name must preserve it through `COMPOSE_PROJECT_NAME` in `.env`; otherwise fixed container names can collide and different volumes can open an empty workspace.
 - **Files**: `docker-compose.yml`, `docker-compose.override.yml` (new).
 - **Reuse**: Compose merges `docker-compose.override.yml` automatically when no `-f` is given. CI (`docker compose up -d --build app`), `pnpm docker:up` and `scripts/e2e-isolated.mjs` all run without `-f`. The isolated runner reads `docker compose config`, which includes the override, and overwrites `name` and `build.context` itself.
 - **Done**:
@@ -20,11 +20,11 @@
 ### 2. A tag-triggered release workflow
 
 - **What**: pushing `v*` does three things in order:
-  1. Checks the tag against `package.json`, and on the upstream repository that the commit is on `main`.
+  1. Checks the tag against `package.json`, and on the upstream repository that the commit is on `main`, then requires HTTP 404 from the tag's GitHub Release lookup before building.
   2. Builds `linux/amd64` and `linux/arm64` and pushes them as one manifest list.
   3. Only then creates the GitHub Release. It attaches the compose file, rewritten to the exact version, and `.env.sample`, and puts the manifest-list digest in the notes.
 
-  `-rc.N` tags make a prerelease and do not move `latest`.
+  `-rc.N` tags make a prerelease and do not move `latest`. Runs for one tag cannot overlap and do not cancel an in-progress run. An existing release blocks another image push; failures before release creation remain retryable. Checkout does not persist credentials; release creation still uses `GH_TOKEN`.
 - **Files**: `.github/workflows/release.yml` (new).
 - **Reuse**: Docker's official actions (`setup-qemu`, `setup-buildx`, `login`, `metadata`, `build-push`). The metadata action generates the OCI labels, so the Dockerfile does not change. Login uses `GITHUB_TOKEN`; there is no new secret.
   - The image name is taken from the repository owner, lowercased. That lets the same workflow rehearse on the fork into `ghcr.io/taejinchoi-cbnu/rmf-block`.
@@ -33,8 +33,8 @@
 ### 3. Host and maintainer docs
 
 - **What**:
-  - **README**: the quick start becomes "download from the latest release, set `HOST_LAN_IP`, `docker compose up`", followed by upgrading (`docker compose pull && docker compose up -d`) and pinning by manifest-list digest. Building from source moves to `CONTRIBUTING.md`.
-  - **CONTRIBUTING**: a new "Releasing" checklist.
+  - **README**: the quick start becomes "download from the latest release, set `HOST_LAN_IP`, `docker compose up`", with separate Bash and PowerShell 5.1 commands. Upgrading runs `up` only after a successful `pull`; clone-to-release migration copies `.env` to a separate folder and preserves the existing project name. Pinning uses the manifest-list digest. Building from source moves to `CONTRIBUTING.md`.
+  - **CONTRIBUTING**: a new "Releasing" checklist: rc publication, first package visibility change, anonymous-pull rehearsal, then final tag push.
   - **`.env.sample`**: the header covers both ways in.
   - **ADR-009**: the override is confirmed in its Consequences.
   - Also fixed while here: the README still puts the Admin link in the top bar, which #178 moved to the sidebar.
@@ -93,8 +93,21 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 - ADR-009 stays Proposed until milestone 5.
 - Repository settings outside the code:
   - Actions on the fork (rehearsal only).
-  - The org package's visibility, set once by an org owner after the first upstream push.
-- A host who started from a clone and later uses a release shares the same volumes, because of `name: rmf-block`. This is intended.
+  - The org package's visibility, set once by an org owner after the first upstream rc succeeds and before the first final tag push.
+- A host switching from a clone to a release shares the same volumes when the existing Compose project name is retained. The README covers older names as well as the `rmf-block` default.
+
+## PR #181 review follow-up
+
+- Scope: fix the existing-project migration and PowerShell 5.1 instructions, plus all four findings in [the CodeRabbit review](https://github.com/CBNU-TeamH/RMF-Block/pull/181#pullrequestreview-5467418145).
+- Success criteria: Compose config retains both volume names for an older project and selects the GHCR image without a build in a release folder; PowerShell 5.1 parses the installation and upgrade commands, uses native `curl.exe`, and skips `up` when `pull` fails; the actual workflow lookup script allows only HTTP 404 and blocks HTTP 200/401/403/429/500 and network failures before image push.
+- Test selection: execute the workflow shell block against controlled HTTP responses and check with actionlint; validate Compose config without starting containers and run PowerShell command checks with downloads in a temporary folder and a Docker stand-in. No new Vitest, browser E2E, or container-smoke cases: application code, images, startup, networking and Compose files are unchanged by this follow-up.
+- Work stays on `feat/packaging`. No live stack, release, or package visibility changes; Apple Silicon execution is outside this follow-up. The personal Korean journal is updated locally and excluded from commits.
+- Verification results (2026-10-09):
+  - `python3 /tmp/rmf-181-verify.py`: the actual lookup shell block was extracted from `release.yml` and executed with Bash's runner flags against a local HTTP server. HTTP 404 reached a sentinel representing the next push; HTTP 200/401/403/429/500 and connection refusal exited nonzero before it. Static checks confirmed the lookup precedes `build-push`, no `continue-on-error` is present, checkout disables credential persistence, and same-tag concurrency does not cancel the running workflow. Hosted concurrency was not exercised because no tag was pushed.
+  - The same harness used `docker compose config --format json` on a simulated older clone (no top-level `name`, folder `old-checkout`) and a release folder with a copied `.env` plus `COMPOSE_PROJECT_NAME=old-checkout`. Both selected `old-checkout_app-data` and `old-checkout_mongo-data`; the release selected `ghcr.io/cbnu-teamh/rmf-block:0.0.1` with no `build`. Removing the project override selected the default `rmf-block_*` volumes instead. No containers were started or changed.
+  - `powershell.exe -NoProfile -ExecutionPolicy Bypass -File '\\wsl.localhost\Ubuntu\tmp\rmf-181-powershell.ps1'`: PowerShell 5.1.26100.9444 parsed all three README PowerShell blocks. Native `curl.exe` downloaded temporary file-URL fixtures with `-LO` and `-L -o .env`; folder creation and `Set-Location` worked. With a Docker stand-in, successful `pull` ran `up -d`, failed `pull` skipped it, and the inspect JSON pipeline returned the older project name. Reproduced the original `&&` parse failure (`InvalidEndOfLine`) and the `curl` alias failure (`NamedParameterNotFound`). This checks syntax and local command behavior, not a live installation or GitHub download.
+  - `docker run --rm -v /mnt/c/Users/user/Desktop/rmf-block:/repo -w /repo rhysd/actionlint:1.7.7 .github/workflows/release.yml`: clean.
+  - `pnpm verify:docs`, `pnpm comments`, and `git diff --check`: clean.
 
 ## Review
 

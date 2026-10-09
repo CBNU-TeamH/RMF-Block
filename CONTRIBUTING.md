@@ -61,7 +61,8 @@ git config --global core.autocrlf input
 to `.env`, then `docker compose up --build`. In a clone, Compose merges
 `docker-compose.override.yml` over `docker-compose.yml` and builds the app from this checkout; a host
 running a release has only `docker-compose.yml`, which pulls the published image. Both use the
-Compose project `rmf-block`, and so the same volumes.
+Compose project `rmf-block` by default, and so the same volumes. For an older installation with a
+different project name, follow the [README migration steps](README.md#upgrading).
 
 **Older Docker Compose refuses the file.** `docker-compose.yml` uses `attach: false` on the mongo
 service; Compose before 2.20 (2.13 was measured) rejects the whole file with `services.mongo
@@ -123,8 +124,10 @@ which checks block a merge: `AGENTS.md` §6. How the layers of tests divide the 
 A release is a tag on `main`, with no release branch ([ADR-009](docs/adr/009-distribution-ghcr-image-tag-release.md)).
 Pushing the tag runs `.github/workflows/release.yml`, which works in this order:
 
-1. Checks the tag against `package.json` and that its commit is on `main`.
-2. Pushes `ghcr.io/cbnu-teamh/rmf-block:X.Y.Z` for `linux/amd64` and `linux/arm64`, and moves `latest`.
+1. Checks the tag against `package.json` and that its commit is on `main`, then checks that no
+   GitHub Release exists for the tag. Only an HTTP 404 allows the build to proceed; lookup errors fail.
+2. Pushes `ghcr.io/cbnu-teamh/rmf-block:X.Y.Z` for `linux/amd64` and `linux/arm64`. Only a final-version
+   tag moves `latest`; `-rc.N` tags leave it alone.
 3. Only then creates the release. The release attaches `docker-compose.yml`, rewritten to `X.Y.Z`,
    and `env.sample`, and its notes give the image's digest.
 
@@ -133,10 +136,14 @@ To cut `X.Y.Z`:
 1. Merge a PR that sets `version` in `package.json` to `X.Y.Z`, unless `main` already has it.
 2. Check that CI on `main` is green.
 3. Rehearse: `git tag vX.Y.Z-rc.1 upstream/main && git push upstream vX.Y.Z-rc.1`. An `-rc.N` tag
-   makes a prerelease and leaves `latest` alone. Run the README's Getting started from an empty
-   folder with that prerelease's two files.
-4. Release: `git tag vX.Y.Z upstream/main && git push upstream vX.Y.Z`.
-5. On the first release only, an org owner makes the `rmf-block` package public (package
-   settings → Change visibility). A new organisation package starts private.
+   makes a prerelease and leaves `latest` alone.
+4. On the first release only, after the rc workflow succeeds, an org owner makes the `rmf-block`
+   package public (package settings → Change visibility). A new organisation package starts private.
+5. Run the README's Getting started from an empty folder with that prerelease's two files,
+   and verify that the image can be pulled anonymously.
+6. Release: `git tag vX.Y.Z upstream/main && git push upstream vX.Y.Z`.
 
-Never re-push a version tag; publish a new version instead. Only `latest` moves.
+Never re-push a published version tag; publish a new version instead. Runs for the same tag cannot
+overlap and do not cancel an in-progress run. A later run stops before building if the release
+already exists. A failed run can be retried while no GitHub Release exists, including a failure
+after the image push. Only `latest` moves after publication.
