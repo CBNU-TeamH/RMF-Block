@@ -44,7 +44,8 @@ The hosts are team members' laptops: Windows and Linux on x86-64, and Apple Sili
 ## Consequences
 
 - Host instructions change. The README's quick start becomes "download from the release, set `HOST_LAN_IP`, `docker compose up`", and building from source moves to `CONTRIBUTING.md`.
-- `docker-compose.yml` names the published image. Development, CI and `pnpm e2e:isolated` still have to build from source, so a separate file has to add `build: .` back for a clone. The intended mechanism is Compose's automatic `docker-compose.override.yml`, to be confirmed in #160.
+- `docker-compose.yml` names the published image. Development, CI and `pnpm e2e:isolated` still build from source: `docker-compose.override.yml`, which only a clone has, adds `build: .` back, and Compose merges it whenever no `-f` is given.
+- The compose file pins `name: rmf-block`. Otherwise the project, and with it the volume names, would follow the folder it runs from, and a release run beside a clone collides with the clone's stopped containers over `container_name`. Both happened in a manual run on 2026-10-09. A clone and a release on one machine therefore share one workspace.
 - The arm64 half is built under QEMU on an x86-64 runner, so a release build takes several times longer than CI's. If that becomes painful, the fix is a native `ubuntu-24.04-arm` runner and a manifest merge step, not dropping arm64.
 - An organisation package is private on its first push. An org owner makes it public once.
 - `package.json`'s `version` and the tag have to agree. The release checklist in `CONTRIBUTING.md` says so.

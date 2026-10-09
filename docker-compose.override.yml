@@ -1,0 +1,8 @@
+# Compose merges this over docker-compose.yml whenever no `-f` is given, so in
+# a clone (`pnpm docker:up`, CI, `pnpm e2e:isolated`) the app is built from
+# source. It is not shipped with a release. The local image name keeps a source
+# build from being tagged as the published image.
+services:
+  app:
+    build: .
+    image: rmf-block:dev

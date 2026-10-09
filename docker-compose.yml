@@ -1,6 +1,15 @@
+# The file a host downloads from a release (ADR-009); a clone also reads
+# docker-compose.override.yml, which builds the app from source instead.
+#
+# Pinned so the project does not take the folder's name: a stack started from
+# any folder reattaches the same volumes, and replaces these containers rather
+# than colliding with them over `container_name`.
+name: rmf-block
+
 services:
   app:
-    build: .
+    # The release attaches a copy with `latest` replaced by its own version.
+    image: ghcr.io/cbnu-teamh/rmf-block:latest
     container_name: rmf-app
     ports:
       - "3000:3000"
