@@ -87,6 +87,11 @@ VPN and loopback interfaces may also be listed. For example, if the LAN address 
 HOST_LAN_IP=192.168.0.14
 ```
 
+For this Docker setup, set only `HOST_LAN_IP` and leave the other sample settings
+as supplied. Choose the workspace name and password in the browser after startup.
+The commented Yorkie addresses are for native development; Compose supplies its
+own internal addresses and does not use those values from `.env`.
+
 The release files do not automatically detect the host's LAN IP. In a clone,
 `pnpm docker:up` runs [`scripts/detect-host-ip.sh`](scripts/detect-host-ip.sh) on the host
 to attempt detection and write `.env`; that script is not included in a release.

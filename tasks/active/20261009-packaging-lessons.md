@@ -17,6 +17,7 @@ that the next person does not rediscover this.
 - **PowerShell 5.1 has a `curl` alias and cannot parse `&&`.** Use `curl.exe`, separate folder creation from `Set-Location`, and guard `up` with `$LASTEXITCODE` after `pull`.
 - **An unsuccessful release lookup does not prove absence.** Only HTTP 404 permits publishing; existing releases and lookup failures stop before building. Serialize runs for the same tag so both cannot pass the absence check at once.
 - **LAN IP lookup needs an adapter choice.** Windows users query Windows rather than WSL; macOS users look up the hardware device instead of assuming `en0`; Linux users copy the LAN interface's IPv4 without its prefix. Release files do not include the clone's detection script.
+- **An empty environment value is not an absent one.** Native Yorkie startup uses `??` defaults, so active empty assignments in a shared sample prevent fallback. Commented override examples preserve the defaults, while full Compose supplies its own internal addresses.
 
 ## What we would do differently
 

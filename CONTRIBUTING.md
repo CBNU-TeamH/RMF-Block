@@ -26,19 +26,23 @@ cp .env.sample .env
 
 `WORKSPACE_PASSWORD` is optional: left empty, the server starts unopened and the Host link leads to
 the setup screen; set (at least four characters), it seeds a workspace that has never been set up —
-handy for development and E2E, ignored once the setup screen has saved its own. Configure both
-Yorkie addresses. For the app running natively beside Yorkie on Docker Desktop:
+handy for development and E2E, ignored once the setup screen has saved its own. Check both
+Yorkie addresses for native development. The sample keeps their override examples commented
+out; the startup defaults match these addresses for an app running natively beside Yorkie on
+Docker Desktop. Uncomment and edit them in `.env` if your setup differs:
 
 ```dotenv
 YORKIE_ADMIN_ADDR=http://localhost:8080
 YORKIE_AUTH_WEBHOOK_URL=http://host.docker.internal:3000/api/internal/yorkie/auth
 ```
 
-The sample's empty Yorkie values override the startup defaults; leaving them blank makes
-webhook registration fail. On Linux Docker Engine, use a host address reachable from Yorkie's
+Do not add empty `YORKIE_ADMIN_ADDR=` or `YORKIE_AUTH_WEBHOOK_URL=` entries: an empty value
+overrides the startup default and makes webhook registration fail. On Linux Docker Engine,
+use a host address reachable from Yorkie's
 container for `YORKIE_AUTH_WEBHOOK_URL`, or add `host.docker.internal:host-gateway` to the Yorkie
 service's `extra_hosts` before using the Docker Desktop example. The full container stack sets
-both addresses itself in `docker-compose.yml`; these values are for native development.
+both addresses itself in `docker-compose.yml` and does not read these two values from `.env`;
+these overrides are for native development.
 
 ```bash
 docker compose up -d yorkie   # Yorkie on :8080 — realtime sync needs it

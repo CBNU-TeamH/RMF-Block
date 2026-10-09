@@ -117,6 +117,13 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 - Command checks: `ip -4 addr show scope global` ran successfully in the local WSL environment; Windows PowerShell `ipconfig` ran successfully and listed the connected Wi-Fi IPv4 address. These checks do not prove guest connectivity. Apple's interface lookup guide confirms `networksetup -listallhardwareports`, and its [ipconfig manual](https://github.com/apple-oss-distributions/bootp/blob/main/ipconfig.tproj/ipconfig.8) documents `getifaddr`. macOS execution requires a Mac and was not performed here.
 - Documentation checks: `pnpm verify:docs`, `pnpm comments` and `git diff --check` passed. Configuration values and runtime code are unchanged.
 
+## Native Yorkie environment examples follow-up
+
+- Scope: comment out the two native-only Yorkie overrides in `.env.sample`, supply concrete Docker Desktop examples, and distinguish native setup from full Compose execution in README and CONTRIBUTING. The shared sample still serves release users through `HOST_LAN_IP`.
+- Success criteria: a copied sample leaves the native startup defaults available rather than overriding them with empty strings; full Compose keeps its existing internal addresses; users know that CI and isolated E2E obtain these addresses from Compose.
+- Test selection: verify sample parsing against the address expressions in `instrumentation.ts`, compare resolved full Compose configuration using the committed and edited samples, then run `pnpm verify:docs`, `pnpm comments` and `git diff --check`. No new Vitest, browser E2E or container-smoke cases: application code, Compose configuration and container startup are unchanged; the sample changes native environment preparation. No host `.env` or live containers are changed.
+- Results: Node's `parseEnv` found neither Yorkie override in the edited sample; evaluating the actual startup address expressions against it returned the documented localhost Admin URL and Docker Desktop webhook URL. `docker compose config --format json` with the old and new samples produced identical full configurations. `pnpm verify:docs`, `pnpm comments` and `git diff --check` passed. Native webhook reachability was not tested; it depends on the developer's network setup.
+
 ## Review
 
 Filled in at the end: what shipped, what was cut, what moved to another task.
