@@ -93,3 +93,8 @@ rmf-app  |   Guest: http://192.168.0.14:3000
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the development setup, the checks, and how a change
 becomes a pull request.
+
+## License
+
+[MIT](LICENSE). The bundled Pretendard font is under the SIL Open Font License 1.1
+([`app/fonts/PretendardVariable.LICENSE.txt`](app/fonts/PretendardVariable.LICENSE.txt)).
