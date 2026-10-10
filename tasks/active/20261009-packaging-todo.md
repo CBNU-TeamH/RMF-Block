@@ -148,6 +148,8 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 - Results (2026-10-10):
   - `Check the release` on the fork: `v0.0.1-rc.1` with its digest `sha256:ff9716d1…` passed and marked the release as existing; with another digest, or with no image, it failed with "publish a new version"; a missing release passed; a bad token (HTTP 401) failed.
   - `Move latest`: on `cli/cli`, its latest release tag moved `latest` (stub) and `v2.0.0` left it with a notice; on the fork, which has no latest release (HTTP 404), the step failed rather than guess.
+  - Fork rehearsal, `v0.0.1-rc.2` on `38e59b7`, run 38026642205: attempt 1 built and pushed `sha256:e78ce8ed…` and created the prerelease; attempt 2, a re-run of the finished run, reused the image, passed the existing release, skipped metadata, build and release creation, and succeeded. `Move latest` was skipped both times (prerelease).
+  - Not exercised on a hosted run: `Move latest` itself, which needs a final tag; it first runs on the upstream `v0.0.1`, and a failure there is retried by re-running.
   - actionlint 1.7.7: clean. `pnpm verify:docs`, `pnpm comments` and `git diff --check`: clean.
 
 ## Review
