@@ -37,7 +37,7 @@ Management features layered on top of an already-working workspace and editor â€
 
 **Exit criteria**: a host can fully administer a workspace and its document tree without touching the block editor itself.
 
-**Note:** UC-011 (guest kick, password change) is not built. Phase 3 and Phase 4 below both shipped ahead of that gap, so the phase numbers are priority order, not a strict gate.
+**Note:** Phase 3 and Phase 4 below shipped before this phase was done, so the phase numbers are priority order, not a strict gate.
 
 ## Phase 3 â€” Collaboration awareness
 

@@ -90,8 +90,8 @@ the same for both.
 A new window fits its content, then resizes like picture-in-picture: from its corner, with its
 ratio locked, and the content scales with it.
 
-- **The fit.** The first time a block renders, it is measured at scale 1 before paint, so the
-  unfitted window never shows. That size is stored as the view's `base` and saved with it.
+- **The fit.** The first time a text or PDF block renders, it is measured at scale 1 before paint,
+  so the unfitted window never shows; an image view fits once the image has loaded. That size is stored as the view's `base` and saved with it.
   - Text is measured at most 360px wide.
   - An image uses its natural size, capped at 360×360.
   - A PDF, which has no size of its own, gets 360×480.

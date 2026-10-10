@@ -1,14 +1,14 @@
 # Presence and Focus Following
 
-- **Status**: Built. UC-030's thin slice (share → follow → end) is live; the rest of `lib/focus`
-  and `lib/presence` supports it and the connected-user list.
+- **Status**: Built: the presence roster, share/follow (UC-030) with ink and pointer, and location
+  tracking with jump/return (UC-040).
 - **Owns**: `lib/presence/`, `lib/focus/`, `app/(workspace)/presence-provider.tsx`,
   `app/(workspace)/presence-stack.tsx`, `app/(workspace)/presence-avatar.tsx`,
   `app/(workspace)/focus-follow-provider.tsx`,
   `app/(workspace)/focus-share.tsx`, `app/(workspace)/documents/[id]/use-focus-presence.ts`,
   `app/(workspace)/documents/[id]/ink-overlay.tsx`.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(b) (presence over the client
-  sync channel, not the WS hub); [`docs/SRS-ko.md`](../SRS-ko.md) FR-020-06/07/08, FR-030;
+  sync channel, not the WS hub); [`docs/SRS-ko.md`](../SRS-ko.md) FR-020-06/07/08, FR-030, FR-040;
   [`docs/conventions.md`](../conventions.md) (the `simple:` marker convention this doc's source
   files use).
 
@@ -40,12 +40,12 @@ only), which nine lowercase letters trivially satisfies.
 ## What gets published: `WorkspacePresence`
 
 Deliberately the same `WorkspaceMember` shape the session registry mints at join, extended with
-one field. Reusing it rather than defining a second identity type means there's only one place
+two optional fields. Reusing it rather than defining a second identity type means there's only one place
 the roster's color tag can disagree with the join-time color — and `FR-020-08` promises that
 color stays the same member's color across their devices, so a second identity type would just be
 a second chance to get that wrong.
 
-The extension is `presenting`: set while a member is sharing their view, cleared with `null`
+The first extension is `presenting`: set while a member is sharing their view, cleared with `null`
 (not `undefined`) when the share ends, and absent entirely for a member who has never presented.
 `null`, not `undefined`, because the Yorkie SDK `JSON.stringify`s every presence value before
 sending it — `undefined` does not survive that round trip, so a field meant to signal "no longer
@@ -54,8 +54,8 @@ sharing" has to use a value the wire format can actually carry.
 The second extension is `location` (UC-040): the document the member has open, and the block they
 last focused in it. `PresenceProvider` publishes the document from the route; the editor adds the
 block on focus. A block is deliberately *not* cleared on blur — a jump to someone who clicked
-away should still land where they were working, which the per-document `activeBlockId` (30s
-heartbeat) cannot promise. `FocusFollowProvider` owns the jump: it asks first if this browser is following someone (a follow
+away should still land where they were working, which the per-document `activeBlockId` (entries
+expire after 30s and are refreshed by a 5s heartbeat) cannot promise. `FocusFollowProvider` owns the jump: it asks first if this browser is following someone (a follow
 would pull it straight back), remembers one place to return to, and hands the editor a block to
 scroll to once the document has loaded.
 
@@ -93,8 +93,8 @@ straight over.
 
 The host proves themselves with the bootstrap secret (`lib/host-secret.ts`) and never fills in a
 join form, so there's no `WorkspaceMember` for them — without `HOST_PRESENCE`, the host would be
-the one person missing from the roster they're supposed to administer (`UC-011` kicks guests from
-this exact list). It uses a fixed id, `"host"`, where guests get a fresh `randomUUID()` each —
+the one person missing from the roster everyone else sees (kicking a guest happens on the admin
+page, not from this roster — see [`api.md`](api.md)). It uses a fixed id, `"host"`, where guests get a fresh `randomUUID()` each —
 one host per container, so the two id spaces can't collide. The color is a neutral gray chosen to
 not look like any of the eight rotating guest tags, and to stay legible on both light and dark
 paper, which rules out the obvious near-black.
@@ -589,4 +589,5 @@ Measured, not assumed:
 
 The realistic case is trivial on a LAN. The worst case is unchanged in kind from what was already
 accepted — it needs 8 uncleared maximum-length strokes standing at once, and the pointer adds 88
-bytes to that ceiling, not a materially new one.
+bytes to that ceiling, not a materially new one. While a stroke is being drawn the payload can
+briefly carry a 9th, in-progress mark, because the cap applies at pointerup.

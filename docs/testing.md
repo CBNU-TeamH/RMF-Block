@@ -95,8 +95,9 @@ a real browser — the E2E layer below.
 
 ### `app/` server components — async leaves
 
-All of this repo's async server components are **leaves**: they `await` only `cookies()` or
-`params`, then return a client component. That's why calling `await Page(props)` directly is
+The gate and page components this tier covers are **leaves**: they `await` only `cookies()` or
+`params`, then return a client component. (`app/admin/page.tsx` is not one: it also awaits the host
+check and an async trash purge, and returns server DOM.) That's why calling `await Page(props)` directly is
 enough — Next's own guidance against testing async Server Components with Vitest is about
 *nested* async components, streaming, and RSC serialization, none of which apply to a leaf.
 `redirect()`/`notFound()` really `throw` in this Next version, so the cases where the gate should
@@ -111,7 +112,7 @@ Two tiers, in order:
 - **Tier 1** — cover the leaves as they stand today, with `next/headers`/`next/navigation` mocked.
   The priority case is the **FR-020-04 auth gate** (`app/(workspace)/layout.tsx`): if it breaks,
   the whole workspace opens to anyone. FR-020-03 is the password *check* itself, done upstream in
-  `/api/auth/*` — the layout only enforces 04's absence-of-session flip side. Also in scope at
+  `POST /api/workspace/join` — the layout only enforces 04's absence-of-session flip side. Also in scope at
   this tier: the redirect when a session already exists (checked for both the host-cookie branch
   and the existing-session branch separately), and `notFound` for an unknown
   document id. All of it runs under the default `environment: "node"` (no DOM needed).

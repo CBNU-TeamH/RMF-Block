@@ -62,11 +62,11 @@ screen (`POST /api/workspace`), changes the password there without a restart
 connected users stay), and a restart resumes them (FR-010-05). The password is stored as a scrypt
 hash with its salt, never as itself, and compared in constant time (async scrypt, so a join
 never stalls the process). For development and CI, startup writes `WORKSPACE_PASSWORD`/`WORKSPACE_NAME`
-into the file when it does not exist yet (`seedWorkspaceFromEnv()`); once it exists they are never
-read. A file that does not parse, or lacks a valid salt and 64-hex hash, counts as not set up (logged
+into the file when no valid saved configuration exists (`seedWorkspaceFromEnv()`); while one does they
+are not read, and an unparsable or invalid file is re-seeded from them. A file that does not parse, or lacks a valid salt and 64-hex hash, counts as not set up (logged
 once) rather than an error — the setup screen rewriting it is the recovery, where throwing would
 fail every page; `PATCH /api/workspace/password` refuses before setup (409) so it cannot create the
-workspace and skip the name. The server boots either way — `/join` answers 503 until the workspace is open, and
+workspace and skip the name. The server boots either way — the `/join` page shows a not-open notice and `POST /api/workspace/join` answers 503 until the workspace is open, and
 startup prints that setup is unfinished.
 
 `lib/yorkie-admin.ts` registers this server's auth webhook with Yorkie at startup
@@ -218,7 +218,7 @@ The tables below are the target design, not the built set — the generated tabl
 | `DELETE` | `/api/workspace/members/:userId` | Kick a guest and close their connection | host | FR-011-01~03, FR-011-07 |
 | `POST` | `/api/workspace/trash/:id/restore` | Restore a deleted document, its subtree and its files, from the trash on `/admin` ([Documents](#documents)) | host | — |
 
-`lastJoinedAt` is deliberately **not** on `WorkspaceMember`, only on the stored record (`StoredMember`). `WorkspaceMember` is also the presence payload every browser publishes to every other (`lib/presence/types.ts`), so a field added there is broadcast to the whole workspace — and when someone last signed in is nobody else's business. The host reads it on the Members screen as 최근 접속, server-side.
+`lastJoinedAt` is deliberately **not** on `WorkspaceMember`, only on the stored record (`StoredMember`). `WorkspaceMember` is also the presence payload every browser publishes to every other (`lib/presence/types.ts`), so a field added there is broadcast to the whole workspace — and when someone last signed in is nobody else's business. It is stored and kept sorted by `members()` but no screen shows it yet.
 
 `GET /api/workspace`'s members are **who belongs to this workspace**, not who is online — the
 persistent record `.data/` keeps so a kick (`DELETE …/members/:userId`) and a restore have something
@@ -476,20 +476,9 @@ carries `location: { documentId, blockId } | null`, set from the route and the f
 it vanishes with the connection and needs no server event. Members who are not connected come
 from `.data/members.json` (`sessionRegistry.members()`), not from presence.
 
-### 4.2 Presentation session (FR-030) — draft, implementation deferred
+### 4.2 Presentation session (FR-030)
 
-Direction agreed, build postponed by team decision.
-
-| Direction | Event | Meaning |
-| --- | --- | --- |
-| client (presenter) → server | `presentation:start` | Begin presenting a document |
-| server → all | `presentation:started` | Announce presenter and document |
-| client (presenter) → server | `presentation:end` | End the session |
-| server → all | `presentation:ended` | Release followers |
-
-The server only announces *who* is presenting. Followers then subscribe to that presenter's Yorkie presence on the shared document directly and pin their own view to it client-side — reusing the existing `Watch`/presence stream instead of relaying viewport state through this server. Pause and resume (FR-030-08) are a client-side toggle and need no server call.
-
-Presenter highlight tools (FR-030-12/13) are not covered here and need their own design.
+No server events: sharing, following and the highlight tools run client-side over Yorkie presence — see [`presence-and-focus.md`](presence-and-focus.md).
 
 ### 4.3 Chat realtime delivery (FR-060-04)
 

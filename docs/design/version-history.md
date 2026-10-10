@@ -159,7 +159,7 @@ revisions out of the default view.
 
 ## Deleting a document
 
-**Measured, not assumed** (against `@yorkie-js/sdk@0.7.13`, not re-measured on the current `0.7.23` pin, on the Mongo-backed Yorkie in `docker-compose.yml`): a revision outlives the document it belongs to, but only by id. After `client.remove(doc)`, `getRevision(doc, revisionId)` still returns the full snapshot while `listRevisions` on a fresh `Document` under the same key returns empty. **Anything that deletes a document therefore has to keep the revision ids somewhere, or the history becomes unreachable rather than merely hidden** — a constraint for whoever builds FR-023's delete. FR-023's delete meets it by not removing anything from Yorkie: the catalogue row moves to the host's trash, `.data/documents/deleted.json`, which keeps the id — the Yorkie key — until the trash's 30-day purge ([`api.md`](api.md#documents)). UC-023's 비고 records the same, added under the team agreement `docs/SRS-ko.md` requires (`AGENTS.md` §5) — [issue #28](https://github.com/CBNU-TeamH/RMF-Block/issues/28).
+**Measured, not assumed** (against `@yorkie-js/sdk@0.7.13`, not re-measured on the current `0.7.23` pin, on the Mongo-backed Yorkie in `docker-compose.yml`): a revision outlives the document it belongs to, but only by id. After `client.remove(doc)`, `getRevision(doc, revisionId)` still returns the full snapshot while `listRevisions` on a fresh `Document` under the same key returns empty. **Anything that deletes a document therefore has to keep the revision ids somewhere, or the history becomes unreachable rather than merely hidden** — a constraint for whoever builds FR-023's delete. FR-023's delete meets it by not removing anything from Yorkie: the catalogue row moves to the host's trash, which keeps the id — the Yorkie key — until its purge ([`api.md`](api.md#the-document-endpoints)). UC-023's 비고 records the same, added under the team agreement `docs/SRS-ko.md` requires (`AGENTS.md` §5) — [issue #28](https://github.com/CBNU-TeamH/RMF-Block/issues/28).
 
 ## Who may restore
 
@@ -182,8 +182,8 @@ has no dedicated author field, so this is the whole mechanism). The sidebar show
 named or before-restore entry — automatic ones carry Yorkie's own description instead, which names
 no one. "Who did this" is answered by reading the revision, not by narrowing who could have.
 
-The auth webhook guards all four revision methods (list in [`api.md`](api.md) §2, "RPC —
-rmf-block-server ↔ Yorkie"). It checks only that the session is live, which is what keeps a
+The auth webhook guards all four revision methods (they are in `GUARDED_METHODS`
+in `lib/yorkie-admin.ts`: `CreateRevision`, `GetRevision`, `ListRevisions`, `RestoreRevision`). It checks only that the session is live, which is what keeps a
 revoked session from reading or writing history — the same rule for all four methods, matching the
 decision above that none of them needs a narrower gate.
 

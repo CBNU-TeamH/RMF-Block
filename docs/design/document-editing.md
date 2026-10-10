@@ -24,7 +24,7 @@ Block = { id: string (uuid), type: string, content: <type-specific, see below> }
 - `root.blocks` is a **Yorkie Array**, not an Object keyed by id. Yorkie's Array is RGA-backed, so concurrent inserts at the same position already converge deterministically — block order is the array position itself, not a stored field.
 - Reordering (FR-022-04) uses the array's native `moveAfter`/`moveFront` — no custom merge logic, per ADR-001.
 - `id` stays on every block regardless of position, since presence (`activeBlockId`) and the future 블록 링크 블록 need a stable reference independent of array order.
-- Block/text color and styling is an open decision (`AGENTS.md` §7) and intentionally not part of any block's `content` below — see that TODO item for why deferring it doesn't require reworking this schema.
+- Block/text color and styling is intentionally not part of any block's `content` below; the question was tracked in [issue #6](https://github.com/CBNU-TeamH/RMF-Block/issues/6) (closed).
 
 ## Every text-bearing block wraps its text
 
@@ -621,9 +621,9 @@ SRS §4.1 gives 목록 블록 nesting — "항목을 들여쓰기하여 중첩(�
 carries it in the schema. `Tab` and `Shift+Tab` are what set it,
 and `lib/blocks/indent.ts` holds the rule.
 
-**Indent is capped by the block above, not by the block itself.** The new depth is
-`min(depth + 1, previousListDepth + 1)`, so an item can never end up more than one level deeper
-than the item above it. Without that cap a depth-2 item can sit under a depth-0 one and render as
+**Indent is capped by the block above, not by the block itself.** Indent raises the depth by one
+only when that stays within the ceiling, `previousListDepth + 1`; otherwise nothing changes, so an
+item can never end up more than one level deeper than the item above it. Without that cap a depth-2 item can sit under a depth-0 one and render as
 a child of nothing. A list item with no list above it therefore cannot indent at all, and a
 non-list block above ends the run — nesting under a paragraph is not something this model can
 express. Outdent has no such rule: a stray nested item must always be able to come back out,
