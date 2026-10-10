@@ -24,7 +24,6 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
-| [Packaging: a published image and the first release](active/20261009-packaging-todo.md) | [lessons](active/20261009-packaging-lessons.md) |
 | [Admin and user-location E2E after admin integration](active/20261007-admin-e2e-todo.md) | [lessons](active/20261007-admin-e2e-lessons.md) |
 
 ## Archive

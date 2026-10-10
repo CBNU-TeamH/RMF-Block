@@ -8,6 +8,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Packaging: a published image and the first release](2026/10/20261009-packaging-todo.md) | [lessons](2026/10/20261009-packaging-lessons.md) |
 | [No home page — open documents as tabs, and a collapsible sidebar](2026/10/20261008-document-tabs-todo.md) | [lessons](2026/10/20261008-document-tabs-lessons.md) |
 | [The app-side `.data/` layer — shared JSON helpers, soft delete and a host trash](2026/10/20261008-data-layer-todo.md) | [lessons](2026/10/20261008-data-layer-lessons.md) |
 | [User location tracking — who is in which document, and jump to them](2026/10/20261007-user-location-tracking-todo.md) | [lessons](2026/10/20261007-user-location-tracking-lessons.md) |
