@@ -338,9 +338,7 @@ of merging with it.
 
 `lib/blocks/registry.ts` holds one entry per block type. The reason it is a `Record` keyed by the
 `BlockType` union rather than a `switch` with a `default` is exhaustiveness: **leave a key out and
-it does not compile.** This was measured before the table existed — adding a member to the union
-produced *one* compile error and *five* silent runtime fallbacks, one of which dropped the block
-from the document entirely. A `default` branch turns "we forgot this type" into a value.
+it does not compile.** A `default` branch turns "we forgot this type" into a value.
 
 ### Four surfaces, not twelve types
 

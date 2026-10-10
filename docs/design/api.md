@@ -361,7 +361,6 @@ Chat has two candidate implementations (§5). These REST endpoints belong to **v
 | Direction | Call | Purpose | Traceability |
 | --- | --- | --- | --- |
 | Yorkie → server | `POST /api/internal/yorkie/auth` (auth webhook) | Yorkie asks us to authorize each client operation: validate the token and that its session is still live (workspace-membership and per-document access checks are not built) | Execution arm of the FR-010/FR-020 auth chain, NFR-SEC-002/005 |
-| Server → Yorkie | ~~`Watch`~~ — **decided: not kept** | This subscription existed only to drive the delayed-write trigger, which ADR-002 deletes; Mongo now provides durability directly, so nothing needs it | ADR-002 |
 | Server → Yorkie | Admin API, read-only — document summaries and active editors | Supplementary source for who is editing what | FR-040 (support), FR-022-06 (support) |
 
 **Implemented.** Yorkie's port is still published, but reaching it no longer gets anyone in:
@@ -393,10 +392,9 @@ only the cache size and TTL — so something has to call the Admin API after Yor
 that to the host would make `docker compose up` two steps and, worse, would make *an unguarded
 Yorkie* the state you get by forgetting the second one.
 
-It exits with `process.exit`, not `throw`. Throwing was the first attempt and does not work: Next
-installs its own `unhandledRejection` listener, so a throw from `instrumentation.ts` is logged and
-swallowed, `app.prepare()` never rejects, and the process lives on without ever listening — measured
-at forty-five seconds of sitting there. In a container that is the worst outcome available, because
+It exits with `process.exit`, not `throw`: Next installs its own `unhandledRejection` listener, so a
+throw from `instrumentation.ts` is logged and swallowed, `app.prepare()` never rejects, and the
+process lives on without ever listening. In a container that is the worst outcome available, because
 Docker sees a running service, `restart` never fires, and compose reports no failure while the
 workspace looks up and serves nothing.
 

@@ -16,9 +16,7 @@
 
 Two related pieces of shared state, both riding the same mechanism for the same reason: **who is
 here** (presence, the connected-user list) and **where they're looking** (focus, UC-030's
-share/follow). Neither is covered by an existing design doc — `architecture.md` fixes that
-presence lives on the client sync channel rather than the WS hub, but not why, or how focus
-following reuses that same channel.
+share/follow).
 
 ## Why presence rides Yorkie, not the WS hub
 
@@ -120,10 +118,8 @@ would watch that person leave and rejoin. Identity reaches it as three strings r
 member object, because a fresh object each render would rebuild the connection each render.
 
 **The Yorkie address defaults to the page's own URL, not a server-computed one.** Whatever host
-someone typed to reach the app is by definition one they can reach. Handing every client the LAN
-address instead is what broke this on desktop: a page opened at `localhost:3000` was told to
-fetch `192.168.x.x:8080`, and Chrome, Brave and Firefox all refused to leave the loopback address
-space — while a phone, already on the LAN address, connected fine.
+someone typed to reach the app is by definition one they can reach; a LAN address is not reachable
+from a page opened at `localhost`, which browsers keep in the loopback address space.
 
 The one escape from that default is `YORKIE_PUBLIC_ADDR`, for a Yorkie that genuinely runs on a
 different machine than this app — a case the page's own URL cannot answer, so an explicit
@@ -394,7 +390,7 @@ Three caps follow, each with a stated basis rather than a round number:
   laptop-width pane. Past the cap, extending a mark is a no-op: the stroke freezes rather than
   losing its start, which would be more code and would move where the stroke appears to begin.
   Worst case, every one of `MARK_CAP`'s 8 marks at this cap: ≈ 127KB (`ink.ts` records the
-  measurement), up from ~1.8KB when a mark was a fixed rectangle — not shrunk further, because
+  measurement) — not shrunk further, because
   reaching it needs 8 uncleared 600-point strokes left standing at once, far outside real
   annotation use, and it costs bandwidth only for as long as that state persists, not a recurring
   per-second charge on top of what's below.
@@ -579,15 +575,11 @@ midpoints, cheaper than keeping two derived shapes in step.
 The presenter never renders their own dot — their OS cursor already shows where they are; drawing an
 extra one under it would be redundant, not merely unnecessary.
 
-### The pointer's cost was checked against marks becoming paths, not assumed
+### Pointer cost on the wire
 
-`MAX_POINTS_PER_MARK`'s own comment already prices a member's marks at up to ~127KB in the
-worst case, and that number didn't exist when #95 first reasoned "publish only the current point
-keeps the pointer's own payload O(1)" — marks were still a fixed ~110-byte rectangle then. Since
-presence has no delta, the pointer's own small payload rides alongside whatever `marks` currently
+Presence has no delta, so the pointer's own small payload rides alongside whatever `marks` currently
 are on *every* publish, and the pointer publishes far more often (continuously, while selected) than
-the occasional focus-change or 5-second heartbeat that used to be the only things re-sending marks.
-Measured, not assumed:
+the focus-change or 5-second heartbeat that also re-send marks. Measured:
 
 | scenario | payload/publish | at 10Hz |
 |---|---:|---:|
@@ -595,7 +587,6 @@ Measured, not assumed:
 | realistic marks (3 typical strokes) + pointer | ~1.9 KB | ~19 KB/s |
 | worst-case marks (8 maxed 600-point strokes) + pointer | ~127 KB | ~1.27 MB/s |
 
-The realistic case is trivial on a LAN. The worst case is unchanged in kind from what was already
-accepted — it needs 8 uncleared maximum-length strokes standing at once, and the pointer adds 88
+The realistic case is trivial on a LAN. The worst case — `MAX_POINTS_PER_MARK`'s ~127KB ceiling — needs 8 uncleared maximum-length strokes standing at once, and the pointer adds 88
 bytes to that ceiling, not a materially new one. While a stroke is being drawn the payload can
 briefly carry a 9th, in-progress mark, because the cap applies at pointerup.

@@ -51,8 +51,8 @@ list's length, so a corrupt catalogue with a cycle cannot loop forever.
 
 ## No home page: documents open as tabs
 
-There is no home screen (#168). With nothing open, the header roster had nothing to scope to and
-showed only the viewer and every offline member; and opening a document replaced the one open.
+There is no home screen (#168). The header roster and the one-document-per-route model need a
+document open to scope to, so there is nothing to put on a home page.
 
 **A tab is only a way back to a document.** The active tab is the `/documents/[id]` route — the one
 document mounted and attached — and the rest are links (`document-tabs.tsx`). Presence, the
@@ -82,8 +82,7 @@ shape `FloatingViewProvider` already has.
 ## Tabs, then one bar for the document, then the document
 
 Above the content there are two rows, and the document's own controls are in neither the tab strip
-nor the content (#178's by-hand pass, which found tabs, header and the history button in three
-different places). This is the arrangement Obsidian (tab strip, then each pane's view header),
+nor the content. This is the arrangement Obsidian (tab strip, then each pane's view header),
 Notion (breadcrumb with Share and history on the right, only the title in the page) and
 wafflebase (`SiteHeader` with the history toggle and presence) share:
 
