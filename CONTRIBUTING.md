@@ -26,19 +26,23 @@ cp .env.sample .env
 
 `WORKSPACE_PASSWORD` is optional: left empty, the server starts unopened and the Host link leads to
 the setup screen; set (at least four characters), it seeds a workspace that has never been set up —
-handy for development and E2E, ignored once the setup screen has saved its own. Configure both
-Yorkie addresses. For the app running natively beside Yorkie on Docker Desktop:
+handy for development and E2E, ignored once the setup screen has saved its own. Check both
+Yorkie addresses for native development. The sample keeps their override examples commented
+out; the startup defaults match these addresses for an app running natively beside Yorkie on
+Docker Desktop. Uncomment and edit them in `.env` if your setup differs:
 
 ```dotenv
 YORKIE_ADMIN_ADDR=http://localhost:8080
 YORKIE_AUTH_WEBHOOK_URL=http://host.docker.internal:3000/api/internal/yorkie/auth
 ```
 
-The sample's empty Yorkie values override the startup defaults; leaving them blank makes
-webhook registration fail. On Linux Docker Engine, use a host address reachable from Yorkie's
+Do not add empty `YORKIE_ADMIN_ADDR=` or `YORKIE_AUTH_WEBHOOK_URL=` entries: an empty value
+overrides the startup default and makes webhook registration fail. On Linux Docker Engine,
+use a host address reachable from Yorkie's
 container for `YORKIE_AUTH_WEBHOOK_URL`, or add `host.docker.internal:host-gateway` to the Yorkie
 service's `extra_hosts` before using the Docker Desktop example. The full container stack sets
-both addresses itself in `docker-compose.yml`; these values are for native development.
+both addresses itself in `docker-compose.yml` and does not read these two values from `.env`;
+these overrides are for native development.
 
 ```bash
 docker compose up -d yorkie   # Yorkie on :8080 — realtime sync needs it
@@ -57,6 +61,13 @@ Once per machine, so line endings match `.gitattributes` (`eol=lf`) on every OS:
 git config --global core.autocrlf input
 ```
 
+**The container from source** is `pnpm docker:up`: `scripts/detect-host-ip.sh` writes `HOST_LAN_IP`
+to `.env`, then `docker compose up --build`. In a clone, Compose merges
+`docker-compose.override.yml` over `docker-compose.yml` and builds the app from this checkout; a host
+running a release has only `docker-compose.yml`, which pulls the published image. Both use the
+Compose project `rmf-block` by default, and so the same volumes. For an older installation with a
+different project name, follow the [README migration steps](README.md#upgrading).
+
 **Older Docker Compose refuses the file.** `docker-compose.yml` uses `attach: false` on the mongo
 service; Compose before 2.20 (2.13 was measured) rejects the whole file with `services.mongo
 Additional property attach is not allowed`.
@@ -73,7 +84,8 @@ Additional property attach is not allowed`.
 | `tasks/` | Work in progress (`active/`) and finished work (`archive/`) — [`tasks/README.md`](tasks/README.md) |
 | `scripts/` | Doc checks and task helpers, behind the `package.json` scripts; `detect-host-ip.sh` is what `pnpm docker:up` runs first |
 | `instrumentation.ts` | Server startup — prints the Host and Guest lines |
-| `Dockerfile` · `docker-compose.yml` | The image the host runs, and the Yorkie and MongoDB containers beside it |
+| `Dockerfile` · `docker-compose.yml` | The image the host runs, and the Yorkie and MongoDB containers beside it; `docker-compose.override.yml` builds the app from source in a clone |
+| `.github/workflows/release.yml` | Publishes the image and the GitHub Release when a `v*` tag is pushed — see "Releasing" |
 | `.claude/skills/` | Review-plugin pointers and the repo's own skills — [`.claude/skills/README.md`](.claude/skills/README.md) |
 
 Which design doc owns which of these: each `docs/design/*.md` names its files on its **Owns**
@@ -110,3 +122,37 @@ which checks block a merge: `AGENTS.md` §6. How the layers of tests divide the 
   only moves task documents and regenerates the two task indexes; no application code or behaviour
   changes. Earlier archives used `chore:`;
   they stay as they are.
+
+## Releasing
+
+A release is a tag on `main`, with no release branch ([ADR-009](docs/adr/009-distribution-ghcr-image-tag-release.md)).
+Pushing the tag runs `.github/workflows/release.yml`, which works in this order:
+
+1. Checks the tag against `package.json` and that its commit is on `main`.
+2. Checks what an earlier run of the tag published. An `X.Y.Z` image is reused only if it was built
+   from the tag's commit, and a release only if its notes name that image's digest. Only an HTTP 404
+   counts as no release; a mismatch or a lookup error fails.
+3. Pushes `ghcr.io/cbnu-teamh/rmf-block:X.Y.Z` for `linux/amd64` and `linux/arm64`, unless reused.
+4. Only then creates the release, unless it exists. The release attaches `docker-compose.yml`,
+   rewritten to `X.Y.Z`, and `env.sample`, and its notes give the image's digest.
+5. Only then, if GitHub marks this tag as the latest release, points `latest` at that digest.
+   `-rc.N` tags and older versions leave it alone.
+
+To cut `X.Y.Z`:
+
+1. Merge a PR that sets `version` in `package.json` to `X.Y.Z`, unless `main` already has it.
+2. Check that CI on `main` is green.
+3. Rehearse: `git tag vX.Y.Z-rc.1 upstream/main && git push upstream vX.Y.Z-rc.1`. An `-rc.N` tag
+   makes a prerelease and leaves `latest` alone.
+4. On the first release only, after the rc workflow succeeds, an org owner makes the `rmf-block`
+   package public (package settings → Change visibility). A new organisation package starts private.
+5. Run the README's Getting started from an empty folder with that prerelease's two files,
+   and verify that the image can be pulled anonymously.
+6. Release: `git tag vX.Y.Z upstream/main && git push upstream vX.Y.Z`.
+
+Never re-push a published version tag; publish a new version instead. Runs for the same tag cannot
+overlap and do not cancel an in-progress run. A failed run, at any step, is retried by
+re-running it: it skips what the earlier run published and finishes the rest, and re-running a
+finished run changes nothing. It never builds over a published version, and a tag re-pushed to
+another commit stops at the image check. Only `latest` moves after publication. A faulty release is not deleted or re-tagged; publish a
+fixed version, and hosts can roll back meanwhile (README, Upgrading).

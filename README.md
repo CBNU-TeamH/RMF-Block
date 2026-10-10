@@ -38,16 +38,71 @@ the contracts.
 
 ## Getting started
 
-You need Docker with Compose 2.20 or newer and bash — on Linux or macOS, or on Windows from WSL.
+You need Docker with Compose 2.20 or newer — nothing else: no clone, no Node.js. Each
+[release](https://github.com/CBNU-TeamH/RMF-Block/releases) runs a published image built for both
+x86-64 and Apple Silicon.
+
+On Linux or macOS:
 
 ```bash
-cp .env.sample .env        # nothing to fill in by hand — each variable is explained there
-bash scripts/detect-host-ip.sh && docker compose up --build
+mkdir rmf-block && cd rmf-block
+curl -LO https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/docker-compose.yml
+curl -L -o .env https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/env.sample
 ```
 
-With Node.js and pnpm installed, `pnpm docker:up` is the same two commands. The script finds the
-host's LAN address and writes it to `.env` as `HOST_LAN_IP`. Among the startup output are these
-two lines:
+On Windows PowerShell 5.1:
+
+```powershell
+mkdir rmf-block
+Set-Location rmf-block
+curl.exe -LO https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/docker-compose.yml
+curl.exe -L -o .env https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/env.sample
+```
+
+Set `HOST_LAN_IP` in `.env` to this machine's IPv4 address on the same LAN as the guests.
+Run the following commands on the **host machine**, outside the containers:
+
+| Host OS | Command | Which address to use |
+| :--- | :--- | :--- |
+| Windows (PowerShell or Command Prompt) | `ipconfig` | The IPv4 address of the connected Wi-Fi or Ethernet adapter. Run it in Windows, not WSL. |
+| Linux (Terminal) | `ip -4 addr show scope global` | The `inet` address of the Wi-Fi or Ethernet interface connected to the guests' LAN, without the `/…` suffix. |
+| macOS (Terminal) | `networksetup -listallhardwareports` | Find the `Device` name for the Wi-Fi or Ethernet connection you are using, then query it as below. |
+
+On macOS, if the device is `en0`, run:
+
+```bash
+ipconfig getifaddr en0
+```
+
+Replace `en0` with the device name you found; it is not always `en0`. If the command prints
+no address, check that the selected connection is active and has an IPv4 address.
+The command references are [Windows ipconfig](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig)
+and [Apple's interface lookup guide](https://developer.apple.com/documentation/network/recording-a-packet-trace).
+
+Choose the adapter connected to the guests' LAN if several addresses appear; Docker, WSL,
+VPN and loopback interfaces may also be listed. For example, if the LAN address is
+`192.168.0.14`, save this in `.env` (use your own address, not this example):
+
+```dotenv
+HOST_LAN_IP=192.168.0.14
+```
+
+For this Docker setup, set only `HOST_LAN_IP` and leave the other sample settings
+as supplied. Choose the workspace name and password in the browser after startup.
+The commented Yorkie addresses are for native development; Compose supplies its
+own internal addresses and does not use those values from `.env`.
+
+The release files do not automatically detect the host's LAN IP. In a clone,
+`pnpm docker:up` runs [`scripts/detect-host-ip.sh`](scripts/detect-host-ip.sh) on the host
+to attempt detection and write `.env`; that script is not included in a release.
+If the LAN address changes, update `.env` and run `docker compose up -d` again.
+Then start the stack:
+
+```bash
+docker compose up
+```
+
+Among the startup output are these two lines:
 
 ```
 rmf-app  |   Host:  http://localhost:3000/api/auth/host?secret=…
@@ -58,27 +113,80 @@ rmf-app  |   Guest: http://192.168.0.14:3000
   bar. Treat the line as a credential: it stays valid until the container restarts.
 - **The first time, it opens the setup screen.** Choose the workspace name and the access password
   there, then tell guests the password. Until then the startup output says
-  `host user의 workspace setting이 완료되지 않았습니다.` and guests cannot join. The **Admin** link (with
-  a shield) in the top bar, shown only to the host, is where you change the password later or remove
-  a guest. The settings persist on the volume — emptying `.env` does not reset them; startup prints
+  `host user의 workspace setting이 완료되지 않았습니다.` and guests cannot join. The **관리자** link (with
+  a shield) at the foot of the sidebar, shown only to the host, is where you change the password later
+  or remove a guest. The settings persist on the volume — emptying `.env` does not reset them; startup prints
   `Workspace "<name>" — saved settings …` when they exist. To see the setup screen again, stop the
   stack and delete `workspace.json` from the `app-data` volume.
 - **Give everyone else the `Guest:` address.**
 - **Restarting the container signs everyone out**; removing one guest is the admin page's 퇴장
   ([`docs/design/api.md`](docs/design/api.md)).
-- **Documents and app state survive** restarts and rebuilds on named volumes — members keep their
+- **Documents and app state survive** restarts and upgrades on named volumes — members keep their
   colours — and `docker compose down -v` wipes them.
+
+### Upgrading
+
+Download the new release's `docker-compose.yml` over the old one, keep `.env`, and run:
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+On Windows PowerShell 5.1, run `up` only if `pull` succeeds:
+
+```powershell
+docker compose pull
+if ($LASTEXITCODE -eq 0) { docker compose up -d }
+```
+
+The documents and settings stay when the Compose project name stays the same. The release file
+defaults to `rmf-block`; an older installation may have used its folder name instead.
+
+**Switching an existing clone to a release:** before changing folders or removing containers,
+find the current project name. On Linux or macOS:
+
+```bash
+docker inspect rmf-app --format '{{ index .Config.Labels "com.docker.compose.project" }}'
+```
+
+On Windows PowerShell 5.1:
+
+```powershell
+docker inspect rmf-app | ConvertFrom-Json | ForEach-Object { $_.Config.Labels.'com.docker.compose.project' }
+```
+
+Download the new release's `docker-compose.yml` into a separate folder and copy your existing
+`.env` there, keeping `HOST_LAN_IP` and the other settings. Do not download `env.sample` over it.
+Set `COMPOSE_PROJECT_NAME` in the copied `.env` to the name printed above, for example:
+
+```dotenv
+COMPOSE_PROJECT_NAME=rmf-block
+```
+
+Run the upgrade commands from that folder. It must contain no `docker-compose.override.yml`,
+because a clone's override selects a source build. Keeping the project name reuses the existing
+containers and the `app-data` and `mongo-data` volumes. `docker compose down` alone does not
+move data between project names; changing the name selects different volumes. Do not use
+`down -v`, which deletes them.
+
+**Rolling back:** put the previous release's `docker-compose.yml` back in the folder and run the
+same upgrade commands; the volumes stay. A newer version may have changed what it stores, which an
+older one cannot always read, so back up the `app-data` and `mongo-data` volumes before upgrading.
+
+Each release's file names its own version. To pin the exact image, append the digest from the
+release notes (`…:0.0.1@sha256:…`). Use that one and not a digest from the package page, which pins
+a single architecture.
 
 ### If a guest cannot connect
 
 - **Client/AP isolation.** Campus and guest Wi-Fi often block devices from reaching each other even
   on one network. Rule this out first — it is a router setting no script here can detect.
-- **Windows hosts.** Docker Desktop's WSL2 backend may forward the port only to `127.0.0.1`; the
-  start script checks whether WSL mirrored networking is enabled and prints configuration
+- **Windows hosts.** Docker Desktop's WSL2 backend may forward the port only to `127.0.0.1`. From a
+  clone, `pnpm docker:up` checks whether WSL mirrored networking is enabled and prints configuration
   guidance. Mirrored networking needs Windows 11 22H2+; on older Windows, forward the port to
   the host's LAN address yourself (`netsh interface portproxy`).
-- **Wrong address detected**, or no default route to read: set `HOST_LAN_IP` in `.env` yourself —
-  `.env.sample` says how to find it on each OS — and run `docker compose up --build`.
+- **Wrong address in the `Guest:` line**: correct `HOST_LAN_IP` in `.env` and run
+  `docker compose up -d` again.
 
 ## Documentation
 
