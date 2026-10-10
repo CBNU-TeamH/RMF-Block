@@ -82,9 +82,10 @@ export async function register() {
     lines.push(
       `         Only ${best ? `a Docker/NAT address (${best})` : "loopback"} is visible from here,`,
       `         which guests on the LAN almost certainly cannot reach.`,
-      `         Set HOST_LAN_IP in .env to this machine's LAN IPv4 address, then run`,
-      `         \`docker compose up -d\` again. README.md, "Set the host's LAN address",`,
-      `         has the command for each OS. From a clone, \`pnpm docker:up\` detects it.`,
+      `         Set HOST_LAN_IP in .env to this machine's LAN IPv4 address -- the`,
+      `         comments above it in .env.sample (a release's env.sample) give the`,
+      `         command for each OS -- then run \`docker compose up -d\` again. From a`,
+      `         clone, \`pnpm docker:up\` detects it.`,
     );
   } else if (!override) {
     lines.push(`         (guessed — set HOST_LAN_IP if guests cannot reach it)`);

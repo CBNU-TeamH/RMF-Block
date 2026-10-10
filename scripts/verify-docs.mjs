@@ -15,8 +15,11 @@
 //       repo-relative path in docs/ and AGENTS.md, actually exists on disk, and
 //       a `#anchor` on a link to a .md file names a real heading there.
 //       External URLs are skipped.
+//   (d) README pair — README.ko.md translates README.md (AGENTS.md §5), so the
+//       two have the same headings, at the same levels, with the same table
+//       lines under each. Wording is not compared.
 //
-// Exit 1 if (a) or (c) fail. (b) is informational.
+// Exit 1 if (a), (c) or (d) fail. (b) is informational.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
@@ -25,6 +28,7 @@ import { pathToFileURL } from "node:url";
 
 import { headingSlugs } from "./lib/headings.mjs";
 import { checkOwnership } from "./verify-doc-ownership.mjs";
+import { outline } from "./verify-srs-sync.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([a-zA-Z]):/, "$1:");
 
@@ -277,8 +281,23 @@ function checkDeadLinks() {
   };
 }
 
+function checkReadmePair() {
+  const shape = (file) => outline(readFileSync(join(ROOT, file), "utf8")).sections;
+  const en = shape("README.md");
+  const ko = shape("README.ko.md");
+  const lines = [];
+  for (let i = 0; i < Math.max(en.length, ko.length); i += 1) {
+    const [a, b] = [en[i], ko[i]];
+    if (a && b && a.level === b.level && a.rows === b.rows) continue;
+    const describe = (s, file) => (s ? `${file}:${s.line} "${s.title}" (h${s.level}, ${s.rows} table lines)` : `${file}: no heading`);
+    lines.push(`heading #${i} differs: ${describe(a, "README.md")} vs ${describe(b, "README.ko.md")}`);
+    break;
+  }
+  return { name: "README pair", failed: lines.length > 0, lines };
+}
+
 function main() {
-  const sections = [checkOwnershipSection(), checkTaskIndexFreshness(), checkDeadLinks()];
+  const sections = [checkOwnershipSection(), checkTaskIndexFreshness(), checkDeadLinks(), checkReadmePair()];
 
   let failed = false;
   for (const { name, failed: sectionFailed, lines } of sections) {

@@ -10,14 +10,12 @@ the same documents together. CBNU Team H capstone project.
 
 ## Features
 
-Click a screenshot to see it full size.
-
 | Feature | What it does | Screenshot |
 | :--- | :--- | :--- |
-| **Document editing** | Text, headings, lists, checklists, quotes, code, images, PDFs, files and links to other documents, from a `/` menu or Markdown shortcuts. Edits reach everyone as they type, Hangul composition included, and the block someone is in is outlined in their colour. Documents nest in a tree, open as tabs, and keep a version history you can name and restore. | <a href="docs/images/editing.png"><img src="docs/images/editing.png" width="360" alt="Host's view of a meeting-notes document open in a tab; a guest's block is outlined in red"></a> |
-| **Floating views and chat** | Chat with attachments, and a file list grouped into images, PDFs and other files. Pin a text, image or PDF block, or a file from chat, in a window that stays put while you move between documents. | <a href="docs/images/floating.png"><img src="docs/images/floating.png" width="360" alt="A shared image in a floating view above a document, beside the chat's file list"></a> |
-| **Screen sharing** | Share your position in a document; others join with one click and follow it as you scroll and move between documents, until either side ends it. | <a href="docs/images/screen-share.png"><img src="docs/images/screen-share.png" width="360" alt="A guest following the host's shared view, with the follow indicator in the header"></a> |
-| **Admin** | Host only: open the workspace with a name and password, change the password, remove a guest, and restore deleted documents from the trash. | <a href="docs/images/admin.png"><img src="docs/images/admin.png" width="360" alt="The admin page with the password form, connected guests and the trash"></a> |
+| **Document editing** | Text, headings, lists, checklists, quotes, code, images, PDFs, files and links to other documents, from a `/` menu or Markdown shortcuts. Edits reach everyone as they type, Hangul composition included, and the block someone is in is outlined in their colour. Documents nest in a tree, open as tabs, and keep a version history you can name and restore. | <img src="docs/images/editing.png" width="360" alt="Host's view of a meeting-notes document open in a tab; a guest's block is outlined in red"> |
+| **Floating views and chat** | Chat with attachments, and a file list grouped into images, PDFs and other files. Pin a text, image or PDF block, or a file from chat, in a window that stays put while you move between documents. | <img src="docs/images/floating.png" width="360" alt="A shared image in a floating view above a document, beside the chat's file list"> |
+| **Screen sharing** | Share your position in a document; others join with one click and follow it as you scroll and move between documents, until either side ends it. | <img src="docs/images/screen-share.png" width="360" alt="A guest following the host's shared view, with the follow indicator in the header"> |
+| **Admin** | Host only: open the workspace with a name and password, change the password, remove a guest, and restore deleted documents from the trash. | <img src="docs/images/admin.png" width="360" alt="The admin page with the password form, connected guests and the trash"> |
 
 ## How it works
 
@@ -95,11 +93,10 @@ as supplied. Choose the workspace name and password in the browser after startup
 The commented Yorkie addresses are for native development; Compose supplies its
 own internal addresses and does not use those values from `.env`.
 
-The release files do not automatically detect the host's LAN IP. In a clone,
-`pnpm docker:up` runs [`scripts/detect-host-ip.sh`](scripts/detect-host-ip.sh) on the host
-to attempt detection and write `.env`; that script is not included in a release.
-If the LAN address changes, update `.env` and run `docker compose up -d` again; a DHCP
-reservation for the host on the router keeps it from changing.
+From a clone, `pnpm docker:up` detects it and writes `.env`
+([`scripts/detect-host-ip.sh`](scripts/detect-host-ip.sh), not part of a release). If the
+address changes, update `.env` and run `docker compose up -d` again; a DHCP reservation for the
+host on the router keeps it from changing.
 
 ### Open the ports
 
@@ -208,8 +205,7 @@ on the host proves nothing about the network. If it fails, check in this order:
    clone, `pnpm docker:up` checks whether WSL mirrored networking is enabled and prints configuration
    guidance. Mirrored networking needs Windows 11 22H2+; on older Windows, forward the port to
    the host's LAN address yourself (`netsh interface portproxy`).
-4. **Wrong address in the `Guest:` line**: correct `HOST_LAN_IP` in `.env` and run
-   `docker compose up -d` again.
+4. **Wrong address in the `Guest:` line**: see [Set the host's LAN address](#set-the-hosts-lan-address).
 
 ## Documentation
 

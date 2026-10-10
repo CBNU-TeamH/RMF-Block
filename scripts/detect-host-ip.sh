@@ -96,13 +96,12 @@ if [[ -z "$chosen" ]]; then
   if is_msys; then
     echo "[detect-host-ip] Running under Git Bash / MSYS, which this script does not support."
     echo "  Docker Desktop runs on the WSL2 backend, so run 'pnpm docker:up' from a"
-    echo "  WSL shell instead -- or run 'ipconfig' on Windows and put that address"
-    echo "  in .env as HOST_LAN_IP=<address>."
+    echo "  WSL shell instead -- or set HOST_LAN_IP in .env yourself; the comments"
+    echo "  above it in .env.sample give the command for each OS."
   else
     echo "[detect-host-ip] Could not detect a LAN IP automatically."
-    echo "  Find it yourself -- 'ip -4 addr' on Linux (including WSL), or"
-    echo "  'ipconfig getifaddr en0' on macOS -- then put that address in .env"
-    echo "  as HOST_LAN_IP=<address>."
+    echo "  Set HOST_LAN_IP in .env yourself; the comments above it in .env.sample"
+    echo "  give the command for each OS."
   fi
   exit 0
 fi
