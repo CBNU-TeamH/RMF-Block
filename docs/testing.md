@@ -5,10 +5,10 @@
 - **Owns**: none — this is process/strategy, not a module's design rationale. The five layers
   below name which existing design doc still owns *why* each module behaves the way it does; this
   document only says *where a new test for it belongs*.
-- **Related**: [issue #66](https://github.com/CBNU-TeamH/RMF-Block/issues/66) (closed — the
+- **Related**: [issue #66](https://github.com/CBNU-TeamH/RMF-Block/issues/66) (the
   measured layer/line-count breakdown that motivated this doc lives there); [issue
   #61](https://github.com/CBNU-TeamH/RMF-Block/issues/61) (the E2E layer's trigger); [issue
-  #112](https://github.com/CBNU-TeamH/RMF-Block/issues/112) (Tier 2, still open);
+  #112](https://github.com/CBNU-TeamH/RMF-Block/issues/112) (Tier 2);
   [ADR-004](adr/004-test-runner-migration.md) (why Vitest, why `pool: "forks"`, why happy-dom);
   [`docs/conventions.md`](conventions.md) (the Node type-stripping constraint `server/index.mts`
   and every `lib/`/`server/` test run under)
@@ -245,7 +245,7 @@ a browser run costs seconds per test against milliseconds.
   `continue-on-error` policy preserved. CI masks the bootstrap secret and uploads failure traces,
   the HTML report and redacted server logs.
 - **Follow-up.** Admin setup/access/password/kick/restart plus integrated user-location navigation
-  are tracked in [the admin E2E task](../tasks/active/20261007-admin-e2e-todo.md); admin merged in PR #170, and this coverage remains a separate task. Long-running load, 1-second propagation, 500MB client memory, real LAN
+  are tracked in [the admin E2E task](../tasks/active/20261007-admin-e2e-todo.md). Long-running load, 1-second propagation, 500MB client memory, real LAN
   devices and Firefox/WebKit remain separate from functional correctness.
 
 

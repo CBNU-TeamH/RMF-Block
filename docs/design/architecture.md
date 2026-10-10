@@ -65,7 +65,7 @@ The wire protocol is Yorkie's own client SDK — not ours to design. What we do 
 
 ### (b) Client ↔ App/WS Server (API groups)
 
-Transport is REST + WebSocket. Grouped by concern; full request/response schemas are written when each group's module is built. Both WebSocket upgrade paths (chat and workspace) require a live session or the host secret to complete at all — an unauthenticated client gets a 401 before the handshake, never reaching the hub ([ADR-006](../adr/006-workspace-chat-socket-auth.md)).
+Transport is REST + WebSocket. Grouped by concern; full request/response schemas are written when each group's module is built. Both WebSocket upgrade paths (chat and workspace) require a live session or the host secret to complete at all — the upgrade refusal is specified in [`api.md`](api.md#4-websocket--client--rmf-block-server).
 
 <!-- declare: websocket-paths
 const: server/index.mts CHAT_WS_PATH = "/api/chat/ws"
@@ -94,8 +94,6 @@ There is no internal persistence module. Document durability is Yorkie's, and cr
 What crosses this boundary for version history is authorisation only: the browser calls Yorkie's revision API through its own `Client`, and Yorkie asks this server's auth webhook whether the session is live. Which calls are used and where revisions come from: [`version-history.md`](version-history.md).
 
 A revision outlives the document it belongs to, but only by id, so deleting a document has to keep its revision ids: [`version-history.md`](version-history.md#deleting-a-document).
-
-**Decided:** the App/WS Server does not keep a `Watch` subscription on documents — Mongo provides durability directly (ADR-002).
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 

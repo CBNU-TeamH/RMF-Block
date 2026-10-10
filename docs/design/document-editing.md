@@ -277,17 +277,14 @@ and block reordering is a requirement. We take on IME handling ourselves in exch
 
 ### Behaviour of the textarea surface
 
-Measured against a real two-client Yorkie session, on the exact storage shape above —
-`root.blocks[0].content.text`, edited through `yorkie.Text.edit()` — rather than a bare string.
+The measured evidence for this surface (a real two-client Yorkie session, on the storage shape
+above) is in [ADR-008](../adr/008-textarea-editing-surface.md); what the code does with it:
 
 1. **A naive controlled binding corrupts text under concurrent editing** (the failure story is in
    [ADR-008](../adr/008-textarea-editing-surface.md)). The live constraint: every path that
    changes what Yorkie holds, local or remote, must advance the same diff baseline.
-2. **An uncontrolled textarea, patched only on the changed range, survives.** Two live clients
-   typing Hangul into the same block concurrently: remote edits arriving mid-composition are
-   queued rather than applied and flushed once `compositionend` fires. Non-composing keystrokes
-   (plain ASCII, Enter, space) sync per keystroke with no queuing needed. A queued edit carries
-   Yorkie's offsets, so the flush applies it to the baseline (Yorkie's text) and puts the composed
+2. **Remote edits arriving mid-composition are queued, then flushed on `compositionend`.** A
+   queued edit carries Yorkie's offsets, so the flush applies it to the baseline (Yorkie's text) and puts the composed
    text back where the composition started — the range recorded at `compositionstart`, carried
    through each edit, not inferred by a diff, which cannot place it inside a run of one character.
    If that range no longer fits the textarea (an IME composed away from where it started), the
@@ -295,16 +292,11 @@ Measured against a real two-client Yorkie session, on the exact storage shape ab
    The flush runs *before* the composition's commit, which then diffs Yorkie's own text and is
    always an edit Yorkie can apply
    ([#52](https://github.com/CBNU-TeamH/RMF-Block/issues/52), `e2e/ime-replay.e2e.ts`).
-3. **The SDK's own `EditOpInfo` carries what patching needs**: character offsets against the
-   pre-edit string, so an edit entirely before the caret shifts it by the size difference and
-   one entirely after leaves it alone.
-4. **A composed syllable is one edit, not one per candidate**: `compositionstart` suppresses
-   per-keystroke syncing and `compositionend` commits the finished syllable as a single diff, so
-   Yorkie's own `doc.history.undo()` steps back through what a person thinks of as a character,
-   not through IME candidates.
-
-The measurements behind these rules are in
-[ADR-008](../adr/008-textarea-editing-surface.md).
+3. **Patching reads the SDK's `EditOpInfo` offsets** (against the pre-edit string), so an edit
+   entirely before the caret shifts it by the size difference and one entirely after leaves it
+   alone.
+4. **A composed syllable is one edit**: `compositionstart` suppresses per-keystroke syncing and
+   `compositionend` commits the finished syllable as a single diff.
 
 ### Subscribing to remote changes
 
@@ -464,7 +456,7 @@ move the highlight through every item, which means the highlight can land where 
 the menu looks frozen while it is in fact responding.
 
 The list scrolls to follow, by arithmetic (`scrollTopForHighlight` in `slash-menu.ts`) rather than
-`element.scrollIntoView()`. **`scrollIntoView` walks every scroll ancestor**, and this editor's
+`element.scrollIntoView()` ([the general rule](../conventions.md#scroll-a-container-never-scrollintoview)). **`scrollIntoView` walks every scroll ancestor**, and this editor's
 scroll container publishes a focus anchor whenever it moves (FR-030-07) — nudging the page to
 reveal a menu row would send every follower to a position the presenter never looked at. Computing
 the number and assigning `list.scrollTop` touches the menu and nothing else.

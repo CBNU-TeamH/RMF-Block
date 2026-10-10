@@ -373,9 +373,7 @@ shared screen under UC-030, never see it), the browser passes that through the S
 `role` cookie is exchanged under the `host:<secret>` prefix (`HOST_SESSION_PREFIX`) and the
 webhook allows such a token without a session lookup; revoking the host is the restart, which
 clears the secret and the token registry together. Startup writes the webhook onto Yorkie's project
-itself, over the Admin API: the webhook URL is a project field
-rather than a server flag, and a step the host could forget would make an unguarded Yorkie the
-default.
+itself, over the Admin API (below).
 
 The webhook asks two questions, not one. A token can be valid while the session behind it is
 gone — a device displaced by another (FR-020-08) keeps its token — so tokens point at sessions and
@@ -437,10 +435,6 @@ Two tabs therefore share a token, which is correct: the token authorizes a *sess
 tabs are that session. Handing back a token with minutes left on it is fine too, since the SDK
 asks for a replacement the moment the webhook refuses one.
 
-One thing worth knowing wherever revocation is being reasoned about: **Yorkie caches an allow
-for `--auth-webhook-cache-auth-ttl`, 1s here** (the reasoning is under the webhook above; a refusal
-is never cached). A guest removed through UC-011 can keep writing for up to that second.
-
 Document keys carry no type prefix — a Yorkie key can only contain `a-z A-Z 0-9 - . _ ~` (120 chars max), which rules out a `:`-delimited scheme and makes any other delimiter ambiguous against UUIDs. Instead the key **is** the document's id as issued by `POST /api/documents`. The webhook does not read the key today; once it checks document access it would resolve the type by looking the id up in the App/WS Server's own document table, and `chat` would be a reserved literal key (version B, §5) rather than an id, since it's a workspace-wide singleton.
 
 ## 3. RPC — yorkie-js-sdk ↔ Yorkie
@@ -471,9 +465,8 @@ carries `session:revoked`, chat and the document-tree events (`document:created`
 regardless of which path it upgraded on, so a `chat:message` reaches workspace sockets as well
 and is ignored client-side.
 
-Which document each user has open (UC-040) rides the same channel: the workspace presence
-carries `location: { documentId, blockId } | null`, set from the route and the focused block, so
-it vanishes with the connection and needs no server event. Members who are not connected come
+Which document each user has open (UC-040) rides the same channel as presence `location`
+([`presence-and-focus.md`](presence-and-focus.md)). Members who are not connected come
 from `.data/members.json` (`sessionRegistry.members()`), not from presence.
 
 ### 4.2 Presentation session (FR-030)
