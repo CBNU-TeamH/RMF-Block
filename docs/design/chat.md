@@ -99,8 +99,7 @@ interleaved by a second call on Node's single thread, so there is nothing for a 
 serialize.** An `await` mid-sequence would be a point where a second call can land between the read
 and the write, and the second write would drop the first. Choosing sync is therefore choosing to
 *not need* a queue, and a store that grows an `await` inside its read-modify-write needs a promise
-chain to serialize it. Uploaded
-**bytes** stay async in `lib/files/file-repository.ts`, because writing them is not a
+chain to serialize it. Uploaded **bytes** stay async in `lib/files/file-repository.ts`, because writing them is not a
 read-modify-write and up to 25MB should not stall the process. Writes go through a temp file and a
 `rename`, because `writeFileSync` truncates before it writes and a crash mid-write would otherwise
 leave a half-written store. `rename` within one filesystem is atomic, so a concurrent reader sees the

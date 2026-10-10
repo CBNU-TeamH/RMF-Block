@@ -338,7 +338,9 @@ of merging with it.
 
 `lib/blocks/registry.ts` holds one entry per block type. The reason it is a `Record` keyed by the
 `BlockType` union rather than a `switch` with a `default` is exhaustiveness: **leave a key out and
-it does not compile.** A `default` branch turns "we forgot this type" into a value.
+it does not compile.** Measured against the `switch` it replaced: adding a member to the union gave
+*one* compile error and *five* silent runtime fallbacks, one of which dropped the block from the
+document. A `default` branch turns "we forgot this type" into a value.
 
 ### Four surfaces, not twelve types
 
@@ -612,8 +614,9 @@ carries it in the schema. `Tab` and `Shift+Tab` are what set it,
 and `lib/blocks/indent.ts` holds the rule.
 
 **Indent is capped by the block above, not by the block itself.** Indent raises the depth by one
-only when that stays within the ceiling, `previousListDepth + 1`; otherwise nothing changes, so an
-item can never end up more than one level deeper than the item above it. Without that cap a depth-2 item can sit under a depth-0 one and render as
+only when that stays within the ceiling, `min(previousListDepth + 1, MAX_LIST_DEPTH)`; otherwise
+nothing changes, so an item can never end up more than one level deeper than the item above it.
+Without that cap a depth-2 item can sit under a depth-0 one and render as
 a child of nothing. A list item with no list above it therefore cannot indent at all, and a
 non-list block above ends the run — nesting under a paragraph is not something this model can
 express. Outdent has no such rule: a stray nested item must always be able to come back out,
