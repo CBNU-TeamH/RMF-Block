@@ -86,7 +86,7 @@ Which document to open for which job.
 ## 5. Team conventions
 
 - **Commit prefixes**: `feat:`, `fix:`, `refactor:`, `test:`, `chore:`, `docs:`.
-- **Doc language**: English. The exception is [`docs/SRS-ko.md`](docs/SRS-ko.md), the team's agreed requirements document, which stays in Korean — [`docs/SRS-en.md`](docs/SRS-en.md) is its English translation, kept structurally in step by `scripts/verify-srs-sync.mjs` in CI; [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) is also Korean today but pending translation, not a standing exception.
+- **Doc language**: English. The exception is [`docs/SRS-ko.md`](docs/SRS-ko.md), the team's agreed requirements document, which stays in Korean — [`docs/SRS-en.md`](docs/SRS-en.md) is its English translation, kept structurally in step by `scripts/verify-srs-sync.mjs` in CI; [`README.ko.md`](README.ko.md) is a Korean translation of [`README.md`](README.md) for hosts and guests: the English one wins where they differ, and a change to either goes into the other in the same PR; [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) is also Korean today but pending translation, not a standing exception.
 - **Never commit secrets or credentials.**
 - **This repository is the source of truth.** Discussion may happen elsewhere (Notion, chat); decisions land here, and sync runs one way, into the repo.
 - **Docs live with the code.** A change and the doc that describes it go in the same commit.

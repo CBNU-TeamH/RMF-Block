@@ -11,7 +11,7 @@
 //       Report only, never auto-mutate a tracked file — if they're stale, say
 //       so and name the command to fix it.
 //   (c) dead links — every markdown link in docs/**/*.md, AGENTS.md, README.md,
-//       CONTRIBUTING.md and tasks/active/*.md, and every backtick-quoted
+//       README.ko.md, CONTRIBUTING.md and tasks/active/*.md, and every backtick-quoted
 //       repo-relative path in docs/ and AGENTS.md, actually exists on disk, and
 //       a `#anchor` on a link to a .md file names a real heading there.
 //       External URLs are skipped.
@@ -227,9 +227,9 @@ function checkDeadLinks() {
     .filter((f) => f.endsWith(".md"))
     .map((f) => join(ROOT, "tasks", "active", f));
   const agentsFile = join(ROOT, "AGENTS.md");
-  // The two a newcomer reads first. Markdown links only: their backticks
+  // What a newcomer reads first. Markdown links only: their backticks
   // name branch prefixes (`feat/`) that are not paths.
-  const entryFiles = [join(ROOT, "README.md"), join(ROOT, "CONTRIBUTING.md")];
+  const entryFiles = ["README.md", "README.ko.md", "CONTRIBUTING.md"].map((f) => join(ROOT, f));
 
   const broken = [];
 

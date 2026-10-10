@@ -145,7 +145,9 @@ To cut `X.Y.Z`:
 3. Rehearse: `git tag vX.Y.Z-rc.1 upstream/main && git push upstream vX.Y.Z-rc.1`. An `-rc.N` tag
    makes a prerelease and leaves `latest` alone.
 4. On the first release only, after the rc workflow succeeds, an org owner makes the `rmf-block`
-   package public (package settings → Change visibility). A new organisation package starts private.
+   package public (package settings → Change visibility). A new organisation package starts private,
+   and the change is refused ("Setting is disabled by organization administrators") until the
+   organisation allows public packages: Settings → Packages → Package creation → Public.
 5. Run the README's Getting started from an empty folder with that prerelease's two files,
    and verify that the image can be pulled anonymously.
 6. Release: `git tag vX.Y.Z upstream/main && git push upstream vX.Y.Z`.

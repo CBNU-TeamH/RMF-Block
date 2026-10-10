@@ -1,8 +1,8 @@
 # RMF-Block
 
-A real-time block editor for a team on one local network — no cloud service, no accounts.
+**English** · [한국어](README.ko.md)
 
-![Two people editing one document; the block the other person is in is outlined in their colour](docs/images/editor.png)
+A real-time block editor for a team on one local network — no cloud service, no accounts.
 
 One person, the **host**, runs RMF-Block as a Docker container. Everyone else on the **same
 subnet** opens a link in their browser, joins with a nickname and the workspace password, and edits
@@ -10,20 +10,14 @@ the same documents together. CBNU Team H capstone project.
 
 ## Features
 
-- **Block editor** — text, headings, lists, checklists, quotes, code, dividers, images, PDFs,
-  files and links to other documents. A `/` menu and Markdown shortcuts (`# `, `- `, `[] `,
-  `` ``` ``) create them.
-- **Real-time co-editing** — edits reach everyone as they type, Hangul composition included, and
-  the block someone is in is outlined in their colour.
-- **Presence and focus following** — see who is connected, and share your screen position so
-  others can follow it.
-- **Document tree and version history** — nested documents; browse, name and restore past versions.
-- **Chat with files** — messages and attachments, and a file list grouped into images, PDFs and
-  other files.
-- **Floating views** — pin a text, image or PDF block, or an image or PDF from chat, in a window
-  that stays put while you move between documents.
+Click a screenshot to see it full size.
 
-![The chat file list beside a floating view of a shared image](docs/images/chat-floating.png)
+| Feature | What it does | Screenshot |
+| :--- | :--- | :--- |
+| **Document editing** | Text, headings, lists, checklists, quotes, code, images, PDFs, files and links to other documents, from a `/` menu or Markdown shortcuts. Edits reach everyone as they type, Hangul composition included, and the block someone is in is outlined in their colour. Documents nest in a tree, open as tabs, and keep a version history you can name and restore. | <a href="docs/images/editing.png"><img src="docs/images/editing.png" width="360" alt="Host's view of a meeting-notes document open in a tab; a guest's block is outlined in red"></a> |
+| **Floating views and chat** | Chat with attachments, and a file list grouped into images, PDFs and other files. Pin a text, image or PDF block, or a file from chat, in a window that stays put while you move between documents. | <a href="docs/images/floating.png"><img src="docs/images/floating.png" width="360" alt="A shared image in a floating view above a document, beside the chat's file list"></a> |
+| **Screen sharing** | Share your position in a document; others join with one click and follow it as you scroll and move between documents, until either side ends it. | <a href="docs/images/screen-share.png"><img src="docs/images/screen-share.png" width="360" alt="A guest following the host's shared view, with the follow indicator in the header"></a> |
+| **Admin** | Host only: open the workspace with a name and password, change the password, remove a guest, and restore deleted documents from the trash. | <a href="docs/images/admin.png"><img src="docs/images/admin.png" width="360" alt="The admin page with the password form, connected guests and the trash"></a> |
 
 ## How it works
 
@@ -59,29 +53,38 @@ curl.exe -LO https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/do
 curl.exe -L -o .env https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/env.sample
 ```
 
-Set `HOST_LAN_IP` in `.env` to this machine's IPv4 address on the same LAN as the guests.
-Run the following commands on the **host machine**, outside the containers:
+### Set the host's LAN address
 
-| Host OS | Command | Which address to use |
-| :--- | :--- | :--- |
-| Windows (PowerShell or Command Prompt) | `ipconfig` | The IPv4 address of the connected Wi-Fi or Ethernet adapter. Run it in Windows, not WSL. |
-| Linux (Terminal) | `ip -4 addr show scope global` | The `inet` address of the Wi-Fi or Ethernet interface connected to the guests' LAN, without the `/…` suffix. |
-| macOS (Terminal) | `networksetup -listallhardwareports` | Find the `Device` name for the Wi-Fi or Ethernet connection you are using, then query it as below. |
+Set `HOST_LAN_IP` in `.env` to this machine's IPv4 address on the guests' LAN. Each command
+below prints the address of the connection your machine uses to reach the internet, which is
+usually that one. Run it on the **host machine**, outside the containers:
 
-On macOS, if the device is `en0`, run:
+Windows (PowerShell, in Windows rather than WSL):
 
-```bash
-ipconfig getifaddr en0
+```powershell
+(Get-NetIPConfiguration | Where-Object IPv4DefaultGateway).IPv4Address.IPAddress
 ```
 
-Replace `en0` with the device name you found; it is not always `en0`. If the command prints
-no address, check that the selected connection is active and has an IPv4 address.
-The command references are [Windows ipconfig](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig)
-and [Apple's interface lookup guide](https://developer.apple.com/documentation/network/recording-a-packet-trace).
+Linux — the address after `src`:
 
-Choose the adapter connected to the guests' LAN if several addresses appear; Docker, WSL,
-VPN and loopback interfaces may also be listed. For example, if the LAN address is
-`192.168.0.14`, save this in `.env` (use your own address, not this example):
+```bash
+ip -4 route get 1.1.1.1
+```
+
+macOS:
+
+```bash
+ipconfig getifaddr "$(route -n get default | awk '/interface:/{print $2}')"
+```
+
+Nothing is sent to `1.1.1.1`; the command only asks which route would be used. If it prints
+nothing, or a VPN address because a VPN is on, list every address instead — `ipconfig` on
+Windows, `ip -4 addr show scope global` on Linux, `networksetup -listallhardwareports` and then
+`ipconfig getifaddr <device>` on macOS — and take the Wi-Fi or Ethernet adapter's IPv4 address.
+Docker, WSL, VPN and loopback interfaces may be listed too; they are not the one.
+
+For example, if the LAN address is `192.168.0.14`, save this in `.env` (use your own address,
+not this example):
 
 ```dotenv
 HOST_LAN_IP=192.168.0.14
@@ -95,8 +98,23 @@ own internal addresses and does not use those values from `.env`.
 The release files do not automatically detect the host's LAN IP. In a clone,
 `pnpm docker:up` runs [`scripts/detect-host-ip.sh`](scripts/detect-host-ip.sh) on the host
 to attempt detection and write `.env`; that script is not included in a release.
-If the LAN address changes, update `.env` and run `docker compose up -d` again.
-Then start the stack:
+If the LAN address changes, update `.env` and run `docker compose up -d` again; a DHCP
+reservation for the host on the router keeps it from changing.
+
+### Open the ports
+
+Guests connect to **TCP 3000** (the app) and **TCP 8080** (Yorkie, which carries the live edits).
+A page that opens but never shows edits usually means 8080 is blocked.
+
+- **Windows**: set the Wi-Fi or Ethernet network's profile to **Private**, and allow Docker
+  Desktop when Windows Defender Firewall asks. If it did not ask, add a rule in PowerShell run as
+  administrator:
+  `New-NetFirewallRule -DisplayName "RMF-Block" -Direction Inbound -Protocol TCP -LocalPort 3000,8080 -Action Allow -Profile Private`
+- **macOS**: if the firewall is on (System Settings → Network → Firewall), allow incoming
+  connections for Docker.
+- **Linux**: if `ufw` is active, `sudo ufw allow 3000,8080/tcp`.
+
+### Start it
 
 ```bash
 docker compose up
@@ -179,14 +197,19 @@ a single architecture.
 
 ### If a guest cannot connect
 
-- **Client/AP isolation.** Campus and guest Wi-Fi often block devices from reaching each other even
-  on one network. Rule this out first — it is a router setting no script here can detect.
-- **Windows hosts.** Docker Desktop's WSL2 backend may forward the port only to `127.0.0.1`. From a
-  clone, `pnpm docker:up` checks whether WSL mirrored networking is enabled and prints configuration
-  guidance. Mirrored networking needs Windows 11 22H2+; on older Windows, forward the port to
-  the host's LAN address yourself (`netsh interface portproxy`).
-- **Wrong address in the `Guest:` line**: correct `HOST_LAN_IP` in `.env` and run
-  `docker compose up -d` again.
+Test from another device on the LAN — a phone works — by opening the `Guest:` address. Opening it
+on the host proves nothing about the network. If it fails, check in this order:
+
+1. **Client/AP isolation.** Campus and guest Wi-Fi often block devices from reaching each other even
+   on one network. It is a router setting no script here can detect; try a phone hotspot or
+   another network to rule it out.
+2. **Ports and firewall.** Both 3000 and 8080 must be open ([Open the ports](#open-the-ports)).
+3. **Windows hosts.** Docker Desktop's WSL2 backend may forward the port only to `127.0.0.1`. From a
+   clone, `pnpm docker:up` checks whether WSL mirrored networking is enabled and prints configuration
+   guidance. Mirrored networking needs Windows 11 22H2+; on older Windows, forward the port to
+   the host's LAN address yourself (`netsh interface portproxy`).
+4. **Wrong address in the `Guest:` line**: correct `HOST_LAN_IP` in `.env` and run
+   `docker compose up -d` again.
 
 ## Documentation
 
