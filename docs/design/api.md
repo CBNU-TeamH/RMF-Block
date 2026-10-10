@@ -62,8 +62,9 @@ screen (`POST /api/workspace`), changes the password there without a restart
 connected users stay), and a restart resumes them (FR-010-05). The password is stored as a scrypt
 hash with its salt, never as itself, and compared in constant time (async scrypt, so a join
 never stalls the process). For development and CI, startup writes `WORKSPACE_PASSWORD`/`WORKSPACE_NAME`
-into the file when no valid saved configuration exists (`seedWorkspaceFromEnv()`); while one does they
-are not read, and an unparsable or invalid file is re-seeded from them. A file that does not parse, or lacks a valid salt and 64-hex hash, counts as not set up (logged
+into the file when no valid saved configuration exists and `WORKSPACE_PASSWORD` has at least 4
+characters (`seedWorkspaceFromEnv()`); while one does they are not read, and an unparsable or invalid
+file is re-seeded from them under the same length condition — a shorter password writes nothing. A file that does not parse, or lacks a valid salt and 64-hex hash, counts as not set up (logged
 once) rather than an error — the setup screen rewriting it is the recovery, where throwing would
 fail every page; `PATCH /api/workspace/password` refuses before setup (409) so it cannot create the
 workspace and skip the name. The server boots either way — the `/join` page shows a not-open notice and `POST /api/workspace/join` answers 503 until the workspace is open, and

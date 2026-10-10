@@ -118,8 +118,10 @@ would watch that person leave and rejoin. Identity reaches it as three strings r
 member object, because a fresh object each render would rebuild the connection each render.
 
 **The Yorkie address defaults to the page's own URL, not a server-computed one.** Whatever host
-someone typed to reach the app is by definition one they can reach; a LAN address is not reachable
-from a page opened at `localhost`, which browsers keep in the loopback address space.
+someone typed to reach the app is by definition one they can reach. A server-computed LAN address
+can fail: a page opened at `localhost:3000` and told to fetch `192.168.x.x:8080` crosses from the
+loopback into the local-network address space, which browsers gate (Chrome, Brave and Firefox all
+refused it), while a phone already on the LAN address connected fine.
 
 The one escape from that default is `YORKIE_PUBLIC_ADDR`, for a Yorkie that genuinely runs on a
 different machine than this app — a case the page's own URL cannot answer, so an explicit
@@ -589,4 +591,6 @@ the focus-change or 5-second heartbeat that also re-send marks. Measured:
 
 The realistic case is trivial on a LAN. The worst case — `MAX_POINTS_PER_MARK`'s ~127KB ceiling — needs 8 uncleared maximum-length strokes standing at once, and the pointer adds 88
 bytes to that ceiling, not a materially new one. While a stroke is being drawn the payload can
-briefly carry a 9th, in-progress mark, because the cap applies at pointerup.
+briefly carry a 9th, in-progress mark, because `MARK_CAP` applies at pointerup. `extendMark` stops
+that mark at `MAX_POINTS_PER_MARK` too, so the transient peak is 9 maxed strokes — about 143 KB per
+publish, ~1.43 MB/s at 10Hz, scaled from the measured 8-stroke row rather than measured itself.
