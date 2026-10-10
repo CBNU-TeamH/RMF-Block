@@ -467,7 +467,7 @@ Both sockets (`/api/chat/ws`, `/api/workspace/ws`) refuse the upgrade with a raw
 Yorkie owns the roster: every client attaches to a reserved `workspace` document and reads
 `doc.getPresences()` (`lib/presence/`, `app/(workspace)/presence-provider.tsx`), which also
 handles disconnect detection. There is no server-held roster. The `/api/workspace/ws` socket
-carries `session:revoked` plus chat — `WsHub.broadcast()` writes to every open connection
+carries `session:revoked`, chat and the document-tree events (`document:created`/`changed`/`deleted`, [`architecture.md`](architecture.md#3-interface-contracts)) — `WsHub.broadcast()` writes to every open connection
 regardless of which path it upgraded on, so a `chat:message` reaches workspace sockets as well
 and is ignored client-side.
 

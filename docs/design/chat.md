@@ -66,7 +66,11 @@ app/(workspace)/
 
 `ChatService.send()` requires text or an attachment, caps text at 2000 characters
 (`ChatValidationError`, surfaced as 400), and persists before it broadcasts. The panel tracks each
-send as pending or failed so a failure reaches the sender (FR-060-07).
+send as pending or failed so a failure reaches the sender (FR-060-07). A resend after a failed send
+reuses the already-uploaded `fileId` instead of uploading again.
+
+The socket reconnects with exponential backoff up to 15 s, and every (re)open backfills history,
+deduped by message id and ordered by `sentAt`.
 
 **`ChatService` depends on two small interfaces, not concrete classes**:
 

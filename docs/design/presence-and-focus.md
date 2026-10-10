@@ -57,11 +57,18 @@ block on focus. A block is deliberately *not* cleared on blur — a jump to some
 away should still land where they were working, which the per-document `activeBlockId` (entries
 expire after 30s and are refreshed by a 5s heartbeat) cannot promise. `FocusFollowProvider` owns the jump: it asks first if this browser is following someone (a follow
 would pull it straight back), remembers one place to return to, and hands the editor a block to
-scroll to once the document has loaded.
+scroll to once the document has loaded. That target expires after 10s so a failed navigation
+does not scroll a later open; a member with no focused block lands at the top of the document, and
+a block that has since been deleted leaves the scroll alone.
 
 Where it surfaces: the header roster lists only the members in the open document (and, dimmed at
 the end, the ones not connected); the document tree is where you find the rest — a dot per other
 member on the row of the document they are in, and the dot is the jump. Past three, a `+N` opens the rest. The place a jump leaves from is remembered even when it is the page with no document (`"home"`) — since `/` lands on a document (#168), that is only an empty workspace or the moment before the landing.
+
+The roster stays complete without a poll: the layout reads the known members on the server, so
+`PresenceStack` calls `router.refresh()` once per member id it has not seen (the host excluded)
+and the dimmed-offline list picks up the newcomer. While Yorkie is attaching the roster shows
+연결 중; if the connection fails it shows 연결 끊김, which is terminal until the page reloads.
 
 ## Two subscriptions, not one
 
@@ -473,7 +480,8 @@ order, so measuring last means measuring after every textarea in that commit has
 Its height is the bottom of the last measured box, but never less than the scroll container's
 visible height. `inset-0` would give the visible box and clip
 every mark past the first screen; `scrollHeight` over-reports, because the 파일 추가 footer and its
-`flex-1` sit below the last block.
+`flex-1` sit below the last block. A `ResizeObserver` on the pane and on each block re-measures the
+geometry when content resizes, e.g. when an image finishes loading.
 
 The overlay is not optional, and this is the one place the editor's own design constrains the
 feature: every block's editing surface is a bare `<textarea>`, so a pointerdown on a block moves the

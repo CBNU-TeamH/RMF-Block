@@ -40,7 +40,7 @@ assessment after the feature works, when the final behavior and affected paths a
 | --- | --- |
 | Logic, limits, component interactions, server gates or route responses | The relevant Vitest layer below; extend an existing case when it reaches the behavior, otherwise add a regression or feature case. |
 | A user journey after hydration, browser-native input, multiple clients, live updates or outage recovery | Playwright in `e2e/`; cover the observable result through the real browser and stack. A mocked component/route test alone cannot prove it. |
-| Container startup, printed LAN/bootstrap addresses, cookie/redirect wiring, auth or service networking | The container smoke steps in [CI](../.github/workflows/ci.yml); extend their HTTP/startup checks when the changed contract is missing. Use browser E2E as well when hydration or interaction is part of that contract. |
+| Container startup, printed LAN/bootstrap addresses, cookie/redirect wiring, auth or service networking | The container smoke steps in [CI](../.github/workflows/ci.yml) (plus `scripts/verify-yorkie-invariants.mjs` as a separate CI step; `scripts/verify-auth.mjs` and `scripts/verify-chat-files.mjs` are manual probes of a running stack); extend their HTTP/startup checks when the changed contract is missing. Use browser E2E as well when hydration or interaction is part of that contract. |
 
 Choose the cheapest layer that proves each result. E2E and smoke are assessed separately;
 running an unchanged suite is not evidence that it covers a new behavior. Reuse or update an
@@ -213,7 +213,7 @@ a browser run costs seconds per test against milliseconds.
   cover guest/host admission, takeover cancel/confirm and third-party isolation, tab deduplication,
   arrival/departure, bidirectional/late/reloaded reads, concurrent same-position insertion and
   disjoint-range edits, split/merge ordering, local undo/redo preserving remote input, eight-user
-  block/shared-text convergence, live tree create/rename/move/delete, chat sender attribution and
+  block/shared-text convergence, live tree create/rename/move/delete, document tabs and the sidebar rail, host restore of a deleted document from `/admin`, chat sender attribution and
   remote attachment preview. Recovery holds an activated client offline for 20 seconds while both
   sides edit, then checks convergence and chat backfill/deduplication.
 - **Anchors and timing.** Capture block IDs and address `[data-block-id="<id>"] textarea`; inspect
