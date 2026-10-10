@@ -128,13 +128,15 @@ which checks block a merge: `AGENTS.md` §6. How the layers of tests divide the 
 A release is a tag on `main`, with no release branch ([ADR-009](docs/adr/009-distribution-ghcr-image-tag-release.md)).
 Pushing the tag runs `.github/workflows/release.yml`, which works in this order:
 
-1. Checks the tag against `package.json` and that its commit is on `main`, then checks that no
-   GitHub Release exists for the tag. Only an HTTP 404 allows the build to proceed; lookup errors fail.
-2. Pushes `ghcr.io/cbnu-teamh/rmf-block:X.Y.Z` for `linux/amd64` and `linux/arm64`, or reuses that
-   image if an earlier run of the tag pushed it from the same commit.
-3. Only then creates the release. The release attaches `docker-compose.yml`, rewritten to `X.Y.Z`,
-   and `env.sample`, and its notes give the image's digest.
-4. Only then, for a final-version tag, points `latest` at that digest; `-rc.N` tags leave it alone.
+1. Checks the tag against `package.json` and that its commit is on `main`.
+2. Checks what an earlier run of the tag published. An `X.Y.Z` image is reused only if it was built
+   from the tag's commit, and a release only if its notes name that image's digest. Only an HTTP 404
+   counts as no release; a mismatch or a lookup error fails.
+3. Pushes `ghcr.io/cbnu-teamh/rmf-block:X.Y.Z` for `linux/amd64` and `linux/arm64`, unless reused.
+4. Only then creates the release, unless it exists. The release attaches `docker-compose.yml`,
+   rewritten to `X.Y.Z`, and `env.sample`, and its notes give the image's digest.
+5. Only then, if GitHub marks this tag as the latest release, points `latest` at that digest.
+   `-rc.N` tags and older versions leave it alone.
 
 To cut `X.Y.Z`:
 
@@ -149,10 +151,8 @@ To cut `X.Y.Z`:
 6. Release: `git tag vX.Y.Z upstream/main && git push upstream vX.Y.Z`.
 
 Never re-push a published version tag; publish a new version instead. Runs for the same tag cannot
-overlap and do not cancel an in-progress run. A later run stops before building if the release
-already exists. A failed run can be retried while no GitHub Release exists: re-run it, and it reuses
-an image already pushed for the tag instead of building over it. If the release was created but
-`latest` did not move, move it by hand with the digest from the release notes:
-`docker buildx imagetools create --tag ghcr.io/cbnu-teamh/rmf-block:latest ghcr.io/cbnu-teamh/rmf-block@sha256:…`.
-Only `latest` moves after publication. A faulty release is not deleted or re-tagged; publish a
+overlap and do not cancel an in-progress run. A failed run, at any step, is retried by
+re-running it: it skips what the earlier run published and finishes the rest, and re-running a
+finished run changes nothing. It never builds over a published version, and a tag re-pushed to
+another commit stops at the image check. Only `latest` moves after publication. A faulty release is not deleted or re-tagged; publish a
 fixed version, and hosts can roll back meanwhile (README, Upgrading).

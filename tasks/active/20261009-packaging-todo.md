@@ -137,8 +137,18 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
     - Attempt 1: success in 6m 15s. `Check the image` passed as absent, the build pushed `0.0.1-rc.1` as `sha256:ff9716d1…` (`linux/amd64`, `linux/arm64`, `revision=ca7e369`), the prerelease was created with that digest, and `Move latest` was skipped; `latest` does not exist on the fork.
     - The release was then deleted, keeping the tag. Attempt 2: success in 36 s. `Check the image` reused the digest, metadata and build were skipped, and the prerelease was recreated with the same digest and both assets.
     - Attempt 3: failed at `Check the release does not exist` with "Release v0.0.1-rc.1 already exists".
-  - Not exercised: `Move latest`, which runs only for a final tag. It runs first on the upstream `v0.0.1`; if it fails, CONTRIBUTING's manual command recovers it.
+  - Not exercised: `Move latest`, which runs only for a final tag. It runs first on the upstream `v0.0.1`; if it fails, re-running the run retries it (see the next follow-up).
 - Skipped: moving the native-only variables out of `.env.sample` and removing README's per-OS lookup (both were chosen in the two previous follow-ups); generalising the image name in the `sed` pattern; the render-time state update in `document-tabs.tsx` (no failure found, and outside this PR).
+
+## Resumable re-run follow-up
+
+- Scope: [the CodeRabbit thread](https://github.com/CBNU-TeamH/RMF-Block/pull/181#discussion_r4232961042) — a failed `Move latest` could not be retried, because a re-run stopped at the release check. Fixed across every state a re-run can meet, not only that step.
+- Success criteria: a re-run after a failure at any step finishes the remaining steps; a re-run of a finished run changes nothing; an existing release is passed only when its notes name the reused image's digest; `latest` moves only for the tag GitHub marks as the latest release, so re-running an older tag never moves it back; no state builds over a published version.
+- Test selection: run the actual `Check the release` and `Move latest` blocks against the GitHub API (docker stubbed for the `latest` push), then actionlint. `Check the image` changed only its message. No new Vitest, browser E2E or container-smoke cases: application code, images, Compose files and startup are unchanged.
+- Results (2026-10-10):
+  - `Check the release` on the fork: `v0.0.1-rc.1` with its digest `sha256:ff9716d1…` passed and marked the release as existing; with another digest, or with no image, it failed with "publish a new version"; a missing release passed; a bad token (HTTP 401) failed.
+  - `Move latest`: on `cli/cli`, its latest release tag moved `latest` (stub) and `v2.0.0` left it with a notice; on the fork, which has no latest release (HTTP 404), the step failed rather than guess.
+  - actionlint 1.7.7: clean. `pnpm verify:docs`, `pnpm comments` and `git diff --check`: clean.
 
 ## Review
 

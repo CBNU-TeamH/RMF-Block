@@ -15,10 +15,11 @@ that the next person does not rediscover this.
 - **A tag push runs the pre-push hook too**, so the full test suite and build run (about two minutes) for a push that carries no code.
 - **A default Compose project name does not migrate older volumes.** Read the running or stopped app container's Compose label and preserve it through `COMPOSE_PROJECT_NAME` when switching to a release folder. Removing containers alone does not transfer data.
 - **PowerShell 5.1 has a `curl` alias and cannot parse `&&`.** Use `curl.exe`, separate folder creation from `Set-Location`, and guard `up` with `$LASTEXITCODE` after `pull`.
-- **An unsuccessful release lookup does not prove absence.** Only HTTP 404 permits publishing; existing releases and lookup failures stop before building. Serialize runs for the same tag so both cannot pass the absence check at once.
+- **An unsuccessful release lookup does not prove absence.** Only HTTP 404 counts as no release; lookup failures stop before building, and an existing release is resumed past only when its notes name the image being published. Serialize runs for the same tag so both cannot pass the absence check at once.
 - **LAN IP lookup needs an adapter choice.** Windows users query Windows rather than WSL; macOS users look up the hardware device instead of assuming `en0`; Linux users copy the LAN interface's IPv4 without its prefix. Release files do not include the clone's detection script.
 - **An empty environment value is not an absent one.** Native Yorkie startup uses `??` defaults, so active empty assignments in a shared sample prevent fallback. Commented override examples preserve the defaults, while full Compose supplies its own internal addresses.
 - **A registry tag is mutable, so a retry must look before it pushes.** Checking only the GitHub Release let a re-run push a new digest under a version an earlier run had already pushed. The image check reuses the existing digest when the revision label matches.
+- **Every step a run can fail after has to be resumable, not just the expensive one.** Making only the build reusable left `latest` stranded once the release existed, because the release check refused the re-run. Each step checks its own result instead, and `latest` follows GitHub's latest release, so re-running an older tag cannot move it back.
 
 ## What we would do differently
 
