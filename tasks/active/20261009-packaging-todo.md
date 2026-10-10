@@ -152,6 +152,18 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
   - Not exercised on a hosted run: `Move latest` itself, which needs a final tag; it first runs on the upstream `v0.0.1`, and a failure there is retried by re-running.
   - actionlint 1.7.7: clean. `pnpm verify:docs`, `pnpm comments` and `git diff --check`: clean.
 
+## Release README follow-up
+
+- Scope: before `v0.0.1`, the README's features become a four-row table with a screenshot each (document editing, floating views and chat, screen sharing, admin), taken from the published `0.0.1-rc.1` image; a Korean `README.ko.md` translates it; the LAN setup gains a one-line address lookup per OS, the ports to open (3000 and 8080) and a check from a guest device; the startup hint for a missing `HOST_LAN_IP` stops sending release users to `pnpm docker:up`; CONTRIBUTING names the organisation setting that the package visibility change needs.
+- Success criteria: the four screenshots show the current UI; both READMEs carry the same sections and pass the link and anchor check; each lookup command prints the LAN address on the OS it names; the startup hint names `.env` and `docker compose up -d`.
+- Test selection: `pnpm verify:docs`, now covering `README.ko.md`; run the Windows and Linux lookup commands here; lint, test and build through the pre-push hook. The startup hint is a log line with no test; check it in the `v0.0.1-rc.2` image with `HOST_LAN_IP` empty. No new Vitest, browser E2E or container-smoke cases: no behaviour changes.
+- Results (2026-10-10):
+  - Screenshots: the `v0.0.1-rc.1` release's `docker-compose.yml`, pulled anonymously after the package went public, ran as project `rmf-shot` with renamed containers, from a fresh volume each attempt; a Playwright script drove a host and two guests (`민지`, `준호`) at 1440×900. The project was removed with `down -v` afterwards; the clone's `rmf-block_*` volumes were not touched.
+  - Lookup commands on this Windows 11 machine: the PowerShell 5.1 one-liner and WSL's `ip -4 route get 1.1.1.1` both printed `192.168.0.9`, the Wi-Fi address. The macOS command was checked against `route(8)` and `ipconfig(8)` only.
+  - `pnpm verify:docs`: clean, including an anchor in `README.ko.md` (a deliberately broken `#포트-열기-없음` was reported, then restored).
+  - `/simplify` (four angles): applied — `.env.sample`, the file a release host edits, now carries the same one-line lookups instead of the old multi-step list, and the startup hint and `detect-host-ip.sh` point at its comments rather than keeping their own per-OS lists; `verify:docs` compares the two READMEs' heading levels and table lines with `outline()` from `verify-srs-sync.mjs` (a removed Korean heading was reported, then restored); the README lost a redundant sentence, the `<a>` wrappers GitHub adds itself, and a repeated troubleshooting step. Skipped — thumbnail copies of the screenshots (264 KB in all), caching anchor lookups in `verify-docs.mjs` (predates this change), and linking the Korean migration block to the English one (a full translation was asked for).
+  - `/code-review low`: no findings. Checked by hand as well: importing `verify-srs-sync.mjs` has no side effects, `.env.sample` still parses to the same three keys, and `bash -n` passes on `detect-host-ip.sh`.
+
 ## Review
 
 Filled in at the end: what shipped, what was cut, what moved to another task.

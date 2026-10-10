@@ -20,6 +20,8 @@ that the next person does not rediscover this.
 - **An empty environment value is not an absent one.** Native Yorkie startup uses `??` defaults, so active empty assignments in a shared sample prevent fallback. Commented override examples preserve the defaults, while full Compose supplies its own internal addresses.
 - **A registry tag is mutable, so a retry must look before it pushes.** Checking only the GitHub Release let a re-run push a new digest under a version an earlier run had already pushed. The image check reuses the existing digest when the revision label matches.
 - **Every step a run can fail after has to be resumable, not just the expensive one.** Making only the build reusable left `latest` stranded once the release existed, because the release check refused the re-run. Each step checks its own result instead, and `latest` follows GitHub's latest release, so re-running an older tag cannot move it back.
+- **An organisation must allow public packages before one can be made public.** The package page refused the change with "Setting is disabled by organization administrators" even for an owner, until Settings → Packages → Package creation allowed Public.
+- **A README screenshot dates fast.** The two from 2026-10-07 predated the tabs and the admin page within three days. Taking them from the published image in an isolated Compose project, with a throwaway Playwright script, kept the clone's volumes out of it.
 
 ## What we would do differently
 
