@@ -29,4 +29,4 @@ that the next person does not rediscover this.
 
 ## Worth extracting
 
-- None for this follow-up: the migration and shell instructions belong in the README, and the publication guard belongs in ADR-009.
+- None to promote: each lesson already landed where it is read. The migration and shell steps are in the README, the publication guard and resumable runs in ADR-009, and the organisation's package setting in CONTRIBUTING's release checklist.

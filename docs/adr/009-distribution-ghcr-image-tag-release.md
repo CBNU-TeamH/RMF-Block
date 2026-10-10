@@ -1,6 +1,6 @@
 # ADR-009: Distribute a multi-arch image on GHCR, released from a git tag
 
-- **Status**: Proposed. It becomes Accepted when #160 and #161 merge, and is corrected there if the build proves a point wrong.
+- **Status**: Accepted. #160 and #161 merged in #181, and `v0.0.1` was released from a tag on 2026-10-10.
 - **Date**: 2026-10-09
 - **Related**: [`docs/SRS-en.md`](../SRS-en.md) UC-010 (precondition: the image "is available to the Host"), HIR001, SOIR002; [ADR-005](005-custom-server-rest-ws.md) (why the image carries a full `node_modules`); issues #160 (WBS 20.1), #161 (WBS 20.2)
 

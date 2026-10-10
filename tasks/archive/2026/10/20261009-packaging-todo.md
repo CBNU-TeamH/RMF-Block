@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-09
 **Issue**: #160 (WBS 20.1), #161 (WBS 20.2)
-**Design**: [ADR-009](../../docs/adr/009-distribution-ghcr-image-tag-release.md). No module design changes; the decision is the ADR.
+**Design**: [ADR-009](../../../../docs/adr/009-distribution-ghcr-image-tag-release.md). No module design changes; the decision is the ADR.
 
 ## Milestones
 
@@ -66,7 +66,7 @@
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior. For each relevant layer, name existing tests
 that cover it, required updates/new cases, or a concrete reason no change is needed.
 
@@ -82,10 +82,10 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 
 ## Acceptance
 
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] Milestones 1–4 meet their *Done*, with the fork rehearsal's outputs recorded in Review.
-- [ ] CI is green on the PR, including container smoke and E2E.
-- [ ] The README quick start works from an empty folder with only the release's files.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] Milestones 1–4 meet their *Done*, with the fork rehearsal's outputs recorded in Review.
+- [x] CI is green on the PR, including container smoke and E2E — and on both merge commits (`1d7da30`, `a6c4cf4`), where the E2E step passed.
+- [x] The README quick start works from an empty folder with only the release's files (`v0.0.1-rc.2`, then `releases/latest` for `v0.0.1`).
 
 ## Cross-cutting
 
@@ -167,6 +167,23 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 ## Review
 
 Filled in at the end: what shipped, what was cut, what moved to another task.
+
+- **Shipped**: `v0.0.1`, the first release. A pushed `v*` tag builds `ghcr.io/cbnu-teamh/rmf-block` for amd64 and arm64, creates the release with a version-pinned compose file and `env.sample`, then moves `latest`; a re-run resumes at any step (#181). The README has a features table with current screenshots, a Korean translation and fuller LAN setup (#182).
+- **Cut**: nothing from the plan.
+- **Moved to other work**: trimming the ~945 MB image, and a native arm64 runner if QEMU builds get slow (ADR-009, Consequences). Neither has an issue yet.
+
+### The release (milestone 5), 2026-10-10
+
+- **Fork cleanup** (milestone 4's last *Done* item): the fork's `v0.0.1-rc.0`–`rc.2` releases and tags were deleted, and the local tags with them. Their workflow runs and the fork's images remain.
+- **`v0.0.1-rc.1` on `1d7da30`, run 38028118599: success in 4m 10s.** The first push of the organisation package: `Check the image` read the absent package as "not found" and built `sha256:8e70b920…`. The prerelease had both files; `latest` was not created.
+- **Package visibility**: the change was refused ("Setting is disabled by organization administrators") until the organisation allowed public packages (Settings → Packages → Package creation). An owner then made `rmf-block` public; anonymous `imagetools inspect` and `pull` worked afterwards.
+- **#182** retook the README screenshots from the `0.0.1-rc.1` image and changed the startup hint, so the image changed and another rc followed.
+- **`v0.0.1-rc.2` on `a6c4cf4`, run 38032708239: success in 6m 3s**, `sha256:857d3dde…`. From an empty folder with that release's two files, in a separate project:
+  - With `HOST_LAN_IP` empty, startup printed the new hint (set it in `.env`, the commands are in `env.sample`, then `docker compose up -d`).
+  - The README's PowerShell one-liner printed `192.168.0.9`; with it set, the `Guest:` line read `http://192.168.0.9:3000`, and the host reached 3000 (307 to `/join`) and 8080 (Yorkie's 404 for `/`) on that address. A request from the host does not prove a guest can connect.
+  - The author reported the teammate's check of rc.2, including on an Apple Silicon Mac, as done.
+- **`v0.0.1` on `a6c4cf4`, run 38034276161: success in 6m 15s.** `Move latest` ran for the first time. `releases/latest` is `v0.0.1`; `:0.0.1` and `:latest` are both `sha256:11757cce…` with `linux/amd64` and `linux/arm64`. The README's `releases/latest/download` URLs fetched a compose file naming `…:0.0.1` and the new `env.sample`, and `docker compose pull` worked without logging in.
+- **The same commit built twice gives two digests**: rc.2 and `v0.0.1` are both `a6c4cf4` but `857d3dde…` and `11757cce…`. Each tag builds its own image, because `Check the image` looks up `X.Y.Z` for the tag being released; the release notes pin the one that shipped.
 
 ### Fork rehearsal (milestone 4), 2026-10-09
 
