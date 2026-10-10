@@ -138,8 +138,8 @@ export function changeWorkspacePassword(password: unknown, storePath = DEFAULT_W
 
 /** Development and CI only, run once at startup: `WORKSPACE_PASSWORD` (and
  *  `WORKSPACE_NAME`) open a workspace that has never been set up, standing in
- *  for the setup screen. Once the file exists they are never read — people
- *  running the image leave them unset. */
+ *  for the setup screen. While a valid saved configuration exists they are never
+ *  read — people running the image leave them unset. */
 export async function seedWorkspaceFromEnv(storePath = DEFAULT_WORKSPACE_PATH): Promise<void> {
   const password = process.env.WORKSPACE_PASSWORD ?? "";
   if (isWorkspaceOpen(storePath) || password.length < MIN_PASSWORD_LENGTH) return;

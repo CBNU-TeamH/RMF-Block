@@ -65,14 +65,14 @@ The wire protocol is Yorkie's own client SDK — not ours to design. What we do 
 
 ### (b) Client ↔ App/WS Server (API groups)
 
-Transport is REST + WebSocket. Grouped by concern; full request/response schemas are written when each group's module is built. Both WebSocket upgrade paths (chat and workspace) require a live session or the host secret to complete at all — an unauthenticated client gets a 401 before the handshake, never reaching the hub ([ADR-006](../adr/006-workspace-chat-socket-auth.md)).
+Transport is REST + WebSocket. Grouped by concern; full request/response schemas are written when each group's module is built. Both WebSocket upgrade paths (chat and workspace) require a live session or the host secret to complete at all — the upgrade refusal is specified in [`api.md`](api.md#4-websocket--client--rmf-block-server).
 
 <!-- declare: websocket-paths
 const: server/index.mts CHAT_WS_PATH = "/api/chat/ws"
 const: server/index.mts WORKSPACE_WS_PATH = "/api/workspace/ws"
 -->
 
-SOIR001 is easy to misread here: it requires realtime sync over "WebSocket 기반 실시간 통신", but document changes and presence never cross this boundary — they go straight from the browser to Yorkie over Connect / gRPC-Web on ordinary HTTP, with `WatchDocument` as a server-streaming response rather than a socket. REST and WebSocket are what *this* boundary carries; the socket carries `session:revoked`, chat and the document-tree events (§3(d)). `docs/SRS-ko.md` is a team-agreed document and changes only with the team's agreement (`AGENTS.md` §5); SOIR001's wording was corrected under that agreement — [issue #36](https://github.com/CBNU-TeamH/RMF-Block/issues/36).
+SOIR001 is easy to misread here: it requires realtime sync over "WebSocket 기반 실시간 통신", but document changes and presence never cross this boundary — they go straight from the browser to Yorkie over Connect / gRPC-Web on ordinary HTTP, with `WatchDocument` as a server-streaming response rather than a socket. REST and WebSocket are what *this* boundary carries; the socket carries `session:revoked`, chat and the document-tree events (§3(d)). `docs/SRS-ko.md` is a team-agreed document and changes only with the team's agreement (`AGENTS.md` §5).
 
 | Group | Carries | Traceability |
 | --- | --- | --- |
@@ -95,8 +95,6 @@ What crosses this boundary for version history is authorisation only: the browse
 
 A revision outlives the document it belongs to, but only by id, so deleting a document has to keep its revision ids: [`version-history.md`](version-history.md#deleting-a-document).
 
-**Decided:** the App/WS Server does not keep a `Watch` subscription on documents — Mongo provides durability directly (ADR-002).
-
 ### (d) App/WS Server ↔ `.data/` JSON files
 
 App-owned state is whole JSON files on the host filesystem under `.data/` — chat history, members, workspace metadata, the document catalogue and its trash, and file metadata. Sessions stay in memory on purpose (a session id on disk would be a permanent bearer token). The repository pattern (sync writes, atomic rename) is in [`chat.md`](chat.md), "Storage"; why the document catalogue exists beside Yorkie is in [`document-editing.md`](document-editing.md#why-a-catalogue-beside-yorkie).
@@ -105,7 +103,7 @@ The catalogue is a **tree**, not a list: a document carries a `parentId`, `null`
 
 **Tree edits reach other clients over the WebSocket hub, not through Yorkie.** Every catalogue write broadcasts `document:created`, `document:changed` or `document:deleted` (events listed in [ADR-005](../adr/005-custom-server-rest-ws.md); hub design in [`chat.md`](chat.md)), and open clients apply it — a tree edit is one short server-authoritative operation, so last-write-wins on one JSON file fits, not a CRDT. A delete broadcasts **every** id it removed, because FR-023-06 takes the subtree and a client told only about the parent would keep drawing its children.
 
-This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`. Both are now named volumes — `mongo-data` for Yorkie's store, `app-data` for `.data/` — so a container recreation leaves either intact and only `docker compose down -v` clears them (#22).
+This store is separate from Yorkie's. Restoring a workspace after a restart requires both sides to have survived — documents in MongoDB, app state in `.data/`. Both are named volumes — `mongo-data` for Yorkie's store, `app-data` for `.data/` — so a container recreation leaves either intact and only `docker compose down -v` clears them.
 
 ### Startup: how the app refuses to run
 

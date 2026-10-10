@@ -62,11 +62,12 @@ screen (`POST /api/workspace`), changes the password there without a restart
 connected users stay), and a restart resumes them (FR-010-05). The password is stored as a scrypt
 hash with its salt, never as itself, and compared in constant time (async scrypt, so a join
 never stalls the process). For development and CI, startup writes `WORKSPACE_PASSWORD`/`WORKSPACE_NAME`
-into the file when it does not exist yet (`seedWorkspaceFromEnv()`); once it exists they are never
-read. A file that does not parse, or lacks a valid salt and 64-hex hash, counts as not set up (logged
+into the file when no valid saved configuration exists and `WORKSPACE_PASSWORD` has at least 4
+characters (`seedWorkspaceFromEnv()`); while one does they are not read, and an unparsable or invalid
+file is re-seeded from them under the same length condition — a shorter password writes nothing. A file that does not parse, or lacks a valid salt and 64-hex hash, counts as not set up (logged
 once) rather than an error — the setup screen rewriting it is the recovery, where throwing would
 fail every page; `PATCH /api/workspace/password` refuses before setup (409) so it cannot create the
-workspace and skip the name. The server boots either way — `/join` answers 503 until the workspace is open, and
+workspace and skip the name. The server boots either way — the `/join` page shows a not-open notice and `POST /api/workspace/join` answers 503 until the workspace is open, and
 startup prints that setup is unfinished.
 
 `lib/yorkie-admin.ts` registers this server's auth webhook with Yorkie at startup
@@ -218,7 +219,7 @@ The tables below are the target design, not the built set — the generated tabl
 | `DELETE` | `/api/workspace/members/:userId` | Kick a guest and close their connection | host | FR-011-01~03, FR-011-07 |
 | `POST` | `/api/workspace/trash/:id/restore` | Restore a deleted document, its subtree and its files, from the trash on `/admin` ([Documents](#documents)) | host | — |
 
-`lastJoinedAt` is deliberately **not** on `WorkspaceMember`, only on the stored record (`StoredMember`). `WorkspaceMember` is also the presence payload every browser publishes to every other (`lib/presence/types.ts`), so a field added there is broadcast to the whole workspace — and when someone last signed in is nobody else's business. The host reads it on the Members screen as 최근 접속, server-side.
+`lastJoinedAt` is deliberately **not** on `WorkspaceMember`, only on the stored record (`StoredMember`). `WorkspaceMember` is also the presence payload every browser publishes to every other (`lib/presence/types.ts`), so a field added there is broadcast to the whole workspace — and when someone last signed in is nobody else's business. It is stored and kept sorted by `members()` but no screen shows it yet.
 
 `GET /api/workspace`'s members are **who belongs to this workspace**, not who is online — the
 persistent record `.data/` keeps so a kick (`DELETE …/members/:userId`) and a restore have something
@@ -361,7 +362,6 @@ Chat has two candidate implementations (§5). These REST endpoints belong to **v
 | Direction | Call | Purpose | Traceability |
 | --- | --- | --- | --- |
 | Yorkie → server | `POST /api/internal/yorkie/auth` (auth webhook) | Yorkie asks us to authorize each client operation: validate the token and that its session is still live (workspace-membership and per-document access checks are not built) | Execution arm of the FR-010/FR-020 auth chain, NFR-SEC-002/005 |
-| Server → Yorkie | ~~`Watch`~~ — **decided: not kept** | This subscription existed only to drive the delayed-write trigger, which ADR-002 deletes; Mongo now provides durability directly, so nothing needs it | ADR-002 |
 | Server → Yorkie | Admin API, read-only — document summaries and active editors | Supplementary source for who is editing what | FR-040 (support), FR-022-06 (support) |
 
 **Implemented.** Yorkie's port is still published, but reaching it no longer gets anyone in:
@@ -373,9 +373,7 @@ shared screen under UC-030, never see it), the browser passes that through the S
 `role` cookie is exchanged under the `host:<secret>` prefix (`HOST_SESSION_PREFIX`) and the
 webhook allows such a token without a session lookup; revoking the host is the restart, which
 clears the secret and the token registry together. Startup writes the webhook onto Yorkie's project
-itself, over the Admin API: the webhook URL is a project field
-rather than a server flag, and a step the host could forget would make an unguarded Yorkie the
-default.
+itself, over the Admin API (below).
 
 The webhook asks two questions, not one. A token can be valid while the session behind it is
 gone — a device displaced by another (FR-020-08) keeps its token — so tokens point at sessions and
@@ -395,10 +393,9 @@ only the cache size and TTL — so something has to call the Admin API after Yor
 that to the host would make `docker compose up` two steps and, worse, would make *an unguarded
 Yorkie* the state you get by forgetting the second one.
 
-It exits with `process.exit`, not `throw`. Throwing was the first attempt and does not work: Next
-installs its own `unhandledRejection` listener, so a throw from `instrumentation.ts` is logged and
-swallowed, `app.prepare()` never rejects, and the process lives on without ever listening — measured
-at forty-five seconds of sitting there. In a container that is the worst outcome available, because
+It exits with `process.exit`, not `throw`: Next installs its own `unhandledRejection` listener, so a
+throw from `instrumentation.ts` is logged and swallowed, `app.prepare()` never rejects, and the
+process lives on without ever listening. In a container that is the worst outcome available, because
 Docker sees a running service, `restart` never fires, and compose reports no failure while the
 workspace looks up and serves nothing.
 
@@ -437,10 +434,6 @@ Two tabs therefore share a token, which is correct: the token authorizes a *sess
 tabs are that session. Handing back a token with minutes left on it is fine too, since the SDK
 asks for a replacement the moment the webhook refuses one.
 
-One thing worth knowing wherever revocation is being reasoned about: **Yorkie caches an allow
-for `--auth-webhook-cache-auth-ttl`, 1s here** (the reasoning is under the webhook above; a refusal
-is never cached). A guest removed through UC-011 can keep writing for up to that second.
-
 Document keys carry no type prefix — a Yorkie key can only contain `a-z A-Z 0-9 - . _ ~` (120 chars max), which rules out a `:`-delimited scheme and makes any other delimiter ambiguous against UUIDs. Instead the key **is** the document's id as issued by `POST /api/documents`. The webhook does not read the key today; once it checks document access it would resolve the type by looking the id up in the App/WS Server's own document table, and `chat` would be a reserved literal key (version B, §5) rather than an id, since it's a workspace-wide singleton.
 
 ## 3. RPC — yorkie-js-sdk ↔ Yorkie
@@ -467,29 +460,17 @@ Both sockets (`/api/chat/ws`, `/api/workspace/ws`) refuse the upgrade with a raw
 Yorkie owns the roster: every client attaches to a reserved `workspace` document and reads
 `doc.getPresences()` (`lib/presence/`, `app/(workspace)/presence-provider.tsx`), which also
 handles disconnect detection. There is no server-held roster. The `/api/workspace/ws` socket
-carries `session:revoked` plus chat — `WsHub.broadcast()` writes to every open connection
+carries `session:revoked`, chat and the document-tree events (`document:created`/`changed`/`deleted`, [`architecture.md`](architecture.md#3-interface-contracts)) — `WsHub.broadcast()` writes to every open connection
 regardless of which path it upgraded on, so a `chat:message` reaches workspace sockets as well
 and is ignored client-side.
 
-Which document each user has open (UC-040) rides the same channel: the workspace presence
-carries `location: { documentId, blockId } | null`, set from the route and the focused block, so
-it vanishes with the connection and needs no server event. Members who are not connected come
+Which document each user has open (UC-040) rides the same channel as presence `location`
+([`presence-and-focus.md`](presence-and-focus.md)). Members who are not connected come
 from `.data/members.json` (`sessionRegistry.members()`), not from presence.
 
-### 4.2 Presentation session (FR-030) — draft, implementation deferred
+### 4.2 Presentation session (FR-030)
 
-Direction agreed, build postponed by team decision.
-
-| Direction | Event | Meaning |
-| --- | --- | --- |
-| client (presenter) → server | `presentation:start` | Begin presenting a document |
-| server → all | `presentation:started` | Announce presenter and document |
-| client (presenter) → server | `presentation:end` | End the session |
-| server → all | `presentation:ended` | Release followers |
-
-The server only announces *who* is presenting. Followers then subscribe to that presenter's Yorkie presence on the shared document directly and pin their own view to it client-side — reusing the existing `Watch`/presence stream instead of relaying viewport state through this server. Pause and resume (FR-030-08) are a client-side toggle and need no server call.
-
-Presenter highlight tools (FR-030-12/13) are not covered here and need their own design.
+No server events: sharing, following and the highlight tools run client-side over Yorkie presence — see [`presence-and-focus.md`](presence-and-focus.md).
 
 ### 4.3 Chat realtime delivery (FR-060-04)
 

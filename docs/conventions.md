@@ -137,8 +137,8 @@ copies drift, and nothing fails when they do.
   `architecture.md` and every other doc keep at most a one-line summary plus a link.
 
 **Cited by**: [`#126`](https://github.com/CBNU-TeamH/RMF-Block/issues/126). #23's "open" status was
-restated in `AGENTS.md` §7, ADR-002, `architecture.md` and `ROADMAP.md`, and stayed "open" in all
-four after #117 shipped it. The revision call path was drawn server-side in three places while
+restated in ADR-002, `architecture.md` and `ROADMAP.md`, and stayed "open" in all
+three after #117 shipped it. The revision call path was drawn server-side in three places while
 `version-history.md` had it right.
 
 ## Declared facts

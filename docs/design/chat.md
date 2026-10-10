@@ -66,7 +66,11 @@ app/(workspace)/
 
 `ChatService.send()` requires text or an attachment, caps text at 2000 characters
 (`ChatValidationError`, surfaced as 400), and persists before it broadcasts. The panel tracks each
-send as pending or failed so a failure reaches the sender (FR-060-07).
+send as pending or failed so a failure reaches the sender (FR-060-07). A resend after a failed send
+reuses the already-uploaded `fileId` instead of uploading again.
+
+The socket reconnects with exponential backoff up to 15 s, and every (re)open backfills history,
+deduped by message id and ordered by `sentAt`.
 
 **`ChatService` depends on two small interfaces, not concrete classes**:
 
@@ -95,8 +99,7 @@ interleaved by a second call on Node's single thread, so there is nothing for a 
 serialize.** An `await` mid-sequence would be a point where a second call can land between the read
 and the write, and the second write would drop the first. Choosing sync is therefore choosing to
 *not need* a queue, and a store that grows an `await` inside its read-modify-write needs a promise
-chain to serialize it. The chat store and the file index each had one until they went sync. Uploaded
-**bytes** stay async in `lib/files/file-repository.ts`, because writing them is not a
+chain to serialize it. Uploaded **bytes** stay async in `lib/files/file-repository.ts`, because writing them is not a
 read-modify-write and up to 25MB should not stall the process. Writes go through a temp file and a
 `rename`, because `writeFileSync` truncates before it writes and a crash mid-write would otherwise
 leave a half-written store. `rename` within one filesystem is atomic, so a concurrent reader sees the

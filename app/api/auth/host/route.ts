@@ -14,7 +14,7 @@ import { getHostSecret, isHostSecret } from "@/lib/host-secret";
  */
 export function GET(request: NextRequest) {
   // A relative Location, not `NextResponse.redirect(new URL("/", request.url))`:
-  // in the standalone server `request.url` is built from HOSTNAME, so that form
+  // in the custom server `request.url` is built from HOSTNAME, so that form
   // sends the host to `http://0.0.0.0:3000/` — a different origin, which drops
   // the cookie we just set. The browser resolves this against the URL it asked for.
   const response = new NextResponse(null, {

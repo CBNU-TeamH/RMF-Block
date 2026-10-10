@@ -120,8 +120,7 @@ which checks block a merge: `AGENTS.md` §6. How the layers of tests divide the 
   [`.github/PULL_REQUEST_TEMPLATE/archive.md`](.github/PULL_REQUEST_TEMPLATE/archive.md). It is
   **`docs:`** work — branch `docs/archive-<slug>`, commit and PR titled `docs: archive …` — since it
   only moves task documents and regenerates the two task indexes; no application code or behaviour
-  changes. Earlier archives used `chore:`;
-  they stay as they are.
+  changes.
 
 ## Releasing
 

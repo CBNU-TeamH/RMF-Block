@@ -5,10 +5,10 @@
 - **Owns**: none — this is process/strategy, not a module's design rationale. The five layers
   below name which existing design doc still owns *why* each module behaves the way it does; this
   document only says *where a new test for it belongs*.
-- **Related**: [issue #66](https://github.com/CBNU-TeamH/RMF-Block/issues/66) (closed — the
+- **Related**: [issue #66](https://github.com/CBNU-TeamH/RMF-Block/issues/66) (the
   measured layer/line-count breakdown that motivated this doc lives there); [issue
   #61](https://github.com/CBNU-TeamH/RMF-Block/issues/61) (the E2E layer's trigger); [issue
-  #112](https://github.com/CBNU-TeamH/RMF-Block/issues/112) (Tier 2, still open);
+  #112](https://github.com/CBNU-TeamH/RMF-Block/issues/112) (Tier 2);
   [ADR-004](adr/004-test-runner-migration.md) (why Vitest, why `pool: "forks"`, why happy-dom);
   [`docs/conventions.md`](conventions.md) (the Node type-stripping constraint `server/index.mts`
   and every `lib/`/`server/` test run under)
@@ -40,7 +40,7 @@ assessment after the feature works, when the final behavior and affected paths a
 | --- | --- |
 | Logic, limits, component interactions, server gates or route responses | The relevant Vitest layer below; extend an existing case when it reaches the behavior, otherwise add a regression or feature case. |
 | A user journey after hydration, browser-native input, multiple clients, live updates or outage recovery | Playwright in `e2e/`; cover the observable result through the real browser and stack. A mocked component/route test alone cannot prove it. |
-| Container startup, printed LAN/bootstrap addresses, cookie/redirect wiring, auth or service networking | The container smoke steps in [CI](../.github/workflows/ci.yml); extend their HTTP/startup checks when the changed contract is missing. Use browser E2E as well when hydration or interaction is part of that contract. |
+| Container startup, printed LAN/bootstrap addresses, cookie/redirect wiring, auth or service networking | The container smoke steps in [CI](../.github/workflows/ci.yml) (plus `scripts/verify-yorkie-invariants.mjs` as a separate CI step; `scripts/verify-auth.mjs` and `scripts/verify-chat-files.mjs` are manual probes of a running stack); extend their HTTP/startup checks when the changed contract is missing. Use browser E2E as well when hydration or interaction is part of that contract. |
 
 Choose the cheapest layer that proves each result. E2E and smoke are assessed separately;
 running an unchanged suite is not evidence that it covers a new behavior. Reuse or update an
@@ -95,8 +95,9 @@ a real browser — the E2E layer below.
 
 ### `app/` server components — async leaves
 
-All of this repo's async server components are **leaves**: they `await` only `cookies()` or
-`params`, then return a client component. That's why calling `await Page(props)` directly is
+The gate and page components this tier covers are **leaves**: they `await` only `cookies()` or
+`params`, then return a client component. (`app/admin/page.tsx` is not one: it also awaits the host
+check and an async trash purge, and returns server DOM.) That's why calling `await Page(props)` directly is
 enough — Next's own guidance against testing async Server Components with Vitest is about
 *nested* async components, streaming, and RSC serialization, none of which apply to a leaf.
 `redirect()`/`notFound()` really `throw` in this Next version, so the cases where the gate should
@@ -111,7 +112,7 @@ Two tiers, in order:
 - **Tier 1** — cover the leaves as they stand today, with `next/headers`/`next/navigation` mocked.
   The priority case is the **FR-020-04 auth gate** (`app/(workspace)/layout.tsx`): if it breaks,
   the whole workspace opens to anyone. FR-020-03 is the password *check* itself, done upstream in
-  `/api/auth/*` — the layout only enforces 04's absence-of-session flip side. Also in scope at
+  `POST /api/workspace/join` — the layout only enforces 04's absence-of-session flip side. Also in scope at
   this tier: the redirect when a session already exists (checked for both the host-cookie branch
   and the existing-session branch separately), and `notFound` for an unknown
   document id. All of it runs under the default `environment: "node"` (no DOM needed).
@@ -212,7 +213,7 @@ a browser run costs seconds per test against milliseconds.
   cover guest/host admission, takeover cancel/confirm and third-party isolation, tab deduplication,
   arrival/departure, bidirectional/late/reloaded reads, concurrent same-position insertion and
   disjoint-range edits, split/merge ordering, local undo/redo preserving remote input, eight-user
-  block/shared-text convergence, live tree create/rename/move/delete, chat sender attribution and
+  block/shared-text convergence, live tree create/rename/move/delete, document tabs and the sidebar rail, host restore of a deleted document from `/admin`, chat sender attribution and
   remote attachment preview. Recovery holds an activated client offline for 20 seconds while both
   sides edit, then checks convergence and chat backfill/deduplication.
 - **Anchors and timing.** Capture block IDs and address `[data-block-id="<id>"] textarea`; inspect
@@ -244,7 +245,7 @@ a browser run costs seconds per test against milliseconds.
   `continue-on-error` policy preserved. CI masks the bootstrap secret and uploads failure traces,
   the HTML report and redacted server logs.
 - **Follow-up.** Admin setup/access/password/kick/restart plus integrated user-location navigation
-  are tracked in [the admin E2E task](../tasks/active/20261007-admin-e2e-todo.md); admin merged in PR #170, and this coverage remains a separate task. Long-running load, 1-second propagation, 500MB client memory, real LAN
+  are tracked in [the admin E2E task](../tasks/active/20261007-admin-e2e-todo.md). Long-running load, 1-second propagation, 500MB client memory, real LAN
   devices and Firefox/WebKit remain separate from functional correctness.
 
 

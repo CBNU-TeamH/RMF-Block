@@ -24,7 +24,7 @@ Block = { id: string (uuid), type: string, content: <type-specific, see below> }
 - `root.blocks` is a **Yorkie Array**, not an Object keyed by id. Yorkie's Array is RGA-backed, so concurrent inserts at the same position already converge deterministically — block order is the array position itself, not a stored field.
 - Reordering (FR-022-04) uses the array's native `moveAfter`/`moveFront` — no custom merge logic, per ADR-001.
 - `id` stays on every block regardless of position, since presence (`activeBlockId`) and the future 블록 링크 블록 need a stable reference independent of array order.
-- Block/text color and styling is an open decision (`AGENTS.md` §7) and intentionally not part of any block's `content` below — see that TODO item for why deferring it doesn't require reworking this schema.
+- Block/text color and styling is intentionally not part of any block's `content` below; the question was tracked in [issue #6](https://github.com/CBNU-TeamH/RMF-Block/issues/6) (closed).
 
 ## Every text-bearing block wraps its text
 
@@ -277,17 +277,14 @@ and block reordering is a requirement. We take on IME handling ourselves in exch
 
 ### Behaviour of the textarea surface
 
-Measured against a real two-client Yorkie session, on the exact storage shape above —
-`root.blocks[0].content.text`, edited through `yorkie.Text.edit()` — rather than a bare string.
+The measured evidence for this surface (a real two-client Yorkie session, on the storage shape
+above) is in [ADR-008](../adr/008-textarea-editing-surface.md); what the code does with it:
 
 1. **A naive controlled binding corrupts text under concurrent editing** (the failure story is in
    [ADR-008](../adr/008-textarea-editing-surface.md)). The live constraint: every path that
    changes what Yorkie holds, local or remote, must advance the same diff baseline.
-2. **An uncontrolled textarea, patched only on the changed range, survives.** Two live clients
-   typing Hangul into the same block concurrently: remote edits arriving mid-composition are
-   queued rather than applied and flushed once `compositionend` fires. Non-composing keystrokes
-   (plain ASCII, Enter, space) sync per keystroke with no queuing needed. A queued edit carries
-   Yorkie's offsets, so the flush applies it to the baseline (Yorkie's text) and puts the composed
+2. **Remote edits arriving mid-composition are queued, then flushed on `compositionend`.** A
+   queued edit carries Yorkie's offsets, so the flush applies it to the baseline (Yorkie's text) and puts the composed
    text back where the composition started — the range recorded at `compositionstart`, carried
    through each edit, not inferred by a diff, which cannot place it inside a run of one character.
    If that range no longer fits the textarea (an IME composed away from where it started), the
@@ -295,16 +292,11 @@ Measured against a real two-client Yorkie session, on the exact storage shape ab
    The flush runs *before* the composition's commit, which then diffs Yorkie's own text and is
    always an edit Yorkie can apply
    ([#52](https://github.com/CBNU-TeamH/RMF-Block/issues/52), `e2e/ime-replay.e2e.ts`).
-3. **The SDK's own `EditOpInfo` carries what patching needs**: character offsets against the
-   pre-edit string, so an edit entirely before the caret shifts it by the size difference and
-   one entirely after leaves it alone.
-4. **A composed syllable is one edit, not one per candidate**: `compositionstart` suppresses
-   per-keystroke syncing and `compositionend` commits the finished syllable as a single diff, so
-   Yorkie's own `doc.history.undo()` steps back through what a person thinks of as a character,
-   not through IME candidates.
-
-The measurements behind these rules are in
-[ADR-008](../adr/008-textarea-editing-surface.md).
+3. **Patching reads the SDK's `EditOpInfo` offsets** (against the pre-edit string), so an edit
+   entirely before the caret shifts it by the size difference and one entirely after leaves it
+   alone.
+4. **A composed syllable is one edit**: `compositionstart` suppresses per-keystroke syncing and
+   `compositionend` commits the finished syllable as a single diff.
 
 ### Subscribing to remote changes
 
@@ -346,9 +338,9 @@ of merging with it.
 
 `lib/blocks/registry.ts` holds one entry per block type. The reason it is a `Record` keyed by the
 `BlockType` union rather than a `switch` with a `default` is exhaustiveness: **leave a key out and
-it does not compile.** This was measured before the table existed — adding a member to the union
-produced *one* compile error and *five* silent runtime fallbacks, one of which dropped the block
-from the document entirely. A `default` branch turns "we forgot this type" into a value.
+it does not compile.** Measured against the `switch` it replaced: adding a member to the union gave
+*one* compile error and *five* silent runtime fallbacks, one of which dropped the block from the
+document. A `default` branch turns "we forgot this type" into a value.
 
 ### Four surfaces, not twelve types
 
@@ -464,7 +456,7 @@ move the highlight through every item, which means the highlight can land where 
 the menu looks frozen while it is in fact responding.
 
 The list scrolls to follow, by arithmetic (`scrollTopForHighlight` in `slash-menu.ts`) rather than
-`element.scrollIntoView()`. **`scrollIntoView` walks every scroll ancestor**, and this editor's
+`element.scrollIntoView()` ([the general rule](../conventions.md#scroll-a-container-never-scrollintoview)). **`scrollIntoView` walks every scroll ancestor**, and this editor's
 scroll container publishes a focus anchor whenever it moves (FR-030-07) — nudging the page to
 reveal a menu row would send every follower to a position the presenter never looked at. Computing
 the number and assigning `list.scrollTop` touches the menu and nothing else.
@@ -621,9 +613,10 @@ SRS §4.1 gives 목록 블록 nesting — "항목을 들여쓰기하여 중첩(�
 carries it in the schema. `Tab` and `Shift+Tab` are what set it,
 and `lib/blocks/indent.ts` holds the rule.
 
-**Indent is capped by the block above, not by the block itself.** The new depth is
-`min(depth + 1, previousListDepth + 1)`, so an item can never end up more than one level deeper
-than the item above it. Without that cap a depth-2 item can sit under a depth-0 one and render as
+**Indent is capped by the block above, not by the block itself.** Indent raises the depth by one
+only when that stays within the ceiling, `min(previousListDepth + 1, MAX_LIST_DEPTH)`; otherwise
+nothing changes, so an item can never end up more than one level deeper than the item above it.
+Without that cap a depth-2 item can sit under a depth-0 one and render as
 a child of nothing. A list item with no list above it therefore cannot indent at all, and a
 non-list block above ends the run — nesting under a paragraph is not something this model can
 express. Outdent has no such rule: a stray nested item must always be able to come back out,
