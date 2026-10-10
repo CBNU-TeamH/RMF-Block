@@ -95,7 +95,7 @@ export function JoinForm() {
       }
 
       setConflict(null);
-      // `refresh()` before `push()`: the home page is a server component that
+      // `refresh()` before `push()`: the `/` landing is a server component that
       // reads the session cookie, and without this it can render from a cached
       // payload produced while the visitor was still signed out.
       router.refresh();

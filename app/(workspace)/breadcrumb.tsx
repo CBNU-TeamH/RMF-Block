@@ -8,7 +8,7 @@ import { documentIdFromPathname } from "@/lib/focus/pathname";
 
 /**
  * The header's path to the open document: its ancestors, then itself
- * (`docs/ui/redesign/HANDOFF.md`). Nothing on the home page.
+ * (`docs/ui/redesign/HANDOFF.md`). Nothing on the `/` landing.
  *
  * Reads the layout's server-rendered list; the sidebar tree's socket calls
  * `router.refresh()` on every catalogue change, so that list stays current.
