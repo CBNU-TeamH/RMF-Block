@@ -50,15 +50,15 @@ building and revisit it for the final behavior.
 - Vitest (logic / component / server / route): none — docs only, unless an F turns out to be a stale code comment (comment-only edits change no behaviour).
 - Browser E2E (`e2e/`): none — no behaviour changes.
 - Container smoke (`.github/workflows/ci.yml`): none — no behaviour changes.
-- Commands and observed results (fill in before the PR):
+- Commands and observed results (fill in before the PR): `pnpm verify:docs` clean on the base (`6399f0e`) and on every integrated commit; the pre-commit comment budget clean on every commit; the pre-push `pnpm test` + `pnpm build` run on push. The F commit only edits four comments, so no test layer changes.
 
 ## Acceptance
 
-- [ ] Every A finding fixed or kept with a reason; F and E filed or explained
-- [ ] Every ticked B/C/D item applied
-- [ ] `pnpm verify:docs`, comment budget (pre-commit hook)
-- [ ] Before/after sizes in the PR
-- [ ] Notion WBS rows synced
+- [x] Every A finding fixed or kept with a reason; F and E filed or explained
+- [x] Every ticked B/C/D item applied
+- [x] `pnpm verify:docs`, comment budget (pre-commit hook)
+- [x] Before/after sizes in the PR
+- [x] Notion WBS rows synced
 
 ## Cross-cutting
 
@@ -67,4 +67,31 @@ building and revisit it for the final behavior.
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+**Shipped.** A full audit: 8 read-only auditors (Sonnet) → 46 findings (A 14 · B 4 · C 13 · D 13 ·
+E 0 · F 2); the A/F verifier confirmed 10, dropped 6. A Codex independent re-review on #184 added
+A01–A10, B01–B03 and F01–F03 and narrowed a few verdicts; the user decided in chat: apply every
+recommendation, Codex wins where the two disagree. A second verifier confirmed all 13 Codex A/B
+items. Applied: 19 A, 8 B, 10 C, 12 D (counting the AGENTS.md §7 spread and one ARCHITECTURE.md
+write-queue line found while packaging), plus four stale code comments (F).
+
+**Not applied.** workflow-01 (the native-dev Yorkie addresses stay explicit in CONTRIBUTING.md, per
+the #159 review), workflow-02 (README stays self-contained), presence-and-focus-09 and
+chat-floating-02 (Codex: the figure and the reason are worth keeping), api-02 and api-04 (Codex: not
+contradictions), and the six the A/F verifier dropped. The FR-030-08 pause/resume qualifier removed
+with api.md §4.2 was not restored — no pause/resume is built.
+
+**Moved to issues.** Codex F01–F03 are code bugs, not doc drift: #185 (restore takes two undos,
+v0.0.7), #186 (an open document link misses rename/delete/restore, v0.0.5), #187 (a deleted
+document's floating view after reload, v0.0.4).
+
+**How.** Five editors (Sonnet) in worktrees outside the repo, disjoint file sets, one commit per
+category; integrated with `cherry-pick -n` into one commit per category (A, B, C, D, F). Review:
+round 1 (nothing lost) and round 2 (edits true) found nothing blocking; round 3 (rest of the diff)
+found one — a D trim deleted the registry measurement — fixed in the fixup commit with two minors.
+
+**Notion.** `상태` → 완료 on 8.1, 14.7, 15.0, 18.1, 20.1, 20.2; new row 19.4 for #168 (comment on
+#168).
+
+**Numbers** (audited parts, `6399f0e` → final): 313,576 → 311,905 bytes, 4,563 → 4,536 lines; the B
+additions offset most of the C/D cuts. ROADMAP.md, ARCHITECTURE.md and the perf doc are outside the
+measured parts (±4 lines).
