@@ -8,6 +8,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Drift audit: every design doc, after admin, tabs, the .data/ layer and packaging](2026/10/20261010-drift-audit-todo.md) | [lessons](2026/10/20261010-drift-audit-lessons.md) |
 | [Packaging: a published image and the first release](2026/10/20261009-packaging-todo.md) | [lessons](2026/10/20261009-packaging-lessons.md) |
 | [No home page — open documents as tabs, and a collapsible sidebar](2026/10/20261008-document-tabs-todo.md) | [lessons](2026/10/20261008-document-tabs-lessons.md) |
 | [The app-side `.data/` layer — shared JSON helpers, soft delete and a host trash](2026/10/20261008-data-layer-todo.md) | [lessons](2026/10/20261008-data-layer-lessons.md) |

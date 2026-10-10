@@ -24,7 +24,6 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
-| [Drift audit: every design doc, after admin, tabs, the .data/ layer and packaging](active/20261010-drift-audit-todo.md) | [lessons](active/20261010-drift-audit-lessons.md) |
 | [Admin and user-location E2E after admin integration](active/20261007-admin-e2e-todo.md) | [lessons](active/20261007-admin-e2e-lessons.md) |
 
 ## Archive

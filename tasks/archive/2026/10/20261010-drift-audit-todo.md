@@ -44,7 +44,7 @@ The slug is exactly `YYYYMMDD-drift-audit`, so archiving this task resets the au
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior.
 
 - Vitest (logic / component / server / route): none — docs only, unless an F turns out to be a stale code comment (comment-only edits change no behaviour).
