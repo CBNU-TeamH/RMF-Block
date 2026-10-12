@@ -131,18 +131,32 @@
 - **Vitest**: new `e2e/perf/stats.test.mts`, collected by the default glob. No app code changes, so the other layers need nothing.
 - **Browser E2E (`e2e/`)**: unchanged. `playwright.config.ts` still collects only `*.e2e.ts`, so `*.perf.ts` stays out of `pnpm e2e` and CI. The harness itself is checked by the single-machine runs below.
 - **Container smoke (`.github/workflows/ci.yml`)**: unchanged. Neither the app nor the compose file changes.
-- **Commands and observed results** (fill in before the PR):
-  - `pnpm test`
-  - the 2-user, 1-minute round and the 8-user, 2-minute round on this machine, with G behind `perf:browser` on localhost
-  - `pnpm perf:report`
-  - the teardown check (`docker compose ls`, `docker volume ls`)
-  - `pnpm lint`, `pnpm comments`, `pnpm verify:docs`
+- **Commands and observed results** (WSL2 + Docker Desktop, bundled headless Chromium, G behind `perf:browser` on `127.0.0.1:9333`, stack on `127.0.0.1:3100/8180`):
+  - `vitest run e2e/perf/stats.test.mts`: 15 passed.
+  - Stack check: up in 19 s with the pinned digest and no `build` key, and a join returned 200. A second stack on the same port failed at once. Down took 14 s and left no `rmf-perf-*` container, volume or network.
+  - Memory spike: samples every 10 s from a launched browser and from one reached through `chromium.connect`.
+  - 2 users, 1 minute: passed in 3.5 min.
+    - 002 and 005: 20/20 observed in both directions (p95 153/144 ms and 349/347 ms).
+    - 004: 10/10 each way. 003: 1/1. Both show `n<20`, as expected for one round.
+    - U = 1.9 ms.
+  - 8 users, 2 minutes: passed in 4.6 min.
+    - 002 p95 178/188 ms, 005 p95 326/312 ms.
+    - No failure signal inside the window.
+    - Memory H 100 MiB / G 78 MiB.
+  - 20 s outage, 2 users: passed in 3.3 min.
+    - Document resync 272 ms.
+    - Chat backfill 10.0 s, and the chat socket reopened after 10.1 s.
+    - The session socket never reopened (#37).
+    - The failed send was shown, and resent in 42 ms.
+  - `tsc --noEmit`, `eslint e2e/perf playwright.perf.config.ts`, `pnpm comments` and `pnpm verify:docs`: clean.
+  - Not run here: `pnpm lint` over the whole repo and `pnpm build`. The pre-push hook runs test and build.
+  - Gaps: no Chrome channel, no headed window and no second device. #191 gate 2 covers those: G's remote memory and U ≤ 10 ms on real devices.
 
 ## Acceptance
 
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] #189's acceptance list. Two of its items are checked at #191's gate 2 (two-device rehearsal), not here: memory samples from both H and G, and U within its limit.
-- [ ] No app code, compose file or E2E collection change.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] #189's acceptance list, on one machine. Two of its items are checked at #191's gate 2 (two-device rehearsal), not here: memory samples from both H and G, and U within its limit.
+- [x] No app code, compose file or E2E collection change.
 
 ## Cross-cutting
 
@@ -153,4 +167,8 @@
 
 ## Review
 
-Filled in at the end.
+- **Shipped**: milestones 1–7.
+  - The harness modules that Playwright imports are `.ts` (`stack.ts`, `probe.ts`, `memory.ts`). Only Node-run entry points are `.mts`: `report.mts`, `browser-server.mts`, `stats.mts`.
+  - Attempts come from the orchestrator's plan, not from probe sends, so a missing t0 counts as a timeout.
+  - A round is replaced by renaming its folder `void-round-NN`; the report then skips it, and no code was needed for this.
+- **Moved**: §14 of the runbook (observation) stays with #192.
