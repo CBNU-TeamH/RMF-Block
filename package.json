@@ -22,7 +22,10 @@
     "docker:up": "bash scripts/detect-host-ip.sh && docker compose up --build",
     "tasks:index": "bash scripts/tasks-index.sh",
     "tasks:archive": "bash scripts/tasks-archive.sh",
-    "e2e:isolated": "node scripts/e2e-isolated.mjs"
+    "e2e:isolated": "node scripts/e2e-isolated.mjs",
+    "perf": "playwright test -c playwright.perf.config.ts",
+    "perf:browser": "node e2e/perf/browser-server.mts",
+    "perf:report": "node e2e/perf/report.mts"
   },
   "dependencies": {
     "@yorkie-js/sdk": "0.7.23",

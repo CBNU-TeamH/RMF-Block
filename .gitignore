@@ -70,3 +70,4 @@ ds-bundle/
 .design-sync/node_modules
 
 /e2e-artifacts/
+/perf-results/

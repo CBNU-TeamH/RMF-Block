@@ -15,7 +15,8 @@ export async function traceMemory(browser: Browser): Promise<{ stop: () => Promi
     traceConfig: {
       includedCategories: ["disabled-by-default-memory-infra"],
       excludedCategories: ["*"],
-      memoryDumpConfig: { triggers: [{ mode: "light", periodic_interval_ms: 10_000 }] },
+      // Typed as a string map by the protocol definitions; Chrome reads these nested triggers.
+      memoryDumpConfig: { triggers: [{ mode: "light", periodic_interval_ms: 10_000 }] } as unknown as Record<string, string>,
     },
     transferMode: "ReturnAsStream",
   });
@@ -34,8 +35,10 @@ export async function traceMemory(browser: Browser): Promise<{ stop: () => Promi
       await cdp.detach();
       const parsed = JSON.parse(text) as { traceEvents?: Array<TraceEvent> } | Array<TraceEvent>;
       const events = Array.isArray(parsed) ? parsed : (parsed.traceEvents ?? []);
+      // A renderer started after the trace began is named by its command line, not "Renderer".
+      const isRenderer = (name: string) => name === "Renderer" || name.includes("--type=renderer");
       const renderers = new Set(
-        events.filter((e) => e.ph === "M" && e.name === "process_name" && (e.args?.name as string) === "Renderer").map((e) => e.pid),
+        events.filter((e) => e.ph === "M" && e.name === "process_name" && isRenderer(String(e.args?.name))).map((e) => e.pid),
       );
       const dumps = events.filter((e) => e.ph === "v" && renderers.has(e.pid));
       const firstTs = Math.min(...dumps.map((e) => e.ts));

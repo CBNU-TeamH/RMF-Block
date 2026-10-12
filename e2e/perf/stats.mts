@@ -61,7 +61,8 @@ export type Accounting = {
   samples: Array<number>;
 };
 
-/** Pairs sends with receipts by marker. Both sides must already be on one clock. */
+/** Pairs sends with receipts by marker, on one clock. A send whose t0 was never seen (`NaN`)
+ *  counts as timed out, like one never received. */
 export function account(
   sends: Array<{ marker: string; t0: number }>,
   recvs: Array<{ marker: string; t1: number }>,
@@ -77,7 +78,7 @@ export function account(
   const unmatched = [...first.keys()].filter((marker) => !sent.has(marker)).length;
   const samples = sends.map(({ marker, t0 }) => {
     const t1 = first.get(marker);
-    return t1 === undefined || t1 - t0 > timeoutMs ? Infinity : t1 - t0;
+    return t1 !== undefined && t1 - t0 <= timeoutMs ? t1 - t0 : Infinity;
   });
   const timedOut = samples.filter((s) => s === Infinity).length;
   return { attempted: sends.length, observed: sends.length - timedOut, timedOut, unmatched, duplicate, samples };

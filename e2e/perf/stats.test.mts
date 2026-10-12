@@ -53,6 +53,12 @@ describe("account — pairing sends and receipts", () => {
     assert.equal(p95(result.samples), 100);
   });
 
+  it("counts a send whose t0 was never seen as timed out", () => {
+    const result = account([{ marker: "m1", t0: NaN }], [{ marker: "m1", t1: 100 }], 10_000);
+    assert.deepEqual(result.samples, [Infinity]);
+    assert.equal(result.timedOut, 1);
+  });
+
   it("counts a missing receipt, a duplicate and a marker nobody sent", () => {
     const recvs = [
       ...range(19).map((i) => ({ marker: `m${i}`, t1: 100 })),
