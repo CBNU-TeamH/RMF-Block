@@ -12,6 +12,8 @@ const GENERATED = path.join(DIR, "generated");
 const PROMETHEUS_CONTAINER = "rmf-observe-prometheus";
 const PROMETHEUS = "http://127.0.0.1:9090";
 const GRAFANA = "http://127.0.0.1:3300";
+/** An observer that accepts a connection but never answers must not hold up the round. */
+const deadline = () => AbortSignal.timeout(5000);
 
 export type Attached = { stack: Stack; network: string; run: string; round: number; names: Record<string, string> };
 export type Mark = { time: number; timeEnd?: number; text: string };
@@ -49,7 +51,7 @@ export function scrapeConfig(attached?: Attached): string {
 async function apply(config: string) {
   await mkdir(GENERATED, { recursive: true });
   await writeFile(path.join(GENERATED, "scrape.yml"), config);
-  const reload = await fetch(`${PROMETHEUS}/-/reload`, { method: "POST" });
+  const reload = await fetch(`${PROMETHEUS}/-/reload`, { method: "POST", signal: deadline() });
   if (!reload.ok) throw new Error(`Prometheus reload: ${reload.status} ${await reload.text()}`);
 }
 
@@ -75,16 +77,22 @@ export async function attach(stack: Stack, run: string, round: number): Promise<
  *  leaves the round's network so `compose down` can remove it. */
 export async function detach(attached: Attached, marks: Array<Mark>): Promise<void> {
   const tags = ["rmf-perf", attached.run, `round-${attached.round}`];
-  await Promise.allSettled(marks.map((mark) =>
-    fetch(`${GRAFANA}/api/annotations`, {
+  const posted = await Promise.allSettled(marks.map(async (mark) => {
+    const response = await fetch(`${GRAFANA}/api/annotations`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ...mark, time: Math.round(mark.time), timeEnd: mark.timeEnd && Math.round(mark.timeEnd), tags }),
-    })));
+      signal: deadline(),
+    });
+    if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
+  }));
+  const lost = posted.flatMap((result) => (result.status === "rejected" ? [String(result.reason)] : []));
+  if (lost.length) console.warn(`Round ${attached.round}: ${lost.length} of ${marks.length} Grafana annotations not saved: ${lost[0]}`);
   try {
     await apply(scrapeConfig());
   } finally {
-    await docker(["network", "disconnect", attached.network, PROMETHEUS_CONTAINER]);
+    const disconnect = (force: Array<string>) => docker(["network", "disconnect", ...force, attached.network, PROMETHEUS_CONTAINER]);
+    await disconnect([]).catch(() => disconnect(["--force"]));
   }
 }
 

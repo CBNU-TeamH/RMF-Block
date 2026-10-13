@@ -345,7 +345,14 @@ for (let round = 1; round <= ROUNDS; round++) {
           for (const browser of browsers) await browser.close().catch(() => {});
         } finally {
           // Before `stackDown`: a connected Prometheus keeps `compose down` from removing the network.
-          if (observed) await detach(observed, marks).catch((error) => console.warn(`Round ${round}: detach failed: ${error}`));
+          if (observed) {
+            await detach(observed, marks).catch(async (error) => {
+              // Kept apart from the signals: an observer cleanup failure says nothing about NFR-PER.
+              meta.observeCleanup = String(error);
+              console.warn(`Round ${round}: detach failed: ${error}`);
+              await write("meta.json", JSON.stringify(meta));
+            });
+          }
           await stackDown(stack);
         }
       }

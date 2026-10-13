@@ -24,6 +24,11 @@ services:
     # Loopback only: the hotspot is an open subnet.
     ports:
       - "127.0.0.1:9090:9090"
+    # So `up --wait` returns only once `/-/reload` can answer.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 5s
+      retries: 12
 
   # Raw cgroup mode: on Docker Desktop the Docker handler cannot read the engine's image
   # store and names nothing, so it is switched off and the harness maps IDs to names.

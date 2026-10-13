@@ -410,13 +410,13 @@ H의 측정 브라우저는 loopback으로 서버에 붙기 때문에 열화가 
 **순서**(H에서)
 1. 켜기: `pnpm perf:observe`. 이미지는 §2.2에서 미리 받아 둡니다.
 2. H의 브라우저에서 `http://127.0.0.1:3300`을 열고 대시보드 **RMF-Block perf run**을 엽니다. 로그인은 없습니다. G에서는 열지 않습니다(LAN에 열지 않음).
-3. 측정 명령 앞에 `PERF_OBSERVE=1`을 붙입니다. 기준 칸은 `PERF_OBSERVE=1 PERF_ROUNDS=5 pnpm perf`이고, §12·§13의 명령에도 똑같이 붙입니다.
+3. 측정 명령 앞에 `PERF_OBSERVE=1`을 붙입니다. 기준 칸은 `PERF_OBSERVE=1 PERF_ROUNDS=5 pnpm perf`(PowerShell: `$env:PERF_OBSERVE="1"; $env:PERF_ROUNDS="5"; pnpm perf`)이고, §12·§13의 명령에도 똑같이 붙입니다.
 4. 첫 회차가 끝나면 대시보드를 새로고침해 그래프가 나오는지 확인합니다. 자동 새로고침은 꺼 두었습니다. 측정 중에는 Grafana 탭을 열어 두지 않습니다(H의 CPU를 씀). 회차마다 빨간 주석(측정 구간, 단절, 복구)이 생깁니다.
    - 컨테이너 CPU와 메모리: `…-app`, `…-yorkie`, `…-mongo` 이름으로 나옵니다.
    - Yorkie RPC: 초당 요청 수, 실패, 응답 시간 p95가 나옵니다.
 
    회차 폴더의 `conditions.json`에는 `"observe": true`가 남습니다.
-5. 끄기: 측정이 모두 끝나면 `docker compose -f e2e/perf/observe/compose.yml down`. 수집한 데이터(볼륨)는 남습니다. 지우려면 `down --volumes`로 하되, 결과 요약 PR이 머지된 뒤에 합니다.
+5. 끄기: 측정이 모두 끝나면 `docker compose -f e2e/perf/observe/compose.yml down`. PowerShell이면 `Remove-Item Env:PERF_OBSERVE`도 해서 다음 판정 칸이 관측 없이 돌게 합니다. 수집한 데이터(볼륨)는 남습니다. 지우려면 `down --volumes`로 하되, 결과 요약 PR이 머지된 뒤에 합니다.
 
 **중단 조건**: 관측을 켠 상태에서 H의 CPU가 계속 포화되거나 하네스 오류가 나면, 관측 스택을 끄고 그 사실을 기록합니다. 이후 혼잡·복구 회차는 관측 없이 진행하고 §9를 비교 기준으로 씁니다.
 
@@ -456,6 +456,7 @@ H의 측정 브라우저는 loopback으로 서버에 붙기 때문에 열화가 
 | 시계 offset이 회차마다 크게 다름 | 한쪽 기기가 절전에 들어갔거나, 시간 동기화로 시계가 점프함 | §4 위생 항목을 다시 확인하고 그 회차는 무효 처리 |
 | 회차 도중 기기가 잠기거나 꺼짐 | 절전 설정 | §4 확인, 그 회차는 무효 처리 |
 | 터미널에 `Round N is not observed` 경고가 뜸 | 관측 스택이 꺼져 있거나 Prometheus가 응답하지 않음 | `docker compose ls`에 `rmf-observe`가 running인지 확인하고, 아니면 `pnpm perf:observe`로 켬. 그 회차는 판정에 영향이 없음(그래프만 빠짐) |
+| 터미널에 `Round N: detach failed` 경고 뒤 그 회차가 `compose down` 오류로 끝남 | Prometheus가 회차 네트워크에서 끝내 빠지지 못해 `compose down`이 네트워크를 못 지움(이유는 `meta.json`의 `observeCleanup`) | `docker network disconnect --force rmf-perf-<run>-<회차>-default rmf-observe-prometheus` 후 `docker compose ls`에서 남은 `rmf-perf-…` 프로젝트를 `docker compose -p <이름> down --volumes`로 지움. 측정 파일은 정리 전에 이미 저장됨 |
 | 디스크 부족, Docker 오류 | 이전 측정 프로젝트나 이미지가 남아 있음 | `docker compose ls`로 남은 측정 프로젝트를 확인하고 `docker compose -p <프로젝트 이름> down --volumes`. **`rmf-block` 프로젝트는 건드리지 않음** |
 | 열화를 걸었는데 RTT가 늘지 않음 | 필터의 IP, 포트, 방향이 안 맞음 | 필터를 다시 확인. ping이 아니라 하네스 probe로 확인 |
 | 핫스팟이 5GHz로 안 켜짐 | 무선 칩이나 국가 규제가 5GHz AP를 막음 | `band bg`(2.4GHz)로 켜고 조건 기록에 적음 |

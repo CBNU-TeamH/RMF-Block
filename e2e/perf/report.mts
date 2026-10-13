@@ -206,7 +206,7 @@ for (const id of ["002", "003", "004", "005"]) {
   sections.push(`<h2>${id}: latency over attempts</h2>
 <p>Share of attempts seen within each latency. The curve stops short of 1 by the timed-out attempts; the red line is the budget, dots mark p95.</p>
 ${plot({
-  x: { label: "latency (ms)", domain: [0, Math.max(budget * 1.1, ...curve.map((p) => p.ms))] },
+  x: { label: "latency (ms)", domain: [0, curve.reduce((max, p) => Math.max(max, p.ms), budget * 1.1)] },
   y: { label: "share of attempts", domain: [0, 1], grid: true },
   color: { legend: true },
   marks: [
@@ -231,7 +231,7 @@ ${plot({
   y: { label: null },
   color: { legend: true, domain: ["pass", "inconclusive", "fail"], range: ["#2a9d55", "#e0a400", "#d03030"] },
   marks: [
-    Plot.ruleY(rows, { y: "key", x1: (d) => Math.max(0, d.shown - d.u), x2: (d) => Math.min(cap, d.shown + d.u) }),
+    Plot.ruleY(rows.filter((d) => Number.isFinite(d.p95)), { y: "key", x1: (d) => Math.max(0, d.shown - d.u), x2: (d) => Math.min(cap, d.shown + d.u) }),
     Plot.tickX(rows, { y: "key", x: "budget", stroke: "red" }),
     Plot.dot(rows, { y: "key", x: "shown", fill: "verdict", r: 5 }),
   ],

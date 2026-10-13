@@ -189,3 +189,11 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
   - During the round, the `yorkie` target was up and the containers were named.
   - All three annotations were posted. Afterwards, nothing was left.
   - The md and HTML rows are identical.
+- **CodeRabbit on #199** (7 comments, all adopted):
+  - Prometheus reloads and Grafana annotation posts give up after 5 s, so an observer that never answers cannot hold up `stackDown`.
+  - A failed annotation (non-2xx or rejected) prints a warning with the count.
+  - Prometheus has a `/-/ready` healthcheck, so `pnpm perf:observe`'s `up --wait` returns only once the first reload can land.
+  - Detach retries a failed network disconnect with `--force`. If that fails too, the error goes into `meta.json` as `observeCleanup`, apart from the signals, and the round then ends on `compose down`'s error. The runbook's troubleshooting table says how to clean up by hand.
+  - The report takes the ECDF's x maximum with `reduce` instead of spreading every sample, and it draws no U interval for a p95 of ∞.
+  - Runbook §14 gives the PowerShell form, and says to clear `PERF_OBSERVE` after the observed cells so the next judgment cell runs unobserved.
+  - Rerun: `pnpm perf:observe` came up healthy in 34 s. An observed outage round passed in 3.3 min with all three annotations, and nothing was left afterwards. An aborted round (browser launch failure) also detached cleanly.
