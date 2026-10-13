@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-13
 **Issue**: #189 (under #163; outage driver for #174/#193)
-**Design**: [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../../docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) and #189's "Measurement contracts", which this task carries into that doc. No `docs/design/` doc: nothing here is product code.
+**Design**: [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../../../../docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) and #189's "Measurement contracts", which this task carries into that doc. No `docs/design/` doc: nothing here is product code.
 
 ## Milestones
 

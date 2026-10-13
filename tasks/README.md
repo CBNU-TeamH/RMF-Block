@@ -24,7 +24,6 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
-| [Two-device performance harness (e2e/perf)](active/20261013-perf-harness-todo.md) | [lessons](active/20261013-perf-harness-lessons.md) |
 | [Admin and user-location E2E after admin integration](active/20261007-admin-e2e-todo.md) | [lessons](active/20261007-admin-e2e-lessons.md) |
 
 ## Archive
