@@ -15,11 +15,6 @@ export function offsetFrom(samples: Array<ClockSample>): Offset {
   return { at: mid, theta: best.page - mid, u: (best.received - best.sent) / 2 };
 }
 
-/** G's offset from H, when both were read against the same third clock. */
-export function relative(g: Offset, h: Offset): Offset {
-  return { at: g.at, theta: g.theta - h.theta, u: g.u + h.u };
-}
-
 /** A round's uncertainty U: the worse bound plus how far the offset drifted. */
 export function uncertainty({ start, end }: RoundClock): number {
   return Math.max(start.u, end.u) + Math.abs(end.theta - start.theta);

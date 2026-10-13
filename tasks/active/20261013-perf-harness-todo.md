@@ -32,7 +32,7 @@
   - `YORKIE_PORT` is set to match.
 
   Teardown is `down --volumes` of that project only, after logs are saved. Alongside the stack, `docker stats` is sampled every 5 s.
-- **Files**: `e2e/perf/stack.mts`.
+- **Files**: `e2e/perf/stack.ts`.
 - **Reuse**: the renaming and refusal checks of `scripts/e2e-isolated.mjs`, the same shape but not shared. That script builds from source on loopback; this one pins the release image on the LAN.
 - **Done**:
   - a round's project comes up healthy with the pinned image;
@@ -172,3 +172,19 @@
   - Attempts come from the orchestrator's plan, not from probe sends, so a missing t0 counts as a timeout.
   - A round is replaced by renaming its folder `void-round-NN`; the report then skips it, and no code was needed for this.
 - **Moved**: §14 of the runbook (observation) stays with #192.
+- **Review round** (PR #194): `/code-review low`, `/simplify` (4 angles), CodeRabbit (3) and an external review (P1 + 2 × P2), merged:
+  - **Aborted rounds count.** `conditions.json` is written first, any exception is an `aborted` signal, and `signals`, `meta` and `plan` are always saved. The report counts an aborted round as a failed 001 round until it is renamed `void-`.
+  - **Teardown always runs.** It now runs when `compose up` fails, and the cleanup is nested so `stackDown` survives a failing step.
+  - **No silent one-machine run.** Without `PERF_G_WS` the harness stops unless `PERF_SINGLE_MACHINE=1`. The runbook sets the connection variables once and checks `gRemote: true`.
+  - **Signals carry the round's phase** (`setup`/`window`/`outage`/`teardown`). Passive browser signals count only in `window`, so the time-window filter and its `join-timeout` exception are gone.
+  - **Probe overhead.** The log is written to `sessionStorage` on `pagehide` instead of on every event; that write sat in the send path. Pending markers are de-duplicated, and the join condition is cached.
+  - **Watch ends** come from Playwright's `requestfinished`/`requestfailed` instead of a second CDP session.
+  - **Renderers** are found through CDP `SystemInfo.getProcessInfo` instead of trace process names.
+  - **Shared helpers.** `networkProbe` takes several socket paths and `opens(path)`. `joinForm` moved to `e2e/helpers.ts`. The fixture slices the run id to 8 characters (the config override is gone). G uses `lanAddresses()`. Launch options are shared through `measuringLaunch()`. The report uses `readJsonFile` and calls `account()` once per key.
+  - **Removed**: dead `relative()`, the memory `at` field, and the outage booleans (plan entries use `phase` instead).
+  - **Declined**:
+    - one long `docker stats` stream (ANSI parsing for a small saving; recorded instead);
+    - a binding instead of the 003 join poll (a few evaluates within a 3 s budget);
+    - a shared `seedBlocks` helper and a shared stack module with `e2e-isolated.mjs` (they touch working E2E; worth it when either changes again);
+    - redacting `compose.json`/`server.log` (results stay local, decided on #163).
+  - **Kept**: the follower's `move` record, which the criteria doc keeps as reference data.

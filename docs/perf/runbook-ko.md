@@ -203,15 +203,16 @@ pnpm perf:browser
 
 ## 8. 리허설 (본 측정 전에 반드시)
 
-H에서 실행합니다(2명, 1분). 환경 변수를 넣는 법은 부록을 봅니다. Windows H는 WSL이 아니라 PowerShell에서 실행합니다(측정 Chrome 창이 데스크톱에 떠야 합니다).
+H에서 실행합니다(2명, 1분). **먼저 H의 터미널에서 연결 변수 두 개를 한 번만 정합니다** — 이후 모든 `pnpm perf` 명령이 이 값을 씁니다(부록). 하네스는 `PERF_G_WS`가 없으면 바로 멈춥니다. Windows H는 WSL이 아니라 PowerShell에서 실행합니다(측정 Chrome 창이 데스크톱에 떠야 합니다).
 
 ```
-HOST_LAN_IP=<H_IP> PERF_G_WS=<G가 알려준 주소> PERF_USERS=2 PERF_MINUTES=1 pnpm perf
+export HOST_LAN_IP=<H_IP> PERF_G_WS=<G가 알려준 주소>   # PowerShell: $env:HOST_LAN_IP="<H_IP>"; $env:PERF_G_WS="<G가 알려준 주소>"
+PERF_USERS=2 PERF_MINUTES=1 pnpm perf
 pnpm perf:report perf-results/<run-id>   # run-id는 perf-results 아래 새로 생긴 폴더 이름
 ```
 
 아래가 모두 확인되면 통과입니다.
-- [ ] G 화면의 Chrome이 자동으로 접속하고, 편집과 채팅이 보인다.
+- [ ] G 화면의 Chrome이 자동으로 접속하고, 편집과 채팅이 보인다. `perf-results/<run-id>/round-01/conditions.json`에 `"gRemote": true`와 H의 핫스팟 주소(`host`)가 적혀 있다 — 아니면 G가 아니라 H 혼자 잰 것이다.
 - [ ] 하네스 출력에 시계 offset θ와 불확실도 U가 찍히고, **U가 한도(10ms, #189) 안에 있다.** 한도를 넘으면 원인(절전, 시계 점프, 네트워크)을 먼저 해결합니다.
 - [ ] 002/003/004/005 샘플이 각각 1건 이상이고, 시도·관측·타임아웃·불일치 건수가 함께 출력되며, 에러는 0건이다.
 - [ ] **H와 G 양쪽에서** 메모리 샘플이 10초 간격으로 기록된다. 첫 리허설에서는 기기마다 한 번씩 측정 Chrome에서 `Shift+Esc`로 작업 관리자를 열고, 그 탭의 "메모리 사용 공간(Memory footprint)"을 하네스가 기록한 값과 비교해 적어 둡니다. 2명 1분 스모크는 localhost로도 통과할 수 있으므로, 이 항목은 **8명 1회차 리허설에서 두 기기 모두** 확인합니다.
@@ -419,6 +420,7 @@ H의 측정 브라우저는 loopback으로 서버에 붙기 때문에 열화가 
 | G에서 `http://<H_IP>:3000`이 안 열림 | 방화벽, client isolation, Windows Docker가 127.0.0.1로만 포워딩, 잘못된 IP | §3, 그리고 README "If a guest cannot connect"를 순서대로 확인 |
 | 페이지는 열리는데 편집 내용이나 접속자 목록이 안 보임 | 8080 차단 | H 방화벽의 8080을 확인하고, G에서 health 응답이 `200`인지 확인 |
 | 처음부터 `⚠ 연결 끊김`이 뜸 | Yorkie 최초 연결 실패(#37) | 새로고침하지 않고 회차 실패로 기록. 반복되면 8080과 Yorkie 컨테이너 상태 확인 |
+| 회차가 `still tracing for an interrupted run`으로 바로 실패함 | 앞선 실행이 Ctrl+C나 오류로 강제 종료되면서 G 브라우저에 메모리 추적이 남음 | G에서 브라우저 서버를 `Ctrl+C`로 끄고 `pnpm perf:browser`로 다시 띄운 뒤, 새 주소로 `PERF_G_WS`를 다시 정함 |
 | H가 G 브라우저 서버에 연결하지 못함 | G 방화벽, 주소 오타, Playwright 버전 불일치 | §2.1의 커밋이 두 기기에서 같은지, §3의 G 방화벽 확인 |
 | 시계 offset이 회차마다 크게 다름 | 한쪽 기기가 절전에 들어갔거나, 시간 동기화로 시계가 점프함 | §4 위생 항목을 다시 확인하고 그 회차는 무효 처리 |
 | 회차 도중 기기가 잠기거나 꺼짐 | 절전 설정 | §4 확인, 그 회차는 무효 처리 |
@@ -461,7 +463,8 @@ H의 측정 브라우저는 loopback으로 서버에 붙기 때문에 열화가 
 | 변수 | 기본값 | 뜻 |
 |---|---|---|
 | `HOST_LAN_IP` | `127.0.0.1` | H의 핫스팟 주소(§3.1). G가 이 주소로 서버에 붙습니다 |
-| `PERF_G_WS` | 없음 | G 브라우저 서버 주소(§7). 없으면 H에서 G 브라우저도 띄웁니다(단일 머신 확인용) |
+| `PERF_G_WS` | 없음 | G 브라우저 서버 주소(§7). 없으면 하네스가 멈춥니다 |
+| `PERF_SINGLE_MACHINE` | 없음 | `1`이면 `PERF_G_WS` 없이 H에서 G 브라우저도 띄웁니다(개발용 한 기기 확인) |
 | `PERF_USERS` | `8` | 접속자 수(H·G 포함) |
 | `PERF_MINUTES` | `10` | 편집·채팅 단계 길이(분). 단절 회차에서는 앞뒤 작업 단계 각각의 길이 |
 | `PERF_ROUNDS` | `1` | 회차 수 |
@@ -473,10 +476,11 @@ H의 측정 브라우저는 loopback으로 서버에 붙기 때문에 열화가 
 | `PERF_HEADED` | 켜짐 | `0`이면 창 없이 실행(단일 머신 확인용) |
 | `PERF_BROWSER_PORT`, `PERF_BROWSER_HOST` | `9333`, `0.0.0.0` | G 브라우저 서버(§7) |
 
-넣는 법:
-- bash·zsh(macOS, Linux): `HOST_LAN_IP=10.42.0.23 PERF_G_WS=ws://10.42.0.57:9333/… pnpm perf`
-- PowerShell(Windows): `$env:HOST_LAN_IP="10.42.0.23"; $env:PERF_G_WS="ws://10.42.0.57:9333/…"; pnpm perf`.
-  PowerShell의 값은 창을 닫을 때까지 남으므로, 칸을 바꿀 때 `Remove-Item Env:PERF_OUTAGE`처럼 지우거나 다시 넣습니다.
+넣는 법: 연결 변수(`HOST_LAN_IP`, `PERF_G_WS`)는 측정을 시작하는 터미널에서 **한 번** 정하고, 칸마다 바뀌는 값(`PERF_ROUNDS` 등)은 명령 앞에 붙입니다. 터미널을 새로 열면 연결 변수를 다시 정합니다.
+- bash·zsh(macOS, Linux): `export HOST_LAN_IP=10.42.0.23 PERF_G_WS=ws://10.42.0.57:9333/…` 후 `PERF_ROUNDS=20 pnpm perf`
+- PowerShell(Windows): `$env:HOST_LAN_IP="10.42.0.23"; $env:PERF_G_WS="ws://10.42.0.57:9333/…"` 후 `$env:PERF_ROUNDS="20"; pnpm perf`.
+  PowerShell에서는 칸마다 바뀌는 값도 창을 닫을 때까지 남으므로, 칸을 바꿀 때 `Remove-Item Env:PERF_OUTAGE`처럼 지우거나 다시 넣습니다.
+- `PERF_SINGLE_MACHINE=1`은 개발자가 한 기기에서 하네스를 확인할 때만 씁니다. 실측에서는 쓰지 않습니다.
 
 ---
 

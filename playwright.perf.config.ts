@@ -4,7 +4,6 @@ import { defineConfig, devices } from "@playwright/test";
 
 const stamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 13).toLowerCase();
 process.env.PERF_RUN_ID ??= `${stamp}-${randomUUID().slice(0, 4)}`;
-process.env.E2E_RUN_ID ??= "perf"; // background nicknames `e2e-perf-<slot>`: under the 20-character limit, and unique per fresh stack
 process.env.E2E_WORKSPACE_PASSWORD ??= `perf-${randomUUID()}`;
 
 /** The performance harness (`docs/perf/runbook-ko.md`): one test per round against a stack it

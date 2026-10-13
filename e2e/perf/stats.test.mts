@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
-import { account, offsetFrom, p95, relative, thetaAt, toH, uncertainty, verdict } from "./stats.mts";
+import { account, offsetFrom, p95, thetaAt, toH, uncertainty, verdict } from "./stats.mts";
 
 const range = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
 
@@ -81,10 +81,6 @@ describe("clock — offset, uncertainty, correction", () => {
       { sent: 100, page: 1_103, received: 106 },
     ]);
     assert.deepEqual(offset, { at: 103, theta: 1_000, u: 3 });
-  });
-
-  it("subtracts H's offset from G's and adds their bounds", () => {
-    assert.deepEqual(relative({ at: 5, theta: 300, u: 2 }, { at: 6, theta: 1, u: 1 }), { at: 5, theta: 299, u: 3 });
   });
 
   it("adds the drift to the worse bound", () => {

@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import { test as base, expect, type BrowserContext, type Page } from "@playwright/test";
 
-const prefix = `e2e-${process.env.E2E_RUN_ID ?? randomUUID().slice(0, 8)}`;
+// Sliced: a nickname is at most 20 characters, and a caller's run id can be longer.
+const prefix = `e2e-${(process.env.E2E_RUN_ID ?? randomUUID()).slice(0, 8)}`;
 export const password = process.env.E2E_WORKSPACE_PASSWORD;
 
 type User = { page: Page; context: BrowserContext; name: string };

@@ -12,34 +12,46 @@ export type PerfWindow = Window & {
   __perfLead?: { marker: string; block: string };
   /** Follower: the scroll that brings this block to the top is 005's t1. */
   __perfFollow?: { marker: string; block: string };
+  /** 003: what the page must show for the join to count as done. */
+  __perfExpectJoin?: (expected: { doc: string; count: number }) => void;
 };
 
-/** Markers look like `~m:<round>:<client>:<kind>:<seq>~`; kind `e`/`o` is a block edit (`o` while
- *  G is cut off), `c` a chat message. */
+/** Markers look like `~m:<round>:<client>:<kind>:<seq>~`; kind `e` is a block edit, `c` a chat
+ *  message, `p` a presenter target. */
 export const marker = (round: number, client: string, kind: string, seq: number) => `~m:${round}:${client}:${kind}:${seq}~`;
+
+/** H's and G's measuring Chrome launch the same way (`PERF_CHANNEL`, `PERF_HEADED`). */
+export function measuringLaunch() {
+  const channel = process.env.PERF_CHANNEL ?? "chrome";
+  return { channel: channel === "bundled" ? undefined : channel, headless: process.env.PERF_HEADED === "0" };
+}
 
 /** Installed with `addInitScript` on H's and G's measuring pages — no product code. t0 is the
  *  sender event's own `timeStamp`; t1 is taken after a double rAF, once the change has painted.
- *  The log is mirrored into `sessionStorage` so a full navigation does not lose it. */
+ *  The log lives in memory and is written to `sessionStorage` only on `pagehide`, so recording
+ *  adds no work to the send path; a full navigation still keeps it. */
 export function installProbe(me: string): void {
   const w = window as PerfWindow;
   const log: Array<ProbeEvent> = JSON.parse(sessionStorage.getItem("perf-log") ?? "[]");
   w.__perf = log;
+  addEventListener("pagehide", () => sessionStorage.setItem("perf-log", JSON.stringify(log)));
   const seen = new Set(log.map((event) => event.kind + event.marker));
   const record = (event: ProbeEvent) => {
     if (seen.has(event.kind + event.marker)) return;
     seen.add(event.kind + event.marker);
     log.push(event);
-    sessionStorage.setItem("perf-log", JSON.stringify(log));
   };
   const at = (stamp: number) => performance.timeOrigin + stamp;
   const painted = (then: (t: number) => void) =>
     requestAnimationFrame(() => requestAnimationFrame(() => then(at(performance.now()))));
   const markers = (text: string, kinds: string) =>
-    (text.match(/~m:[^~\s]+~/g) ?? []).filter((found) => kinds.includes(found.split(":")[3]));
+    text.includes("~m:") ? (text.match(/~m:[^~\s]+~/g) ?? []).filter((found) => kinds.includes(found.split(":")[3])) : [];
   const mine = (found: string) => found.split(":")[2] === me;
+  const pending = new Set<string>();
   const received = (item: ProbeEvent["item"], found: string) => {
-    if (!mine(found) && !seen.has("recv" + found)) painted((t) => record({ kind: "recv", item, marker: found, t }));
+    if (mine(found) || pending.has(found)) return;
+    pending.add(found);
+    painted((t) => record({ kind: "recv", item, marker: found, t }));
   };
 
   // 002: a remote edit lands as `el.value = …`, which no MutationObserver sees.
@@ -48,12 +60,12 @@ export function installProbe(me: string): void {
     ...native,
     set(this: HTMLTextAreaElement, value: string) {
       native.set!.call(this, value);
-      for (const found of markers(String(value), "eo")) received("002", found);
+      for (const found of markers(String(value), "e")) received("002", found);
     },
   });
   document.addEventListener("input", (event) => {
     if (!(event.target instanceof HTMLTextAreaElement)) return;
-    for (const found of markers(event.target.value, "eo")) {
+    for (const found of markers(event.target.value, "e")) {
       if (mine(found)) record({ kind: "send", item: "002", marker: found, t: at(event.timeStamp) });
     }
   }, true);
@@ -71,13 +83,18 @@ export function installProbe(me: string): void {
   }, true);
 
   // 004 receipt, and 003's t1: the tree lists the seeded document and the banner counts everyone.
+  let join: { doc: string; count: number } | null = JSON.parse(sessionStorage.getItem("perf-join") ?? "null");
+  w.__perfExpectJoin = (expected) => {
+    join = expected;
+    sessionStorage.setItem("perf-join", JSON.stringify(expected));
+  };
   const joined = () => {
-    const expected = sessionStorage.getItem("perf-join");
-    if (!expected) return;
-    const { doc, count } = JSON.parse(expected) as { doc: string; count: number };
+    if (!join) return;
+    const { doc, count } = join;
     const tree = [...document.querySelectorAll("aside a")].some((link) => link.textContent?.includes(doc));
     const roster = [...document.querySelectorAll("header")].some((header) => header.textContent?.includes(`${count}명 접속 중`));
     if (!tree || !roster) return;
+    join = null;
     sessionStorage.removeItem("perf-join");
     painted((t) => record({ kind: "recv", item: "003", marker: "join", t }));
   };
@@ -90,6 +107,8 @@ export function installProbe(me: string): void {
   }).observe(document, { subtree: true, childList: true, characterData: true });
 
   // 005: the presenter's scroll that puts the block at the top, the follower's arrival at ±8 px.
+  // The follower's first scroll after a target is set is kept as `move`, raw data for when the
+  // follow starts (the criteria doc records it for reference).
   const offset = (box: Element, block: string) =>
     (box.querySelector(`[data-block-id="${block}"]`)?.getBoundingClientRect().top ?? Infinity) - box.getBoundingClientRect().top;
   document.addEventListener("scroll", (event) => {

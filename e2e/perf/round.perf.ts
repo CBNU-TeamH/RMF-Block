@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { appendFile, mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -7,10 +7,10 @@ import { setTimeout as delay } from "node:timers/promises";
 import { chromium, type Browser, type Page } from "@playwright/test";
 
 import { expect, test } from "../fixtures";
-import { block, blockValues, createDocument, firstBlock, insertAt, online, openChat, openDocument, sendChat } from "../helpers";
+import { block, blockValues, createDocument, firstBlock, insertAt, joinForm, online, openChat, openDocument, sendChat } from "../helpers";
 import { YORKIE_SERVICE, networkProbe } from "../network";
 import { traceMemory } from "./memory";
-import { installProbe, marker, type PerfWindow } from "./probe";
+import { installProbe, marker, measuringLaunch, type PerfWindow } from "./probe";
 import { APP_IMAGE, sampleDockerStats, stackDown, stackUp } from "./stack";
 
 const env = process.env;
@@ -23,7 +23,7 @@ const OUTAGE = Number(env.PERF_OUTAGE ?? 0);
 const HOST = env.HOST_LAN_IP ?? "127.0.0.1";
 const APP_PORT = Number(env.PERF_APP_PORT ?? 3000);
 const YORKIE_PORT = Number(env.PERF_YORKIE_PORT ?? 8080);
-const CHANNEL = env.PERF_CHANNEL ?? "chrome";
+const G_WS = env.PERF_G_WS || undefined;
 const PASSWORD = env.E2E_WORKSPACE_PASSWORD!;
 const BASE_URL = `http://${HOST}:${APP_PORT}`;
 const VIEWPORT = { width: 1280, height: 720 };
@@ -33,17 +33,18 @@ const BLOCKS = 60;
 const TARGETS = Array.from({ length: 20 }, (_, i) => 10 + i);
 const ACTIONS = 30; // 20 edits + 10 chats per user (NFR-PER-001's workload)
 
+// A campaign that forgot PERF_G_WS would quietly measure one machine against itself.
+if (!G_WS && env.PERF_SINGLE_MACHINE !== "1") {
+  throw new Error("Set PERF_G_WS to G's browser server (runbook §7), or PERF_SINGLE_MACHINE=1 for a one-machine check.");
+}
+
 const now = () => performance.timeOrigin + performance.now();
 
 type Actor = { client: string; page: Page; block: string };
 type Note = Record<string, unknown>;
-
-/** H's and G's measuring Chrome. G is a browser server on the guest device (`perf:browser`);
- *  without `PERF_G_WS` it is launched here, for a single-machine run. */
-function measuringBrowser(ws?: string): Promise<Browser> {
-  if (ws) return chromium.connect(ws);
-  return chromium.launch({ channel: CHANNEL === "bundled" ? undefined : CHANNEL, headless: env.PERF_HEADED === "0" });
-}
+/** Where a round is: passive signals count as failures only in `window` (`report.mts`). */
+type Phase = "setup" | "window" | "outage" | "teardown";
+type Round = { round: number; phase: Phase; plan: Array<Note>; notes: Array<Note> };
 
 async function measuringPage(browser: Browser, client: string): Promise<Page> {
   const context = await browser.newContext({ baseURL: BASE_URL, viewport: VIEWPORT });
@@ -62,56 +63,51 @@ async function readClock(page: Page) {
   return samples;
 }
 
-/** NFR-PER-001's failure signals for one page: error responses, closed sockets, ended Watch
- *  streams (as `e2e/network.ts` observes them) and page errors. */
-async function watch(page: Page, who: string, notes: Array<Note>) {
-  const push = (note: Note) => notes.push({ at: now(), who, ...note });
+/** NFR-PER-001's passive signals for one page: error responses, closed sockets, ended Watch
+ *  streams and page errors, each tagged with the round's phase. */
+function watch(page: Page, who: string, r: Round) {
+  const push = (note: Note) => r.notes.push({ at: now(), who, phase: r.phase, ...note });
+  const watchEnded = (request: { url: () => string }) => {
+    if (request.url().includes(`${YORKIE_SERVICE}Watch`)) push({ kind: "watch-end" });
+  };
   page.on("response", (response) => {
     if (response.status() >= 400) push({ kind: "http", status: response.status(), url: response.url() });
   });
+  page.on("requestfinished", watchEnded);
+  page.on("requestfailed", watchEnded);
   page.on("websocket", (socket) => socket.on("close", () => push({ kind: "ws-close", url: socket.url() })));
   page.on("pageerror", (error) => push({ kind: "page-error", message: error.message }));
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send("Network.enable");
-  const watches = new Set<string>();
-  cdp.on("Network.responseReceived", (event) => {
-    if (event.response.url.includes(`${YORKIE_SERVICE}Watch`)) watches.add(event.requestId);
-  });
-  const ended = (event: { requestId: string }) => {
-    if (watches.delete(event.requestId)) push({ kind: "watch-end" });
-  };
-  cdp.on("Network.loadingFailed", ended);
-  cdp.on("Network.loadingFinished", ended);
+}
+
+/** One user action: a chat message, or a marker appended to the user's own block. */
+async function act(r: Round, actor: Actor, kind: "e" | "c", seq: number, phase?: "outage" | "resend") {
+  const text = marker(r.round, actor.client, kind, seq);
+  r.plan.push({ item: kind === "c" ? "004" : "002", marker: text, from: actor.client, ...(phase && { phase }) });
+  if (kind === "c") await sendChat(actor.page, text);
+  else await insertAt(actor.page, actor.block, (await block(actor.page, actor.block).inputValue()).length, ` ${text}`);
 }
 
 /** Each user's 20 edits and 10 chats, evenly spaced and staggered, in a fixed order. */
-async function work(round: number, actors: Array<Actor>, minutes: number, seq: number, plan: Array<Note>, notes: Array<Note>) {
+async function work(r: Round, actors: Array<Actor>, minutes: number, seq: number) {
   const every = (minutes * 60_000) / ACTIONS;
   const start = Date.now();
   await Promise.all(actors.map(async (actor, index) => {
     for (let k = 0; k < ACTIONS; k++) {
       await delay(Math.max(0, start + k * every + (index * every) / actors.length - Date.now()));
-      const chat = k % 3 === 2;
-      const text = marker(round, actor.client, chat ? "c" : "e", seq + k);
-      plan.push({ item: chat ? "004" : "002", marker: text, from: actor.client });
-      try {
-        if (chat) await sendChat(actor.page, text);
-        else await insertAt(actor.page, actor.block, (await block(actor.page, actor.block).inputValue()).length, ` ${text}`);
-      } catch (error) {
-        notes.push({ at: now(), who: actor.client, kind: "action-error", message: String(error) });
-      }
+      await act(r, actor, k % 3 === 2 ? "c" : "e", seq + k)
+        .catch((error) => r.notes.push({ at: now(), who: actor.client, phase: r.phase, kind: "action-error", message: String(error) }));
     }
   }));
 }
 
 /** NFR-PER-005: the lead shares, the other follows, and the lead scrolls 20 blocks to the top. */
-async function present(round: number, lead: Actor, follow: Actor, blocks: Array<string>, plan: Array<Note>) {
+async function present(r: Round, lead: Actor, follow: Actor, blocks: Array<string>) {
   await lead.page.getByRole("button", { name: "공유하기", exact: true }).click();
   await follow.page.getByRole("button", { name: /공유 중 · 참여하기/ }).click();
   await expect(follow.page.getByRole("button", { name: /따라가는 중/ })).toBeVisible();
   for (const [i, index] of TARGETS.entries()) {
-    const target = { marker: marker(round, lead.client, "p", i), block: blocks[index] };
-    plan.push({ item: "005", marker: target.marker, from: lead.client });
+    const target = { marker: marker(r.round, lead.client, "p", i), block: blocks[index] };
+    r.plan.push({ item: "005", marker: target.marker, from: lead.client });
     await follow.page.evaluate((t) => {
       (window as PerfWindow).__perfFollow = t;
     }, target);
@@ -129,43 +125,31 @@ async function present(round: number, lead: Actor, follow: Actor, blocks: Array<
 }
 
 /** #193's outage protocol on G: cut, keep working on both sides, restore, resend. */
-async function outage(round: number, h: Actor, g: Actor, probe: Awaited<ReturnType<typeof networkProbe>>, plan: Array<Note>, meta: Note) {
+async function outage(r: Round, h: Actor, g: Actor, probe: Awaited<ReturnType<typeof networkProbe>>, meta: Note) {
+  r.phase = "outage";
   await probe.disconnect(true);
-  await g.page.evaluate(() => {
-    for (const socket of (window as Window & { e2eSockets?: Array<WebSocket> }).e2eSockets ?? []) {
-      if (socket.url.endsWith("/api/workspace/ws")) socket.close(4000, "perf outage");
-    }
-  });
   meta.cutAt = now();
-  for (const [actor, kind] of [[h, "o"], [g, "o"], [h, "c"]] as const) {
-    for (const k of [0, 1]) {
-      const text = marker(round, actor.client, kind, 200 + k);
-      plan.push({ item: kind === "c" ? "004" : "002", marker: text, from: actor.client, outage: true });
-      if (kind === "c") await sendChat(actor.page, text);
-      else await insertAt(actor.page, actor.block, (await block(actor.page, actor.block).inputValue()).length, ` ${text}`);
-    }
+  for (const k of [0, 1]) {
+    await act(r, h, "e", 200 + k, "outage");
+    await act(r, g, "e", 200 + k, "outage");
+    await act(r, h, "c", 200 + k, "outage");
   }
-  const offline = marker(round, g.client, "c", 300);
-  plan.push({ item: "004", marker: offline, from: g.client, outage: true, resend: true });
-  await sendChat(g.page, offline);
+  await act(r, g, "c", 300, "resend");
   const resend = g.page.getByRole("button", { name: "전송 실패 · 다시 보내기" });
   meta.failedShown = await resend.waitFor({ timeout: OUTAGE * 1000 }).then(() => true, () => false);
   await delay(Math.max(0, (meta.cutAt as number) + OUTAGE * 1000 - now()));
-  const opensBefore = await g.page.evaluate(() =>
-    ((window as Window & { e2eSocketEvents?: Array<{ url: string; type: string }> }).e2eSocketEvents ?? []).filter((e) => e.type === "open").map((e) => e.url));
+  const before = { chat: await probe.opens("chat"), session: await probe.opens("workspace") };
   await probe.restore();
   meta.restoreAt = now();
-  const reopened = async (pathname: string) => {
-    const deadline = now() + 30_000;
-    while (now() < deadline) {
-      const opens = await g.page.evaluate(() =>
-        ((window as Window & { e2eSocketEvents?: Array<{ url: string; type: string }> }).e2eSocketEvents ?? []).filter((e) => e.type === "open").map((e) => e.url));
-      if (opens.filter((url) => url.endsWith(pathname)).length > opensBefore.filter((url) => url.endsWith(pathname)).length) return now();
-      await delay(100);
-    }
-    return null;
-  };
-  [meta.chatReopenAt, meta.sessionReopenAt] = await Promise.all([reopened("/api/chat/ws"), reopened("/api/workspace/ws")]);
+  const deadline = now() + 30_000;
+  while (now() < deadline && (meta.chatReopenAt === undefined || meta.sessionReopenAt === undefined)) {
+    if (meta.chatReopenAt === undefined && (await probe.opens("chat")) > before.chat) meta.chatReopenAt = now();
+    if (meta.sessionReopenAt === undefined && (await probe.opens("workspace")) > before.session) meta.sessionReopenAt = now();
+    await delay(100);
+  }
+  meta.chatReopenAt ??= null;
+  meta.sessionReopenAt ??= null;
+  r.phase = "window";
   if (meta.failedShown) {
     meta.resendAt = now();
     await resend.click();
@@ -173,36 +157,63 @@ async function outage(round: number, h: Actor, g: Actor, probe: Awaited<ReturnTy
 }
 
 /** Convergence and exactly-once delivery across every client, plus the disconnect badge. */
-async function verify(actors: Array<Actor>, plan: Array<Note>, notes: Array<Note>) {
+async function verify(r: Round, actors: Array<Actor>) {
+  const failed = (note: Note) => r.notes.push({ at: now(), phase: r.phase, ...note });
   const values = () => Promise.all(actors.map((actor) => blockValues(actor.page)));
   const converged = await expect.poll(async () => {
     const all = (await values()).map((v) => JSON.stringify(v));
     return all.every((v) => v === all[0]);
   }, { timeout: 30_000 }).toBe(true).then(() => true, () => false);
-  if (!converged) notes.push({ at: now(), who: "all", kind: "no-convergence" });
+  if (!converged) failed({ who: "all", kind: "no-convergence" });
   const text = (await values())[0].map((row) => row.text).join("\n");
-  for (const { marker: m } of plan.filter((p) => p.item === "002")) {
+  for (const { marker: m } of r.plan.filter((p) => p.item === "002")) {
     const count = text.split(m as string).length - 1;
-    if (count !== 1) notes.push({ at: now(), who: "all", kind: "edit-count", marker: m, count });
+    if (count !== 1) failed({ who: "all", kind: "edit-count", marker: m, count });
   }
   for (const viewer of actors.filter((a) => a.client === "H" || a.client === "G")) {
     const chat = await viewer.page.getByRole("region", { name: "채팅" }).innerText();
-    for (const { marker: m } of plan.filter((p) => p.item === "004")) {
+    for (const { marker: m } of r.plan.filter((p) => p.item === "004")) {
       const count = chat.split(m as string).length - 1;
-      if (count !== 1) notes.push({ at: now(), who: viewer.client, kind: "chat-count", marker: m, count });
+      if (count !== 1) failed({ who: viewer.client, kind: "chat-count", marker: m, count });
     }
   }
   for (const actor of actors) {
-    if (await actor.page.getByText("연결 끊김").count()) notes.push({ at: now(), who: actor.client, kind: "badge" });
+    if (await actor.page.getByText("연결 끊김").count()) failed({ who: actor.client, kind: "badge" });
   }
 }
 
-const jsonl = (rows: Array<object>) => rows.map((row) => JSON.stringify(row)).join("\n") + "\n";
+const jsonl = (rows: Array<object>) => rows.map((row) => JSON.stringify(row)).join("\n") + (rows.length ? "\n" : "");
 
 for (let round = 1; round <= ROUNDS; round++) {
   test(`round ${round}`, async ({ users }) => {
     const dir = path.join(RUN_DIR, `round-${String(round).padStart(2, "0")}`);
     await mkdir(dir, { recursive: true });
+    const write = (name: string, data: string) => writeFile(path.join(dir, name), data);
+    // Written first, so a round that aborts is still counted (`report.mts`).
+    const conditions: Note = {
+      runId: RUN_ID,
+      round,
+      revision: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+      image: APP_IMAGE,
+      users: USERS,
+      minutes: MINUTES,
+      outage: OUTAGE,
+      preset: env.PERF_PRESET ?? "baseline",
+      host: HOST,
+      ports: { app: APP_PORT, yorkie: YORKIE_PORT },
+      viewport: VIEWPORT,
+      hostPlatform: `${os.platform()} ${os.release()} · ${os.cpus().length} CPU · ${Math.round(os.totalmem() / 2 ** 30)} GB`,
+      gRemote: Boolean(G_WS),
+      node: process.version,
+      blocks: BLOCKS,
+      targets: TARGETS.length,
+    };
+    await write("conditions.json", JSON.stringify(conditions, null, 2));
+    const r: Round = { round, phase: "setup", plan: [], notes: [] };
+    const meta: Note = { round };
+    const browsers: Array<Browser> = [];
+    // Stopped on every path: a trace left running on G's browser refuses the next round's.
+    let memory: Record<"H" | "G", Awaited<ReturnType<typeof traceMemory>>> | null = null;
     const stack = await stackUp({
       project: `rmf-perf-${RUN_ID}-${round}`,
       dir,
@@ -211,17 +222,17 @@ for (let round = 1; round <= ROUNDS; round++) {
       appPort: APP_PORT,
       yorkiePort: YORKIE_PORT,
       password: PASSWORD,
+    }).catch(async (error) => {
+      r.notes.push({ at: now(), who: "harness", phase: r.phase, kind: "aborted", message: String(error) });
+      await write("signals.jsonl", jsonl(r.notes));
+      throw error;
     });
     const stats = sampleDockerStats(stack);
-    const browsers: Array<Browser> = [];
-    const plan: Array<Note> = [];
-    const notes: Array<Note> = [];
-    const meta: Note = { round };
     try {
-      const hBrowser = await measuringBrowser();
+      const hBrowser = await chromium.launch(measuringLaunch());
       browsers.push(hBrowser);
       const hPage = await measuringPage(hBrowser, "H");
-      await watch(hPage, "H", notes);
+      watch(hPage, "H", r);
       const joined = await hPage.request.post("/api/workspace/join", { data: { nickname: "perf-H", password: PASSWORD, force: true } });
       expect(joined.ok(), await joined.text()).toBe(true);
       const doc = await createDocument(hPage, SEED);
@@ -238,24 +249,22 @@ for (let round = 1; round <= ROUNDS; round++) {
       const background: Array<Actor> = [];
       for (let slot = 0; slot < USERS - 2; slot++) {
         const page = (await users.join(slot)).page;
-        await watch(page, `b${slot}`, notes);
+        watch(page, `b${slot}`, r);
         await openDocument(page, doc);
         background.push({ client: `b${slot}`, page, block: blocks[2 + slot] });
       }
 
-      const gBrowser = await measuringBrowser(env.PERF_G_WS || undefined);
+      const gBrowser = G_WS ? await chromium.connect(G_WS) : await chromium.launch(measuringLaunch());
       browsers.push(gBrowser);
       const gPage = await measuringPage(gBrowser, "G");
-      await watch(gPage, "G", notes);
-      const probe = OUTAGE ? await networkProbe(gPage, "chat") : null;
-      const memory = { H: await traceMemory(hBrowser), G: await traceMemory(gBrowser) };
+      watch(gPage, "G", r);
+      const probe = OUTAGE ? await networkProbe(gPage, ["chat", "workspace"]) : null;
+      memory = { H: await traceMemory(hBrowser), G: await traceMemory(gBrowser) };
       await gPage.goto("/join");
-      await gPage.evaluate((expected) => sessionStorage.setItem("perf-join", JSON.stringify(expected)), { doc: SEED, count: USERS });
-      await gPage.getByLabel("닉네임").fill("perf-G");
-      await gPage.getByLabel("워크스페이스 비밀번호").fill(PASSWORD);
-      await gPage.getByRole("button", { name: "입장", exact: true }).click();
+      await gPage.evaluate((expected) => (window as PerfWindow).__perfExpectJoin!(expected), { doc: SEED, count: USERS });
+      await joinForm(gPage, "perf-G", PASSWORD);
       await expect.poll(() => gPage.evaluate(() => (window as PerfWindow).__perf?.some((e) => e.item === "003" && e.kind === "recv")), { timeout: 30_000 })
-        .toBe(true).catch(() => notes.push({ at: now(), who: "G", kind: "join-timeout" }));
+        .toBe(true).catch(() => r.notes.push({ at: now(), who: "G", phase: r.phase, kind: "join-timeout" }));
       if (!gPage.url().endsWith(`/documents/${doc}`)) await openDocument(gPage, doc);
 
       const h = { client: "H", page: hPage, block: blocks[0] };
@@ -267,18 +276,18 @@ for (let round = 1; round <= ROUNDS; round++) {
       if (probe) await probe.ready();
 
       const clock: Note = { start: { H: await readClock(hPage), G: await readClock(gPage) } };
-      meta.windowStart = now();
+      r.phase = "window";
       if (OUTAGE) {
-        await work(round, actors, MINUTES, 0, plan, notes);
-        await outage(round, h, g, probe!, plan, meta);
-        await work(round, actors, MINUTES, 100, plan, notes);
+        await work(r, actors, MINUTES, 0);
+        await outage(r, h, g, probe!, meta);
+        await work(r, actors, MINUTES, 100);
       } else {
-        await work(round, actors, MINUTES, 0, plan, notes);
-        await present(round, h, g, blocks, plan);
-        await present(round, g, h, blocks, plan);
+        await work(r, actors, MINUTES, 0);
+        await present(r, h, g, blocks);
+        await present(r, g, h, blocks);
       }
-      await verify(actors, plan, notes);
-      meta.windowEnd = now();
+      await verify(r, actors);
+      r.phase = "teardown";
       clock.end = { H: await readClock(hPage), G: await readClock(gPage) };
 
       const rtt = await gPage.evaluate(async (url) => {
@@ -290,46 +299,38 @@ for (let round = 1; round <= ROUNDS; round++) {
         }
         return out;
       }, `http://${HOST}:${YORKIE_PORT}${YORKIE_SERVICE}health`);
-      const events = [
-        ...(await hPage.evaluate(() => (window as PerfWindow).__perf ?? [])).map((e) => ({ device: "H", ...e })),
-        ...(await gPage.evaluate(() => (window as PerfWindow).__perf ?? [])).map((e) => ({ device: "G", ...e })),
-      ];
-      const samples = [
-        ...(await memory.H.stop()).map((s) => ({ device: "H", ...s })),
-        ...(await memory.G.stop()).map((s) => ({ device: "G", ...s })),
-      ];
-      const conditions = {
-        runId: RUN_ID,
-        round,
-        revision: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
-        image: APP_IMAGE,
-        users: USERS,
-        minutes: MINUTES,
-        outage: OUTAGE,
-        preset: env.PERF_PRESET ?? "baseline",
-        host: HOST,
-        ports: { app: APP_PORT, yorkie: YORKIE_PORT },
-        viewport: VIEWPORT,
-        browsers: { H: hBrowser.version(), G: gBrowser.version() },
-        userAgents: { H: await hPage.evaluate(() => navigator.userAgent), G: await gPage.evaluate(() => navigator.userAgent) },
-        hostPlatform: `${os.platform()} ${os.release()} · ${os.cpus().length} CPU · ${Math.round(os.totalmem() / 2 ** 30)} GB`,
-        gRemote: Boolean(env.PERF_G_WS),
-        node: process.version,
-        blocks: BLOCKS,
-        targets: TARGETS.length,
-      };
-      await writeFile(path.join(dir, "conditions.json"), JSON.stringify(conditions, null, 2));
-      await writeFile(path.join(dir, "clock.json"), JSON.stringify(clock));
-      await writeFile(path.join(dir, "meta.json"), JSON.stringify(meta));
-      await writeFile(path.join(dir, "rtt.json"), JSON.stringify(rtt));
-      await writeFile(path.join(dir, "plan.jsonl"), jsonl(plan));
-      await writeFile(path.join(dir, "events.jsonl"), jsonl(events));
-      await writeFile(path.join(dir, "memory.jsonl"), jsonl(samples));
+      const [hEvents, gEvents, hMemory, gMemory, hAgent, gAgent] = await Promise.all([
+        hPage.evaluate(() => (window as PerfWindow).__perf ?? []),
+        gPage.evaluate(() => (window as PerfWindow).__perf ?? []),
+        memory.H.stop(),
+        memory.G.stop(),
+        hPage.evaluate(() => navigator.userAgent),
+        gPage.evaluate(() => navigator.userAgent),
+      ]);
+      memory = null;
+      Object.assign(conditions, { browsers: { H: hBrowser.version(), G: gBrowser.version() }, userAgents: { H: hAgent, G: gAgent } });
+      await Promise.all([
+        write("conditions.json", JSON.stringify(conditions, null, 2)),
+        write("clock.json", JSON.stringify(clock)),
+        write("rtt.json", JSON.stringify(rtt)),
+        write("events.jsonl", jsonl([...hEvents.map((e) => ({ device: "H", ...e })), ...gEvents.map((e) => ({ device: "G", ...e }))])),
+        write("memory.jsonl", jsonl([...hMemory.map((s) => ({ device: "H", ...s })), ...gMemory.map((s) => ({ device: "G", ...s }))])),
+      ]);
+    } catch (error) {
+      r.notes.push({ at: now(), who: "harness", phase: r.phase, kind: "aborted", message: String(error) });
+      throw error;
     } finally {
-      await appendFile(path.join(dir, "signals.jsonl"), notes.length ? jsonl(notes) : "");
-      await stats.stop();
-      for (const browser of browsers) await browser.close().catch(() => {});
-      await stackDown(stack);
+      try {
+        await Promise.all([write("signals.jsonl", jsonl(r.notes)), write("meta.json", JSON.stringify(meta)), write("plan.jsonl", jsonl(r.plan))]);
+        await stats.stop();
+      } finally {
+        try {
+          if (memory) await Promise.allSettled([memory.H.stop(), memory.G.stop()]);
+          for (const browser of browsers) await browser.close().catch(() => {});
+        } finally {
+          await stackDown(stack);
+        }
+      }
     }
   });
 }

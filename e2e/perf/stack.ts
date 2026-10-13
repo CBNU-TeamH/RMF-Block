@@ -86,7 +86,13 @@ export async function stackUp(options: StackOptions): Promise<Stack> {
   const file = path.join(options.dir, "compose.json");
   await writeFile(file, JSON.stringify(config), { mode: 0o600 });
   const stack = { ...options, file, containers };
-  await docker(["compose", "-p", options.project, "-f", file, "up", "-d", "--wait", "--wait-timeout", "180"]);
+  try {
+    await docker(["compose", "-p", options.project, "-f", file, "up", "-d", "--wait", "--wait-timeout", "180"]);
+  } catch (error) {
+    // A half-started project would hold its ports and volumes and block the next round.
+    await stackDown(stack).catch(() => {});
+    throw error;
+  }
   const deadline = Date.now() + 120_000;
   while (Date.now() < deadline) {
     try {
