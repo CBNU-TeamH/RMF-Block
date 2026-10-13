@@ -1,0 +1,8 @@
+# Every job lives in the generated file the harness copies in (`e2e/perf/observe.ts`):
+# cAdvisor always, and while a round is attached, its Yorkie and its container names.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_config_files:
+  - /etc/prometheus/generated/*.yml

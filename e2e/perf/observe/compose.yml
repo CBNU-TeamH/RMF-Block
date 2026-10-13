@@ -1,0 +1,62 @@
+# The perf campaign's observation stack (#192): up for a whole run, never part of a round.
+# `pnpm perf:observe` starts it; `PERF_OBSERVE=1 pnpm perf` attaches each round to it.
+# Diagnostics only — the harness's browser samples judge NFR-PER, and the judgment cell
+# runs with this stack down.
+name: rmf-observe
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: rmf-observe-prometheus
+    # `--web.enable-lifecycle` is how the harness applies each round's scrape file
+    # (`/-/reload`) — the Yorkie target and the cAdvisor names change every round.
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-generated:/etc/prometheus/generated
+      - prometheus-data:/prometheus
+    # Loopback only: the hotspot is an open subnet.
+    ports:
+      - "127.0.0.1:9090:9090"
+
+  # Raw cgroup mode: on Docker Desktop the Docker handler cannot read the engine's image
+  # store and names nothing, so it is switched off and the harness maps IDs to names.
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    container_name: rmf-observe-cadvisor
+    command:
+      - --docker=unix:///nonexistent.sock
+      - --raw_cgroup_prefix_whitelist=/docker/
+      - --docker_only=false
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /sys:/sys:ro
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    container_name: rmf-observe-grafana
+    # Anonymous Editor so the harness posts annotations with no credential; that is only
+    # safe because the port is published on loopback.
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Editor
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3300:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus-generated:
+  prometheus-data:
+  grafana-data:
