@@ -125,7 +125,21 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 - **Type check**: `pnpm typecheck` (#197) covers every new `.ts`/`.mts`, including the chart library's types.
 - **Browser E2E** (`e2e/`): unchanged. `playwright.config.ts` collects `*.e2e.ts` only, and the perf harness stays out of `pnpm e2e`.
 - **Container smoke** (`.github/workflows/ci.yml`): unchanged. The product's `docker-compose.yml` is not touched, and nothing in CI reads `e2e/perf/observe/`.
-- **Commands and observed results** (fill in before the PR):
+- **Commands and observed results** (2026-10-13, this machine: WSL2 + Docker Desktop, bundled headless Chromium, `PERF_SINGLE_MACHINE=1`):
+  - `vitest run e2e/perf/stats.test.mts`: 16 passed, including the two new ECDF cases. `pnpm typecheck`, `eslint e2e/perf`, `pnpm comments` and `pnpm verify:docs` are clean.
+  - `pnpm perf:observe`:
+    - healthy, with the cAdvisor target up;
+    - the dashboard is provisioned;
+    - only `127.0.0.1:3300` and `127.0.0.1:9090` are published.
+  - **Observed round** (`PERF_OBSERVE=1`, 2 users × 1 min): passed in 3.7 min.
+    - During the round, the `yorkie` target was up, and the cAdvisor series came in named `rmf-perf-obs1-1-{app,mongo,yorkie}`.
+    - Afterwards, the scrape file was back to cAdvisor only, Prometheus was on its own network only, and no `rmf-perf` project or network was left.
+    - One "measured window" annotation was posted.
+    - Results: 002 p95 161 / 181 ms, 005 p95 381 / 335 ms, 0 failures, memory H 108 / G 78 MiB.
+  - **Observed outage round** (`PERF_OUTAGE=20`): passed in 3.4 min.
+    - Annotations: window, cut and restore.
+    - Recovery: document 382 ms, chat 9.9 s (#37's socket backoff), session — (#37), failed send shown, resend 53 ms. 0 failures.
+  - `pnpm perf:report`: `summary.html` renders offline (checked in Playwright with `offline: true`), and its numbers match `summary.md`.
 
 ## Acceptance
 
