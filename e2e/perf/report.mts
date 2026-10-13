@@ -1,11 +1,14 @@
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import * as Plot from "@observablehq/plot";
+import { Window } from "happy-dom";
+
 import { readJsonFile } from "../../lib/json-file.ts";
-import { account, offsetFrom, p95, toH, uncertainty, verdict, type ClockSample, type RoundClock } from "./stats.mts";
+import { account, ecdf, offsetFrom, p95, toH, uncertainty, verdict, type ClockSample, type RoundClock } from "./stats.mts";
 
 /** `pnpm perf:report perf-results/<run-id>`: the run's raw files → `summary.json` and the
- *  markdown table #191 records. Every number follows #189's measurement contracts. A round is
+ *  markdown table #191 records, plus `summary.html` (charts drawn from the same numbers). Every number follows #189's measurement contracts. A round is
  *  left out only when its folder is renamed `void-round-NN`; an aborted one counts as failed. */
 const run = process.argv[2];
 if (!run) throw new Error("usage: pnpm perf:report perf-results/<run-id>");
@@ -128,8 +131,10 @@ for (const name of (await readdir(run)).filter((n) => n.startsWith("round-")).so
   }
 }
 
+const samples = new Map<string, Array<number>>();
 const items = [...pooled].map(([key, { sends, recvs, u }]) => {
   const a = account(sends, recvs, TIMEOUT[key.slice(0, 3)]);
+  samples.set(key, a.samples);
   const value = p95(a.samples);
   const budget = BUDGET[key.slice(0, 3)];
   return {
@@ -155,6 +160,7 @@ await writeFile(path.join(run, "summary.json"), JSON.stringify(summary, null, 2)
 
 const outageText = (o: NonNullable<RoundRow["outage"]>) =>
   `doc ${ms(o.documentResync as number)}, chat ${ms(o.chatBackfill as number)}, chat socket ${ms(o.chatReopen as number | null)}, session ${ms(o.sessionReopen as number | null)}, failed shown ${o.failedShown}, resend ${ms(o.resendDelivered as number | null)}`;
+const status = (r: RoundRow) => (r.aborted ? `aborted: ${r.aborted.slice(0, 80)}` : r.failures.length ? r.failures.join(", ") : "0");
 const md = [
   `# ${path.basename(run)}`,
   "",
@@ -166,7 +172,86 @@ const md = [
   "",
   `| Round | Preset | Users | U | Failures | Memory H / G (MiB, budget ${MEMORY_BUDGET_MIB}) | G RTT median | Outage |`,
   "|---|---|---|---|---|---|---|---|",
-  ...perRound.map((r) => `| ${r.round} | ${r.preset} | ${r.users} | ${r.u === null ? "—" : `${r.u.toFixed(1)} ms`} | ${r.aborted ? `aborted: ${r.aborted.slice(0, 80)}` : r.failures.length ? r.failures.join(", ") : "0"} | ${r.memoryMiB.H?.toFixed(0) ?? "—"} / ${r.memoryMiB.G?.toFixed(0) ?? "—"} | ${ms(r.rttMedian)} | ${r.outage ? outageText(r.outage) : "—"} |`),
+  ...perRound.map((r) => `| ${r.round} | ${r.preset} | ${r.users} | ${r.u === null ? "—" : `${r.u.toFixed(1)} ms`} | ${status(r)} | ${r.memoryMiB.H?.toFixed(0) ?? "—"} / ${r.memoryMiB.G?.toFixed(0) ?? "—"} | ${ms(r.rttMedian)} | ${r.outage ? outageText(r.outage) : "—"} |`),
 ].join("\n");
 await writeFile(path.join(run, "summary.md"), md + "\n");
 console.log(md);
+
+// summary.html: static SVG rendered here (no script in the page), so it opens offline on H.
+const window = new Window();
+const plot = (options: Plot.PlotOptions) =>
+  (Plot.plot({ document: window.document as unknown as Document, width: 760, ...options }) as unknown as { outerHTML: string }).outerHTML;
+const esc = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const sections: Array<string> = [];
+
+for (const id of ["002", "003", "004", "005"]) {
+  const keys = items.filter((i) => i.key.startsWith(id));
+  if (!keys.length) continue;
+  const curve = keys.flatMap((i) => ecdf(samples.get(i.key)!).map((point) => ({ ...point, key: i.key })));
+  const marks = keys.filter((i) => i.p95 !== null && Number.isFinite(i.p95)).map((i) => ({ key: i.key, ms: i.p95!, share: 0.95 }));
+  const budget = BUDGET[id];
+  sections.push(`<h2>${id}: latency over attempts</h2>
+<p>Share of attempts seen within each latency. The curve stops short of 1 by the timed-out attempts; the red line is the budget, dots mark p95.</p>
+${plot({
+  x: { label: "latency (ms)", domain: [0, Math.max(budget * 1.1, ...curve.map((p) => p.ms))] },
+  y: { label: "share of attempts", domain: [0, 1], grid: true },
+  color: { legend: true },
+  marks: [
+    Plot.ruleY([0.95], { stroke: "#999", strokeDasharray: "2 3" }),
+    Plot.ruleX([budget], { stroke: "red" }),
+    Plot.lineY(curve, { x: "ms", y: "share", stroke: "key", curve: "step-after" }),
+    Plot.dot(curve, { x: "ms", y: "share", fill: "key", r: 1.5 }),
+    Plot.dot(marks, { x: "ms", y: "share", fill: "key", r: 4 }),
+  ],
+})}`);
+}
+
+const judged = items.filter((i) => i.p95 !== null);
+if (judged.length) {
+  const cap = Math.max(...judged.map((i) => i.budget * 1.2), ...judged.filter((i) => Number.isFinite(i.p95)).map((i) => i.p95! + i.u));
+  const rows = judged.map((i) => ({ ...i, shown: Math.min(i.p95!, cap) }));
+  sections.push(`<h2>p95 ± U against the budget</h2>
+<p>Pass when p95 + U is inside the budget (red tick), fail when p95 − U is outside it. A p95 of ∞ is drawn at the right edge.</p>
+${plot({
+  marginLeft: 90,
+  x: { label: "p95 (ms)", domain: [0, cap] },
+  y: { label: null },
+  color: { legend: true, domain: ["pass", "inconclusive", "fail"], range: ["#2a9d55", "#e0a400", "#d03030"] },
+  marks: [
+    Plot.ruleY(rows, { y: "key", x1: (d) => Math.max(0, d.shown - d.u), x2: (d) => Math.min(cap, d.shown + d.u) }),
+    Plot.tickX(rows, { y: "key", x: "budget", stroke: "red" }),
+    Plot.dot(rows, { y: "key", x: "shown", fill: "verdict", r: 5 }),
+  ],
+})}`);
+}
+
+const memory = perRound.flatMap((r) => (["H", "G"] as const).flatMap((device) => (r.memoryMiB[device] === null ? [] : [{ round: r.round, device, mib: r.memoryMiB[device]! }])));
+if (memory.length) {
+  sections.push(`<h2>NFR-PER-006: memory peak per round</h2>
+${plot({
+  x: { label: null, type: "point" },
+  y: { label: "peak footprint (MiB)", domain: [0, Math.max(MEMORY_BUDGET_MIB * 1.1, ...memory.map((m) => m.mib))], grid: true },
+  color: { legend: true },
+  marks: [Plot.ruleY([MEMORY_BUDGET_MIB], { stroke: "red" }), Plot.dot(memory, { x: "round", y: "mib", fill: "device", r: 5 })],
+})}`);
+}
+
+sections.push(`<h2>NFR-PER-001: rounds</h2>
+<p>${summary["001"].failedRounds}/${summary["001"].rounds} baseline rounds failed (pass needs 0).</p>
+${plot({
+  height: 90,
+  x: { label: null, type: "band" },
+  color: { legend: true, domain: ["ok", "failed"], range: ["#2a9d55", "#d03030"] },
+  marks: [Plot.cell(perRound, { x: "round", fill: (r: RoundRow) => (r.aborted || r.failures.length ? "failed" : "ok"), inset: 1 })],
+})}
+<table><tr><th>Round</th><th>Preset</th><th>Users</th><th>U</th><th>Failures</th><th>Memory H / G (MiB)</th><th>Outage</th></tr>
+${perRound.map((r) => `<tr><td>${r.round}</td><td>${r.preset}</td><td>${r.users}</td><td>${r.u === null ? "—" : `${r.u.toFixed(1)} ms`}</td><td>${esc(status(r))}</td><td>${r.memoryMiB.H?.toFixed(0) ?? "—"} / ${r.memoryMiB.G?.toFixed(0) ?? "—"}</td><td>${r.outage ? esc(outageText(r.outage)) : "—"}</td></tr>`).join("\n")}
+</table>`);
+
+await writeFile(path.join(run, "summary.html"), `<!doctype html>
+<meta charset="utf-8"><title>${esc(path.basename(run))}</title>
+<style>body{font:14px system-ui,sans-serif;max-width:800px;margin:24px auto;padding:0 16px}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:4px 8px;text-align:left}</style>
+<h1>${esc(path.basename(run))}</h1>
+${sections.join("\n")}
+`);
+await window.happyDOM.close();

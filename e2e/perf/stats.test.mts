@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
-import { account, offsetFrom, p95, thetaAt, toH, uncertainty, verdict } from "./stats.mts";
+import { account, ecdf, offsetFrom, p95, thetaAt, toH, uncertainty, verdict } from "./stats.mts";
 
 const range = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
 
@@ -99,5 +99,20 @@ describe("clock — offset, uncertainty, correction", () => {
     assert.equal(thetaAt(clock, 50), 5);
     assert.equal(thetaAt(clock, -5), 0);
     assert.equal(thetaAt(clock, 500), 10);
+  });
+});
+
+describe("ecdf — the result chart's curve over attempts", () => {
+  it("steps by rank over every attempt and stops short of 1 by the time-outs", () => {
+    assert.deepEqual(ecdf([30, 10, Infinity, 20]), [
+      { ms: 10, share: 0.25 },
+      { ms: 20, share: 0.5 },
+      { ms: 30, share: 0.75 },
+    ]);
+  });
+
+  it("reaches 0.95 exactly at the nearest-rank p95", () => {
+    const samples = [...range(19), Infinity];
+    assert.equal(ecdf(samples).find((point) => point.share >= 0.95)?.ms, p95(samples));
   });
 });

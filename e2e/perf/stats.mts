@@ -78,3 +78,12 @@ export function account(
   const timedOut = samples.filter((s) => s === Infinity).length;
   return { attempted: sends.length, observed: sends.length - timedOut, timedOut, unmatched, duplicate, samples };
 }
+
+/** The ECDF over attempts, finite samples only: each step is its rank over every attempt, so a
+ *  timed-out attempt never appears yet still holds the curve below 1 (the gap is the time-outs). */
+export function ecdf(samples: Array<number>): Array<{ ms: number; share: number }> {
+  return samples
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b)
+    .map((ms, i) => ({ ms, share: (i + 1) / samples.length }));
+}
