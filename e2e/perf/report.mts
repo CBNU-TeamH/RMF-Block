@@ -33,11 +33,14 @@ const json = <T,>(file: string) => readJsonFile<T | null>(file, null);
 const ms = (value: number | null | undefined) =>
   value === null || value === undefined ? "—" : Number.isFinite(value) ? `${Math.round(value)} ms` : "∞";
 
-/** Per item and direction, every round's sends and receipts on one clock, and the worst U. */
+/** Per item and direction, every round's sends and receipts on one clock, and the worst U. Markers
+ *  are scoped by the round's folder: a replacement round comes from a new run (runbook §9) whose
+ *  markers repeat the original rounds' numbers. */
 const pooled = new Map<string, { sends: Array<{ marker: string; t0: number }>; recvs: Array<{ marker: string; t1: number }>; u: number }>();
-function pool(key: string, sends: Array<{ marker: string; t0: number }>, recvs: Array<{ marker: string; t1: number }>, u: number) {
+function pool(key: string, round: string, sends: Array<{ marker: string; t0: number }>, recvs: Array<{ marker: string; t1: number }>, u: number) {
   const into = pooled.get(key) ?? { sends: [], recvs: [], u: 0 };
-  pooled.set(key, { sends: [...into.sends, ...sends], recvs: [...into.recvs, ...recvs], u: Math.max(into.u, u) });
+  const scoped = <T extends { marker: string }>(list: Array<T>) => list.map((entry) => ({ ...entry, marker: `${round}/${entry.marker}` }));
+  pooled.set(key, { sends: [...into.sends, ...scoped(sends)], recvs: [...into.recvs, ...scoped(recvs)], u: Math.max(into.u, u) });
 }
 
 type RoundRow = {
@@ -95,12 +98,12 @@ for (const name of (await readdir(run)).filter((n) => n.startsWith("round-")).so
     for (const [from, to] of [["H", "G"], ["G", "H"]] as const) {
       const sent = new Map(events.filter((e) => e.device === from && e.kind === "send" && e.item === item).map((e) => [e.marker, onH(from, e.t)]));
       const sends = plan.filter((p) => p.item === item && p.from === from && !p.phase).map((p) => ({ marker: p.marker, t0: sent.get(p.marker) ?? NaN }));
-      if (sends.length) pool(`${item} ${from}→${to}`, sends, received(to, item, from), u);
+      if (sends.length) pool(`${item} ${from}→${to}`, name, sends, received(to, item, from), u);
     }
   }
   const join = (kind: string) => events.find((e) => e.device === "G" && e.item === "003" && e.kind === kind)?.t;
   const joinRecv = join("recv");
-  pool("003 G", [{ marker: name, t0: join("send") ?? NaN }], joinRecv === undefined ? [] : [{ marker: name, t1: joinRecv }], 0);
+  pool("003 G", name, [{ marker: name, t0: join("send") ?? NaN }], joinRecv === undefined ? [] : [{ marker: name, t1: joinRecv }], 0);
 
   const memory = await rows<{ device: Device; pid: number; bytes: number }>(path.join(dir, "memory.jsonl"));
   for (const device of ["H", "G"] as const) {

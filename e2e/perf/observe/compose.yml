@@ -14,6 +14,9 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --web.enable-lifecycle
+      # A reload restarts the scrape loop, so a finished round's series get no staleness
+      # marker; without this the dashboard draws them flat for the default 5 min.
+      - --query.lookback-delta=15s
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./generated:/etc/prometheus/generated:ro

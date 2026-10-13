@@ -27,6 +27,8 @@ that the next person does not rediscover this.
 - **Run Node-run entry points as `.mts` from the start.** A `.ts` module that Playwright imports is transpiled to CommonJS, so `import.meta.main` in `observe.ts` broke the harness ("Cannot use 'import.meta' outside a module"). The CLI moved to `observe-up.mts`, which is the repo's existing split (#189's lessons): modules Playwright imports are `.ts`, and scripts Node runs are `.mts`.
 - **A one-point ECDF draws no line.** Plot's step line needs two points, so 003's single join per round was invisible until the curve also got dots.
 
+- **A marker is unique only within its run.** The harness numbers rounds per run, and runbook §9 replaces a round with one from a new run, so the report has to scope markers by round folder before pooling. Stitching sample rounds together for a picture surfaced it.
+
 ## Worth extracting
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.

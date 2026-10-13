@@ -180,6 +180,11 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
   - dropping cAdvisor for the `docker stats` file: the user chose to keep cAdvisor;
   - removing the ECDF dots: 003's one point per round needs them;
   - inlining `observeUp` into `observe-up.mts`: it would only trade that export for `apply` and `COMPOSE`.
+- **Found while making the briefing's sample charts**: `perf:report` pooled every round's markers as they were. A replacement round (runbook §9) comes from a new run whose markers repeat the original rounds' numbers (`~m:1:…`), so pooling it in would pair sends with another round's receipts.
+  - Seen as 42 "unmatched / dup" when three first rounds were stitched into one run.
+  - `pool()` now scopes markers by the round's folder, which brings that run to 0 (plus the outage round's 1–2 cut-time receipts that have no counted send, unchanged since #194).
+  - A single run's numbers do not change, for example `obs1`: 161 / 181 ms both before and after.
+- **Also found while making the sample charts**: Grafana drew a finished round's memory flat for 5 min. A `/-/reload` restarts the scrape loop, so the series that left with the round get no staleness marker, and the default lookback is 5 min. Prometheus now runs with `--query.lookback-delta=15s` (three scrapes), and a round's lines end within 15 s of its teardown.
 - **Rerun after the fixes**: an observed outage round passed in 3.5 min.
   - During the round, the `yorkie` target was up and the containers were named.
   - All three annotations were posted. Afterwards, nothing was left.
