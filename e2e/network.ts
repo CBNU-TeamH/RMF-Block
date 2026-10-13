@@ -55,7 +55,10 @@ export async function yorkieCut(page: Page) {
  *  events. The page closes the socket itself (code 4000) rather than losing it
  *  (1006): a recovery path that tells the two apart would need a server-side
  *  cut instead. */
-export async function networkProbe(page: Page, socketPath: "chat" | "workspace") {
+type SocketPath = "chat" | "workspace";
+
+export async function networkProbe(page: Page, socketPaths: SocketPath | Array<SocketPath>) {
+  const paths = Array.isArray(socketPaths) ? socketPaths : [socketPaths];
   const yorkie = await yorkieCut(page);
   await page.addInitScript(() => {
     const Native = window.WebSocket;
@@ -73,10 +76,10 @@ export async function networkProbe(page: Page, socketPath: "chat" | "workspace")
       }
     };
   });
-  const events = (type: string) => page.evaluate(({ type, path }) => {
+  const events = (type: string, path: SocketPath = paths[0]) => page.evaluate(({ type, path }) => {
     return ((window as Window & { e2eSocketEvents?: Array<{ url: string; type: string }> }).e2eSocketEvents ?? [])
       .filter((event) => event.type === type && event.url.endsWith(`/api/${path}/ws`)).length;
-  }, { type, path: socketPath });
+  }, { type, path });
 
   return {
     ready: async () => {
@@ -84,17 +87,17 @@ export async function networkProbe(page: Page, socketPath: "chat" | "workspace")
       await expect.poll(() => events("open")).toBeGreaterThan(0);
     },
     disconnect: async (offline: boolean) => {
-      const before = await events("close");
+      const before = await Promise.all(paths.map((path) => events("close", path)));
       if (offline) await yorkie.disconnect();
-      await page.evaluate((path) => {
+      await page.evaluate((paths) => {
         const sockets = (window as Window & { e2eSockets?: WebSocket[] }).e2eSockets ?? [];
         for (const socket of sockets) {
-          if (socket.url.endsWith(`/api/${path}/ws`)) socket.close(4000, "E2E outage");
+          if (paths.some((path) => socket.url.endsWith(`/api/${path}/ws`))) socket.close(4000, "E2E outage");
         }
-      }, socketPath);
-      await expect.poll(() => events("close")).toBeGreaterThan(before);
+      }, paths);
+      for (const [i, path] of paths.entries()) await expect.poll(() => events("close", path)).toBeGreaterThan(before[i]);
     },
     restore: yorkie.restore,
-    opens: () => events("open"),
+    opens: (path?: SocketPath) => events("open", path),
   };
 }

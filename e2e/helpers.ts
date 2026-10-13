@@ -48,6 +48,12 @@ export async function insertAt(page: Page, id: string, offset: number, text: str
   await page.keyboard.insertText(text);
 }
 
+export async function joinForm(page: Page, name: string, accessPassword: string): Promise<void> {
+  await page.getByLabel("닉네임").fill(name);
+  await page.getByLabel("워크스페이스 비밀번호").fill(accessPassword);
+  await page.getByRole("button", { name: "입장", exact: true }).click();
+}
+
 export function online(page: Page, count: number) {
   return expect(page.getByRole("banner").getByText(`${count}명 접속 중`, { exact: true })).toHaveCount(1);
 }

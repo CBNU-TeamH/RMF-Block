@@ -1,13 +1,5 @@
-import type { Page } from "@playwright/test";
-
 import { expect, password, test } from "./fixtures";
-import { online } from "./helpers";
-
-async function joinForm(page: Page, name: string, accessPassword: string) {
-  await page.getByLabel("닉네임").fill(name);
-  await page.getByLabel("워크스페이스 비밀번호").fill(accessPassword);
-  await page.getByRole("button", { name: "입장", exact: true }).click();
-}
+import { joinForm, online } from "./helpers";
 
 test("visitor joins through the password gate and sees their identity and tree", async ({ users }) => {
   const { page, name } = await users.visitor(8);

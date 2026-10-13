@@ -245,8 +245,10 @@ a browser run costs seconds per test against milliseconds.
   `continue-on-error` policy preserved. CI masks the bootstrap secret and uploads failure traces,
   the HTML report and redacted server logs.
 - **Follow-up.** Admin setup/access/password/kick/restart plus integrated user-location navigation
-  are tracked in [the admin E2E task](../tasks/active/20261007-admin-e2e-todo.md). Long-running load, 1-second propagation, 500MB client memory, real LAN
-  devices and Firefox/WebKit remain separate from functional correctness.
+  are tracked in [the admin E2E task](../tasks/active/20261007-admin-e2e-todo.md). Long-running load, 1-second propagation, 500MB client memory and real LAN
+  devices are the performance harness's (`e2e/perf/`, #189): `pnpm perf` on the measurement rig, outside `pnpm e2e`
+  and CI, run by hand from [the runbook](perf/runbook-ko.md); its arithmetic (`e2e/perf/stats.mts`) has a Vitest test.
+  Firefox/WebKit remain uncovered.
 
 
 ## Vitest worker count
