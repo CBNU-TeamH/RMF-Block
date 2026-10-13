@@ -44,7 +44,7 @@ Skip reason (if applicable):
 Which checks were actually run — not whether the diff was read carefully.
 [`.claude/skills/README.md`](../.claude/skills/README.md) says what each one is, and in which order.
 
-- [ ] `pnpm lint` / `pnpm test` / `pnpm build` locally
+- [ ] `pnpm lint` / `pnpm typecheck` / `pnpm test` / `pnpm build` locally
 - [ ] `pnpm comments` / `pnpm verify:docs` locally
 - [ ] `/simplify` — ran · or not applicable because:
 - [ ] `/code-review low` — ran · or not applicable because:

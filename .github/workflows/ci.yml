@@ -40,6 +40,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      # The only step that type-checks test files: Vitest strips types and
+      # `next build` drops the diagnostics of `*.test.*` (#196).
+      - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
 

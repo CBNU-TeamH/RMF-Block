@@ -14,5 +14,9 @@ cd "$(git rev-parse --show-toplevel)"
 # changes — `git fetch` fixes that; CI has the final say.
 node scripts/comment-budget.mjs --strict
 
+# What `pnpm typecheck` runs. Test files get no other type check: Vitest strips
+# types and `next build` drops the diagnostics of `*.test.*` (#196).
+node_modules/.bin/tsc -p tsconfig.typecheck.json
+
 node_modules/.bin/vitest run
 node_modules/.bin/next build

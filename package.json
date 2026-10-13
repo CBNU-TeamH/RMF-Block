@@ -13,6 +13,7 @@
     "build": "next build",
     "start": "NODE_ENV=production node server/index.mts",
     "lint": "eslint",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
     "test": "vitest run",
     "e2e": "playwright test",
     "verify:fast": "pnpm lint && pnpm test",
