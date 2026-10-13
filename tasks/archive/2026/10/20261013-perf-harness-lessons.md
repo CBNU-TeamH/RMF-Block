@@ -22,4 +22,4 @@ that the next person does not rediscover this.
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- `verify:docs` resolves every backtick path with a slash, including a trailing-slash directory claim. A gitignored or not-yet-created path (`perf-results`, a results file a later PR adds) has to be written without that shape, or the check fails in CI.
+- `verify:docs` resolves every backtick path with a slash, including a trailing-slash directory claim. A gitignored or not-yet-created path (`perf-results`, a results file a later PR adds) has to be written without that shape, or the check fails in CI. Already in [`docs/conventions.md`](../../../../docs/conventions.md#a-path-that-does-not-exist-yet-drops-its-trailing-slash) (from #155); a gitignored path is the same case, so nothing new to promote.
