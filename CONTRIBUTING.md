@@ -96,6 +96,7 @@ line.
 | Command | What it runs |
 | :--- | :--- |
 | `pnpm verify:fast` | `pnpm lint` and `pnpm test` (Vitest) |
+| `pnpm typecheck` | `tsc` over the sources, test files included — the only check that type-checks a test file |
 | `pnpm verify:docs` | The doc checks — what they cover: [`.claude/skills/README.md`](.claude/skills/README.md), "Run the free checks first" |
 | `pnpm comments` | The comment budget ([`docs/conventions.md`](docs/conventions.md)) |
 | `pnpm e2e:isolated` | Disposable Docker stack and functional E2E on loopback ports 3100/8180 |
@@ -103,9 +104,9 @@ line.
 | `pnpm build` | The production build |
 
 The git hooks in `.githooks/` run some of these for you — each hook's header says which — and
-pre-push includes the test suite and the build, so a push takes a minute or two. What CI runs and
-which checks block a merge: `AGENTS.md` §6. How the layers of tests divide the work:
-[`docs/testing.md`](docs/testing.md).
+pre-push includes the type check, the test suite and the build, so a push takes a minute or two.
+What CI runs and which checks block a merge: `AGENTS.md` §6. How the layers of tests divide the
+work: [`docs/testing.md`](docs/testing.md).
 
 ## Pull requests
 

@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
 
@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [tsconfigPaths(), react()],
   test: {
     environment: "node",
+    // An agent's worktree under `.claude/worktrees/` is a second copy of the
+    // repo, test files included, and not this checkout's to run (#196).
+    exclude: [...configDefaults.exclude, ".claude/worktrees/**"],
     // A DOM-touching file opts in with a first-line
     // `// @vitest-environment happy-dom` pragma instead of a config-side
     // glob — environmentMatchGlobs's key names have churned across Vitest

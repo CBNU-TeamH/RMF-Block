@@ -1,0 +1,11 @@
+{
+  // What `pnpm typecheck` runs: the sources only, test files included. The base
+  // config also takes in `.next/types`, where `validator.ts` imports every route
+  // by path — left over from a build of another branch, it fails this check on
+  // a route that no longer exists.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.mts"]
+}
