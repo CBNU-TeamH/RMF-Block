@@ -16,7 +16,7 @@ services:
       - --web.enable-lifecycle
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-generated:/etc/prometheus/generated
+      - ./generated:/etc/prometheus/generated:ro
       - prometheus-data:/prometheus
     # Loopback only: the hotspot is an open subnet.
     ports:
@@ -31,6 +31,9 @@ services:
       - --docker=unix:///nonexistent.sock
       - --raw_cgroup_prefix_whitelist=/docker/
       - --docker_only=false
+      # It shares H with the round, so it collects only what the dashboard reads, at the scrape rate.
+      - --enable_metrics=cpu,memory
+      - --housekeeping_interval=5s
     privileged: true
     devices:
       - /dev/kmsg
@@ -57,6 +60,5 @@ services:
       - prometheus
 
 volumes:
-  prometheus-generated:
   prometheus-data:
   grafana-data:

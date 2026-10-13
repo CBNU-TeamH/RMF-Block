@@ -160,6 +160,16 @@ await writeFile(path.join(run, "summary.json"), JSON.stringify(summary, null, 2)
 
 const outageText = (o: NonNullable<RoundRow["outage"]>) =>
   `doc ${ms(o.documentResync as number)}, chat ${ms(o.chatBackfill as number)}, chat socket ${ms(o.chatReopen as number | null)}, session ${ms(o.sessionReopen as number | null)}, failed shown ${o.failedShown}, resend ${ms(o.resendDelivered as number | null)}`;
+const cells = (r: RoundRow) => [
+  r.round,
+  r.preset,
+  String(r.users),
+  r.u === null ? "—" : `${r.u.toFixed(1)} ms`,
+  status(r),
+  `${r.memoryMiB.H?.toFixed(0) ?? "—"} / ${r.memoryMiB.G?.toFixed(0) ?? "—"}`,
+  ms(r.rttMedian),
+  r.outage ? outageText(r.outage) : "—",
+];
 const status = (r: RoundRow) => (r.aborted ? `aborted: ${r.aborted.slice(0, 80)}` : r.failures.length ? r.failures.join(", ") : "0");
 const md = [
   `# ${path.basename(run)}`,
@@ -172,7 +182,7 @@ const md = [
   "",
   `| Round | Preset | Users | U | Failures | Memory H / G (MiB, budget ${MEMORY_BUDGET_MIB}) | G RTT median | Outage |`,
   "|---|---|---|---|---|---|---|---|",
-  ...perRound.map((r) => `| ${r.round} | ${r.preset} | ${r.users} | ${r.u === null ? "—" : `${r.u.toFixed(1)} ms`} | ${status(r)} | ${r.memoryMiB.H?.toFixed(0) ?? "—"} / ${r.memoryMiB.G?.toFixed(0) ?? "—"} | ${ms(r.rttMedian)} | ${r.outage ? outageText(r.outage) : "—"} |`),
+  ...perRound.map((r) => `| ${cells(r).join(" | ")} |`),
 ].join("\n");
 await writeFile(path.join(run, "summary.md"), md + "\n");
 console.log(md);
@@ -188,7 +198,7 @@ for (const id of ["002", "003", "004", "005"]) {
   const keys = items.filter((i) => i.key.startsWith(id));
   if (!keys.length) continue;
   const curve = keys.flatMap((i) => ecdf(samples.get(i.key)!).map((point) => ({ ...point, key: i.key })));
-  const marks = keys.filter((i) => i.p95 !== null && Number.isFinite(i.p95)).map((i) => ({ key: i.key, ms: i.p95!, share: 0.95 }));
+  const marks = keys.filter((i) => Number.isFinite(i.p95)).map((i) => ({ key: i.key, ms: i.p95!, share: 0.95 }));
   const budget = BUDGET[id];
   sections.push(`<h2>${id}: latency over attempts</h2>
 <p>Share of attempts seen within each latency. The curve stops short of 1 by the timed-out attempts; the red line is the budget, dots mark p95.</p>
@@ -244,8 +254,8 @@ ${plot({
   color: { legend: true, domain: ["ok", "failed"], range: ["#2a9d55", "#d03030"] },
   marks: [Plot.cell(perRound, { x: "round", fill: (r: RoundRow) => (r.aborted || r.failures.length ? "failed" : "ok"), inset: 1 })],
 })}
-<table><tr><th>Round</th><th>Preset</th><th>Users</th><th>U</th><th>Failures</th><th>Memory H / G (MiB)</th><th>Outage</th></tr>
-${perRound.map((r) => `<tr><td>${r.round}</td><td>${r.preset}</td><td>${r.users}</td><td>${r.u === null ? "—" : `${r.u.toFixed(1)} ms`}</td><td>${esc(status(r))}</td><td>${r.memoryMiB.H?.toFixed(0) ?? "—"} / ${r.memoryMiB.G?.toFixed(0) ?? "—"}</td><td>${r.outage ? esc(outageText(r.outage)) : "—"}</td></tr>`).join("\n")}
+<table><tr><th>Round</th><th>Preset</th><th>Users</th><th>U</th><th>Failures</th><th>Memory H / G (MiB)</th><th>G RTT median</th><th>Outage</th></tr>
+${perRound.map((r) => `<tr>${cells(r).map((cell) => `<td>${esc(cell)}</td>`).join("")}</tr>`).join("\n")}
 </table>`);
 
 await writeFile(path.join(run, "summary.html"), `<!doctype html>

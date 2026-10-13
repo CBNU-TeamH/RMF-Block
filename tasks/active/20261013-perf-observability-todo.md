@@ -165,4 +165,22 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+- **Shipped**: milestones 1–5.
+- **Review round** (before the PR): `/code-review low` found nothing. `/simplify` ran from four angles (reuse, simplification, efficiency, altitude), and these were adopted:
+  - **Shared row cells.** The md and HTML round tables share one `cells()`, which also brings the missing RTT column into the HTML table.
+  - **Fewer lookups per round.** Container names come from `stack.containers`, and the Yorkie target is that list's `-yorkie` entry. One `docker inspect` returns both the IDs and the network.
+  - **Scrape file on a bind mount.** The generated scrape file is a gitignored bind mount (`e2e/perf/observe/generated`), so applying it is a write plus `/-/reload`. The `docker cp`, the named volume and the temp directory are gone.
+  - **Less collection work on H.** cAdvisor collects only `cpu,memory` every 5 s, and the scrape keeps only the two series the dashboard reads before the per-ID rules run: 155 samples per scrape become 8.
+  - **Dashboard refresh off.** An open Grafana tab no longer queries every 5 s on H. The runbook says to look after a round.
+  - **Clean-ups**: the module-only exports are gone, and so is the redundant `null` check.
+- **Declined**:
+  - inferring the network as `<project>_default`: it is `<project>-default`, and `inspect` stays;
+  - `cgroup_parent` in `stackUp` to name cgroups: it changes the measured stack, and it depends on the cgroup driver;
+  - publishing Yorkie's 8081 instead of joining the round network: with `PERF_BIND=0.0.0.0` that would expose metrics to the LAN, and `host.docker.internal` is not portable to a Linux host;
+  - dropping cAdvisor for the `docker stats` file: the user chose to keep cAdvisor;
+  - removing the ECDF dots: 003's one point per round needs them;
+  - inlining `observeUp` into `observe-up.mts`: it would only trade that export for `apply` and `COMPOSE`.
+- **Rerun after the fixes**: an observed outage round passed in 3.5 min.
+  - During the round, the `yorkie` target was up and the containers were named.
+  - All three annotations were posted. Afterwards, nothing was left.
+  - The md and HTML rows are identical.
