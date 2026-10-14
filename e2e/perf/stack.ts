@@ -37,6 +37,7 @@ async function free(host: string, port: number) {
 
 type Service = {
   image?: string;
+  entrypoint?: Array<string>;
   container_name?: string;
   restart?: string;
   ports?: Array<object>;
@@ -71,6 +72,8 @@ export async function stackUp(options: StackOptions): Promise<Stack> {
     }
   }
   const { app, yorkie } = config.services;
+  // The guard in front of Yorkie refuses that default, so the pinned release runs without it.
+  delete yorkie.entrypoint;
   app.image = APP_IMAGE;
   app.ports = [{ target: 3000, published: String(options.appPort), host_ip: options.bind, protocol: "tcp" }];
   app.environment = {

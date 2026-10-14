@@ -417,7 +417,10 @@ default: when the configured password is refused and `admin` is not, startup rot
 meet for that reason. A volume on neither password refuses to start. The admin tokens Yorkie issues
 are signed with `--backend-secret-key`, whose default (`yorkie-secret`) is just as public, so Compose
 requires `YORKIE_ADMIN_TOKEN_SECRET` for it the same way; only Yorkie reads it, and since the app
-logs in afresh on every start, changing it costs nothing but open admin sessions.
+logs in afresh on every start, changing it costs nothing but open admin sessions. Compose's `:?`
+only rejects an empty value, so Yorkie's entrypoint also refuses to start when `.env` spells out
+either default (`admin`, `yorkie-secret`) — the app would refuse too, but Yorkie runs in its own
+container and would otherwise stay up on 8080.
 
 The Admin API is connect-protocol over HTTP/JSON, so this needs no client library (the JS SDK
 ships none): log in for a token, then update the project. The URL is written from where **Yorkie**

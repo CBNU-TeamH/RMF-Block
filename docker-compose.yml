@@ -78,6 +78,17 @@ services:
     # or delete every document and switch the webhook off (#200). The admin
     # tokens it issues are signed with `--backend-secret-key`, whose default is
     # public too. Compose refuses to start without either rather than fall back.
+    #
+    # `:?` only catches an empty value, so the entrypoint refuses the two defaults
+    # even when `.env` spells them out. bash because the image has it (the
+    # healthcheck relies on it too); `exec` keeps Yorkie PID 1 for `stop`.
+    entrypoint:
+      [
+        "bash",
+        "-c",
+        'case " $$* " in *" --backend-admin-password admin "*|*" --backend-secret-key yorkie-secret "*) echo "Refusing to start Yorkie on a public default: set YORKIE_ADMIN_PASSWORD and YORKIE_ADMIN_TOKEN_SECRET in .env" >&2; exit 1;; esac; exec yorkie "$$@"',
+        "yorkie",
+      ]
     command:
       [
         "server",
