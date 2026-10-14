@@ -10,10 +10,17 @@ import { setTimeout as delay } from "node:timers/promises";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const project = `rmf-e2e-${randomUUID().slice(0, 8)}`;
 const password = `e2e-${randomUUID()}`;
+// Within Yorkie's 30-character limit for an admin password.
+const adminPassword = `e2e-${randomUUID().slice(0, 18)}`;
 const artifacts = path.join(root, "e2e-artifacts", project);
 const directory = await mkdtemp(path.join(tmpdir(), `${project}-`));
 const composeFile = path.join(directory, "compose.json");
-const environment = { ...process.env, WORKSPACE_PASSWORD: password, HOST_LAN_IP: "127.0.0.1" };
+const environment = {
+  ...process.env,
+  WORKSPACE_PASSWORD: password,
+  HOST_LAN_IP: "127.0.0.1",
+  YORKIE_ADMIN_PASSWORD: adminPassword,
+};
 let secret = "";
 let created = false;
 let interrupted = false;
@@ -21,7 +28,7 @@ let activeChild;
 
 function redact(value) {
   let text = value.replace(/secret=[^\s"'<>]+/g, "secret=[REDACTED]");
-  for (const credential of [secret, password]) {
+  for (const credential of [secret, password, adminPassword]) {
     if (credential) text = text.replaceAll(credential, "[REDACTED]");
   }
   return text;

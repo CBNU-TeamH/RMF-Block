@@ -95,6 +95,8 @@ jobs:
       # The server refuses to start without one (lib/workspace-config.ts), and
       # there is no .env here. Also what the join assertions below type in.
       WORKSPACE_PASSWORD: ci-smoke-test
+      # Compose refuses to start Yorkie without one (#200).
+      YORKIE_ADMIN_PASSWORD: ci-yorkie-admin-1
     # A container that accepts the connection but never answers would otherwise
     # hold a runner for the 6h default.
     timeout-minutes: 35
@@ -134,6 +136,23 @@ jobs:
           echo "::error::Yorkie never reported SERVING — check the MongoDB wiring"
           docker compose logs mongo yorkie
           exit 1
+
+      # The Admin API answers on the port the LAN reaches (#200). Both halves,
+      # so a refusal of everything cannot pass for a refusal of the default.
+      - name: Yorkie's admin takes the configured password, not the default
+        shell: bash
+        run: |
+          set -uo pipefail
+          login() {
+            curl -s -o /dev/null -w '%{http_code}' -m 5 -X POST \
+              http://localhost:8080/yorkie.v1.AdminService/LogIn \
+              -H 'Content-Type: application/json' \
+              -d "{\"username\":\"admin\",\"password\":\"$1\"}"
+          }
+          code=$(login admin)
+          [ "$code" != 200 ] || { echo "::error::Yorkie accepted its default admin/admin"; exit 1; }
+          code=$(login "$YORKIE_ADMIN_PASSWORD")
+          [ "$code" = 200 ] || { echo "::error::Yorkie refused YORKIE_ADMIN_PASSWORD ($code)"; exit 1; }
 
       # The SDK measurements ADR-007 rests on (#42). Reported by the last step,
       # so a failure here does not hide what the smoke test would have said.

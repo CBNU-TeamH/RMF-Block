@@ -10,8 +10,8 @@ export const APP_IMAGE =
   "ghcr.io/cbnu-teamh/rmf-block:0.0.1@sha256:11757ccef3076a8b8953cfb6f66b21618eb58d5ecbd1416e9f882864bbf42978";
 
 const exec = promisify(execFile);
-const docker = async (args: Array<string>) =>
-  (await exec("docker", args, { maxBuffer: 64 * 1024 * 1024 })).stdout;
+const docker = async (args: Array<string>, env?: Record<string, string>) =>
+  (await exec("docker", args, { maxBuffer: 64 * 1024 * 1024, env: env && { ...process.env, ...env } })).stdout;
 
 export type StackOptions = {
   project: string;
@@ -48,7 +48,12 @@ type Service = {
 export async function stackUp(options: StackOptions): Promise<Stack> {
   await free(options.bind, options.appPort);
   await free(options.bind, options.yorkiePort);
-  const config = JSON.parse(await docker(["compose", "-f", "docker-compose.yml", "config", "--format", "json"])) as {
+  // `APP_IMAGE` predates #200 and logs in to Yorkie as admin/admin, so the release it measures
+  // keeps Yorkie's default. A later image refuses to start on it — change this with the pin.
+  const config = JSON.parse(await docker(
+    ["compose", "-f", "docker-compose.yml", "config", "--format", "json"],
+    { YORKIE_ADMIN_PASSWORD: "admin" },
+  )) as {
     name: string;
     services: Record<string, Service>;
     volumes?: Record<string, { name?: string; external?: boolean; driver_opts?: object }>;

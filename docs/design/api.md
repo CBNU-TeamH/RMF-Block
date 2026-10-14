@@ -406,6 +406,16 @@ without ever testing it, so an address it cannot reach registers exactly like on
 surfaces only later as clients failing with `verify access: send webhook`, which reads like a Yorkie
 fault rather than a wrong address.
 
+**The admin login is the password Compose gives Yorkie, never Yorkie's default** (#200). Yorkie
+serves its Admin API on 8080, the port published for browsers, so `admin`/`admin` would hand anyone on
+the LAN every document — and the switch that turns this webhook off. `docker-compose.yml` passes
+`YORKIE_ADMIN_PASSWORD` to Yorkie (`--backend-admin-password`) and to the app, and refuses to start
+without it; the app refuses in production when it is unset or still `admin`. Yorkie writes its admin
+into an empty volume only (`$setOnInsert`), so a volume from before the setting still answers to the
+default: when the configured password is refused and `admin` is not, startup rotates it through
+`ChangePassword`, whose rule (8–30 characters with letters, digits and a symbol) the password has to
+meet for that reason. A volume on neither password refuses to start.
+
 The Admin API is connect-protocol over HTTP/JSON, so this needs no client library (the JS SDK
 ships none): log in for a token, then update the project. The URL is written from where **Yorkie**
 stands, not where a browser does — inside compose that is the app's service name, since
