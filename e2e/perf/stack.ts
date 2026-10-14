@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { appendFile, writeFile } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
@@ -52,7 +53,7 @@ export async function stackUp(options: StackOptions): Promise<Stack> {
   // keeps Yorkie's default. A later image refuses to start on it — change this with the pin.
   const config = JSON.parse(await docker(
     ["compose", "-f", "docker-compose.yml", "config", "--format", "json"],
-    { YORKIE_ADMIN_PASSWORD: "admin" },
+    { YORKIE_ADMIN_PASSWORD: "admin", YORKIE_ADMIN_TOKEN_SECRET: randomUUID() },
   )) as {
     name: string;
     services: Record<string, Service>;

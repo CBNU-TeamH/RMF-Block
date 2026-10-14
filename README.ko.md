@@ -89,8 +89,8 @@ Docker, WSL, VPN, loopback 인터페이스도 함께 보일 수 있지만 그 �
 HOST_LAN_IP=192.168.0.14
 ```
 
-이 Docker 실행 방식에서는 여기서 `HOST_LAN_IP`를, 아래에서 `YORKIE_ADMIN_PASSWORD`를 설정하고
-나머지 설정은 그대로 두세요. 워크스페이스
+이 Docker 실행 방식에서는 여기서 `HOST_LAN_IP`를, 아래에서 Yorkie 값 두 개를 설정하고 나머지
+설정은 그대로 두세요. 워크스페이스
 이름과 비밀번호는 실행 후 브라우저에서 정합니다. 주석 처리된 Yorkie 주소는 네이티브 개발용이며,
 Compose는 자체 내부 주소를 쓰고 `.env`의 그 값을 사용하지 않습니다.
 
@@ -99,19 +99,23 @@ clone한 저장소에서는 `pnpm docker:up`이 주소를 찾아 `.env`에 기�
 `.env`를 고치고 `docker compose up -d`를 다시 실행하세요. 공유기에서 호스트에 DHCP 예약을 해 두면
 주소가 바뀌지 않습니다.
 
-### Yorkie 관리자 비밀번호 설정
+### Yorkie 관리자 비밀 값 설정
 
-`.env`의 `YORKIE_ADMIN_PASSWORD`에 직접 정한 비밀번호를 넣으세요. 8~30자이고 영문, 숫자, `-` 같은
-기호가 모두 들어가야 합니다. 8080 포트는 Yorkie의 관리자 API도 제공하는데, Yorkie 기본 계정인
-`admin`/`admin`으로는 같은 LAN의 누구나 모든 문서를 읽거나 지울 수 있어서 이 값이 없으면 Compose가
-실행을 거부합니다. 사람이 입력하는 값은 아니며, 앱이 실행할 때 사용합니다.
+8080 포트는 Yorkie의 관리자 API도 제공하는데, Yorkie의 기본값 그대로면 같은 LAN의 누구나 모든 문서를
+읽거나 지울 수 있습니다. 그래서 `.env`에 직접 정한 값 두 개가 들어가기 전까지 Compose가 실행을
+거부합니다. 사람이 입력하는 값은 아니며, Yorkie와 앱이 사용합니다.
+
+- `YORKIE_ADMIN_PASSWORD`: 8~30자이고 영문, 숫자, `-` 같은 기호가 모두 들어가야 합니다. 한 번 정하면
+  바꾸지 마세요. Yorkie가 볼륨에 저장하기 때문에 나중에 다른 값을 넣으면 앱이 실행되지 않습니다.
+- `YORKIE_ADMIN_TOKEN_SECRET`: 길고 무작위인 아무 문자열. Yorkie 관리자 로그인에 서명하는 값이라,
+  나중에 바꾸면 그 로그인들만 풀립니다.
 
 ```dotenv
 YORKIE_ADMIN_PASSWORD=choose-your-own-1
+YORKIE_ADMIN_TOKEN_SECRET=any-long-random-string-of-your-own
 ```
 
-한 번 정하면 바꾸지 마세요. Yorkie가 볼륨에 저장하기 때문에 나중에 다른 값을 넣으면 앱이 실행되지
-않습니다. clone한 저장소에서는 이 항목이 비어 있으면 `pnpm docker:up`이 생성합니다.
+clone한 저장소에서는 두 항목이 비어 있으면 `pnpm docker:up`이 생성합니다.
 
 ### 포트 열기
 
@@ -167,9 +171,9 @@ docker compose pull
 if ($LASTEXITCODE -eq 0) { docker compose up -d }
 ```
 
-**0.0.1에서 올릴 때:** 먼저 `.env`에 `YORKIE_ADMIN_PASSWORD`를 추가하세요([Yorkie 관리자 비밀번호
-설정](#yorkie-관리자-비밀번호-설정)). 처음 실행할 때 기존 Yorkie 관리자 계정이 `admin`/`admin`에서 이
-비밀번호로 바뀝니다.
+**0.0.1에서 올릴 때:** 먼저 `.env`에 Yorkie 값 두 개를 추가하세요([Yorkie 관리자 비밀 값
+설정](#yorkie-관리자-비밀-값-설정)). 처음 실행할 때 기존 Yorkie 관리자 계정이 `admin`/`admin`에서
+`YORKIE_ADMIN_PASSWORD`로 바뀝니다.
 
 Compose 프로젝트 이름이 같으면 문서와 설정이 유지됩니다. 릴리즈 파일의 기본값은 `rmf-block`이며,
 예전 설치는 폴더 이름을 프로젝트 이름으로 썼을 수 있습니다.

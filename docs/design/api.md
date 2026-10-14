@@ -414,7 +414,10 @@ without it; the app refuses in production when it is unset or still `admin`. Yor
 into an empty volume only (`$setOnInsert`), so a volume from before the setting still answers to the
 default: when the configured password is refused and `admin` is not, startup rotates it through
 `ChangePassword`, whose rule (8–30 characters with letters, digits and a symbol) the password has to
-meet for that reason. A volume on neither password refuses to start.
+meet for that reason. A volume on neither password refuses to start. The admin tokens Yorkie issues
+are signed with `--backend-secret-key`, whose default (`yorkie-secret`) is just as public, so Compose
+requires `YORKIE_ADMIN_TOKEN_SECRET` for it the same way; only Yorkie reads it, and since the app
+logs in afresh on every start, changing it costs nothing but open admin sessions.
 
 The Admin API is connect-protocol over HTTP/JSON, so this needs no client library (the JS SDK
 ships none): log in for a token, then update the project. The URL is written from where **Yorkie**

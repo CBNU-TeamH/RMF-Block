@@ -20,6 +20,7 @@ const environment = {
   WORKSPACE_PASSWORD: password,
   HOST_LAN_IP: "127.0.0.1",
   YORKIE_ADMIN_PASSWORD: adminPassword,
+  YORKIE_ADMIN_TOKEN_SECRET: randomUUID(),
 };
 let secret = "";
 let created = false;

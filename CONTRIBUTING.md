@@ -24,8 +24,8 @@ pnpm install
 cp .env.sample .env
 ```
 
-Set `YORKIE_ADMIN_PASSWORD` in `.env`: Compose refuses to start Yorkie without it, and `pnpm dev`
-reads the same value from `.env` (the rule is in the sample).
+Set `YORKIE_ADMIN_PASSWORD` and `YORKIE_ADMIN_TOKEN_SECRET` in `.env`: Compose refuses to start
+Yorkie without them, and `pnpm dev` reads the password from `.env` too (the rules are in the sample).
 
 `WORKSPACE_PASSWORD` is optional: left empty, the server starts unopened and the Host link leads to
 the setup screen; set (at least four characters), it seeds a workspace that has never been set up —
@@ -65,8 +65,8 @@ git config --global core.autocrlf input
 ```
 
 **The container from source** is `pnpm docker:up`: `scripts/detect-host-ip.sh` writes `HOST_LAN_IP`
-to `.env`, `scripts/ensure-yorkie-admin-password.sh` generates `YORKIE_ADMIN_PASSWORD` there if it
-is empty, then `docker compose up --build`. In a clone, Compose merges
+to `.env`, `scripts/ensure-yorkie-secrets.sh` generates the two Yorkie secrets there if they are
+empty, then `docker compose up --build`. In a clone, Compose merges
 `docker-compose.override.yml` over `docker-compose.yml` and builds the app from this checkout; a host
 running a release has only `docker-compose.yml`, which pulls the published image. Both use the
 Compose project `rmf-block` by default, and so the same volumes. For an older installation with a

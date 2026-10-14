@@ -95,8 +95,9 @@ jobs:
       # The server refuses to start without one (lib/workspace-config.ts), and
       # there is no .env here. Also what the join assertions below type in.
       WORKSPACE_PASSWORD: ci-smoke-test
-      # Compose refuses to start Yorkie without one (#200).
+      # Compose refuses to start Yorkie without these two (#200).
       YORKIE_ADMIN_PASSWORD: ci-yorkie-admin-1
+      YORKIE_ADMIN_TOKEN_SECRET: ci-yorkie-admin-token-secret
     # A container that accepts the connection but never answers would otherwise
     # hold a runner for the 6h default.
     timeout-minutes: 35
@@ -153,6 +154,14 @@ jobs:
           [ "$code" != 200 ] || { echo "::error::Yorkie accepted its default admin/admin"; exit 1; }
           code=$(login "$YORKIE_ADMIN_PASSWORD")
           [ "$code" = 200 ] || { echo "::error::Yorkie refused YORKIE_ADMIN_PASSWORD ($code)"; exit 1; }
+          # The token-signing key never shows on the wire, so check what Yorkie
+          # was started with instead.
+          args=$(docker inspect rmf-yorkie --format '{{json .Args}}')
+          grep -q -- '"--backend-secret-key"' <<<"$args" \
+            || { echo "::error::Yorkie runs without --backend-secret-key"; exit 1; }
+          if grep -q '"yorkie-secret"' <<<"$args"; then
+            echo "::error::Yorkie signs admin tokens with its public default key"; exit 1
+          fi
 
       # The SDK measurements ADR-007 rests on (#42). Reported by the last step,
       # so a failure here does not hide what the smoke test would have said.

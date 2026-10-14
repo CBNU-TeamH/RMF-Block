@@ -88,7 +88,7 @@ not this example):
 HOST_LAN_IP=192.168.0.14
 ```
 
-For this Docker setup, set `HOST_LAN_IP` here and `YORKIE_ADMIN_PASSWORD` below, and leave the
+For this Docker setup, set `HOST_LAN_IP` here and the two Yorkie values below, and leave the
 other sample settings as supplied. Choose the workspace name and password in the browser after startup.
 The commented Yorkie addresses are for native development; Compose supplies its
 own internal addresses and does not use those values from `.env`.
@@ -98,19 +98,24 @@ From a clone, `pnpm docker:up` detects it and writes `.env`
 address changes, update `.env` and run `docker compose up -d` again; a DHCP reservation for the
 host on the router keeps it from changing.
 
-### Set the Yorkie admin password
+### Set the Yorkie admin secrets
 
-Set `YORKIE_ADMIN_PASSWORD` in `.env` to a password of your own: 8 to 30 characters with letters,
-digits and a symbol such as `-`. Port 8080 also serves Yorkie's admin API, and Yorkie's built-in
-`admin`/`admin` would let anyone on the LAN read or delete every document, so Compose refuses to
-start without it. Nobody types it in — the app uses it at startup.
+Port 8080 also serves Yorkie's admin API, and Yorkie's built-in defaults would let anyone on the
+LAN read or delete every document, so Compose refuses to start until `.env` has two values of your
+own. Nobody types them in — they are for Yorkie and the app.
+
+- `YORKIE_ADMIN_PASSWORD`: 8 to 30 characters with letters, digits and a symbol such as `-`. Keep
+  it once set: Yorkie stores it in its volume, and a different value later stops the app from
+  starting.
+- `YORKIE_ADMIN_TOKEN_SECRET`: any long random string. It signs Yorkie's admin logins; changing it
+  later only signs those out.
 
 ```dotenv
 YORKIE_ADMIN_PASSWORD=choose-your-own-1
+YORKIE_ADMIN_TOKEN_SECRET=any-long-random-string-of-your-own
 ```
 
-Keep it once set: Yorkie stores it in its volume, and a different value later stops the app from
-starting. From a clone, `pnpm docker:up` generates one when the entry is empty.
+From a clone, `pnpm docker:up` generates both when they are empty.
 
 ### Open the ports
 
@@ -168,9 +173,9 @@ docker compose pull
 if ($LASTEXITCODE -eq 0) { docker compose up -d }
 ```
 
-**From 0.0.1:** add `YORKIE_ADMIN_PASSWORD` to `.env` first ([Set the Yorkie admin
-password](#set-the-yorkie-admin-password)). The first start moves Yorkie's existing administrator
-off `admin`/`admin` onto it.
+**From 0.0.1:** add both Yorkie values to `.env` first ([Set the Yorkie admin
+secrets](#set-the-yorkie-admin-secrets)). The first start moves Yorkie's existing administrator off
+`admin`/`admin` onto `YORKIE_ADMIN_PASSWORD`.
 
 The documents and settings stay when the Compose project name stays the same. The release file
 defaults to `rmf-block`; an older installation may have used its folder name instead.

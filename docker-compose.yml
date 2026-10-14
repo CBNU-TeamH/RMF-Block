@@ -75,8 +75,9 @@ services:
     #
     # `--backend-admin-password` because the Admin API shares 8080 with the
     # browsers, and Yorkie's default admin/admin would let anyone on the LAN read
-    # or delete every document and switch the webhook off (#200). Compose refuses
-    # to start without it rather than fall back to that default.
+    # or delete every document and switch the webhook off (#200). The admin
+    # tokens it issues are signed with `--backend-secret-key`, whose default is
+    # public too. Compose refuses to start without either rather than fall back.
     command:
       [
         "server",
@@ -86,6 +87,8 @@ services:
         "1s",
         "--backend-admin-password",
         "${YORKIE_ADMIN_PASSWORD:?set it in .env next to this file}",
+        "--backend-secret-key",
+        "${YORKIE_ADMIN_TOKEN_SECRET:?set it in .env next to this file}",
       ]
     # Yorkie exits(1) if it cannot ping Mongo at startup — it is fail-fast, not
     # lazily initialized. Plain `depends_on` only orders startup, so Yorkie could
