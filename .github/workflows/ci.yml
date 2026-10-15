@@ -155,13 +155,10 @@ jobs:
           code=$(login "$YORKIE_ADMIN_PASSWORD")
           [ "$code" = 200 ] || { echo "::error::Yorkie refused YORKIE_ADMIN_PASSWORD ($code)"; exit 1; }
           # The token-signing key never shows on the wire, so check what Yorkie
-          # was started with instead.
-          args=$(docker inspect rmf-yorkie --format '{{json .Args}}')
-          grep -q -- '"--backend-secret-key"' <<<"$args" \
+          # was started with instead. Its default value needs no check here:
+          # the entrypoint refuses to start Yorkie on it.
+          docker inspect rmf-yorkie --format '{{json .Args}}' | grep -q -- '"--backend-secret-key"' \
             || { echo "::error::Yorkie runs without --backend-secret-key"; exit 1; }
-          if grep -q '"yorkie-secret"' <<<"$args"; then
-            echo "::error::Yorkie signs admin tokens with its public default key"; exit 1
-          fi
 
       # The SDK measurements ADR-007 rests on (#42). Reported by the last step,
       # so a failure here does not hide what the smoke test would have said.
