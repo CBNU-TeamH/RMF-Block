@@ -7,6 +7,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 env_file=".env"
+tmp_file="$env_file.tmp.$$"
+trap 'rm -f "$tmp_file"' EXIT
 touch "$env_file"
 
 random_hex() {
@@ -21,7 +23,7 @@ ensure() {
 
   # The same rewrite as detect-host-ip.sh: drop an empty entry (the sample has
   # one), keep everything else, and keep the file's inode and mode.
-  local tmp_file="$env_file.tmp.$$" grep_status
+  local grep_status
   set +e
   grep -v "^$1=" "$env_file" >"$tmp_file"
   grep_status=$?
