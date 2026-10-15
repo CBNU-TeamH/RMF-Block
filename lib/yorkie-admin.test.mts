@@ -109,4 +109,13 @@ describe("registerAuthWebhook", () => {
     assert.deepEqual(yorkie.calls.map((call) => call.method), ["LogIn", "LogIn"]);
     assert.equal(yorkie.stored(), "Some-other-pass-1");
   });
+
+  it("does not retry a password Yorkie refused", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("YORKIE_ADMIN_PASSWORD", CONFIGURED);
+    const yorkie = fakeYorkie("Some-other-pass-1");
+
+    await assert.rejects(registerAuthWebhook(ADDR, WEBHOOK, { attempts: 3, delayMs: 0 }), /LogIn failed \(401\)/);
+    assert.equal(yorkie.calls.length, 2);
+  });
 });

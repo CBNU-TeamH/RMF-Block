@@ -87,7 +87,8 @@ export async function registerAuthWebhook(
     try {
       return await attemptRegister(rpcAddr, webhookUrl, password);
     } catch (error) {
-      if (attempt >= attempts) throw error;
+      // A 401 is a wrong password, not a Yorkie still starting: retrying only delays the refusal.
+      if (attempt >= attempts || (error instanceof YorkieAdminError && error.status === 401)) throw error;
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
