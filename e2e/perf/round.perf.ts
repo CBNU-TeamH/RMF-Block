@@ -237,7 +237,8 @@ for (let round = 1; round <= ROUNDS; round++) {
       ? await attach(stack, RUN_ID, round).catch((error) => {
           meta.observe = String(error);
           console.warn(`Round ${round} is not observed: ${error}`);
-          return null;
+          // A Prometheus that could not leave the network hands its handle back: the final cleanup still owes the disconnect.
+          return error.attached ?? null;
         })
       : null;
     try {

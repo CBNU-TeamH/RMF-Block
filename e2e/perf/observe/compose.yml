@@ -32,12 +32,15 @@ services:
 
   # Raw cgroup mode: on Docker Desktop the Docker handler cannot read the engine's image
   # store and names nothing, so it is switched off and the harness maps IDs to names.
+  # The whitelist is a prefix match on the cgroup path, which follows the engine's cgroup
+  # driver: `/docker/<id>` for cgroupfs (Docker Desktop), `/system.slice/docker-<id>.scope`
+  # for systemd (a Linux Docker Engine's default on cgroup v2).
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.52.1
     container_name: rmf-observe-cadvisor
     command:
       - --docker=unix:///nonexistent.sock
-      - --raw_cgroup_prefix_whitelist=/docker/
+      - --raw_cgroup_prefix_whitelist=/docker/,/system.slice/docker-
       - --docker_only=false
       # It shares H with the round, so it collects only what the dashboard reads, at the scrape rate.
       - --enable_metrics=cpu,memory

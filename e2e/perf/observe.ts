@@ -55,6 +55,11 @@ async function apply(config: string) {
   if (!reload.ok) throw new Error(`Prometheus reload: ${reload.status} ${await reload.text()}`);
 }
 
+/** The second try is forced: an endpoint Docker can no longer find would otherwise stay. */
+const leave = (network: string) =>
+  docker(["network", "disconnect", network, PROMETHEUS_CONTAINER])
+    .catch(() => docker(["network", "disconnect", "--force", network, PROMETHEUS_CONTAINER]));
+
 export async function attach(stack: Stack, run: string, round: number): Promise<Attached> {
   // One line per container, in `stack.containers` order.
   const lines = (await docker(["inspect", "-f", "{{.Id}} {{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{end}}", ...stack.containers]))
@@ -66,8 +71,11 @@ export async function attach(stack: Stack, run: string, round: number): Promise<
   try {
     await apply(scrapeConfig(attached));
   } catch (error) {
-    // A connected Prometheus would keep `compose down` from removing the round's network.
-    await docker(["network", "disconnect", network, PROMETHEUS_CONTAINER]).catch(() => {});
+    // A connected Prometheus would keep `compose down` from removing the round's network. If it
+    // cannot leave, the error carries the handle, so the round's final `detach` tries again.
+    await leave(network).catch((stuck) => {
+      throw Object.assign(new Error(`${error}; Prometheus stays on ${network}: ${stuck}`), { attached });
+    });
     throw error;
   }
   return attached;
@@ -91,8 +99,7 @@ export async function detach(attached: Attached, marks: Array<Mark>): Promise<vo
   try {
     await apply(scrapeConfig());
   } finally {
-    const disconnect = (force: Array<string>) => docker(["network", "disconnect", ...force, attached.network, PROMETHEUS_CONTAINER]);
-    await disconnect([]).catch(() => disconnect(["--force"]));
+    await leave(attached.network);
   }
 }
 
