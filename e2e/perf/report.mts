@@ -1,11 +1,14 @@
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import * as Plot from "@observablehq/plot";
+import { Window } from "happy-dom";
+
 import { readJsonFile } from "../../lib/json-file.ts";
-import { account, offsetFrom, p95, toH, uncertainty, verdict, type ClockSample, type RoundClock } from "./stats.mts";
+import { account, ecdf, offsetFrom, p95, toH, uncertainty, verdict, type ClockSample, type RoundClock } from "./stats.mts";
 
 /** `pnpm perf:report perf-results/<run-id>`: the run's raw files → `summary.json` and the
- *  markdown table #191 records. Every number follows #189's measurement contracts. A round is
+ *  markdown table #191 records, plus `summary.html` (charts drawn from the same numbers). Every number follows #189's measurement contracts. A round is
  *  left out only when its folder is renamed `void-round-NN`; an aborted one counts as failed. */
 const run = process.argv[2];
 if (!run) throw new Error("usage: pnpm perf:report perf-results/<run-id>");
@@ -30,11 +33,14 @@ const json = <T,>(file: string) => readJsonFile<T | null>(file, null);
 const ms = (value: number | null | undefined) =>
   value === null || value === undefined ? "—" : Number.isFinite(value) ? `${Math.round(value)} ms` : "∞";
 
-/** Per item and direction, every round's sends and receipts on one clock, and the worst U. */
+/** Per item and direction, every round's sends and receipts on one clock, and the worst U. Markers
+ *  are scoped by the round's folder: a replacement round comes from a new run (runbook §9) whose
+ *  markers repeat the original rounds' numbers. */
 const pooled = new Map<string, { sends: Array<{ marker: string; t0: number }>; recvs: Array<{ marker: string; t1: number }>; u: number }>();
-function pool(key: string, sends: Array<{ marker: string; t0: number }>, recvs: Array<{ marker: string; t1: number }>, u: number) {
+function pool(key: string, round: string, sends: Array<{ marker: string; t0: number }>, recvs: Array<{ marker: string; t1: number }>, u: number) {
   const into = pooled.get(key) ?? { sends: [], recvs: [], u: 0 };
-  pooled.set(key, { sends: [...into.sends, ...sends], recvs: [...into.recvs, ...recvs], u: Math.max(into.u, u) });
+  const scoped = <T extends { marker: string }>(list: Array<T>) => list.map((entry) => ({ ...entry, marker: `${round}/${entry.marker}` }));
+  pooled.set(key, { sends: [...into.sends, ...scoped(sends)], recvs: [...into.recvs, ...scoped(recvs)], u: Math.max(into.u, u) });
 }
 
 type RoundRow = {
@@ -92,12 +98,12 @@ for (const name of (await readdir(run)).filter((n) => n.startsWith("round-")).so
     for (const [from, to] of [["H", "G"], ["G", "H"]] as const) {
       const sent = new Map(events.filter((e) => e.device === from && e.kind === "send" && e.item === item).map((e) => [e.marker, onH(from, e.t)]));
       const sends = plan.filter((p) => p.item === item && p.from === from && !p.phase).map((p) => ({ marker: p.marker, t0: sent.get(p.marker) ?? NaN }));
-      if (sends.length) pool(`${item} ${from}→${to}`, sends, received(to, item, from), u);
+      if (sends.length) pool(`${item} ${from}→${to}`, name, sends, received(to, item, from), u);
     }
   }
   const join = (kind: string) => events.find((e) => e.device === "G" && e.item === "003" && e.kind === kind)?.t;
   const joinRecv = join("recv");
-  pool("003 G", [{ marker: name, t0: join("send") ?? NaN }], joinRecv === undefined ? [] : [{ marker: name, t1: joinRecv }], 0);
+  pool("003 G", name, [{ marker: name, t0: join("send") ?? NaN }], joinRecv === undefined ? [] : [{ marker: name, t1: joinRecv }], 0);
 
   const memory = await rows<{ device: Device; pid: number; bytes: number }>(path.join(dir, "memory.jsonl"));
   for (const device of ["H", "G"] as const) {
@@ -128,8 +134,10 @@ for (const name of (await readdir(run)).filter((n) => n.startsWith("round-")).so
   }
 }
 
+const samples = new Map<string, Array<number>>();
 const items = [...pooled].map(([key, { sends, recvs, u }]) => {
   const a = account(sends, recvs, TIMEOUT[key.slice(0, 3)]);
+  samples.set(key, a.samples);
   const value = p95(a.samples);
   const budget = BUDGET[key.slice(0, 3)];
   return {
@@ -155,6 +163,17 @@ await writeFile(path.join(run, "summary.json"), JSON.stringify(summary, null, 2)
 
 const outageText = (o: NonNullable<RoundRow["outage"]>) =>
   `doc ${ms(o.documentResync as number)}, chat ${ms(o.chatBackfill as number)}, chat socket ${ms(o.chatReopen as number | null)}, session ${ms(o.sessionReopen as number | null)}, failed shown ${o.failedShown}, resend ${ms(o.resendDelivered as number | null)}`;
+const cells = (r: RoundRow) => [
+  r.round,
+  r.preset,
+  String(r.users),
+  r.u === null ? "—" : `${r.u.toFixed(1)} ms`,
+  status(r),
+  `${r.memoryMiB.H?.toFixed(0) ?? "—"} / ${r.memoryMiB.G?.toFixed(0) ?? "—"}`,
+  ms(r.rttMedian),
+  r.outage ? outageText(r.outage) : "—",
+];
+const status = (r: RoundRow) => (r.aborted ? `aborted: ${r.aborted.slice(0, 80)}` : r.failures.length ? r.failures.join(", ") : "0");
 const md = [
   `# ${path.basename(run)}`,
   "",
@@ -166,7 +185,86 @@ const md = [
   "",
   `| Round | Preset | Users | U | Failures | Memory H / G (MiB, budget ${MEMORY_BUDGET_MIB}) | G RTT median | Outage |`,
   "|---|---|---|---|---|---|---|---|",
-  ...perRound.map((r) => `| ${r.round} | ${r.preset} | ${r.users} | ${r.u === null ? "—" : `${r.u.toFixed(1)} ms`} | ${r.aborted ? `aborted: ${r.aborted.slice(0, 80)}` : r.failures.length ? r.failures.join(", ") : "0"} | ${r.memoryMiB.H?.toFixed(0) ?? "—"} / ${r.memoryMiB.G?.toFixed(0) ?? "—"} | ${ms(r.rttMedian)} | ${r.outage ? outageText(r.outage) : "—"} |`),
+  ...perRound.map((r) => `| ${cells(r).join(" | ")} |`),
 ].join("\n");
 await writeFile(path.join(run, "summary.md"), md + "\n");
 console.log(md);
+
+// summary.html: static SVG rendered here (no script in the page), so it opens offline on H.
+const window = new Window();
+const plot = (options: Plot.PlotOptions) =>
+  (Plot.plot({ document: window.document as unknown as Document, width: 760, ...options }) as unknown as { outerHTML: string }).outerHTML;
+const esc = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const sections: Array<string> = [];
+
+for (const id of ["002", "003", "004", "005"]) {
+  const keys = items.filter((i) => i.key.startsWith(id));
+  if (!keys.length) continue;
+  const curve = keys.flatMap((i) => ecdf(samples.get(i.key)!).map((point) => ({ ...point, key: i.key })));
+  const marks = keys.filter((i) => Number.isFinite(i.p95)).map((i) => ({ key: i.key, ms: i.p95!, share: 0.95 }));
+  const budget = BUDGET[id];
+  sections.push(`<h2>${id}: latency over attempts</h2>
+<p>Share of attempts seen within each latency. The curve stops short of 1 by the timed-out attempts; the red line is the budget, dots mark p95.</p>
+${plot({
+  x: { label: "latency (ms)", domain: [0, curve.reduce((max, p) => Math.max(max, p.ms), budget * 1.1)] },
+  y: { label: "share of attempts", domain: [0, 1], grid: true },
+  color: { legend: true },
+  marks: [
+    Plot.ruleY([0.95], { stroke: "#999", strokeDasharray: "2 3" }),
+    Plot.ruleX([budget], { stroke: "red" }),
+    Plot.lineY(curve, { x: "ms", y: "share", stroke: "key", curve: "step-after" }),
+    Plot.dot(curve, { x: "ms", y: "share", fill: "key", r: 1.5 }),
+    Plot.dot(marks, { x: "ms", y: "share", fill: "key", r: 4 }),
+  ],
+})}`);
+}
+
+const judged = items.filter((i) => i.p95 !== null);
+if (judged.length) {
+  const cap = Math.max(...judged.map((i) => i.budget * 1.2), ...judged.filter((i) => Number.isFinite(i.p95)).map((i) => i.p95! + i.u));
+  const rows = judged.map((i) => ({ ...i, shown: Math.min(i.p95!, cap) }));
+  sections.push(`<h2>p95 ± U against the budget</h2>
+<p>Pass when p95 + U is inside the budget (red tick), fail when p95 − U is outside it. A p95 of ∞ is drawn at the right edge.</p>
+${plot({
+  marginLeft: 90,
+  x: { label: "p95 (ms)", domain: [0, cap] },
+  y: { label: null },
+  color: { legend: true, domain: ["pass", "inconclusive", "fail"], range: ["#2a9d55", "#e0a400", "#d03030"] },
+  marks: [
+    Plot.ruleY(rows.filter((d) => Number.isFinite(d.p95)), { y: "key", x1: (d) => Math.max(0, d.shown - d.u), x2: (d) => Math.min(cap, d.shown + d.u) }),
+    Plot.tickX(rows, { y: "key", x: "budget", stroke: "red" }),
+    Plot.dot(rows, { y: "key", x: "shown", fill: "verdict", r: 5 }),
+  ],
+})}`);
+}
+
+const memory = perRound.flatMap((r) => (["H", "G"] as const).flatMap((device) => (r.memoryMiB[device] === null ? [] : [{ round: r.round, device, mib: r.memoryMiB[device]! }])));
+if (memory.length) {
+  sections.push(`<h2>NFR-PER-006: memory peak per round</h2>
+${plot({
+  x: { label: null, type: "point" },
+  y: { label: "peak footprint (MiB)", domain: [0, Math.max(MEMORY_BUDGET_MIB * 1.1, ...memory.map((m) => m.mib))], grid: true },
+  color: { legend: true },
+  marks: [Plot.ruleY([MEMORY_BUDGET_MIB], { stroke: "red" }), Plot.dot(memory, { x: "round", y: "mib", fill: "device", r: 5 })],
+})}`);
+}
+
+sections.push(`<h2>NFR-PER-001: rounds</h2>
+<p>${summary["001"].failedRounds}/${summary["001"].rounds} baseline rounds failed (pass needs 0).</p>
+${plot({
+  height: 90,
+  x: { label: null, type: "band" },
+  color: { legend: true, domain: ["ok", "failed"], range: ["#2a9d55", "#d03030"] },
+  marks: [Plot.cell(perRound, { x: "round", fill: (r: RoundRow) => (r.aborted || r.failures.length ? "failed" : "ok"), inset: 1 })],
+})}
+<table><tr><th>Round</th><th>Preset</th><th>Users</th><th>U</th><th>Failures</th><th>Memory H / G (MiB)</th><th>G RTT median</th><th>Outage</th></tr>
+${perRound.map((r) => `<tr>${cells(r).map((cell) => `<td>${esc(cell)}</td>`).join("")}</tr>`).join("\n")}
+</table>`);
+
+await writeFile(path.join(run, "summary.html"), `<!doctype html>
+<meta charset="utf-8"><title>${esc(path.basename(run))}</title>
+<style>body{font:14px system-ui,sans-serif;max-width:800px;margin:24px auto;padding:0 16px}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:4px 8px;text-align:left}</style>
+<h1>${esc(path.basename(run))}</h1>
+${sections.join("\n")}
+`);
+await window.happyDOM.close();

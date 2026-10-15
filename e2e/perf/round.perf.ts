@@ -10,6 +10,7 @@ import { expect, test } from "../fixtures";
 import { block, blockValues, createDocument, firstBlock, insertAt, joinForm, online, openChat, openDocument, sendChat } from "../helpers";
 import { YORKIE_SERVICE, networkProbe } from "../network";
 import { traceMemory } from "./memory";
+import { attach, detach, type Attached, type Mark } from "./observe";
 import { installProbe, marker, measuringLaunch, type PerfWindow } from "./probe";
 import { APP_IMAGE, sampleDockerStats, stackDown, stackUp } from "./stack";
 
@@ -24,6 +25,7 @@ const HOST = env.HOST_LAN_IP ?? "127.0.0.1";
 const APP_PORT = Number(env.PERF_APP_PORT ?? 3000);
 const YORKIE_PORT = Number(env.PERF_YORKIE_PORT ?? 8080);
 const G_WS = env.PERF_G_WS || undefined;
+const OBSERVE = env.PERF_OBSERVE === "1";
 const PASSWORD = env.E2E_WORKSPACE_PASSWORD!;
 const BASE_URL = `http://${HOST}:${APP_PORT}`;
 const VIEWPORT = { width: 1280, height: 720 };
@@ -204,6 +206,7 @@ for (let round = 1; round <= ROUNDS; round++) {
       viewport: VIEWPORT,
       hostPlatform: `${os.platform()} ${os.release()} · ${os.cpus().length} CPU · ${Math.round(os.totalmem() / 2 ** 30)} GB`,
       gRemote: Boolean(G_WS),
+      observe: OBSERVE,
       node: process.version,
       blocks: BLOCKS,
       targets: TARGETS.length,
@@ -228,6 +231,16 @@ for (let round = 1; round <= ROUNDS; round++) {
       throw error;
     });
     const stats = sampleDockerStats(stack);
+    // Diagnostics (#192): a failure here is noted in meta, never a signal that fails 001.
+    const marks: Array<Mark> = [];
+    const observed: Attached | null = OBSERVE
+      ? await attach(stack, RUN_ID, round).catch((error) => {
+          meta.observe = String(error);
+          console.warn(`Round ${round} is not observed: ${error}`);
+          // A Prometheus that could not leave the network hands its handle back: the final cleanup still owes the disconnect.
+          return error.attached ?? null;
+        })
+      : null;
     try {
       const hBrowser = await chromium.launch(measuringLaunch());
       browsers.push(hBrowser);
@@ -277,6 +290,7 @@ for (let round = 1; round <= ROUNDS; round++) {
 
       const clock: Note = { start: { H: await readClock(hPage), G: await readClock(gPage) } };
       r.phase = "window";
+      const windowAt = now();
       if (OUTAGE) {
         await work(r, actors, MINUTES, 0);
         await outage(r, h, g, probe!, meta);
@@ -287,6 +301,9 @@ for (let round = 1; round <= ROUNDS; round++) {
         await present(r, g, h, blocks);
       }
       await verify(r, actors);
+      marks.push({ time: windowAt, timeEnd: now(), text: `round ${round}: measured window` });
+      if (typeof meta.cutAt === "number") marks.push({ time: meta.cutAt, text: `round ${round}: cut` });
+      if (typeof meta.restoreAt === "number") marks.push({ time: meta.restoreAt, text: `round ${round}: restore` });
       r.phase = "teardown";
       clock.end = { H: await readClock(hPage), G: await readClock(gPage) };
 
@@ -328,6 +345,15 @@ for (let round = 1; round <= ROUNDS; round++) {
           if (memory) await Promise.allSettled([memory.H.stop(), memory.G.stop()]);
           for (const browser of browsers) await browser.close().catch(() => {});
         } finally {
+          // Before `stackDown`: a connected Prometheus keeps `compose down` from removing the network.
+          if (observed) {
+            await detach(observed, marks).catch(async (error) => {
+              // Kept apart from the signals: an observer cleanup failure says nothing about NFR-PER.
+              meta.observeCleanup = String(error);
+              console.warn(`Round ${round}: detach failed: ${error}`);
+              await write("meta.json", JSON.stringify(meta));
+            });
+          }
           await stackDown(stack);
         }
       }

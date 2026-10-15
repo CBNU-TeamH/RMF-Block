@@ -1,0 +1,75 @@
+# The perf campaign's observation stack (#192): up for a whole run, never part of a round.
+# `pnpm perf:observe` starts it; `PERF_OBSERVE=1 pnpm perf` attaches each round to it.
+# Diagnostics only — the harness's browser samples judge NFR-PER, and the judgment cell
+# runs with this stack down.
+name: rmf-observe
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: rmf-observe-prometheus
+    # `--web.enable-lifecycle` is how the harness applies each round's scrape file
+    # (`/-/reload`) — the Yorkie target and the cAdvisor names change every round.
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+      # A reload restarts the scrape loop, so a finished round's series get no staleness
+      # marker; without this the dashboard draws them flat for the default 5 min.
+      - --query.lookback-delta=15s
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./generated:/etc/prometheus/generated:ro
+      - prometheus-data:/prometheus
+    # Loopback only: the hotspot is an open subnet.
+    ports:
+      - "127.0.0.1:9090:9090"
+    # So `up --wait` returns only once `/-/reload` can answer.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 5s
+      retries: 12
+
+  # Raw cgroup mode: on Docker Desktop the Docker handler cannot read the engine's image
+  # store and names nothing, so it is switched off and the harness maps IDs to names.
+  # The whitelist is a prefix match on the cgroup path, which follows the engine's cgroup
+  # driver: `/docker/<id>` for cgroupfs (Docker Desktop), `/system.slice/docker-<id>.scope`
+  # for systemd (a Linux Docker Engine's default on cgroup v2).
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    container_name: rmf-observe-cadvisor
+    command:
+      - --docker=unix:///nonexistent.sock
+      - --raw_cgroup_prefix_whitelist=/docker/,/system.slice/docker-
+      - --docker_only=false
+      # It shares H with the round, so it collects only what the dashboard reads, at the scrape rate.
+      - --enable_metrics=cpu,memory
+      - --housekeeping_interval=5s
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /sys:/sys:ro
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    container_name: rmf-observe-grafana
+    # Anonymous Editor so the harness posts annotations with no credential; that is only
+    # safe because the port is published on loopback.
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Editor
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3300:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus-data:
+  grafana-data:

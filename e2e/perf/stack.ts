@@ -10,7 +10,7 @@ export const APP_IMAGE =
   "ghcr.io/cbnu-teamh/rmf-block:0.0.1@sha256:11757ccef3076a8b8953cfb6f66b21618eb58d5ecbd1416e9f882864bbf42978";
 
 const exec = promisify(execFile);
-const docker = async (args: Array<string>) =>
+export const docker = async (args: Array<string>) =>
   (await exec("docker", args, { maxBuffer: 64 * 1024 * 1024 })).stdout;
 
 export type StackOptions = {

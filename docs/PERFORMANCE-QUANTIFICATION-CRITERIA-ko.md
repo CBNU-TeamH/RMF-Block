@@ -364,6 +364,20 @@ SRS 기준은 클라이언트 관점이지만, `docs/SRS-ko.md` §2.4가 미뤄�
 컨테이너의 CPU·메모리를 5초 간격으로 기록해 그 회차 결과 옆에 저장하고, 호스트 사양을 함께 적는다.
 호스트로 쓸 수 있는 기기가 2종 이상이면(예: 고사양·저사양 노트북) 8명 본 측정을 두 기기에서 돌린다.
 
+**관측 스택(#192)은 원인을 설명할 뿐 판정하지 않는다.** 관측 스택 기준 칸과 혼잡·단절 칸에서만 켠다
+(`pnpm perf:observe` + `PERF_OBSERVE=1`, 절차는 운용 가이드 §14).
+- **구성**: Prometheus 3.5.0, cAdvisor 0.52.1, Grafana 12.1.1(`e2e/perf/observe/`). 측정 내내 떠 있고, 하네스가 회차마다
+  그 회차 네트워크에 붙였다 뗀다. 수집 간격은 `docker stats`와 같은 5초다.
+- **지표**:
+  - 컨테이너 CPU·메모리(cAdvisor);
+  - Yorkie `/metrics`(프로파일링 리스너 8081, LAN에 열지 않음)의 RPC 처리 수·실패, PushPull·RPC 응답 시간 p95.
+- **Docker Desktop 제약**: cAdvisor가 엔진의 이미지 저장소를 읽지 못해 컨테이너 이름을 모른다. 그래서 cgroup을
+  직접 읽고, 하네스가 회차마다 컨테이너 ID에 이름을 붙인다. 이 방식에서는 컨테이너별 네트워크가 나오지 않으므로
+  네트워크는 `docker stats` 기록에서 본다.
+- **대시보드**: Grafana(H의 `127.0.0.1:3300`)에 하네스가 회차의 측정 구간·단절·복구 시각을 주석으로 남긴다.
+- **오버헤드**: 관측 스택 기준 칸과 판정 칸(관측 끔)의 차이를 회차 간 변동과 함께 서술로만 보고한다. 켤지 말지를
+  가르는 임계값은 두지 않는다.
+
 ### 진행 순서
 
 1. **스모크** — 2명, 1분. 하네스와 로그가 제대로 나오는지만 본다. 판정에 쓰지 않는다. 이어서 8명 1회차로
@@ -403,10 +417,13 @@ p95와 비교하지 않는다.
     `*.perf.ts`만 모으므로 `pnpm e2e`와 CI에는 걸리지 않는다.
   - `stack.ts` — 회차별 일회용 Compose 프로젝트, `docker stats` 5초 샘플링.
   - `probe.ts` — 측정 페이지에 심는 init script(t0·t1 기록). `memory.ts` — CDP memory-infra.
-  - `browser-server.mts` — G에서 실행하는 브라우저 서버. `report.mts` — 결과 요약.
+  - `browser-server.mts` — G에서 실행하는 브라우저 서버. `report.mts` — 결과 요약(`summary.md` 표, `summary.html`
+    그래프). 그래프는 Observable Plot으로 이 단계에서 SVG로 그려 두므로 페이지에 스크립트가 없고 인터넷 없이 열린다.
+    판정 숫자와 같은 계산 결과에서 그리므로 둘이 어긋날 수 없다.
+  - `observe.ts` — 관측 스택(#192) 연결·해제와 Grafana 주석. `e2e/perf/observe/` — 관측 스택 Compose와 설정.
   - `stats.mts` — p95·판정·시계·건수 집계. Vitest(`stats.test.mts`)가 경계값을 검사한다.
   - background 사용자는 `e2e/fixtures.ts`의 `users.join`, 편집·채팅은 `e2e/helpers.ts`를 재사용한다.
-- **실행**: `pnpm perf`(H), `pnpm perf:browser`(G), `pnpm perf:report perf-results/<run-id>`. 환경 변수와 절차는
+- **실행**: `pnpm perf`(H), `pnpm perf:browser`(G), `pnpm perf:report perf-results/<run-id>`, `pnpm perf:observe`(H). 환경 변수와 절차는
   [`docs/perf/runbook-ko.md`](perf/runbook-ko.md).
 - **결과**: 회차마다 `perf-results/<run-id>/round-NN/` 아래 JSONL과 조건 기록이 남는다. `perf-results` 폴더는
   gitignore 대상이고 H 로컬에만 둔다. 레포에는 요약 표만 올린다.
