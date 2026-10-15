@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { appendFile, writeFile } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
@@ -10,8 +11,8 @@ export const APP_IMAGE =
   "ghcr.io/cbnu-teamh/rmf-block:0.0.1@sha256:11757ccef3076a8b8953cfb6f66b21618eb58d5ecbd1416e9f882864bbf42978";
 
 const exec = promisify(execFile);
-export const docker = async (args: Array<string>) =>
-  (await exec("docker", args, { maxBuffer: 64 * 1024 * 1024 })).stdout;
+export const docker = async (args: Array<string>, env?: Record<string, string>) =>
+  (await exec("docker", args, { maxBuffer: 64 * 1024 * 1024, env: env && { ...process.env, ...env } })).stdout;
 
 export type StackOptions = {
   project: string;
@@ -36,6 +37,7 @@ async function free(host: string, port: number) {
 
 type Service = {
   image?: string;
+  entrypoint?: Array<string>;
   container_name?: string;
   restart?: string;
   ports?: Array<object>;
@@ -48,7 +50,12 @@ type Service = {
 export async function stackUp(options: StackOptions): Promise<Stack> {
   await free(options.bind, options.appPort);
   await free(options.bind, options.yorkiePort);
-  const config = JSON.parse(await docker(["compose", "-f", "docker-compose.yml", "config", "--format", "json"])) as {
+  // `APP_IMAGE` predates #200 and logs in to Yorkie as admin/admin, so the release it measures
+  // keeps Yorkie's default. A later image refuses to start on it — change this with the pin.
+  const config = JSON.parse(await docker(
+    ["compose", "-f", "docker-compose.yml", "config", "--format", "json"],
+    { YORKIE_ADMIN_PASSWORD: "admin", YORKIE_ADMIN_TOKEN_SECRET: randomUUID() },
+  )) as {
     name: string;
     services: Record<string, Service>;
     volumes?: Record<string, { name?: string; external?: boolean; driver_opts?: object }>;
@@ -65,6 +72,8 @@ export async function stackUp(options: StackOptions): Promise<Stack> {
     }
   }
   const { app, yorkie } = config.services;
+  // The guard in front of Yorkie refuses that default, so the pinned release runs without it.
+  delete yorkie.entrypoint;
   app.image = APP_IMAGE;
   app.ports = [{ target: 3000, published: String(options.appPort), host_ip: options.bind, protocol: "tcp" }];
   app.environment = {

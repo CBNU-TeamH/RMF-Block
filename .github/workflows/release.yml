@@ -137,7 +137,7 @@ jobs:
           **Image**: \`$IMAGE:$VERSION\` for \`linux/amd64\` and \`linux/arm64\`
           **Digest**: \`$DIGEST\`
 
-          To run it, download \`docker-compose.yml\` and \`env.sample\` below into one folder, save \`env.sample\` as \`.env\` with \`HOST_LAN_IP\` filled in, then run \`docker compose up\`. The README's Getting started has the details.
+          To run it, download \`docker-compose.yml\` and \`env.sample\` below into one folder, save \`env.sample\` as \`.env\` with \`HOST_LAN_IP\`, \`YORKIE_ADMIN_PASSWORD\` and \`YORKIE_ADMIN_TOKEN_SECRET\` filled in, then run \`docker compose up\`. The README's Getting started has the details.
           EOF
           prerelease=()
           if [[ "$VERSION" == *-* ]]; then prerelease=(--prerelease); fi

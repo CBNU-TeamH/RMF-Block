@@ -45,6 +45,9 @@ services:
       # client on the LAN.
       YORKIE_ADMIN_ADDR: http://yorkie:8080
       YORKIE_AUTH_WEBHOOK_URL: http://app:3000/api/internal/yorkie/auth
+      # The same password Yorkie is given below — the app logs in with it to
+      # write the webhook.
+      YORKIE_ADMIN_PASSWORD: ${YORKIE_ADMIN_PASSWORD:?set it in .env next to this file}
     # `service_healthy`, not a bare `depends_on`: startup writes the webhook onto
     # Yorkie's project, so Yorkie has to be answering before this container runs
     # — a bare one would only order the starts and leave the first attempt racing
@@ -69,6 +72,23 @@ services:
     # a call inside this compose network for a workspace of about eight (SRS
     # §2.4), so 1s still absorbs a typing burst's PushPulls and a kick reads as
     # instant (#48).
+    #
+    # `--backend-admin-password` because the Admin API shares 8080 with the
+    # browsers, and Yorkie's default admin/admin would let anyone on the LAN read
+    # or delete every document and switch the webhook off (#200). The admin
+    # tokens it issues are signed with `--backend-secret-key`, whose default is
+    # public too. Compose refuses to start without either rather than fall back.
+    #
+    # `:?` only catches an empty value, so the entrypoint refuses the two defaults
+    # even when `.env` spells them out. bash because the image has it (the
+    # healthcheck relies on it too); `exec` keeps Yorkie PID 1 for `stop`.
+    entrypoint:
+      [
+        "bash",
+        "-c",
+        'case " $$* " in *" --backend-admin-password admin "*|*" --backend-secret-key yorkie-secret "*) echo "Refusing to start Yorkie on a public default: set YORKIE_ADMIN_PASSWORD and YORKIE_ADMIN_TOKEN_SECRET in .env" >&2; exit 1;; esac; exec yorkie "$$@"',
+        "yorkie",
+      ]
     command:
       [
         "server",
@@ -76,6 +96,10 @@ services:
         "mongodb://mongo:27017",
         "--auth-webhook-cache-auth-ttl",
         "1s",
+        "--backend-admin-password",
+        "${YORKIE_ADMIN_PASSWORD:?set it in .env next to this file}",
+        "--backend-secret-key",
+        "${YORKIE_ADMIN_TOKEN_SECRET:?set it in .env next to this file}",
       ]
     # Yorkie exits(1) if it cannot ping Mongo at startup — it is fail-fast, not
     # lazily initialized. Plain `depends_on` only orders startup, so Yorkie could

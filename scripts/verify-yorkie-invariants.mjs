@@ -6,6 +6,7 @@
  * Needs Yorkie running (the app is not involved). Defaults to compose:
  *
  *   RPC=http://localhost:8080
+ *   YORKIE_ADMIN_PASSWORD=…   (from the environment, else `.env`; `admin` if neither)
  *
  * This is issue #42's harness. `docs/adr/007-block-array-not-tree.md` measured
  * four properties by hand and then said, in its own Consequences: "the
@@ -31,6 +32,16 @@ import { createReporter, requireReachable } from "./lib/verify-report.mjs";
 
 const RPC = process.env.RPC ?? "http://localhost:8080";
 
+// The admin password Compose gave Yorkie (#200). `loadEnvFile` keeps what the
+// environment already has, so CI's value wins over a clone's `.env`; Yorkie's
+// own default is left for one started by hand.
+try {
+  process.loadEnvFile();
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+const ADMIN_PASSWORD = process.env.YORKIE_ADMIN_PASSWORD || "admin";
+
 const reporter = createReporter();
 const { report } = reporter;
 
@@ -54,7 +65,7 @@ async function admin(method, body, token) {
 // A throwaway project, not the app's: the app's carries the auth webhook, and
 // these cases are about the SDK's own behaviour rather than about who may
 // attach. A fresh one also means no leftover document can affect a result.
-const { token } = await admin("LogIn", { username: "admin", password: "admin" });
+const { token } = await admin("LogIn", { username: "admin", password: ADMIN_PASSWORD });
 const { project } = await admin(
   "CreateProject",
   { name: `inv${Date.now().toString().slice(-9)}` },
