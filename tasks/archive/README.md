@@ -8,6 +8,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Observation stack and result charts for the perf campaign](2026/10/20261013-perf-observability-todo.md) | [lessons](2026/10/20261013-perf-observability-lessons.md) |
 | [Two-device performance harness (e2e/perf)](2026/10/20261013-perf-harness-todo.md) | [lessons](2026/10/20261013-perf-harness-lessons.md) |
 | [Drift audit: every design doc, after admin, tabs, the .data/ layer and packaging](2026/10/20261010-drift-audit-todo.md) | [lessons](2026/10/20261010-drift-audit-lessons.md) |
 | [Packaging: a published image and the first release](2026/10/20261009-packaging-todo.md) | [lessons](2026/10/20261009-packaging-lessons.md) |

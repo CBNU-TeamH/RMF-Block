@@ -3,7 +3,7 @@
 **Created**: 2026-10-13
 **Issue**: #192 (under #174), with its [decisions comment](https://github.com/CBNU-TeamH/RMF-Block/issues/192#issuecomment-6139171363)
 **Design**: no `docs/design/` doc, because nothing here is product code. The rules this follows come from four places:
-- the server section of [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../../docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md), which this task extends;
+- the server section of [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../../../../docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md), which this task extends;
 - #192's scope;
 - #174;
 - the harness from #189.
@@ -115,7 +115,7 @@ The result charts are drawn by `pnpm perf:report`, not Grafana.
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior. For each relevant layer, name existing tests
 that cover it, required updates/new cases, or a concrete reason no change is needed.
 
