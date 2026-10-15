@@ -7,6 +7,10 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 vi.mock("@/lib/documents/documents", () => ({ readDocuments: vi.fn() }));
+// The catalogue's own gate (`read-documents.test.ts`) lets a signed-in caller through.
+vi.mock("@/lib/auth/current-member", () => ({
+  currentMember: vi.fn(async () => ({ id: "member-1", nickname: "누군가", colorTag: "#ef4444" })),
+}));
 
 import { readDocuments } from "@/lib/documents/documents";
 import DocumentPage from "./page.tsx";

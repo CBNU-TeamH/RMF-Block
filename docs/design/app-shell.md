@@ -26,8 +26,10 @@ collapsed state while documents open.
 is still `/`. `app/join/` sits outside the group, which is what keeps the join screen free of the
 shell.
 
-The auth gate lives in the layout, not in a page, so every screen in the group inherits it — no
-live session and no valid host-secret cookie means the join form (FR-020-03/04). The session model itself is
+The layout's auth gate sends anyone without a live session or a valid host-secret cookie to the
+join form (FR-020-03/04). It does not guard the pages' data on its own: the App Router renders a
+layout and its page in parallel, and a client navigation skips the layout, so `readDocumentsOnce()`
+(`read-documents.ts`) checks the caller itself before reading the catalogue (#203). The session model itself is
 [`api.md`](api.md), "Authentication model". Before the workspace is open the gate sends the host
 to `/admin`, the setup screen (UC-010) — outside the group like `/join`, since there is no
 workspace yet to frame. The sidebar shows the host, and only the host, a **관리자** link with a shield (`AdminIcon` in `ui.tsx`) to the same page, at its foot.

@@ -16,7 +16,7 @@ export default async function DocumentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const document = readDocumentsOnce().find((doc) => doc.id === id);
+  const document = (await readDocumentsOnce()).find((doc) => doc.id === id);
 
   if (!document) notFound();
 

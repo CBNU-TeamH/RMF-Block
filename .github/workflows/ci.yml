@@ -276,6 +276,33 @@ jobs:
 
           echo "host/guest split, the join flow, and chat attribution verified against the container"
 
+      # A layout's redirect does not stop the page rendered beside it, and a
+      # client navigation (`RSC: 1`) skips the layout, so a signed-out response
+      # once carried the catalogue (#203). No `-L`: the redirect's own body leaked.
+      - name: A signed-out request carries no document data
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=http://localhost:3000
+          id=$(curl -sS --connect-timeout 5 --max-time 10 -b jar.txt -X POST "$base/api/documents" \
+            -H 'Content-Type: application/json' -d '{"name":"CI-SECRET-DOC"}' \
+            | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
+          [ -n "$id" ] || { echo "::error::the host could not create a document"; exit 1; }
+
+          for path in / "/documents/$id"; do
+            for header in "X-Probe: plain" "RSC: 1"; do
+              body=$(curl -sS --connect-timeout 5 --max-time 10 -H "$header" "$base$path")
+              if grep -q 'CI-SECRET-DOC' <<<"$body"; then
+                echo "::error::GET $path ($header) with no session carried the document's name"
+                exit 1
+              fi
+            done
+          done
+
+          # Leaves the stack as E2E would have found it.
+          curl -sS -o /dev/null --connect-timeout 5 --max-time 10 -b jar.txt -X DELETE "$base/api/documents/$id"
+          echo "signed-out responses carry no document data"
+
       # The E2E layer (docs/testing.md), against the same container. Nothing from
       # here on can fail this required job until E2E has run green for a while.
       - name: Install Chromium
