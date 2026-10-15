@@ -26,7 +26,8 @@
     "e2e:isolated": "node scripts/e2e-isolated.mjs",
     "perf": "playwright test -c playwright.perf.config.ts",
     "perf:browser": "node e2e/perf/browser-server.mts",
-    "perf:report": "node e2e/perf/report.mts"
+    "perf:report": "node e2e/perf/report.mts",
+    "perf:observe": "node e2e/perf/observe-up.mts"
   },
   "dependencies": {
     "@yorkie-js/sdk": "0.7.23",
@@ -36,6 +37,7 @@
     "ws": "^8.21.3"
   },
   "devDependencies": {
+    "@observablehq/plot": "0.6.17",
     "@playwright/test": "1.61.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",

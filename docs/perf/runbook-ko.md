@@ -70,8 +70,11 @@ v0.0.2 성능 측정(#163, #174)을 사람이 실기기로 운용하는 절차�
   docker pull ghcr.io/cbnu-teamh/rmf-block:0.0.1
   docker pull yorkieteam/yorkie:0.7.23
   docker pull mongo:8
+  docker pull prom/prometheus:v3.5.0
+  docker pull gcr.io/cadvisor/cadvisor:v0.52.1
+  docker pull grafana/grafana:12.1.1
   ```
-  관측 스택 이미지(Prometheus, cAdvisor, Grafana)도 #192에서 버전이 정해지면 같이 받아 둡니다.
+  아래 세 개는 관측 스택(§14) 이미지입니다.
 
 ### 2.3 네트워크 측정·열화 도구
 
@@ -223,7 +226,7 @@ pnpm perf:report perf-results/<run-id>   # run-id는 perf-results 아래 새로 
 ## 9. 본 측정: 8명 × baseline × 20회차 (SRS 판정 칸)
 
 - 예상 시간은 회차당 약 13분 × 20회, **약 4.5시간**입니다. 하네스가 회차를 연속으로 돌립니다.
-- 시작 명령: `PERF_ROUNDS=20 pnpm perf` (8명, 10분이 기본값). 끝나면 `pnpm perf:report perf-results/<run-id>`로 요약(`summary.md`)을 만듭니다.
+- 시작 명령: `PERF_ROUNDS=20 pnpm perf` (8명, 10분이 기본값). 끝나면 `pnpm perf:report perf-results/<run-id>`로 요약을 만듭니다. 표는 `summary.md`, 그래프는 같은 폴더의 `summary.html`(브라우저로 열기, 인터넷 없이 열림)입니다.
 - 이 칸에서는 **관측 스택(Prometheus/Grafana)을 켜지 않습니다.** H의 CPU를 나눠 써서 측정값을 흔들기 때문입니다.
 
 15~30분마다 다음을 확인합니다.
@@ -397,15 +400,40 @@ H의 측정 브라우저는 loopback으로 서버에 붙기 때문에 열화가 
 
 ## 14. 관측 스택 (Prometheus · Grafana)
 
-- 켜는 시점은 본 측정(§9)이 끝난 뒤입니다. 먼저 **관측 스택을 켠 상태로 8명 baseline을 5회차** 돌립니다. 이 칸이 혼잡·복구 회차(§12·§13)의 비교 기준입니다. §9(관측 스택 끔)와의 차이는 오버헤드로 서술만 하고, 켤지 말지를 가르는 임계값은 두지 않습니다.
-- **중단 조건**: 관측 스택을 켠 상태에서 H의 CPU가 계속 포화되거나 하네스 오류가 나면, 관측 스택을 끄고 그 사실을 기록합니다. 이후 혼잡·복구 회차는 관측 스택 없이 진행하고 §9를 비교 기준으로 씁니다.
-- 켜기와 끄기: #192에서 확정합니다.
-- Grafana는 H의 브라우저에서 `http://localhost:<#192에서 정할 포트>`로 엽니다. G에서는 열지 않습니다(LAN에 노출하지 않음). 대시보드는 #192에서 정합니다.
-- 판정은 **하네스의 raw 결과로만** 합니다. Grafana의 percentile 그래프는 설명용입니다.
+서버 쪽에서 "왜 느려졌는지"를 보는 진단 도구입니다. **판정은 하네스의 raw 결과로만** 하고, Grafana 그래프는 설명용입니다.
+
+**언제 켜는가.** 판정 칸(§9)과 램프(§10)에서는 관측 스택을 **아예 띄우지 않습니다**. 띄워 두기만 해도 H의 CPU를 나눠 쓰기 때문입니다. 램프가 끝난 뒤 다음 순서로 진행합니다.
+1. 관측 스택을 켭니다.
+2. **관측을 켠 8명 baseline 5회차**를 돌립니다. 이 칸이 혼잡·복구 회차(§12·§13)의 비교 기준입니다. §9(관측 끔)와의 차이는 오버헤드로 서술만 하고, 켤지 말지를 가르는 임계값은 두지 않습니다.
+3. 혼잡·복구 회차를 관측을 켠 채로 돌립니다.
+
+**순서**(H에서)
+1. 켜기: `pnpm perf:observe`. 이미지는 §2.2에서 미리 받아 둡니다.
+2. H의 브라우저에서 `http://127.0.0.1:3300`을 열고 대시보드 **RMF-Block perf run**을 엽니다. 로그인은 없습니다. G에서는 열지 않습니다(LAN에 열지 않음).
+3. 측정 명령 앞에 `PERF_OBSERVE=1`을 붙입니다. 기준 칸은 `PERF_OBSERVE=1 PERF_ROUNDS=5 pnpm perf`(PowerShell: `$env:PERF_OBSERVE="1"; $env:PERF_ROUNDS="5"; pnpm perf`)이고, §12·§13의 명령에도 똑같이 붙입니다.
+4. 첫 회차가 끝나면 대시보드를 새로고침해 그래프가 나오는지 확인합니다. 자동 새로고침은 꺼 두었습니다. 측정 중에는 Grafana 탭을 열어 두지 않습니다(H의 CPU를 씀). 회차마다 빨간 주석(측정 구간, 단절, 복구)이 생깁니다.
+   - 컨테이너 CPU와 메모리: `…-app`, `…-yorkie`, `…-mongo` 이름으로 나옵니다.
+   - Yorkie RPC: 초당 요청 수, 실패, 응답 시간 p95가 나옵니다.
+
+   회차 폴더의 `conditions.json`에는 `"observe": true`가 남습니다.
+5. 끄기: 측정이 모두 끝나면 `docker compose -f e2e/perf/observe/compose.yml down`. PowerShell이면 `Remove-Item Env:PERF_OBSERVE`도 해서 다음 판정 칸이 관측 없이 돌게 합니다. 수집한 데이터(볼륨)는 남습니다. 지우려면 `down --volumes`로 하되, 결과 요약 PR이 머지된 뒤에 합니다.
+
+**중단 조건**: 관측을 켠 상태에서 H의 CPU가 계속 포화되거나 하네스 오류가 나면, 관측 스택을 끄고 그 사실을 기록합니다. 이후 혼잡·복구 회차는 관측 없이 진행하고 §9를 비교 기준으로 씁니다.
+
+**대시보드에서 보는 것**
+
+| 패널 | 보는 것 |
+|---|---|
+| Round containers — CPU, memory | 회차 컨테이너(app·yorkie·mongo)의 CPU 코어 수와 메모리 |
+| Yorkie RPCs per second, not ok | 메서드별 요청 수와 실패(`rpc_code`가 ok가 아닌 것) |
+| Yorkie PushPull / RPC response p95 | 서버가 요청을 처리하는 데 걸린 시간 |
+
+- 관측 연결에 실패해도 회차는 그대로 돌고 실패로 세지 않습니다. 터미널에 `is not observed` 경고가 뜨고 `meta.json`에 이유가 남습니다. 다음 회차 전에 원인을 해결합니다(§16).
+- Docker Desktop에서는 cAdvisor가 컨테이너 이름을 읽지 못해서 하네스가 회차마다 ID에 이름을 붙입니다. **컨테이너별 네트워크는 이 방식으로 나오지 않습니다.** 네트워크는 회차 폴더의 `docker-stats.jsonl`에 있습니다.
 
 ## 15. 결과 회수와 정리
 
-1. 결과는 H의 `perf-results/<run-id>/`에 남고, 요약은 `pnpm perf:report`가 만든 `summary.md`입니다. git에는 올리지 않고(gitignore), 다른 곳에도 올리지 않습니다. **결과 요약 PR(docs/perf 폴더의 v0.0.1 요약 파일)이 머지될 때까지 이 폴더를 지우지 않습니다.** 사본이 이것 하나뿐입니다.
+1. 결과는 H의 `perf-results/<run-id>/`에 남고, 요약은 `pnpm perf:report`가 만든 `summary.md`(표)와 `summary.html`(그래프)입니다. git에는 올리지 않고(gitignore), 다른 곳에도 올리지 않습니다. **결과 요약 PR(docs/perf 폴더의 v0.0.1 요약 파일)이 머지될 때까지 이 폴더를 지우지 않습니다.** 사본이 이것 하나뿐입니다.
 2. §5의 운영자 기록을 같은 폴더에 넣습니다.
 3. `docker compose ls`로 측정 프로젝트가 남아 있지 않은지 확인합니다.
 4. G의 브라우저 서버를 종료(`Ctrl+C`)하고, 방화벽 규칙을 지웁니다.
@@ -427,6 +455,8 @@ H의 측정 브라우저는 loopback으로 서버에 붙기 때문에 열화가 
 | H가 G 브라우저 서버에 연결하지 못함 | G 방화벽, 주소 오타, Playwright 버전 불일치 | §2.1의 커밋이 두 기기에서 같은지, §3의 G 방화벽 확인 |
 | 시계 offset이 회차마다 크게 다름 | 한쪽 기기가 절전에 들어갔거나, 시간 동기화로 시계가 점프함 | §4 위생 항목을 다시 확인하고 그 회차는 무효 처리 |
 | 회차 도중 기기가 잠기거나 꺼짐 | 절전 설정 | §4 확인, 그 회차는 무효 처리 |
+| 터미널에 `Round N is not observed` 경고가 뜸 | 관측 스택이 꺼져 있거나 Prometheus가 응답하지 않음 | `docker compose ls`에 `rmf-observe`가 running인지 확인하고, 아니면 `pnpm perf:observe`로 켬. 그 회차는 판정에 영향이 없음(그래프만 빠짐) |
+| 터미널에 `Round N: detach failed` 경고 뒤 그 회차가 `compose down` 오류로 끝남 | Prometheus가 회차 네트워크에서 끝내 빠지지 못해 `compose down`이 네트워크를 못 지움(이유는 `meta.json`의 `observeCleanup`) | `docker network disconnect --force rmf-perf-<run>-<회차>-default rmf-observe-prometheus` 후 `docker compose ls`에서 남은 `rmf-perf-…` 프로젝트를 `docker compose -p <이름> down --volumes`로 지움. 측정 파일은 정리 전에 이미 저장됨 |
 | 디스크 부족, Docker 오류 | 이전 측정 프로젝트나 이미지가 남아 있음 | `docker compose ls`로 남은 측정 프로젝트를 확인하고 `docker compose -p <프로젝트 이름> down --volumes`. **`rmf-block` 프로젝트는 건드리지 않음** |
 | 열화를 걸었는데 RTT가 늘지 않음 | 필터의 IP, 포트, 방향이 안 맞음 | 필터를 다시 확인. ping이 아니라 하네스 probe로 확인 |
 | 핫스팟이 5GHz로 안 켜짐 | 무선 칩이나 국가 규제가 5GHz AP를 막음 | `band bg`(2.4GHz)로 켜고 조건 기록에 적음 |
@@ -476,6 +506,7 @@ H의 측정 브라우저는 loopback으로 서버에 붙기 때문에 열화가 
 | `PERF_APP_PORT`, `PERF_YORKIE_PORT` | `3000`, `8080` | 측정 스택 포트 |
 | `PERF_BIND` | `0.0.0.0` | 포트를 열 주소 |
 | `PERF_CHANNEL` | `chrome` | 측정 브라우저. `bundled`면 Playwright 내장 Chromium |
+| `PERF_OBSERVE` | 없음 | `1`이면 회차를 관측 스택(§14)에 연결합니다. 판정 칸과 램프에서는 쓰지 않습니다 |
 | `PERF_HEADED` | 켜짐 | `0`이면 창 없이 실행(단일 머신 확인용) |
 | `PERF_BROWSER_PORT`, `PERF_BROWSER_HOST` | `9333`, `0.0.0.0` | G 브라우저 서버(§7) |
 

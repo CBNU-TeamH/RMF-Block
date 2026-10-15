@@ -247,7 +247,8 @@ a browser run costs seconds per test against milliseconds.
 - **Follow-up.** Admin setup/access/password/kick/restart plus integrated user-location navigation
   are tracked in [the admin E2E task](../tasks/active/20261007-admin-e2e-todo.md). Long-running load, 1-second propagation, 500MB client memory and real LAN
   devices are the performance harness's (`e2e/perf/`, #189): `pnpm perf` on the measurement rig, outside `pnpm e2e`
-  and CI, run by hand from [the runbook](perf/runbook-ko.md); its arithmetic (`e2e/perf/stats.mts`) has a Vitest test.
+  and CI, run by hand from [the runbook](perf/runbook-ko.md); its arithmetic (`e2e/perf/stats.mts`, the result charts' curve included) has a Vitest test.
+  The observation stack (`pnpm perf:observe`, #192) is diagnostics only and is checked by hand with an observed round.
   Firefox/WebKit remain uncovered.
 
 

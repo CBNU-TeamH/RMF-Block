@@ -71,3 +71,4 @@ ds-bundle/
 
 /e2e-artifacts/
 /perf-results/
+/e2e/perf/observe/generated/
