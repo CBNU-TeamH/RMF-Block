@@ -296,11 +296,15 @@ Version snapshots flatten nested cell Text nodes; restore creates empty CRDT nod
 then fills them, following the existing two-update restore path (including issue #185).
 
 `/table` or `/표` inserts a 3×3 table above the command paragraph and focuses its first cell.
-The first visible row is always a header. Controls add before/after or delete the selected row
-or column; whole-table deletion uses the existing block confirmation. Tab/Shift+Tab move in
-row order, and Tab at the last cell appends a row. Shift+Tab at the first cell reaches the table
-controls. Enter inserts a cell newline; slash/Markdown text stays literal inside cells. The
-paragraph below and the document's trailing empty paragraph provide a way to continue writing.
+The first visible row is always a header. Controls stay out of the way until the pointer is over
+the table: a grip above each column and beside each row opens a menu to add before/after or
+delete that axis (deletion is disabled at one row or column); a "+" appears under the pointer at
+every column and row boundary, and a bar at the right and bottom edges appends. A hover-only
+"표 삭제" uses the existing block confirmation. After an add or delete, focus returns to a cell
+(the new one, or the neighbour of a deleted selection). Tab/Shift+Tab move in row order, and Tab
+at the last cell appends a row. Shift+Tab at the first cell reaches the table controls. Enter
+inserts a cell newline; slash/Markdown text stays literal inside cells. The paragraph below and
+the document's trailing empty paragraph provide a way to continue writing.
 Cells accept ordinary text paste; no TSV/Markdown conversion, database properties, merged cells,
 column resizing, or sort/filter support is provided.
 

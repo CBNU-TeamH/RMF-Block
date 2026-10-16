@@ -12,6 +12,11 @@ async function insertTable(page: Page) {
   await expect(cell(page)).toBeFocused();
   await expect(table(page).getByRole("row")).toHaveCount(3);
 }
+// Controls appear on hover; Playwright's click hovers first, so a grip menu is two plain clicks.
+async function axisMenu(page: Page, axis: "행" | "열", n: number, item: string) {
+  await table(page).getByRole("button", { name: `${n}${axis} 메뉴`, exact: true }).click();
+  await page.getByRole("menuitem", { name: item, exact: true }).click();
+}
 async function insertAt(page: Page, text: string, offset: number) {
   await cell(page).focus();
   await cell(page).evaluate((el, at) => (el as HTMLTextAreaElement).setSelectionRange(at, at), offset);
@@ -34,10 +39,10 @@ test("table commands, navigation, axis edits and reload preserve text", async ({
   await a.keyboard.insertText("next");
   await cell(a, 3, 3).press("Tab");
   await expect(cell(a, 4, 1)).toBeFocused();
-  await table(a).getByRole("button", { name: "오른쪽에 열 추가" }).click();
+  await axisMenu(a, "열", 1, "오른쪽에 열 추가");
   await expect(cell(a, 4, 2)).toBeFocused();
-  await table(a).getByRole("button", { name: "열 삭제", exact: true }).click();
-  await table(a).getByRole("button", { name: "행 삭제", exact: true }).click();
+  await axisMenu(a, "열", 2, "열 삭제");
+  await axisMenu(a, "행", 4, "행 삭제");
   await expect(table(a).getByRole("row")).toHaveCount(3);
   await expect(cell(a, 3, 3)).toHaveValue("body\nnext");
   await a.reload();
@@ -117,9 +122,9 @@ test("concurrent row/column creation, first intersection edits and deletion/inpu
   };
   await concurrent(async () => {
     await cell(a, 3, 1).focus();
-    await table(a).getByRole("button", { name: "아래에 행 추가" }).click();
+    await axisMenu(a, "행", 3, "아래에 행 추가");
     await cell(b, 1, 3).focus();
-    await table(b).getByRole("button", { name: "오른쪽에 열 추가" }).click();
+    await axisMenu(b, "열", 3, "오른쪽에 열 추가");
   });
   await expect(table(a).locator("textarea")).toHaveCount(16);
   await expect(table(b).locator("textarea")).toHaveCount(16);
@@ -135,7 +140,7 @@ test("concurrent row/column creation, first intersection edits and deletion/inpu
   await expect(cell(b, 4, 4)).toHaveValue("joined");
   await concurrent(async () => {
     await cell(a, 4, 4).focus();
-    await table(a).getByRole("button", { name: "행 삭제", exact: true }).click();
+    await axisMenu(a, "행", 4, "행 삭제");
     await cell(b, 4, 4).fill("deleted-cell-input");
   });
   await expect(table(a).locator("textarea")).toHaveCount(12);
@@ -144,13 +149,13 @@ test("concurrent row/column creation, first intersection edits and deletion/inpu
   expect(await values(a)).not.toContain("deleted-cell-input");
   await expect(cell(b)).toBeFocused();
   await cell(a, 3, 1).focus();
-  await table(a).getByRole("button", { name: "행 삭제", exact: true }).click();
+  await axisMenu(a, "행", 3, "행 삭제");
   await expect(table(b).getByRole("row")).toHaveCount(2);
   await concurrent(async () => {
     await cell(a, 1, 1).focus();
-    await table(a).getByRole("button", { name: "행 삭제", exact: true }).click();
+    await axisMenu(a, "행", 1, "행 삭제");
     await cell(b, 2, 1).focus();
-    await table(b).getByRole("button", { name: "행 삭제", exact: true }).click();
+    await axisMenu(b, "행", 2, "행 삭제");
   });
   await expect(table(a).getByRole("row")).toHaveCount(1);
   await expect(table(b).getByRole("row")).toHaveCount(1);
@@ -160,11 +165,33 @@ test("concurrent row/column creation, first intersection edits and deletion/inpu
   await expect.poll(() => values(a)).toEqual(await values(b));
   await cell(a).fill("fallback kept");
   await expect(cell(b)).toHaveValue("fallback kept");
-  await table(a).getByRole("button", { name: "아래에 행 추가" }).click();
+  await axisMenu(a, "행", 1, "아래에 행 추가");
   await expect(table(a).getByRole("row")).toHaveCount(2);
   await expect(table(b).getByRole("row")).toHaveCount(2);
   await expect(cell(a)).toHaveValue("fallback kept");
   await expect(cell(b)).toHaveValue("fallback kept");
+});
+
+test("hover reveals the boundary and end buttons, and the table can be deleted", async ({ users }) => {
+  const a = (await users.join(0)).page;
+  const document = await createDocument(a, `table hover ${Date.now()}`);
+  await openDocument(a, document);
+  await insertTable(a);
+  const addColumn = table(a).getByRole("button", { name: "오른쪽 끝에 열 추가" });
+  await cell(a).evaluate((el) => (el as HTMLTextAreaElement).blur());
+  await a.mouse.move(0, 0);
+  await expect(addColumn).toHaveCSS("opacity", "0");
+  await cell(a, 2, 2).hover();
+  await expect(addColumn).toHaveCSS("opacity", "1");
+  await addColumn.click();
+  await expect(table(a).locator("textarea")).toHaveCount(12);
+  await table(a).getByRole("button", { name: "아래쪽 끝에 행 추가" }).click();
+  await expect(table(a).locator("textarea")).toHaveCount(16);
+  await table(a).getByRole("button", { name: "2행 앞에 행 추가" }).click();
+  await expect(table(a).locator("textarea")).toHaveCount(20);
+  await table(a).getByRole("button", { name: "표 삭제" }).click();
+  await table(a).getByRole("button", { name: "삭제", exact: true }).click();
+  await expect(table(a)).toHaveCount(0);
 });
 
 test("named revision preview and restore preserve table cells and dimensions", async ({ users }) => {
@@ -187,7 +214,7 @@ test("named revision preview and restore preserve table cells and dimensions", a
   await expect(history.getByRole("table")).toContainText("보존 [표]");
   await a.getByRole("button", { name: "버전 히스토리 닫기" }).click();
   await cell(a, 2, 2).fill("changed");
-  await table(a).getByRole("button", { name: "아래에 행 추가" }).click();
+  await axisMenu(a, "행", 2, "아래에 행 추가");
   await a.getByRole("button", { name: "버전 히스토리", exact: true }).click();
   await history.getByRole("button", { name: /table saved/ }).click();
   await history.getByRole("button", { name: "이 버전으로 복원", exact: true }).click();

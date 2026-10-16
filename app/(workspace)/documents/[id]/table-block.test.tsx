@@ -42,6 +42,8 @@ function fixture() {
   return { table, doc, cell, remote, onDelete };
 }
 
+const focused = () => document.activeElement?.getAttribute("aria-label");
+
 describe("table surface", () => {
   it("focuses the first cell, navigates both ways and appends a row on final Tab", () => {
     const { cell } = fixture();
@@ -55,7 +57,7 @@ describe("table surface", () => {
     assert.equal(document.activeElement, cell(4, 1));
     cell(1, 1).focus();
     fireEvent.keyDown(cell(1, 1), { key: "Tab", shiftKey: true });
-    assert.equal(document.activeElement?.textContent, "위에 행 추가");
+    assert.equal(document.activeElement?.textContent, "표 삭제");
   });
 
   it("keeps Enter, slash and Markdown literal inside cells", () => {
@@ -69,17 +71,44 @@ describe("table surface", () => {
     assert.equal(table.cells[cellKey(table.rows[0], table.columns[0])], "/table\n# heading");
   });
 
-  it("deletes selected axes, moves focus, and disables deletion at 1 by 1", () => {
+  it("adds axes from the boundary and end buttons and focuses the new cell", () => {
+    fixture();
+    fireEvent.click(screen.getByRole("button", { name: "오른쪽 끝에 열 추가" }));
+    assert.equal(screen.getAllByRole("textbox").length, 12);
+    assert.equal(focused(), "1행 4열");
+    fireEvent.click(screen.getByRole("button", { name: "아래쪽 끝에 행 추가" }));
+    assert.equal(focused(), "4행 4열");
+    fireEvent.click(screen.getByRole("button", { name: "2열 앞에 열 추가" }));
+    assert.equal(focused(), "4행 2열");
+    fireEvent.click(screen.getByRole("button", { name: "1행 앞에 행 추가" }));
+    assert.equal(screen.getAllByRole("textbox").length, 25);
+    assert.equal(focused(), "1행 2열");
+  });
+
+  it("opens an axis menu to insert and delete, refocusing the cell, and disables deletion at 1 by 1", () => {
     const { cell } = fixture();
     act(() => cell(2, 2).focus());
-    fireEvent.click(screen.getByRole("button", { name: "행 삭제" }));
-    assert.equal(document.activeElement, cell(2, 2));
-    fireEvent.click(screen.getByRole("button", { name: "행 삭제" }));
-    assert.equal((screen.getByRole("button", { name: "행 삭제" }) as HTMLButtonElement).disabled, true);
-    fireEvent.click(screen.getByRole("button", { name: "열 삭제" }));
-    fireEvent.click(screen.getByRole("button", { name: "열 삭제" }));
+    fireEvent.click(screen.getByRole("button", { name: "2행 메뉴" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "행 삭제" }));
+    assert.equal(screen.queryByRole("menu"), null);
+    assert.equal(focused(), "2행 2열");
+    fireEvent.click(screen.getByRole("button", { name: "2행 메뉴" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "행 삭제" }));
+    fireEvent.click(screen.getByRole("button", { name: "1행 메뉴" }));
+    assert.equal((screen.getByRole("menuitem", { name: "행 삭제" }) as HTMLButtonElement).disabled, true);
+    fireEvent.keyDown(document, { key: "Escape" });
+    assert.equal(screen.queryByRole("menu"), null);
+    fireEvent.click(screen.getByRole("button", { name: "2열 메뉴" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "왼쪽에 열 추가" }));
+    assert.equal(focused(), "1행 2열");
+    assert.equal(screen.getAllByRole("textbox").length, 4);
+    for (let i = 0; i < 3; i++) {
+      fireEvent.click(screen.getByRole("button", { name: "1열 메뉴" }));
+      fireEvent.click(screen.getByRole("menuitem", { name: "열 삭제" }));
+    }
     assert.equal(screen.getAllByRole("textbox").length, 1);
-    assert.equal((screen.getByRole("button", { name: "열 삭제" }) as HTMLButtonElement).disabled, true);
+    fireEvent.click(screen.getByRole("button", { name: "1열 메뉴" }));
+    assert.equal((screen.getByRole("menuitem", { name: "열 삭제" }) as HTMLButtonElement).disabled, true);
   });
 
   it("rebases multiple remote cell changes during a Hangul composition", () => {
