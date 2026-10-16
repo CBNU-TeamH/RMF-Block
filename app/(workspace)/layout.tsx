@@ -33,8 +33,8 @@ import { DOCUMENT_ACTIONS_ID, SIDEBAR_COOKIE } from "./ui";
  * segment: the page inside it is still `/`. `app/join/` stays outside, which is
  * what keeps the join screen free of the shell.
  *
- * The auth gate lives here rather than in the page so every screen in the group
- * inherits it. FR-020-03/04: no session and no host cookie means the join form.
+ * The gate below sends a visitor to the join form (FR-020-03/04). It does not
+ * guard the pages, which render beside it: `readDocumentsOnce()` checks too (#203).
  */
 export default async function WorkspaceLayout({
   children,
@@ -61,7 +61,7 @@ export default async function WorkspaceLayout({
   // join form, so they have no `WorkspaceMember` to publish — see `HOST_PRESENCE`.
   const me = member ?? HOST_PRESENCE;
   const workspaceName = getWorkspaceName();
-  const documents = readDocumentsOnce();
+  const documents = await readDocumentsOnce();
   // Only the identity fields: `lastJoinedAt` has no business in the client payload.
   const known = sessionRegistry.members().map(({ id, nickname, colorTag }) => ({ id, nickname, colorTag }));
 
