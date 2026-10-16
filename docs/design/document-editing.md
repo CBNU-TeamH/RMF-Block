@@ -246,7 +246,18 @@ content = {
 
 No cached title, unlike file blocks. Documents can be renamed/moved (UC-023, FR-021 series), so a cached title would go stale — so the block resolves the name from the catalogue (`GET /api/documents/:id`) and renders an unavailable state when the target is gone.
 
-#### 13. Table block (`type: "table"`)
+### 12. Block link block (`type: "block-link"`)
+
+```
+content = {
+  documentId: string
+  blockId: string   // target block's stable `id`, not its array position
+}
+```
+
+Matches the "문서 ID + 블록 위치 정보" pair used throughout SRS wherever a block reference appears (UC-050, UC-060, UC-070). No cached preview of the target block's content — block content is the highest-churn data in the system, so a cache would go stale faster than anything else considered here.
+
+### 13. Table block (`type: "table"`)
 
 A table is one outer block, so move, delete, occupancy and location still use its block ID.
 Its read model has ordered `rows` and `columns` (UUID strings) and `cells`, keyed by
@@ -292,17 +303,6 @@ controls. Enter inserts a cell newline; slash/Markdown text stays literal inside
 paragraph below and the document's trailing empty paragraph provide a way to continue writing.
 Cells accept ordinary text paste; no TSV/Markdown conversion, database properties, merged cells,
 column resizing, or sort/filter support is provided.
-
-## 12. Block link block (`type: "block-link"`)
-
-```
-content = {
-  documentId: string
-  blockId: string   // target block's stable `id`, not its array position
-}
-```
-
-Matches the "문서 ID + 블록 위치 정보" pair used throughout SRS wherever a block reference appears (UC-050, UC-060, UC-070). No cached preview of the target block's content — block content is the highest-churn data in the system, so a cache would go stale faster than anything else considered here.
 
 ## Editing surface
 
