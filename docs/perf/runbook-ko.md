@@ -67,7 +67,7 @@ v0.0.2 성능 측정(#163, #174)을 사람이 실기기로 운용하는 절차�
   - macOS: Settings → Resources에서 CPU와 메모리 할당량을 확인하고 기록합니다.
 - 이미지를 미리 받아 둡니다. 핫스팟에는 인터넷이 없습니다.
   ```
-  docker pull ghcr.io/cbnu-teamh/rmf-block:0.0.1
+  docker pull ghcr.io/cbnu-teamh/rmf-block:0.0.2
   docker pull yorkieteam/yorkie:0.7.23
   docker pull mongo:8
   docker pull prom/prometheus:v3.5.0
@@ -433,7 +433,7 @@ H의 측정 브라우저는 loopback으로 서버에 붙기 때문에 열화가 
 
 ## 15. 결과 회수와 정리
 
-1. 결과는 H의 `perf-results/<run-id>/`에 남고, 요약은 `pnpm perf:report`가 만든 `summary.md`(표)와 `summary.html`(그래프)입니다. git에는 올리지 않고(gitignore), 다른 곳에도 올리지 않습니다. **결과 요약 PR(docs/perf 폴더의 v0.0.1 요약 파일)이 머지될 때까지 이 폴더를 지우지 않습니다.** 사본이 이것 하나뿐입니다.
+1. 결과는 H의 `perf-results/<run-id>/`에 남고, 요약은 `pnpm perf:report`가 만든 `summary.md`(표)와 `summary.html`(그래프)입니다. git에는 올리지 않고(gitignore), 다른 곳에도 올리지 않습니다. **결과 요약 PR(docs/perf 폴더의 v0.0.2 요약 파일)이 머지될 때까지 이 폴더를 지우지 않습니다.** 사본이 이것 하나뿐입니다.
 2. §5의 운영자 기록을 같은 폴더에 넣습니다.
 3. `docker compose ls`로 측정 프로젝트가 남아 있지 않은지 확인합니다.
 4. G의 브라우저 서버를 종료(`Ctrl+C`)하고, 방화벽 규칙을 지웁니다.

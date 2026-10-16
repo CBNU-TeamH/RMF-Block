@@ -1,14 +1,14 @@
 import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { appendFile, writeFile } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 
-/** The release under measurement, pinned by digest (v0.0.1's release notes). */
+/** The release under measurement, pinned by digest (v0.0.2's release notes). */
 export const APP_IMAGE =
-  "ghcr.io/cbnu-teamh/rmf-block:0.0.1@sha256:11757ccef3076a8b8953cfb6f66b21618eb58d5ecbd1416e9f882864bbf42978";
+  "ghcr.io/cbnu-teamh/rmf-block:0.0.2@sha256:644aeb585e08673d8ce7ea9448a0d99960f5ef271ae0db487d493a62b0e12285";
 
 const exec = promisify(execFile);
 export const docker = async (args: Array<string>, env?: Record<string, string>) =>
@@ -37,7 +37,6 @@ async function free(host: string, port: number) {
 
 type Service = {
   image?: string;
-  entrypoint?: Array<string>;
   container_name?: string;
   restart?: string;
   ports?: Array<object>;
@@ -50,11 +49,10 @@ type Service = {
 export async function stackUp(options: StackOptions): Promise<Stack> {
   await free(options.bind, options.appPort);
   await free(options.bind, options.yorkiePort);
-  // `APP_IMAGE` predates #200 and logs in to Yorkie as admin/admin, so the release it measures
-  // keeps Yorkie's default. A later image refuses to start on it — change this with the pin.
+  // Fresh per round, like the volume, in the shape `scripts/ensure-yorkie-secrets.sh` generates.
   const config = JSON.parse(await docker(
     ["compose", "-f", "docker-compose.yml", "config", "--format", "json"],
-    { YORKIE_ADMIN_PASSWORD: "admin", YORKIE_ADMIN_TOKEN_SECRET: randomUUID() },
+    { YORKIE_ADMIN_PASSWORD: `rmf1-${randomBytes(12).toString("hex")}`, YORKIE_ADMIN_TOKEN_SECRET: randomUUID() },
   )) as {
     name: string;
     services: Record<string, Service>;
@@ -72,8 +70,6 @@ export async function stackUp(options: StackOptions): Promise<Stack> {
     }
   }
   const { app, yorkie } = config.services;
-  // The guard in front of Yorkie refuses that default, so the pinned release runs without it.
-  delete yorkie.entrypoint;
   app.image = APP_IMAGE;
   app.ports = [{ target: 3000, published: String(options.appPort), host_ip: options.bind, protocol: "tcp" }];
   app.environment = {
