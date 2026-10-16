@@ -1,6 +1,6 @@
 # Document Editing — Block Schema
 
-- **Status**: Agreed. All 12 block types finalized; editing surface decided (see [Editing surface](#editing-surface)).
+- **Status**: Agreed. All 13 block types finalized; editing surface decided (see [Editing surface](#editing-surface)).
 - **Owns**: `lib/blocks/`, `lib/documents/`, `app/(workspace)/documents/`, `app/api/documents/`,
   `app/(workspace)/document-list.tsx`, `app/(workspace)/document-actions.tsx`,
   `app/(workspace)/document-row-menu.tsx` (the sidebar's document tree and its row actions).
@@ -28,7 +28,7 @@ Block = { id: string (uuid), type: string, content: <type-specific, see below> }
 
 ## Every text-bearing block wraps its text
 
-All six text-bearing types put the `yorkie.Text` at the same path —
+All six scalar text-bearing types put the `yorkie.Text` at the same path —
 `blocks[i].content.text` — with their own fields as primitives beside it. For
 text, quote and code that wrapper holds nothing else, and it is still there.
 
@@ -246,7 +246,54 @@ content = {
 
 No cached title, unlike file blocks. Documents can be renamed/moved (UC-023, FR-021 series), so a cached title would go stale — so the block resolves the name from the catalogue (`GET /api/documents/:id`) and renders an unavailable state when the target is gone.
 
-### 12. Block link block (`type: "block-link"`)
+#### 13. Table block (`type: "table"`)
+
+A table is one outer block, so move, delete, occupancy and location still use its block ID.
+Its read model has ordered `rows` and `columns` (UUID strings) and `cells`, keyed by
+`rowId_columnId`, holding plain text. Storage uses:
+
+```ts
+content.table = {
+  rows: [{ id: string, deleted?: boolean }],
+  columns: [{ id: string, deleted?: boolean }],
+  cells: [{ rowId: string, columnId: string, text: yorkie.Text }]
+}
+```
+
+Rows, columns and cell fragments are Yorkie arrays. Axis additions insert relative to a stable
+ID; removals mark an axis deleted rather than moving/replacing its cell text. Local deletion
+keeps at least one visible row and column. Concurrent deletions can tombstone every axis: readers
+then expose the first stored axis deterministically, retaining its original cells. Adding beside a fallback axis clears its tombstone in the same transaction so the visible
+survivor remains visible. Undo clears the tombstone and recovers the same text. Hidden axes/cells remain until the table is removed or a
+version restore rebuilds it; this accepts storage growth for the small tables this feature serves.
+
+Initial creation and axis additions allocate empty Text nodes for their known intersections.
+A concurrent row addition and column addition may leave their intersection without a Text node.
+The first edit adds a cell fragment; if two peers both do so, the array preserves both fragments
+and the reader concatenates their text in array order. Subsequent edits map the displayed range
+across those fragments. This avoids overwriting a peer's first input with a competing object-key
+assignment. An edit targeting a deleted axis is ignored; it never shifts to the next row/column.
+
+The dedicated table surface reuses TextBlockView's uncontrolled textarea and IME replay.
+The document subscription routes original Text operations by table/row/column ID, translating
+fragment-local offsets into the displayed cell offsets. It rewinds final fragment lengths and
+replays the event in order, so disjoint edits and repeated characters retain their true positions
+during IME composition. A final text snapshot reconciles structural fragment removals or wholesale
+replacement; it is not used to infer ordinary edit positions. Scalar block text keeps its existing
+operation routing.
+Version snapshots flatten nested cell Text nodes; restore creates empty CRDT nodes first and
+then fills them, following the existing two-update restore path (including issue #185).
+
+`/table` or `/표` inserts a 3×3 table above the command paragraph and focuses its first cell.
+The first visible row is always a header. Controls add before/after or delete the selected row
+or column; whole-table deletion uses the existing block confirmation. Tab/Shift+Tab move in
+row order, and Tab at the last cell appends a row. Shift+Tab at the first cell reaches the table
+controls. Enter inserts a cell newline; slash/Markdown text stays literal inside cells. The
+paragraph below and the document's trailing empty paragraph provide a way to continue writing.
+Cells accept ordinary text paste; no TSV/Markdown conversion, database properties, merged cells,
+column resizing, or sort/filter support is provided.
+
+## 12. Block link block (`type: "block-link"`)
 
 ```
 content = {
@@ -342,11 +389,12 @@ it does not compile.** Measured against the `switch` it replaced: adding a membe
 *one* compile error and *five* silent runtime fallbacks, one of which dropped the block from the
 document. A `default` branch turns "we forgot this type" into a value.
 
-### Four surfaces, not twelve types
+### Editing surfaces by behavior
 
 Renderers branch on a **surface**, not on a type: `text` (edited through one `<textarea>`),
 `embed` (a file rendered in place, bytes behind a `fileId`), `link` (a pointer at another document
-or block), and `none` (the divider). Twelve types collapse into four ways of behaving, and a
+or block), `none` (the divider), and `table` (multiple text cells). Thirteen types collapse into
+five ways of behaving, and a
 renderer written against the surface keeps working when a type is added to a surface it already
 handles.
 
