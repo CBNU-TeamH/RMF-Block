@@ -89,6 +89,8 @@ v0.0.2 성능 측정(#163, #174)을 사람이 실기기로, H 쪽은 Claude와 �
 - 설치 확인으로 한 기기 회차를 한 번 돌립니다(약 4분, Chrome 창이 떴다가 닫힘). `1 passed`면 이미지와 브라우저가 다 있습니다. 결과 폴더는 지워도 됩니다.
   ```
   PERF_SINGLE_MACHINE=1 PERF_USERS=2 PERF_MINUTES=1 pnpm perf
+  # PowerShell: $env:PERF_SINGLE_MACHINE="1"; $env:PERF_USERS="2"; $env:PERF_MINUTES="1"; pnpm perf
+  #             끝나면 Remove-Item Env:PERF_SINGLE_MACHINE, Env:PERF_USERS, Env:PERF_MINUTES
   ```
 
 ### 2.3 네트워크 측정·열화 도구
@@ -240,7 +242,7 @@ H에 Claude Code가 있으면 H 쪽 명령 실행과 감시를 맡길 수 있습
 - **브라우저 서버 주소 회수.** 브라우저 서버 자체는 **사람이 G의 데스크톱 터미널에서** 켭니다. SSH로 띄운 Chrome은 G의 데스크톱에 창이 뜨지 않습니다(Windows는 다른 세션, macOS·Linux는 로그인한 화면과 별개). 출력을 파일로 남겨 두면 Claude가 주소를 읽어 갑니다.
   - bash: `pnpm perf:browser 2>&1 | tee perf-browser.log`
   - PowerShell: `pnpm perf:browser 2>&1 | Tee-Object perf-browser.log`
-  - Claude: `ssh <G 사용자>@<G_IP> "grep PERF_G_WS RMF-Block/perf-browser.log"`. Windows G는 `"powershell -c Select-String PERF_G_WS RMF-Block\perf-browser.log"`(PowerShell 5의 `Tee-Object`가 UTF-16으로 저장해 `findstr`로는 안 읽힘)
+  - Claude: `ssh <G 사용자>@<G_IP> "grep PERF_G_WS <G 저장소 경로>/perf-browser.log"`. Windows G는 `"powershell -c Select-String PERF_G_WS <G 저장소 경로>\perf-browser.log"`(PowerShell 5의 `Tee-Object`가 UTF-16으로 저장해 `findstr`로는 안 읽힘). 저장소 경로는 운영자가 Claude에게 알려 줍니다.
 - **열화 적용·해제(Linux·macOS G).** §12의 `tc` 또는 `dnctl`·`pfctl` 명령을 칸 사이에 Claude가 실행하고, 1분 확인 회차로 적용을 확인합니다. 이 명령들만 비밀번호 없이 sudo로 돌도록 G에 설정합니다(`sudo visudo -f /etc/sudoers.d/rmf-perf`에 그 명령 경로만). Windows G의 Clumsy는 GUI라 사람이 겁니다.
 - 준비: G에 SSH 서버(Windows는 OpenSSH Server, macOS는 원격 로그인, Linux는 `openssh-server`), H의 공개 키 등록, G 방화벽에서 22번은 H 주소에서만 허용.
 - **회차가 도는 동안 G에서는 SSH 명령도 실행하지 않습니다.** G는 네트워크를 거쳐 재는 기기라 H보다 측정값에 민감합니다. 칸과 칸 사이에만 씁니다.
@@ -252,6 +254,7 @@ H에서 실행합니다(2명, 1분). **먼저 H의 터미널에서 연결 변수
 ```
 export HOST_LAN_IP=<H_IP> PERF_G_WS=<G가 알려준 주소>   # PowerShell: $env:HOST_LAN_IP="<H_IP>"; $env:PERF_G_WS="<G가 알려준 주소>"
 PERF_RUN_ID=rehearsal-a PERF_USERS=2 PERF_MINUTES=1 pnpm perf
+# PowerShell: $env:PERF_RUN_ID="rehearsal-a"; $env:PERF_USERS="2"; $env:PERF_MINUTES="1"; pnpm perf
 pnpm perf:report perf-results/rehearsal-a
 ```
 

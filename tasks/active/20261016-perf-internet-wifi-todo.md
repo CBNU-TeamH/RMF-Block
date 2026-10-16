@@ -81,3 +81,8 @@ What has to be true for this task to be finished. Runnable checks beat prose.
 ## Review
 
 Filled in at the end: what shipped, what was cut, what moved to another task.
+
+`/code-review low` (sub-agent in this session) raised four. Fixed: the install-check and rehearsal commands
+now carry the PowerShell form a Windows H needs, and the SSH log read uses `<G 저장소 경로>` instead of assuming
+`RMF-Block`. Left for #193, both in §11 and older than this task: Windows `ping` prints no standard deviation
+for jitter, and §11 says "1~4" over six steps. `/simplify` not run: docs only.
