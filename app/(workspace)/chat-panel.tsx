@@ -43,6 +43,9 @@ export function ChatPanel({ me }: { me: string }) {
 
   const scroller = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
+  // Names this browser's pending sends, nothing more. Not `crypto.randomUUID()`:
+  // guests use plain HTTP on the LAN, which is not a secure context.
+  const nextKey = useRef(0);
 
   // The roster is already in the tree; reusing it means one person is the same
   // colour here as in the document list and the presence stack.
@@ -186,7 +189,7 @@ export function ChatPanel({ me }: { me: string }) {
   function submit() {
     if (!draft.trim() && !file) return;
 
-    send({ key: crypto.randomUUID(), text: draft, file, failed: false });
+    send({ key: String(++nextKey.current), text: draft, file, failed: false });
     setDraft("");
     setFile(null);
     if (picker.current) picker.current.value = "";
