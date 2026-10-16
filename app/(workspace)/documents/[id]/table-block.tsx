@@ -22,6 +22,7 @@ const EDGE = `absolute z-10 flex items-center justify-center rounded text-ink-fa
 const BUTTON = "rounded-control px-2 py-1 text-xs text-ink-soft hover:bg-hover";
 const MENU_ITEM = "flex h-[30px] w-full items-center rounded-control px-2 text-left text-[14px] text-ink outline-none hover:bg-hover focus:bg-hover focus-visible:ring-2 focus-visible:ring-sky-deep focus-visible:ring-inset";
 const MENU_WIDTH_PX = 168;
+const MENU_HEIGHT_PX = 124;
 const MENU_ITEMS = {
   rows: [{ label: "위에 행 추가", before: true }, { label: "아래에 행 추가", before: false }],
   columns: [{ label: "왼쪽에 열 추가", before: true }, { label: "오른쪽에 열 추가", before: false }],
@@ -154,7 +155,8 @@ export function TableBlockView({ block, docRef, registerCellHandler, onChangeAxi
     if (menu?.id === id) return setMenu(null);
     const rect = el.getBoundingClientRect();
     const left = axis === "rows" ? rect.right + 4 : rect.left;
-    setMenu({ axis, id, top: axis === "rows" ? rect.top : rect.bottom + 4, left: Math.min(left, window.innerWidth - MENU_WIDTH_PX - 8) });
+    const top = axis === "rows" ? rect.top : rect.bottom + 4;
+    setMenu({ axis, id, top: Math.max(8, Math.min(top, window.innerHeight - MENU_HEIGHT_PX - 8)), left: Math.min(left, window.innerWidth - MENU_WIDTH_PX - 8) });
   };
   const keepFocus = (event: React.MouseEvent) => event.preventDefault();
 
@@ -222,6 +224,7 @@ export function TableBlockView({ block, docRef, registerCellHandler, onChangeAxi
       {menu && (
         <div ref={menuRef} role="menu" aria-label={`${menu.axis === "rows" ? "행" : "열"} 작업`}
           style={{ top: menu.top, left: menu.left, width: MENU_WIDTH_PX }}
+          onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setMenu(null); }}
           className="fixed z-40 flex flex-col gap-px rounded-card bg-elev p-1 shadow-elev">
           {MENU_ITEMS[menu.axis].map((item) => (
             <button key={item.label} type="button" role="menuitem" className={MENU_ITEM}

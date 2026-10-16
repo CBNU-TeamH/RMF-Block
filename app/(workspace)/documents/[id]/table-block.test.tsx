@@ -111,6 +111,27 @@ describe("table surface", () => {
     assert.equal((screen.getByRole("menuitem", { name: "열 삭제" }) as HTMLButtonElement).disabled, true);
   });
 
+  it("closes the axis menu when focus leaves it, but not between its items", () => {
+    fixture();
+    fireEvent.click(screen.getByRole("button", { name: "2행 메뉴" }));
+    const [first, second] = screen.getAllByRole("menuitem");
+    fireEvent.blur(first, { relatedTarget: second });
+    assert.ok(screen.queryByRole("menu"));
+    fireEvent.blur(second, { relatedTarget: document.body });
+    assert.equal(screen.queryByRole("menu"), null);
+  });
+
+  it("keeps the axis menu inside the viewport near the bottom edge", () => {
+    fixture();
+    vi.spyOn(window, "innerHeight", "get").mockReturnValue(300);
+    const grip = screen.getByRole("button", { name: "2열 메뉴" });
+    vi.spyOn(grip, "getBoundingClientRect").mockReturnValue({ top: 280, bottom: 290, left: 10, right: 40, width: 30, height: 10, x: 10, y: 280, toJSON: () => ({}) });
+    fireEvent.click(grip);
+    const top = Number.parseFloat(screen.getByRole("menu").style.top);
+    assert.ok(top + 124 <= 300 - 8, `menu top ${top} leaves it below the viewport`);
+    vi.restoreAllMocks();
+  });
+
   it("rebases multiple remote cell changes during a Hangul composition", () => {
     const { cell, table, doc, remote } = fixture();
     const el = cell(1, 1);

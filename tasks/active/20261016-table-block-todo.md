@@ -68,3 +68,6 @@ PR #208 feedback: CodeRabbit flagged the table section's heading level and its o
 block-link section in `docs/design/document-editing.md` (fixed: both are `###`, 12 before 13), and
 the owning-docs reminder asked for `docs/design/version-history.md` (a note on how table cells are
 flattened and restored). The controls were then reworked to the Notion-style hover UI (milestone 3).
+CodeRabbit's second pass on the hover controls: the axis menu now closes when focus leaves it (not
+between its items) and is clamped to the viewport vertically. Both are covered by component tests;
+the E2E suite was not re-run for this change because the Docker stack was in use.
