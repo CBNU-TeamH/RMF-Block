@@ -1,6 +1,6 @@
 # 2기기 성능 측정 운용 가이드
 
-v0.0.2 성능 측정(#163, #174)을 사람이 실기기로, H 쪽은 Claude와 함께 운용하는 절차입니다. 무엇을 왜 재는지는
+v0.1.0 성능 측정(#163, #174, #191)을 사람이 실기기로, H 쪽은 Claude와 함께 운용하는 절차입니다. 무엇을 왜 재는지는
 [측정 기준 문서](../PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md), 하네스 코드는 `e2e/perf/`에 있습니다. 이 문서는
 직접 기기를 다루는 팀원을 위해 한국어로 씁니다(`AGENTS.md` §5). 리허설에서 고칠 점이 나오면 이 파일을 고칩니다.
 
@@ -74,7 +74,7 @@ v0.0.2 성능 측정(#163, #174)을 사람이 실기기로, H 쪽은 Claude와 �
   - macOS: Settings → Resources에서 CPU와 메모리 할당량을 확인하고 기록합니다.
 - 이미지를 미리 받아 둡니다. 앱 이미지는 하네스가 고정한 digest 그대로 받습니다.
   ```
-  docker pull ghcr.io/cbnu-teamh/rmf-block:0.0.2@sha256:644aeb585e08673d8ce7ea9448a0d99960f5ef271ae0db487d493a62b0e12285
+  docker pull ghcr.io/cbnu-teamh/rmf-block:0.1.0@sha256:b14f53c05ca2e9e3e54a55725e59eceeed0f822458d4daca4611f2723c58a9b1
   docker pull yorkieteam/yorkie:0.7.23
   docker pull mongo:8
   docker pull prom/prometheus:v3.5.0
@@ -488,7 +488,7 @@ H의 측정 브라우저는 loopback으로 서버에 붙기 때문에 열화가 
 
 ## 15. 결과 회수와 정리
 
-1. 결과는 H의 `perf-results/<run-id>/`에 남고, 요약은 `pnpm perf:report`가 만든 `summary.md`(표)와 `summary.html`(그래프)입니다. git에는 올리지 않고(gitignore), 다른 곳에도 올리지 않습니다. **결과 요약 PR(docs/perf 폴더의 v0.0.2 요약 파일)이 머지될 때까지 이 폴더를 지우지 않습니다.** 사본이 이것 하나뿐입니다.
+1. 결과는 H의 `perf-results/<run-id>/`에 남고, 요약은 `pnpm perf:report`가 만든 `summary.md`(표)와 `summary.html`(그래프)입니다. git에는 올리지 않고(gitignore), 다른 곳에도 올리지 않습니다. **결과 요약 PR(docs/perf 폴더의 v0.1.0 요약 파일)이 머지될 때까지 이 폴더를 지우지 않습니다.** 사본이 이것 하나뿐입니다.
 2. §5의 운영자 기록을 같은 폴더에 넣습니다.
 3. `docker compose ls`로 측정 프로젝트가 남아 있지 않은지 확인합니다.
 4. G의 브라우저 서버를 종료(`Ctrl+C`)하고, 방화벽 규칙을 지웁니다.
