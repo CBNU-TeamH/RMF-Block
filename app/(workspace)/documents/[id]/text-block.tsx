@@ -3,6 +3,7 @@
 import type { Document } from "@yorkie-js/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { cellKey, editTableCell, type CellAddress, type CellChange } from "@/lib/blocks/table";
 import { detectMarkdownShortcut, type MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
 import {
   detectSlashQuery,
@@ -82,6 +83,7 @@ function textareaClass(variant: BlockVariant): string {
  *  editing. The DOM node's `.value` is the source of truth once it exists. */
 export function TextBlockView({
   blockId,
+  cellBinding,
   initialText,
   variant,
   docRef,
@@ -100,6 +102,11 @@ export function TextBlockView({
   onHistory,
 }: {
   blockId: BlockId;
+  cellBinding?: CellAddress & {
+    label: string;
+    register: (key: string, handler: (change: CellChange) => void) => () => void;
+    onTab: (backwards: boolean) => void;
+  };
   initialText: string;
   variant: BlockVariant;
   docRef: React.RefObject<Document<BlockDocumentRoot> | null>;
@@ -202,7 +209,7 @@ export function TextBlockView({
   const syncSlashQuery = (el: HTMLTextAreaElement) => {
     // Every type but code, where `/` is source text (`docs/design/
     // document-editing.md`, "Leaving a code block").
-    const query = variant.type === "code" ? null : detectSlashQuery(el.value);
+    const query = cellBinding || variant.type === "code" ? null : detectSlashQuery(el.value);
     if (query !== slashQuery) setSlash(query);
   };
 
@@ -265,7 +272,7 @@ export function TextBlockView({
   };
 
   useEffect(() => {
-    return registerRemoteHandler(blockId, (op) => {
+    const applyRemote = (op: TextPatch) => {
       const el = textareaRef.current;
       if (!el) return;
 
@@ -274,6 +281,19 @@ export function TextBlockView({
         return;
       }
       patchRange(el, op);
+    };
+    if (!cellBinding) return registerRemoteHandler(blockId, applyRemote);
+
+    if (textareaRef.current) autoGrow(textareaRef.current);
+    return cellBinding.register(`${blockId}:${cellKey(cellBinding.rowId, cellBinding.columnId)}`, (change) => {
+      if (!("text" in change)) return applyRemote(change);
+      let baseline = lastSyncedRef.current;
+      for (const op of pendingRemoteRef.current) {
+        baseline = baseline.slice(0, op.from) + op.value.content + baseline.slice(op.to);
+      }
+      if (baseline === change.text) return;
+      const diff = diffRange(baseline, change.text);
+      applyRemote({ from: diff.from, to: diff.to, value: { content: diff.value } });
     });
     // `registerRemoteHandler` is stable for the block's lifetime (see
     // editor.tsx); `blockId` never changes for a mounted instance either,
@@ -289,7 +309,8 @@ export function TextBlockView({
     const { from, to, value } = diffRange(current, newValue);
     try {
       doc.update((root: BlockDocumentRoot) => {
-        editBlockText(root.blocks as BlockArray, blockId, from, to, value);
+        if (cellBinding) editTableCell(root.blocks as BlockArray, blockId, cellBinding, from, to, value);
+        else editBlockText(root.blocks as BlockArray, blockId, from, to, value);
       });
     } catch (error) {
       // A peer removed this block mid-keystroke. The baseline deliberately
@@ -346,6 +367,7 @@ export function TextBlockView({
     <>
       <textarea
         ref={setTextareaRef}
+        aria-label={cellBinding?.label}
       defaultValue={initialText}
       rows={1}
       onKeyDown={(event) => {
@@ -392,6 +414,14 @@ export function TextBlockView({
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
           event.preventDefault();
           onHistory(event.shiftKey ? "redo" : "undo");
+          return;
+        }
+
+        if (cellBinding) {
+          if (event.key === "Tab" && !composing) {
+            event.preventDefault();
+            cellBinding.onTab(event.shiftKey);
+          }
           return;
         }
 
@@ -469,7 +499,7 @@ export function TextBlockView({
 
         // Plain text only, unlike the `/` menu — a marker in a heading asks for
         // a conversion that already happened (`document-editing.md`, same section).
-        const shortcut = variant.type === "text" ? detectMarkdownShortcut(el.value) : null;
+        const shortcut = !cellBinding && variant.type === "text" ? detectMarkdownShortcut(el.value) : null;
         if (shortcut) {
           onMarkdownShortcut(blockId, shortcut);
           // The parent clears this block's text as part of the conversion;
@@ -486,6 +516,7 @@ export function TextBlockView({
         onTextCommitted();
       }}
       onPaste={(event) => {
+        if (cellBinding) return;
         const text = event.clipboardData.getData("text/plain");
         // Only a newline makes this a block operation (`document-editing.md`,
         // "Pasting more than one line").
@@ -518,8 +549,8 @@ export function TextBlockView({
       // what it is, and a hint on each of them at once is noise. `focus:` so
       // it marks the one block being typed in rather than every empty one —
       // the `/` menu shipped in #63 with nothing in the UI naming it.
-      placeholder={variant.type === "text" ? "'/'를 입력해 명령어 사용" : undefined}
-      className={`min-w-0 flex-1 resize-none overflow-hidden px-0.5 py-0.5 outline-none placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
+      placeholder={!cellBinding && variant.type === "text" ? "'/'를 입력해 명령어 사용" : undefined}
+      className={`${cellBinding ? "w-full" : ""} min-w-0 flex-1 resize-none overflow-hidden px-0.5 py-0.5 outline-none placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
       />
 
       {/* Absolutely positioned against the block row, which is already
