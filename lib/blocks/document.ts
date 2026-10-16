@@ -1,5 +1,7 @@
 import { Text } from "@yorkie-js/sdk";
 
+import { readTable, storeTable, type StoredTable } from "./table.ts";
+
 import { MAX_LIST_DEPTH } from "./types.ts";
 import type {
   Block,
@@ -32,12 +34,14 @@ export type ReadableBlock = {
   content?: ReadableContent;
 };
 
-export type ReadableContent = Omit<StoredContent, "text"> & {
+export type ReadableContent = Omit<StoredContent, "text" | "table"> & {
+  table?: StoredTable<{ toString(): string }>;
   text?: { toString(): string };
 };
 
 /** The union of every field any block type can hold, all optional. */
 export type StoredContent = {
+  table?: StoredTable;
   text?: Text;
   level?: HeadingLevel;
   style?: ListStyle;
@@ -106,6 +110,9 @@ function readBlock(stored: ReadableBlock | null): Block | null {
   const { id, content } = stored;
 
   switch (stored.type) {
+    case "table":
+      return { id, type: "table", ...readTable(content?.table) };
+
     case "text":
       return { id, type: "text", text: textOf(content) };
 
@@ -191,12 +198,12 @@ function readBlock(stored: ReadableBlock | null): Block | null {
   }
 }
 
-/** The reverse of `readBlock`. Text becomes a live, empty `yorkie.Text`, never
- *  the plain string a `Block` carries — this only creates the CRDT, and filling
- *  it is `editBlockText`'s job. Exhaustive over all twelve types, not just the eleven
- *  `create.ts` builds today, so a creator for `block-link` finds this ready. */
+/** Creates empty CRDT text nodes; fill after insertion (docs/design/document-editing.md). */
 export function toStoredBlock(block: Block): StoredBlock {
   switch (block.type) {
+    case "table":
+      return { id: block.id, type: "table", content: { table: storeTable(block) } };
+
     case "text":
     case "quote":
     case "code":

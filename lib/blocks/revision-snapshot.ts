@@ -79,12 +79,22 @@ function flattenText(stored: unknown): ReadableBlock | null {
   if (!stored || typeof stored !== "object") return null;
 
   const block = stored as ReadableBlock & { content?: { text?: unknown } };
+  if (block.type === "table" && block.content?.table) {
+    const table = block.content.table;
+    if (Array.isArray(table.cells)) {
+      return { ...block, content: { ...block.content, table: { ...table,
+        cells: table.cells.map((cell) => cell && ({ ...cell, text: flattenNodes(cell.text) })),
+      } } };
+    }
+  }
   const nodes = block.content?.text;
   if (!Array.isArray(nodes)) return block;
 
-  const text = (nodes as Array<SnapshotTextNode>)
-    .map((node) => (typeof node?.val === "string" ? node.val : ""))
-    .join("");
+  return { ...block, content: { ...block.content, text: flattenNodes(nodes) } };
+}
 
-  return { ...block, content: { ...block.content, text } };
+function flattenNodes(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return "";
+  return (value as Array<SnapshotTextNode>).map((node) => (typeof node?.val === "string" ? node.val : "")).join("");
 }

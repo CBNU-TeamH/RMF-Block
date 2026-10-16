@@ -14,6 +14,7 @@ import type {
   PdfBlock,
   QuoteBlock,
   TextBlock,
+  TableBlock,
 } from "./types.ts";
 
 /** New blocks of the eight types this project can create today. **No factory
@@ -114,4 +115,13 @@ export function createFile(file: {
   size: number;
 }): FileBlock {
   return { id: newBlockId(), type: "file", ...file };
+}
+
+export function createTable(): TableBlock {
+  return {
+    id: newBlockId(), type: "table",
+    rows: Array.from({ length: 3 }, newBlockId),
+    columns: Array.from({ length: 3 }, newBlockId),
+    cells: {},
+  };
 }

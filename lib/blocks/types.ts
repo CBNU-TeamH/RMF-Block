@@ -1,4 +1,4 @@
-/** The twelve block types of `docs/SRS-ko.md` §4.1, as the app *reads* them.
+/** The thirteen block types of `docs/SRS-ko.md` §4.1, as the app *reads* them.
  *  **Read-only.** A block's text is a `yorkie.Text`; assigning a string over one
  *  erases what a peer typed instead of merging, so writes go through
  *  `operations.ts`. Stored shapes: `docs/design/document-editing.md`. */
@@ -112,7 +112,15 @@ export type BlockLinkBlock = BlockBase & {
   blockId: BlockId;
 };
 
+export type TableBlock = BlockBase & {
+  type: "table";
+  rows: Array<string>;
+  columns: Array<string>;
+  cells: Record<string, string>;
+};
+
 export type Block =
+  | TableBlock
   | TextBlock
   | HeadingBlock
   | ListBlock

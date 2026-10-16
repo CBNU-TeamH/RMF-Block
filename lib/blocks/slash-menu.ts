@@ -1,11 +1,12 @@
 import type { TypeFields } from "./operations.ts";
 
 /** The `/` menu — UC-022's own way in ("사용자 1이 '/'로 파일 블록을 선택하거나").
- *  Markdown markers reach only six of the twelve types and a divider had no way
+ *  Markdown markers reach only six scalar types and a divider had no way
  *  in at all. Apart from React because this is the part worth testing. */
 
 /** What picking an item does. The editor owns the doing; this only names it. */
 export type SlashAction =
+  | { kind: "table" }
   /** Change this block's type in place, keeping its id and its `yorkie.Text`. */
   | { kind: "convert"; fields: TypeFields }
   /** Put a divider above this block and leave the caret where it is. */
@@ -105,6 +106,10 @@ export const SLASH_ITEMS: Array<SlashItem> = [
     hint: "코드를 적는 블록",
     keywords: ["snippet", "소스"],
     action: { kind: "convert", fields: { type: "code" } },
+  },
+  {
+    id: "table", label: "표", name: "table", hint: "행과 열로 정리하는 단순 표",
+    keywords: ["grid", "테이블"], action: { kind: "table" },
   },
   {
     id: "divider",

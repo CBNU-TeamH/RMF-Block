@@ -26,6 +26,7 @@ import type { Block, BlockType } from "./types.ts";
 /** Every type in `docs/design/document-editing.md` §4.1, written out. A test
  *  that derived this list from `BLOCK_KINDS` would agree with itself. */
 const ALL_TYPES: Array<BlockType> = [
+  "table",
   "text",
   "heading",
   "list",
@@ -50,7 +51,7 @@ const TEXT_BEARING: Array<BlockType> = [
 ];
 
 describe("BLOCK_KINDS", () => {
-  it("covers the twelve types and nothing else", () => {
+  it("covers the thirteen types and nothing else", () => {
     assert.deepEqual(Object.keys(BLOCK_KINDS).sort(), [...ALL_TYPES].sort());
   });
 
