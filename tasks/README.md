@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Perf campaign on an internet Wi-Fi, run with Claude](active/20261016-perf-internet-wifi-todo.md) | [lessons](active/20261016-perf-internet-wifi-lessons.md) |
 | [Perf harness measures v0.0.2](active/20261015-perf-pin-0.0.2-todo.md) | [lessons](active/20261015-perf-pin-0.0.2-lessons.md) |
 | [Admin and user-location E2E after admin integration](active/20261007-admin-e2e-todo.md) | [lessons](active/20261007-admin-e2e-lessons.md) |
 
