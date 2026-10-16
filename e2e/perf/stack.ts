@@ -6,9 +6,9 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 
-/** The release under measurement, pinned by digest (v0.0.2's release notes). */
+/** The release under measurement, pinned by digest (v0.1.0's release notes). */
 export const APP_IMAGE =
-  "ghcr.io/cbnu-teamh/rmf-block:0.0.2@sha256:644aeb585e08673d8ce7ea9448a0d99960f5ef271ae0db487d493a62b0e12285";
+  "ghcr.io/cbnu-teamh/rmf-block:0.1.0@sha256:b14f53c05ca2e9e3e54a55725e59eceeed0f822458d4daca4611f2723c58a9b1";
 
 const exec = promisify(execFile);
 export const docker = async (args: Array<string>, env?: Record<string, string>) =>
