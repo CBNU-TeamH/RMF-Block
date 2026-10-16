@@ -37,6 +37,10 @@ describe("detectSlashQuery", () => {
 });
 
 describe("slashMenuItems", () => {
+  it("finds the table command in English and Korean", () => {
+    assert.deepEqual(slashMenuItems("table").map((item) => item.action), [{ kind: "table" }]);
+    assert.deepEqual(slashMenuItems("표").map((item) => item.action), [{ kind: "table" }]);
+  });
   it("shows the whole menu for a bare slash", () => {
     assert.equal(slashMenuItems("").length, SLASH_ITEMS.length);
   });

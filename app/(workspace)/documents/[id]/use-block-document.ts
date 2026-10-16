@@ -1,6 +1,7 @@
 import type { Client } from "@yorkie-js/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { cellKey, fillTable, readTable, tableCellPatches, type CellChange } from "@/lib/blocks/table";
 import { createText } from "@/lib/blocks/create";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot } from "@/lib/blocks/document";
 import { editBlockText, type BlockArray } from "@/lib/blocks/operations";
@@ -21,6 +22,8 @@ import {
   OCCUPANCY_TICK_MS,
   type Occupant,
 } from "@/lib/presence/occupancy";
+
+const TABLE_CELL_TEXT = /\.content\.table\.cells\.\d+\.text$/;
 
 /** One document's blocks and the Yorkie attachment behind them. `setBlocks` is
  *  returned because an ordinary local edit is the caller's to apply and
@@ -49,6 +52,12 @@ export function useBlockDocument(
   // Each mounted text block's "apply this to your textarea". Fed by remote
   // edits below and by the editor's own split/merge through `patchBlockText`.
   const handlersRef = useRef(new Map<BlockId, (patch: TextPatch) => void>());
+
+  const cellHandlersRef = useRef(new Map<string, (change: CellChange) => void>());
+  const registerCellHandler = useCallback((key: string, handler: (change: CellChange) => void) => {
+    cellHandlersRef.current.set(key, handler);
+    return () => { cellHandlersRef.current.delete(key); };
+  }, []);
 
   // `useCallback` so the identity really is stable for a block's lifetime, which
   // is what `text-block.tsx`'s effect already assumes of it.
@@ -135,7 +144,12 @@ export function useBlockDocument(
         for (const op of event.value.operations) {
           if (op.type === "edit") {
             const index = blockIndexFromEditPath(op.path);
-            if (index === null) continue;
+            if (index === null) {
+              // A table cell's text is patched through its handler below; only an
+              // unmounted cell falls back to a rebuild.
+              if (touchesBlockList(op.path) && !TABLE_CELL_TEXT.test(op.path)) needsRecompute = true;
+              continue;
+            }
 
             const id = doc.getRoot().blocks[index]?.id;
             const handler = id ? handlersRef.current.get(id) : undefined;
@@ -158,6 +172,23 @@ export function useBlockDocument(
           }
         }
 
+        const edits = event.value.operations.filter((op) => op.type === "edit");
+        const touchedTables = event.value.operations.some((op) => op.path.includes(".content.table"));
+        for (const { key, patch } of tableCellPatches(doc.getRoot().blocks, edits)) {
+          const handler = cellHandlersRef.current.get(key);
+          if (handler) handler(patch);
+          else needsRecompute = true;
+        }
+        for (const block of touchedTables ? doc.getRoot().blocks : []) {
+          if (block?.type !== "table") continue;
+          const table = readTable(block.content?.table);
+          for (const row of table.rows) {
+            for (const column of table.columns) {
+              const key = cellKey(row, column);
+              cellHandlersRef.current.get(`${block.id}:${key}`)?.({ text: table.cells[key] ?? "" });
+            }
+          }
+        }
         if (needsRecompute) setBlocks(readBlocks(doc.getRoot().blocks));
       });
 
@@ -269,6 +300,7 @@ export function useBlockDocument(
     });
     doc.update((root: BlockDocumentRoot) => {
       next.forEach((block) => {
+        if (block.type === "table") fillTable(root.blocks as BlockArray, block);
         const text = "text" in block ? block.text : "";
         if (text) editBlockText(root.blocks as BlockArray, block.id, 0, 0, text);
       });
@@ -286,6 +318,7 @@ export function useBlockDocument(
     failed,
     docRef,
     registerRemoteHandler,
+    registerCellHandler,
     patchBlockText,
     replaceBlocks,
     restoreCount,

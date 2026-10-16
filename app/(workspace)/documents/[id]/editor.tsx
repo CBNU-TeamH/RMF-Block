@@ -13,7 +13,9 @@ import {
   createList,
   createQuote,
   createText,
+  createTable,
 } from "@/lib/blocks/create";
+import { deleteTableAxis, insertTableAxis } from "@/lib/blocks/table";
 import { BLOCK_KINDS, continuationBlock, isTextBearing } from "@/lib/blocks/registry";
 import type { SlashAction } from "@/lib/blocks/slash-menu";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot, type StoredBlock } from "@/lib/blocks/document";
@@ -52,6 +54,7 @@ import { FileBlockView } from "./file-block";
 import { ImageBlockView } from "./image-block";
 import { InkOverlay } from "./ink-overlay";
 import { PdfBlockView } from "./pdf-block";
+import { TableBlockView } from "./table-block";
 import { TextBlockView, type BlockVariant } from "./text-block";
 import { useBlockDocument } from "./use-block-document";
 import { VersionHistory } from "./version-history";
@@ -151,6 +154,7 @@ export function DocumentEditor({
     failed,
     docRef,
     registerRemoteHandler,
+    registerCellHandler,
     patchBlockText,
     replaceBlocks,
     restoreCount,
@@ -158,6 +162,7 @@ export function DocumentEditor({
     occupantByBlock,
     setActiveBlockId,
   } = useBlockDocument(client, documentId, colorTag, nickname);
+  const [tableFocusId, setTableFocusId] = useState<string | null>(null);
   // Opacity feedback only. Cleared on `dragend` as well as on drop — a drag
   // cancelled outside any block never fires `onDrop`.
   const [draggedId, setDraggedId] = useState<BlockId | null>(null);
@@ -439,6 +444,13 @@ export function DocumentEditor({
       applyEdit((_root, blocks) =>
         changeBlockType(blocks, blockId, preservingDepth(action.fields, blockOf(blockId))),
       );
+      return;
+    }
+
+    if (action.kind === "table") {
+      const table = createTable();
+      setTableFocusId(table.id);
+      applyEdit((_root, blocks) => insertBlockAfter(blocks, idBeforeInOrder(order, blockId), toStoredBlock(table)));
       return;
     }
 
@@ -809,6 +821,27 @@ export function DocumentEditor({
     const surface = BLOCK_KINDS[block.type].surface;
 
     switch (surface) {
+      case "table":
+        return block.type === "table" ? (
+          <TableBlockView block={block} docRef={docRef} registerCellHandler={registerCellHandler}
+            autoFocus={tableFocusId === block.id}
+            onChangeAxis={(axis, anchor, before) => {
+              let id: string | null = null;
+              applyEdit((_root, blocks) => { id = insertTableAxis(blocks, block.id, axis, anchor, before); });
+              return id;
+            }}
+            onDeleteAxis={(axis, id) => { applyEdit((_root, blocks) => deleteTableAxis(blocks, block.id, axis, id)); }}
+            onDelete={() => handleDeleteBlock(block.id)} onHistory={history}
+            onTextCommitted={ensureTrailingEmptyBlock}
+            onFocusBlock={(blockId) => {
+              if (blockId === tableFocusId) setTableFocusId(null);
+              setActiveBlockId(blockId);
+              if (blockId && blockId !== lastLocatedBlockRef.current) {
+                lastLocatedBlockRef.current = blockId;
+                setLocation({ documentId, blockId });
+              }
+            }} />
+        ) : <UnsupportedBlock type={block.type} />;
       case "embed":
         // All three embeds render now (FR-022-13, FR-022-14). Which one a file
         // becomes is decided from its bytes at upload, never from what the

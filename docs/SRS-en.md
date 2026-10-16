@@ -1501,6 +1501,7 @@ The gaps in numbering (05, 07, 08, 10, 11) are confirmed intentional — no requ
 | PDF block | A block for showing a PDF file as a preview inside a document |
 | Document link block | A link block that navigates to another document in the workspace |
 | Block link block | A link block that references a specific block's location |
+| Table block | A simple editable grid with a header row, text cells, row/column insertion and deletion, and keyboard cell navigation |
 
 ## 4.2. (Appendix) Web Browser Versions
 

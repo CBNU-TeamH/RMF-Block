@@ -1,14 +1,16 @@
 import { createChecklist, createList, createQuote, createText } from "./create.ts";
 import type { Block, BlockType } from "./types.ts";
 
-/** One table per block type, so a thirteenth cannot be half-done. Why a
- *  `Record` and not a `switch`, and why four surfaces rather than twelve types:
+/** One table per block type, so a new type cannot be half-done. Why a
+ *  `Record` and not a `switch`, and why dedicated surfaces:
  *  `docs/design/document-editing.md`. */
 
 /** How a block is edited and drawn — the only thing renderers branch on. */
 export type BlockSurface =
   /** Edits through `TextBlockView`'s one `<textarea>`. */
   | "text"
+  /** A grid of independently edited text cells. */
+  | "table"
   /** A file rendered in place, with the bytes behind a `fileId`. */
   | "embed"
   /** A pointer at another document or block. */
@@ -27,6 +29,7 @@ type Kind<K extends BlockType> = {
 };
 
 export const BLOCK_KINDS: { [K in BlockType]: Kind<K> } = {
+  table: { surface: "table" },
   text: { surface: "text" },
   heading: { surface: "text" },
   list: { surface: "text", continuation: (block) => createList(block.style, block.depth) },

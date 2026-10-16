@@ -75,6 +75,8 @@ and the blocks are written back with two `doc.update()` calls — the array firs
 `yorkie.Text` values (`toStoredBlock` already does exactly this), then each text filled, because a
 `Text` cannot be edited before it is in the tree.
 
+A table block keeps each cell's `Text` nested under `content.table.cells`. `revision-snapshot.ts` flattens those nodes into the cell strings, and the second update fills them with `fillTable` after the empty nodes exist ([`document-editing.md`](document-editing.md), "Table block").
+
 Four consequences, all of them simplifications:
 
 - The stored schema keeps `type`. No rename, no migration, no ADR-007 change.

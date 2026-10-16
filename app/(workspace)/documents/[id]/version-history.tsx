@@ -1,5 +1,7 @@
 "use client";
 
+import { TablePreview } from "./table-block";
+
 import type { Client, Document } from "@yorkie-js/sdk";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -498,6 +500,8 @@ function PreviewBlocks({ blocks }: { blocks: Array<Block> }) {
 
 function PreviewBlock({ block, number }: { block: Block; number: number }) {
   switch (block.type) {
+    case "table":
+      return <TablePreview block={block} />;
     case "heading":
       return <p className={`text-ink ${HEADING_CLASS[block.level]}`}>{block.text}</p>;
 
