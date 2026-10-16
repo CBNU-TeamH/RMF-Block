@@ -86,3 +86,10 @@ Filled in at the end: what shipped, what was cut, what moved to another task.
 now carry the PowerShell form a Windows H needs, and the SSH log read uses `<G 저장소 경로>` instead of assuming
 `RMF-Block`. Left for #193, both in §11 and older than this task: Windows `ping` prints no standard deviation
 for jitter, and §11 says "1~4" over six steps. `/simplify` not run: docs only.
+
+CodeRabbit raised two, both adopted. Docker-published ports skip ufw, so a Linux H now limits 3000/8080 to G
+in `DOCKER-USER` (`-i <wlan>`, so traffic between a round's containers is untouched) and checks from another
+device that they stay closed. A macOS G now limits 9333 to H with a pf anchor named `com.apple/rmf-perf`; §12's macOS
+commands, which replace the pf ruleset, carry the same block line and no longer switch pf off between cells.
+On this Windows H the Hyper-V firewall's default inbound action for WSL is Block, so the G-only rule there is
+the only way in.

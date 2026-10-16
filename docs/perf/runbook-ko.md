@@ -137,13 +137,22 @@ v0.0.2 성능 측정(#163, #174)을 사람이 실기기로, H 쪽은 Claude와 �
        New-NetFirewallHyperVRule -Name "RMF-perf-WSL" -DisplayName "RMF-perf WSL" -Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -Protocol TCP -LocalPorts 3000,8080 -RemoteAddresses <G_IP> -Action Allow
        ```
      - macOS: 시스템 설정 → 네트워크 → 방화벽이 켜져 있으면 Docker의 수신 연결을 허용합니다.
-     - Linux: ufw가 켜져 있으면 `sudo ufw allow from <G_IP> to any port 3000,8080 proto tcp`. Docker가 publish한 포트는 ufw 규칙과 관계없이 열리므로, 관측 스택(Grafana, metrics)은 반드시 `127.0.0.1`에만 바인드합니다(#192).
+     - Linux: Docker가 publish한 포트는 ufw 규칙을 거치지 않으므로 ufw로는 G만 허용할 수 없습니다. Docker의 `DOCKER-USER` 체인에서 측정 Wi-Fi로 들어오는 G 외의 연결을 버립니다(`<wlan>`은 측정 Wi-Fi 인터페이스. `-i <wlan>`이 있어 회차 컨테이너끼리의 통신은 걸리지 않습니다).
+       ```
+       sudo iptables -I DOCKER-USER -i <wlan> -p tcp -m multiport --dports 3000,8080 ! -s <G_IP> -j DROP
+       ```
+       적용한 뒤 G가 아닌 기기(휴대폰)로 `http://<H_IP>:3000/join`이 **열리지 않는지** 확인합니다. 열리면 IPv6로 들어온 것일 수 있으니 같은 규칙을 `ip6tables`(G의 IPv6 주소)로도 넣습니다. 같은 이유로 관측 스택(Grafana, metrics)은 반드시 `127.0.0.1`에만 바인드합니다(#192).
    - **G**: 브라우저 서버 포트 `9333`, H에서만
      - Windows:
        ```
        New-NetFirewallRule -DisplayName "RMF-perf G" -Direction Inbound -Protocol TCP -LocalPort 9333 -RemoteAddress <H_IP> -Action Allow -Profile Private
        ```
-     - macOS: node의 수신 연결을 허용합니다. 주소를 좁힐 수 없으므로 브라우저 서버는 측정하는 동안만 켭니다.
+     - macOS: 방화벽이 켜져 있으면 node의 수신 연결을 허용하고, 내장 pf로 H 외의 주소를 막습니다. anchor 이름이 `com.apple`로 시작해서 기본 규칙(`/etc/pf.conf`)이 자동으로 읽습니다.
+       ```
+       echo "block in quick proto tcp from ! <H_IP> to any port 9333" | sudo pfctl -a com.apple/rmf-perf -f -
+       sudo pfctl -e
+       ```
+       적용한 뒤 H가 아닌 기기에서 `<G_IP>:9333`에 연결되지 않는지 확인합니다. §12의 macOS 열화 명령은 pf 규칙 전체를 바꾸므로 그 명령에도 이 차단 줄이 들어 있습니다.
      - Linux: ufw가 켜져 있으면 `sudo ufw allow from <H_IP> to any port 9333 proto tcp`
    - 주소가 바뀌면 규칙을 지우고(§15) 새 주소로 다시 만듭니다.
 4. **G에서 도달을 확인합니다.** 스택이 떠 있을 때(§6) 합니다.
@@ -215,7 +224,7 @@ pnpm perf:browser
 
 - 화면에 Chrome 창이 하나 뜹니다. **건드리지 않습니다.**
 - 터미널에 연결 주소(`ws://<G_IP>:<포트>/…`)가 출력되면 H 운영자에게 전달합니다. 주소는 자동으로 찾지 않으므로, H 운영자가 `PERF_G_WS`로 넘깁니다(부록).
-- 측정이 끝나면 이 터미널에서 `Ctrl+C`로 **반드시 종료합니다.** 켜 두는 동안에는 방화벽(§3.1)이 허용한 주소에서 이 브라우저를 조종할 수 있고, 규칙을 좁히지 못한 macOS에서는 같은 네트워크의 누구나 그렇습니다.
+- 측정이 끝나면 이 터미널에서 `Ctrl+C`로 **반드시 종료합니다.** 켜 두는 동안에는 방화벽(§3.1)이 허용한 주소(H)에서 이 브라우저를 조종할 수 있습니다. 그 규칙 없이 켜면 같은 네트워크의 누구나 조종할 수 있으니, §3.1의 G 규칙을 먼저 만듭니다.
 
 ## 7.1 Claude와 함께 운용하기 (H)
 
@@ -368,16 +377,16 @@ pnpm perf:report perf-results/rehearsal-a
 ```
 sudo dnctl pipe 1 config delay <RTT추가÷2>ms plr <손실÷2, 예: 0.005> bw <대역폭>Mbit/s
 sudo dnctl pipe 2 config delay <RTT추가÷2>ms plr <손실÷2> bw <대역폭>Mbit/s
-printf 'dummynet out proto tcp from any to <H_IP> port {3000, 8080} pipe 1\ndummynet in proto tcp from <H_IP> port {3000, 8080} to any pipe 2\n' | sudo pfctl -f -
+printf 'block in quick proto tcp from ! <H_IP> to any port 9333\ndummynet out proto tcp from any to <H_IP> port {3000, 8080} pipe 1\ndummynet in proto tcp from <H_IP> port {3000, 8080} to any pipe 2\n' | sudo pfctl -f -
 sudo pfctl -e
 # 해제
 sudo pfctl -f /etc/pf.conf
-sudo pfctl -d
 sudo dnctl -q flush
 ```
 
 - pipe 1은 보내는 쪽, pipe 2는 받는 쪽입니다. 대역폭 제한이 없으면 `bw …` 부분을 뺍니다.
-- `pfctl -f -`는 기본 규칙을 잠시 대체합니다. 측정이 끝나면 반드시 위의 해제 명령으로 `/etc/pf.conf`를 다시 읽고 pf를 끕니다.
+- `pfctl -f -`는 기본 규칙을 잠시 대체해서 §3.1의 9333 차단 anchor도 그동안 읽히지 않습니다. 그래서 첫 줄에 같은 차단을 다시 넣었습니다.
+- 칸이 끝나면 위의 해제 명령으로 `/etc/pf.conf`를 다시 읽습니다. 9333 차단(§3.1)이 다시 살아나도록 pf는 켜 둡니다. pf를 끄는 것은 브라우저 서버를 끈 뒤 정리(§15)에서 합니다.
 
 ### Linux G: tc netem (리허설에서 확인)
 
@@ -484,7 +493,9 @@ H의 측정 브라우저는 loopback으로 서버에 붙기 때문에 열화가 
 3. `docker compose ls`로 측정 프로젝트가 남아 있지 않은지 확인합니다.
 4. G의 브라우저 서버를 종료(`Ctrl+C`)하고, 방화벽 규칙을 지웁니다.
    - Windows: `Remove-NetFirewallRule -DisplayName "RMF-perf G"` (H에서는 `"RMF-perf H"`와 `Remove-NetFirewallHyperVRule -Name "RMF-perf-WSL"`)
-   - Linux: `sudo ufw delete allow from <G_IP> to any port 3000,8080 proto tcp` (G는 `sudo ufw delete allow from <H_IP> to any port 9333 proto tcp`)
+   - Linux H: `sudo iptables -D DOCKER-USER -i <wlan> -p tcp -m multiport --dports 3000,8080 ! -s <G_IP> -j DROP`(`ip6tables`로도 넣었다면 그쪽도)
+   - Linux G: `sudo ufw delete allow from <H_IP> to any port 9333 proto tcp`
+   - macOS G: `sudo pfctl -a com.apple/rmf-perf -F rules` 후 `sudo pfctl -d`
 5. 열화 도구가 해제됐는지 확인합니다(Clumsy Stop / macOS·Linux는 §12의 해제 명령).
 6. H·G의 다른 Wi-Fi 자동 연결, 측정 Wi-Fi의 데이터 통신 연결(종량제) 설정을 원래대로 돌립니다.
 7. 기기 설정을 원래대로 돌립니다(절전, 업데이트, 전원 모드). Windows H의 `hostAddressLoopback`(§2.2)은 남겨 둬도 됩니다.
