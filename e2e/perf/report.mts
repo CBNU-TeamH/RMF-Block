@@ -208,7 +208,9 @@ for (const id of ["002", "003", "004", "005"]) {
 ${plot({
   x: { label: "latency (ms)", domain: [0, curve.reduce((max, p) => Math.max(max, p.ms), budget * 1.1)] },
   y: { label: "share of attempts", domain: [0, 1], grid: true },
-  color: { legend: true },
+  // The keys, not the curve: an item that timed out every attempt has no points, and an
+  // inferred scale then turns continuous, whose legend needs a canvas happy-dom lacks.
+  color: { legend: true, domain: keys.map((i) => i.key) },
   marks: [
     Plot.ruleY([0.95], { stroke: "#999", strokeDasharray: "2 3" }),
     Plot.ruleX([budget], { stroke: "red" }),
