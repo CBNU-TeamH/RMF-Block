@@ -130,6 +130,10 @@ work: [`docs/testing.md`](docs/testing.md).
 ## Releasing
 
 A release is a tag on `main`, with no release branch ([ADR-009](docs/adr/009-distribution-ghcr-image-tag-release.md)).
+Each GitHub milestone is named after the release that closes it: `v0.1.0`, `v0.2.0` and so on, up to
+`v1.0.0` for the capstone wrap-up. A fix that cannot wait for the next milestone ships as a patch of the
+last release (`0.1.1`). `v0.0.1` and `v0.0.2` predate this scheme.
+
 Pushing the tag runs `.github/workflows/release.yml`, which works in this order:
 
 1. Checks the tag against `package.json` and that its commit is on `main`.
