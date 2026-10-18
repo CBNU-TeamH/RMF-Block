@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { PdfBlock } from "@/lib/blocks/types";
 import { readableSize } from "@/lib/files/size";
+
+import { FilePreviewDialog } from "../../file-preview-dialog";
 
 /** A PDF block and the in-app viewer it opens (FR-022-14's PDF leg, UC-080).
  *  **The browser renders it, not a library** — every browser `docs/SRS-ko.md`
@@ -26,21 +28,8 @@ export function PdfBlockView({
   // block draws its frame immediately and only falls back if the check says to.
   const [missing, setMissing] = useState(false);
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
   const preview = `/api/files/${block.fileId}/preview`;
   const download = `/api/files/${block.fileId}/download`;
-
-  /** A real `<dialog>` with `showModal()` — the only way to get the backdrop, the
-   *  focus trap and Esc (FR-080-04). Once focus is inside the viewer, Esc is that
-   *  document's to interpret, so 닫기 is not decoration. */
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (expanded && !dialog.open) dialog.showModal();
-    if (!expanded && dialog.open) dialog.close();
-  }, [expanded]);
 
   /** A block whose file this store has never seen, which would otherwise render
    *  the preview endpoint's JSON 404 in the frame. `HEAD`, so no bytes cross,
@@ -129,46 +118,10 @@ export function PdfBlockView({
         <iframe src={preview} title={name} className="block h-[460px] w-full border-0 bg-paper" />
       )}
 
-      <dialog
-        ref={dialogRef}
-        aria-label={`${name} 미리보기`}
-        // Fires for both Esc and our own `close()`, so this is the single place
-        // the open state comes back down.
+      <FilePreviewDialog
+        file={expanded ? { fileId: block.fileId, fileName: name, fileType: "application/pdf" } : null}
         onClose={() => setExpanded(false)}
-        // A click on the backdrop targets the dialog itself; one on anything
-        // inside targets that child instead.
-        onClick={(event) => {
-          if (event.target === dialogRef.current) setExpanded(false);
-        }}
-        className="m-auto h-[85vh] w-[min(92vw,64rem)] overflow-hidden rounded-card bg-elev p-0 shadow-elev backdrop:bg-[rgba(10,14,20,0.6)]"
-      >
-        <div className="flex h-full flex-col">
-          <div className="flex h-11 items-center gap-2 border-b border-line pr-2 pl-4">
-            <span className="min-w-0 flex-1 truncate font-semibold text-ink">
-              {name}
-            </span>
-            <a
-              href={download}
-              className="flex items-center h-7 rounded-control px-2 text-[13px] font-medium text-ink-soft hover:bg-hover hover:text-ink"
-            >
-              내려받기
-            </a>
-            <button
-              type="button"
-              onClick={() => setExpanded(false)}
-              className="h-7 rounded-control px-2 text-[13px] font-medium text-ink-soft hover:bg-hover hover:text-ink"
-            >
-              닫기
-            </button>
-          </div>
-          {/* Only mounted while open: an `<iframe>` inside a closed `<dialog>`
-           * still loads its source, so every PDF block on the page would fetch
-           * its file twice. */}
-          {expanded ? (
-            <iframe src={preview} title={name} className="w-full flex-1 border-0" />
-          ) : null}
-        </div>
-      </dialog>
+      />
     </div>
   );
 }

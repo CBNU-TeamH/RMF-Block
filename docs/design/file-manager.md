@@ -1,11 +1,12 @@
 # File manager — Module Design
 
-- **Status**: Agreed 2026-10-18 with a maintainer (#164). Built: the page, its list API, and
-  jumping to a file's block or chat message.
-- **Owns**: `app/(workspace)/files/`, `app/api/files/route.ts`, `lib/files/workspace-files.ts`.
+- **Status**: Agreed 2026-10-18 with a maintainer (#164). Built: the page, its list API, the
+  preview window, and jumping to a file's block or chat message.
+- **Owns**: `app/(workspace)/files/`, `app/(workspace)/file-preview-dialog.tsx`,
+  `app/api/files/route.ts`, `lib/files/workspace-files.ts`.
 - **Related**: [`docs/SRS-ko.md`](../SRS-ko.md) UC-050, FR-050-01..06; [`chat.md`](chat.md) (the
   file store, and UC-061's chat file list this one sits beside); [`floating-view.md`](floating-view.md)
-  (the preview); [`presence-and-focus.md`](presence-and-focus.md) (the scroll target a jump reuses);
+  (what the preview is not); [`presence-and-focus.md`](presence-and-focus.md) (the scroll target a jump reuses);
   [`api.md`](api.md).
 
 ## Scope
@@ -15,19 +16,31 @@ messages carry. Grouped by type, previewed, downloaded, and followed back to whe
 
 ## The page
 
-A dedicated page, `/files`, opened from **파일** at the sidebar's foot, above 관리자 and shown to
-everyone. It is not a tab: the document tab bar holds document ids only, and nothing here needed
+A dedicated page, `/files`, opened from **파일** under 새 문서 in the sidebar (and after it on the
+collapsed rail), shown to everyone. It is not a tab: the document tab bar holds document ids only, and nothing here needed
 it to hold anything else. On it:
 
 - **Type tabs** — 이미지, PDF, 기타 — each with its count (FR-050-01). The classification is the
   chat file list's (`kindOf` in `lib/chat/attachments.ts`), so a file sits under the same tab in
   both places; here the third is named 기타, since "문서" would read as the file's source.
 - **A table**, newest first: name, source, size, uploaded by, date (FR-050-02).
-- **Per row**: 미리보기 opens the floating view (FR-050-03) for the types the preview route serves
-  inline — images and PDFs; 기타 is download-only until UC-080's viewers exist. 원본 위치 (E3-3)
-  and 내려받기 (FR-050-04).
+- **Per row**: 미리보기 (FR-050-03, below) for the types the preview route serves inline — images
+  and PDFs; 기타 is download-only until UC-080's viewers exist. 원본 위치 (E3-3) and 내려받기
+  (FR-050-04).
 
 The list is fetched when the page opens. Nothing asks for it to update live.
+
+## Previewing a file
+
+미리보기 opens the file in a window centred over a dimmed page — the image, or the PDF in the
+browser's own viewer — with 내려받기 and 닫기; Esc and a click on the dimmed page close it too. It
+is a `<dialog>` opened with `showModal()` (`file-preview-dialog.tsx`), and the chat file list
+(UC-061) and a PDF block's 전체 화면 (`pdf-block.tsx`) open the same one.
+
+It was a floating view at first. Trying the page, the maintainer found a floating view in the way
+for looking through files — small, left where it was dropped, back after a reload — and chose this
+over a panel on the right half (2026-10-18). Floating views remain for blocks and for a chat
+message's own 플로팅 뷰로 열기 (UC-070).
 
 ## Chat files are listed too
 

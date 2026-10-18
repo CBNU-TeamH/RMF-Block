@@ -32,7 +32,8 @@ const MAX_DOTS = 3;
  */
 export function DocumentList({ documents }: { documents: Array<WorkspaceDocument> }) {
   const router = useRouter();
-  const currentId = documentIdFromPathname(usePathname());
+  const pathname = usePathname();
+  const currentId = documentIdFromPathname(pathname);
   const { members, memberId } = useWorkspacePresence();
   const { jumpTo } = useFocusFollow();
   // The one row whose `+N` is open, so its folded members can be jumped to too.
@@ -117,6 +118,7 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
 
   const sideRow =
     "flex h-8 w-full items-center gap-2 rounded-control px-2 text-ink-soft hover:bg-hover";
+  const onFiles = pathname === "/files";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -134,6 +136,17 @@ export function DocumentList({ documents }: { documents: Array<WorkspaceDocument
         <button type="button" onClick={() => openDialog(null)} className={sideRow}>
           {icon(PLUS, 16)}새 문서
         </button>
+        {/* The workspace file manager (UC-050), everyone's. */}
+        <Link
+          href="/files"
+          aria-current={onFiles ? "page" : undefined}
+          className={`flex h-8 w-full items-center gap-2 rounded-control px-2 hover:bg-hover ${
+            onFiles ? "bg-hover font-medium text-ink" : "text-ink-soft"
+          }`}
+        >
+          <FileIcon size={16} />
+          파일
+        </Link>
       </div>
 
       <div className="mx-2 mt-[18px] mb-1 flex items-baseline gap-1.5 text-xs font-semibold text-ink-faint">

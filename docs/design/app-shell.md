@@ -32,7 +32,7 @@ layout and its page in parallel, and a client navigation skips the layout, so `r
 (`read-documents.ts`) checks the caller itself before reading the catalogue (#203). The session model itself is
 [`api.md`](api.md), "Authentication model". Before the workspace is open the gate sends the host
 to `/admin`, the setup screen (UC-010) — outside the group like `/join`, since there is no
-workspace yet to frame. The sidebar shows the host, and only the host, a **관리자** link with a shield (`AdminIcon` in `ui.tsx`) to the same page, at its foot, under a **파일** link everyone has (the file manager, [`file-manager.md`](file-manager.md)).
+workspace yet to frame. The sidebar shows the host, and only the host, a **관리자** link with a shield (`AdminIcon` in `ui.tsx`) to the same page, at its foot. Everyone has a **파일** link under 새 문서 (the file manager, [`file-manager.md`](file-manager.md)).
 
 Below the gate the layout nests `PresenceProvider`, `FocusFollowProvider`,
 `FloatingViewProvider`, `NewDocumentProvider` and `ChatWindow` around the sidebar/header/`<main>` frame. The chat window

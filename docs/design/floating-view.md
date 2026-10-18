@@ -18,8 +18,8 @@ reading it while working elsewhere. Four decisions bound it:
   its own IME handling, undo and occupancy. The window never writes to the document.
 - **One entry point per source**: for a block, a 24px window-glyph button left of a block row's
   drag handle, shown the way the handle is. It sits next to the handle, not on the right edge,
-  so it is easy to hit. For a chat attachment, "플로팅 뷰로 열기" under the message, and
-  "미리보기" in the chat file list (`chat.md`).
+  so it is easy to hit. For a chat attachment, "플로팅 뷰로 열기" under the message. The file
+  lists' 미리보기 is a modal instead ([`file-manager.md`](file-manager.md), "Previewing a file").
 - **Restored after a reload**, from `localStorage` (`rmf-floating-views`). Which blocks one
   person pinned, and where, is worth nothing to anyone else, the same reasoning as the chat
   window's frame.

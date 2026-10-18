@@ -11,6 +11,7 @@
 ## What we would do differently
 
 - Measure the Admin API's answer on a disposable Yorkie before designing around it — the root's shape and the missing-key behaviour both decided the parser.
+- Try a reused interaction where it will be used before settling on it: the floating view was free to reuse for 미리보기, and in use it got in the way of looking through a list.
 
 ## Worth extracting
 

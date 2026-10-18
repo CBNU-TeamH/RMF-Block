@@ -8,7 +8,7 @@ import { readableSize } from "@/lib/files/size";
 import type { WorkspaceFile } from "@/lib/files/workspace-files";
 
 import { useOpenChatAt } from "../chat-window";
-import { useFloatingViews } from "../floating-views";
+import { FilePreviewDialog, type PreviewFile } from "../file-preview-dialog";
 import { useFocusFollow } from "../focus-follow-provider";
 import { FileIcon, Spinner } from "../ui";
 
@@ -33,7 +33,7 @@ export function FileManager() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [failed, setFailed] = useState(false);
   const [kind, setKind] = useState<AttachmentKind>("image");
-  const openFloating = useFloatingViews();
+  const [previewing, setPreviewing] = useState<PreviewFile | null>(null);
   const { goToBlock } = useFocusFollow();
   const openChatAt = useOpenChatAt();
 
@@ -47,6 +47,8 @@ export function FileManager() {
       .catch(() => setFailed(true));
   }, []);
   useEffect(() => load(), [load]);
+
+  const closePreview = useCallback(() => setPreviewing(null), []);
 
   const retry = () => {
     setListing(null);
@@ -154,9 +156,7 @@ export function FileManager() {
                               {isInlineType(file.type) ? (
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    openFloating({ fileId: file.fileId, fileName: file.name, fileType: file.type, size: file.size })
-                                  }
+                                  onClick={() => setPreviewing({ fileId: file.fileId, fileName: file.name, fileType: file.type })}
                                   aria-label={`${file.name} 미리보기`}
                                   className={ACTION}
                                 >
@@ -194,6 +194,7 @@ export function FileManager() {
           </>
         )}
       </div>
+      <FilePreviewDialog file={previewing} onClose={closePreview} />
     </div>
   );
 }

@@ -134,9 +134,10 @@ kind, size, sender and time (FR-061-01/02).
 - **Kind comes from the stored type**: any `image/*` is 이미지, `application/pdf` is PDF,
   everything else is 문서. An SVG is listed as an image but has no preview, because the tab says
   what a file is and the preview route decides what opens.
-- **미리보기** opens the file in a floating view (FR-061-03; `floating-view.md`, "A file as the
-  source"), offered only for the types the preview route serves inline. **내려받기** is the
-  opaque download route (FR-061-04).
+- **미리보기** opens the file in a window over the dimmed page (FR-061-03), the file manager's
+  (`file-preview-dialog.tsx`; [`file-manager.md`](file-manager.md), "Previewing a file"), offered
+  only for the types the preview route serves inline. **내려받기** is the opaque download route
+  (FR-061-04).
 - **The conversation is hidden, not unmounted**, while the list shows, so coming back finds it
   scrolled where it was left.
 - **Not built here**: jumping from a file to the message that carried it. UC-061's overview

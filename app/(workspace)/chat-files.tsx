@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { KINDS, sharedFiles, type AttachmentKind } from "@/lib/chat/attachments";
 import type { ChatMessage } from "@/lib/chat/types";
 import { isInlineType } from "@/lib/files/serving";
 import { readableSize } from "@/lib/files/size";
 
-import { useFloatingViews } from "./floating-views";
+import { FilePreviewDialog, type PreviewFile } from "./file-preview-dialog";
 import { FileIcon } from "./ui";
 
 /** The chat file list (UC-061, FR-061-01..04) — a prototype, like the panel. */
@@ -25,7 +25,8 @@ const when = new Intl.DateTimeFormat("ko-KR", {
 
 export function ChatFiles({ messages }: { messages: Array<ChatMessage> }) {
   const [kind, setKind] = useState<AttachmentKind>("image");
-  const openFloating = useFloatingViews();
+  const [previewing, setPreviewing] = useState<PreviewFile | null>(null);
+  const closePreview = useCallback(() => setPreviewing(null), []);
   const groups = sharedFiles(messages);
   const files = groups[kind];
 
@@ -69,7 +70,7 @@ export function ChatFiles({ messages }: { messages: Array<ChatMessage> }) {
                 {isInlineType(attachment.fileType) ? (
                   <button
                     type="button"
-                    onClick={() => openFloating(attachment)}
+                    onClick={() => setPreviewing(attachment)}
                     aria-label={`${attachment.fileName} 미리보기`}
                     className="flex-none rounded-control px-1.5 py-0.5 text-xs text-ink-soft hover:bg-paper-2 hover:text-ink"
                   >
@@ -88,6 +89,7 @@ export function ChatFiles({ messages }: { messages: Array<ChatMessage> }) {
           </ul>
         )}
       </div>
+      <FilePreviewDialog file={previewing} onClose={closePreview} />
     </div>
   );
 }

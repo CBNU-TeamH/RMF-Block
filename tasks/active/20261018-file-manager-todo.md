@@ -27,6 +27,13 @@
 - **Reuse**: UC-040's scroll target and its follow confirmation.
 - **Done**: both jumps land and highlight, including a chat landing out of the panel's file list.
 
+### 4. After trying it: the preview window and the link's place
+
+- **What**: 미리보기 opens a window centred over the dimmed page instead of a floating view, in the file manager and the chat file list, and a PDF block's 전체 화면 opens the same window; the 파일 link moves from the sidebar's foot to under 새 문서 (and after it on the rail).
+- **Files**: `file-preview-dialog.tsx`, `files/file-manager.tsx`, `chat-files.tsx`, `documents/[id]/pdf-block.tsx`, `document-list.tsx`, `sidebar.tsx`.
+- **Reuse**: the PDF block's 전체 화면 `<dialog>` (`showModal()`, backdrop, Esc), moved out of the block so all three open one window.
+- **Done**: both lists preview an image and a PDF in the window; Esc, the backdrop and 닫기 close it, and Esc from the chat file list leaves the chat open.
+
 ## Test selection
 
 - Vitest (logic / component / server / route): new `lib/files/workspace-files.test.mts` (placing, FR-050-06, trash, legacy uploads, duplicates, bad roots, Yorkie down, chat files, order), `app/api/files/route.test.ts` (gate, success, Yorkie down), `app/(workspace)/files/file-manager.test.tsx` (tabs, source, jumps, preview vs download, error and retry); extended `lib/yorkie-admin.test.mts` (`readDocumentRoots`), `focus-follow-provider.test.tsx` (`goToBlock`), `chat-panel.test.tsx` (landing).
@@ -39,6 +46,7 @@
   - `bash .githooks/pre-push` (budget, typecheck, test, production build): passed; `/files` and `/api/files` are in the build output.
   - Real stack, an isolated project built from this branch with Yorkie 0.7.23: signed out 401; an upload with no block not listed; listed once an image block holds it, with its document and block; a chat attachment listed with its message; newest first; dropped when the block is deleted; with Yorkie stopped, 200 with chat files and `documentsUnavailable`, and the failure logged — 10 of 10.
   - `e2e/file-manager.e2e.ts`: type-checked and collected by Playwright (2 tests); not run here — this machine has no Playwright browsers, so CI's E2E step runs it.
+  - Milestone 4: new `file-preview-dialog.test.tsx` (image vs PDF, three ways to close, closed with no file); `file-manager.test.tsx` and `chat-files.test.tsx` open the window instead of a floating view; `document-list.test.tsx` reads the tree's links within its list, now that 파일 is a link above it. `pnpm typecheck`, `pnpm lint`, `pnpm comments`, `pnpm verify:docs` clean; `pnpm test` 77 files, 823 tests passed. In a browser on the isolated stack: the link under 새 문서 and on the rail, an image and a PDF previewed from `/files`, a chat image from the chat file list, closed by Esc and by the backdrop, the chat still open after Esc, a guest shown 파일 and not 관리자; a PDF block's 전체 화면 opened, closed by 닫기 and by Esc, and opened again. The maintainer tried the page by hand as well.
 
 ## Acceptance
 

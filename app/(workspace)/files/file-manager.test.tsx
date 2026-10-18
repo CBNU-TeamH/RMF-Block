@@ -3,10 +3,8 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
-const openFloating = vi.fn();
 const goToBlock = vi.fn();
 const openChatAt = vi.fn();
-vi.mock("../floating-views.tsx", () => ({ useFloatingViews: () => openFloating }));
 vi.mock("../focus-follow-provider.tsx", () => ({ useFocusFollow: () => ({ goToBlock }) }));
 vi.mock("../chat-window.tsx", () => ({ useOpenChatAt: () => openChatAt }));
 
@@ -95,9 +93,11 @@ describe("FileManager — the list", () => {
     render(<FileManager />);
 
     fireEvent.click(await screen.findByRole("button", { name: "diagram.png 미리보기" }));
-    assert.deepEqual(openFloating.mock.calls[0], [
-      { fileId: "f1", fileName: "diagram.png", fileType: "image/png", size: 340_000 },
-    ]);
+    const dialog = screen.getByRole("dialog", { hidden: true }) as HTMLDialogElement;
+    assert.equal(dialog.open, true);
+    assert.equal(dialog.getAttribute("aria-label"), "diagram.png 미리보기");
+    fireEvent.click(within(dialog).getByRole("button", { name: "닫기", hidden: true }));
+    assert.equal(dialog.open, false);
 
     fireEvent.click(screen.getByRole("button", { name: "기타 1" }));
     assert.equal(screen.queryByRole("button", { name: "budget.xlsx 미리보기" }), null);

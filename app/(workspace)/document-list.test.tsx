@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
@@ -46,7 +46,7 @@ describe("DocumentList — sidebar tree", () => {
 
     render(<DocumentList documents={[doc("minutes", "회의록"), doc("wk1", "1주차 회의", "minutes")]} />);
 
-    const links = screen.getAllByRole("link");
+    const links = within(screen.getByRole("list")).getAllByRole("link");
     assert.deepEqual(
       links.map((link) => [link.textContent, link.getAttribute("aria-current")]),
       [
@@ -54,6 +54,7 @@ describe("DocumentList — sidebar tree", () => {
         ["1주차 회의", "page"],
       ],
     );
+    assert.equal(screen.getByRole("link", { name: "파일" }).getAttribute("aria-current"), null);
   });
 
   it("indents a child one step past its parent", () => {
@@ -61,7 +62,7 @@ describe("DocumentList — sidebar tree", () => {
 
     render(<DocumentList documents={[doc("minutes", "회의록"), doc("wk1", "1주차 회의", "minutes")]} />);
 
-    const [parent, child] = screen.getAllByRole("link");
+    const [parent, child] = within(screen.getByRole("list")).getAllByRole("link");
     assert.equal(parent.style.paddingLeft, "4px");
     assert.equal(child.style.paddingLeft, "18px");
   });
