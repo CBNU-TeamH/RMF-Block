@@ -10,8 +10,8 @@ const PNG = Buffer.from(
 /**
  * UC-050: an image put into a document is listed under its document, 원본 위치
  * lands on its block (E3-3), and deleting the block takes it off the list
- * (FR-050-06). Which block holds a file is read from Yorkie, so the list is
- * reloaded until the deletion has reached it.
+ * (FR-050-06). Which block holds a file is read from Yorkie, so the test waits
+ * for the deletion to reach it before opening the list.
  */
 test("a document image is listed, jumps to its block, and leaves with the block", async ({ users }) => {
   const page = (await users.join(0)).page;
@@ -42,12 +42,17 @@ test("a document image is listed, jumps to its block, and leaves with the block"
   await image.getByRole("button", { name: "삭제", exact: true }).click();
   await image.getByRole("button", { name: "삭제", exact: true }).click();
   await expect(image).toHaveCount(0);
-  await expect(async () => {
-    await page.goto("/files");
-    await expect(page.getByRole("heading", { name: "파일" })).toBeVisible();
-    await expect(page.getByRole("group", { name: "파일 종류" })).toBeVisible();
-    await expect(page.getByRole("row").filter({ hasText: fileName })).toHaveCount(0);
-  }).toPass();
+  // Asked from the document, not by reloading the list: a full navigation drops
+  // an edit the Yorkie client has not sent yet.
+  await expect
+    .poll(async () => {
+      const { files } = (await (await page.request.get("/api/files")).json()) as { files: Array<{ name: string }> };
+      return files.some((file) => file.name === fileName);
+    })
+    .toBe(false);
+  await page.goto("/files");
+  await expect(page.getByRole("group", { name: "파일 종류" })).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: fileName })).toHaveCount(0);
 });
 
 /** A chat attachment is listed too, and its 원본 위치 opens the chat at the message. */
