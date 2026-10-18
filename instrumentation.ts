@@ -7,7 +7,7 @@ export async function register() {
   const { getHostSecret } = await import("./lib/host-secret");
   const { isNatRange, lanAddresses } = await import("./lib/lan-address");
   const { getWorkspaceName, isWorkspaceOpen, seedWorkspaceFromEnv } = await import("./lib/workspace-config");
-  const { registerAuthWebhook } = await import("./lib/yorkie-admin");
+  const { registerAuthWebhook, yorkieAdminAddr } = await import("./lib/yorkie-admin");
 
   // Development and CI only: an env password opens a workspace never set up.
   // Caught, not left to throw: Next swallows a rejection here and the process
@@ -20,7 +20,7 @@ export async function register() {
 
   // Yorkie only asks about tokens if told to, and that is a project setting —
   // so it must be written after Yorkie is up (`docs/design/api.md` §2).
-  const rpcAddr = process.env.YORKIE_ADMIN_ADDR ?? "http://localhost:8080";
+  const rpcAddr = yorkieAdminAddr();
   // What Yorkie needs to reach *us* — `localhost` means Yorkie inside its own
   // container. Docker Engine on Linux needs `--add-host=host.docker.internal:host-gateway`.
   const webhookUrl =

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 
 import {
   BAR_HEIGHT,
@@ -45,9 +45,15 @@ function writeFrame(frame: Frame): void {
   }
 }
 
-export function ChatWindow({ me }: { me: string }) {
+/** Opens the window at a message (UC-050 E3-3) — what the file manager needs. */
+const OpenChatAtContext = createContext<(messageId: string) => void>(() => undefined);
+export const useOpenChatAt = () => useContext(OpenChatAtContext);
+
+/** Wraps the shell so anything in it can open the window at a message. */
+export function ChatWindow({ me, children }: { me: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [frame, setFrame] = useState<Frame | null>(null);
+  const [landOn, setLandOn] = useState<string | null>(null);
 
   // Resolved on first open, not during render: `window` does not exist while
   // this component renders on the server, and neither does the saved frame.
@@ -55,13 +61,22 @@ export function ChatWindow({ me }: { me: string }) {
     setFrame((current) => current ?? clamp(readFrame() ?? defaultFrame(viewport()), viewport()));
     setOpen(true);
   }, []);
+  const openAt = useCallback(
+    (messageId: string) => {
+      setLandOn(messageId);
+      openWindow();
+    },
+    [openWindow],
+  );
+  const landed = useCallback(() => setLandOn(null), []);
 
   // Saved when the gesture ends rather than on every move — one write per
   // drag instead of one per frame.
   const begin = useFrameGesture(frame, setFrame, writeFrame, RULES);
 
   return (
-    <>
+    <OpenChatAtContext.Provider value={openAt}>
+      {children}
       {open && frame ? (
         <FloatingFrame
           frame={frame}
@@ -75,7 +90,7 @@ export function ChatWindow({ me }: { me: string }) {
           onClose={() => setOpen(false)}
           className="z-40"
         >
-          <ChatPanel me={me} />
+          <ChatPanel me={me} landOn={landOn} onLanded={landed} />
         </FloatingFrame>
       ) : null}
 
@@ -101,6 +116,6 @@ export function ChatWindow({ me }: { me: string }) {
           채팅
         </button>
       </div>
-    </>
+    </OpenChatAtContext.Provider>
   );
 }

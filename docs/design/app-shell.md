@@ -32,11 +32,11 @@ layout and its page in parallel, and a client navigation skips the layout, so `r
 (`read-documents.ts`) checks the caller itself before reading the catalogue (#203). The session model itself is
 [`api.md`](api.md), "Authentication model". Before the workspace is open the gate sends the host
 to `/admin`, the setup screen (UC-010) — outside the group like `/join`, since there is no
-workspace yet to frame. The sidebar shows the host, and only the host, a **관리자** link with a shield (`AdminIcon` in `ui.tsx`) to the same page, at its foot.
+workspace yet to frame. The sidebar shows the host, and only the host, a **관리자** link with a shield (`AdminIcon` in `ui.tsx`) to the same page, at its foot, under a **파일** link everyone has (the file manager, [`file-manager.md`](file-manager.md)).
 
 Below the gate the layout nests `PresenceProvider`, `FocusFollowProvider`,
-`FloatingViewProvider` and `NewDocumentProvider` around the sidebar/header/`<main>` frame, with the fixed `ChatWindow`
-outside the column layout. They live here, not in a page, so floating windows and chat never
+`FloatingViewProvider`, `NewDocumentProvider` and `ChatWindow` around the sidebar/header/`<main>` frame. The chat window
+and its bar are `fixed`, outside the column layout; it wraps the frame so the file manager can open it at a message. They live here, not in a page, so floating windows and chat never
 remount across navigation. The host has no `WorkspaceMember`, so it is given `HOST_PRESENCE` in
 place of one, and `SessionWatch` (which shows an eviction) mounts for members only. It also hands `PresenceStack` the recorded members (`sessionRegistry.members()` without `lastJoinedAt`), so the roster can show who is not connected; `PresenceStack` calls `router.refresh()` once for a connected member it has not seen recorded, which is how a later joiner reaches that list.
 
@@ -98,12 +98,12 @@ wafflebase (`SiteHeader` with the history toggle and presence) share:
 - **The content** starts with the title alone.
 
 Things that belong to the whole workspace, not the open document, go in the sidebar, as Notion's
-Settings does. That is why the host's 관리자 link is there.
+Settings does. That is why 파일 and the host's 관리자 link are there.
 
 ## The sidebar collapses to a rail
 
 `sidebar.tsx` collapses the sidebar to a column of icons — expand, search (which expands and
-focuses the field), 새 문서, and 관리자 for the host. The tree is hidden, not unmounted: its socket is what keeps the
+focuses the field), 새 문서, 파일, and 관리자 for the host. The tree is hidden, not unmounted: its socket is what keeps the
 catalogue, and so the breadcrumb and the tab names, current. The state is a cookie rather than
 `localStorage` so the layout renders it collapsed from the first paint instead of flashing the
 full width; `SIDEBAR_COOKIE` sits in `ui.tsx` because a server component cannot read a constant

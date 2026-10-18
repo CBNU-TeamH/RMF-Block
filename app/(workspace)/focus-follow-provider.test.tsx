@@ -77,3 +77,50 @@ describe("FocusFollowProvider — jumpTo while following", () => {
     assert.equal(push.mock.calls[0]?.[0], "/documents/d2");
   });
 });
+
+describe("FocusFollowProvider — goToBlock (UC-050 E3-3)", () => {
+  const setup = () => {
+    let state!: ReturnType<typeof useFocusFollow>;
+    render(
+      <FocusFollowProvider>
+        <Probe onState={(s) => {
+            state = s;
+          }} />
+      </FocusFollowProvider>,
+    );
+    return () => state;
+  };
+
+  it("opens the document at the block, marked to be highlighted", () => {
+    presence.members = [{ id: "me", nickname: "나", colorTag: "#111" }];
+    const state = setup();
+
+    act(() => state().goToBlock("d2", "b9"));
+
+    assert.equal(push.mock.calls[0]?.[0], "/documents/d2");
+    assert.deepEqual(state().scrollTarget, { documentId: "d2", blockId: "b9", highlight: true });
+  });
+
+  it("scrolls the open document without navigating", () => {
+    presence.members = [{ id: "me", nickname: "나", colorTag: "#111" }];
+    const state = setup();
+
+    act(() => state().goToBlock("d1", "b1"));
+
+    assert.equal(push.mock.calls.length, 0);
+    assert.equal(state().scrollTarget?.blockId, "b1");
+  });
+
+  it("asks before leaving a follow, and stays put when declined", () => {
+    vi.stubGlobal("confirm", () => false);
+    presence.members = [{ id: "me", nickname: "나", colorTag: "#111" }, presenter];
+    const state = setup();
+
+    act(() => state().follow("bob"));
+    act(() => state().goToBlock("d2", "b9"));
+
+    assert.equal(push.mock.calls.length, 0);
+    assert.equal(state().scrollTarget, null);
+    assert.equal(state().followingId, "bob");
+  });
+});

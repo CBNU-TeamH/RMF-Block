@@ -139,8 +139,9 @@ kind, size, sender and time (FR-061-01/02).
   opaque download route (FR-061-04).
 - **The conversation is hidden, not unmounted**, while the list shows, so coming back finds it
   scrolled where it was left.
-- **Not built**: jumping from a file to the message that carried it. UC-061's overview mentions
-  it, but no FR asks for it.
+- **Not built here**: jumping from a file to the message that carried it. UC-061's overview
+  mentions it, but no FR asks for it. The file manager does it (`useOpenChatAt` in
+  `chat-window.tsx`, [`file-manager.md`](file-manager.md)); this list does not.
 
 ## The floating window
 

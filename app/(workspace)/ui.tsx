@@ -58,6 +58,15 @@ export const TrashIcon = ({ size = 15 }: { size?: number }) => (
   </svg>
 );
 
+/** A brief highlight on arrival (UC-050 E3-3 step 4). An animation rather than
+ *  a class, so nothing is left to remove; happy-dom has no `animate`. */
+export function flash(element: Element | null | undefined): void {
+  element?.animate?.(
+    [{ backgroundColor: "var(--color-sky-soft)" }, { backgroundColor: "transparent" }],
+    { duration: 1600, easing: "ease-out" },
+  );
+}
+
 /** The shell's 16px line icons (`docs/ui/redesign/HANDOFF.md` §3). */
 export const icon = (path: React.ReactNode, size = 15) => (
   <svg

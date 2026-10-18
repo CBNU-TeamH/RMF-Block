@@ -1,6 +1,7 @@
 /** Registers this server's auth webhook with Yorkie at startup (NFR-SEC-002/005),
  *  and refuses to run if it cannot. Why the app does this to itself, and why
- *  connect-protocol needs no client library: `docs/design/api.md` §2. */
+ *  connect-protocol needs no client library: `docs/design/api.md` §2. Also reads
+ *  document roots for the file manager (UC-050). */
 
 /** Yorkie's built-in administrator (`server/config.go`). Its password is the one
  *  Compose hands Yorkie; the default is only where an old volume starts from
@@ -13,6 +14,8 @@ const DEFAULT_ADMIN_PASSWORD = "admin";
  * fixed all-zero id, and nothing here creates a second one.
  */
 const DEFAULT_PROJECT_ID = "000000000000000000000000";
+/** The same project, as `GetProject` looks it up. */
+const DEFAULT_PROJECT_NAME = "default";
 
 /** Which operations Yorkie should ask about (`docs/design/api.md` §2). Names come
  *  from `api/types/auth_webhook.go`; an unknown one fails the update — which is
@@ -36,15 +39,17 @@ export class YorkieAdminError extends Error {
   status?: number;
 }
 
-async function call(rpcAddr: string, method: string, body: unknown, token?: string) {
+/** The scheme is not optional: without `Bearer ` Yorkie answers "invalid
+ *  authorization header format", which reads like a bad token rather than a
+ *  missing prefix. */
+const bearer = (token: string) => `Bearer ${token}`;
+
+async function call(rpcAddr: string, method: string, body: unknown, authorization?: string) {
   const response = await fetch(`${rpcAddr}/yorkie.v1.AdminService/${method}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      // The scheme is not optional: without `Bearer ` Yorkie answers "invalid
-      // authorization header format", which reads like a bad token rather than
-      // a missing prefix.
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(authorization ? { Authorization: authorization } : {}),
     },
     body: JSON.stringify(body),
   });
@@ -70,6 +75,36 @@ function adminPassword(): string {
     );
   }
   return password;
+}
+
+/** Where this process reaches the Admin API: compose's address, or Yorkie on
+ *  this machine for `pnpm dev`. */
+export function yorkieAdminAddr(): string {
+  return process.env.YORKIE_ADMIN_ADDR ?? "http://localhost:8080";
+}
+
+/** Each listed document's root as Yorkie's JSON, by key, in one call (UC-050).
+ *  `GetDocuments` is a project API: it takes the project's secret key — Yorkie
+ *  drops the connection on an admin token — and leaves out a key it holds no
+ *  document for, which is what a never-opened catalogue entry is. */
+export async function readDocumentRoots(rpcAddr: string, keys: Array<string>): Promise<Map<string, string>> {
+  if (keys.length === 0) return new Map();
+
+  const token = await tokenFor(rpcAddr, adminPassword());
+  const { project } = (await call(rpcAddr, "GetProject", { name: DEFAULT_PROJECT_NAME }, bearer(token))) as {
+    project?: { secretKey?: string };
+  };
+  if (!project?.secretKey) {
+    throw new YorkieAdminError("Yorkie returned no secret key for the default project");
+  }
+
+  const { documents = [] } = (await call(
+    rpcAddr,
+    "GetDocuments",
+    { documentKeys: keys, includeRoot: true },
+    `API-Key ${project.secretKey}`,
+  )) as { documents?: Array<{ key: string; root?: string }> };
+  return new Map(documents.map((document) => [document.key, document.root ?? "{}"]));
 }
 
 /** Points the default project at `webhookUrl` — which is reached **by Yorkie**,
@@ -144,6 +179,6 @@ async function attemptRegister(rpcAddr: string, webhookUrl: string, password: st
         authWebhookMethods: { methods: GUARDED_METHODS },
       },
     },
-    token,
+    bearer(token),
   );
 }

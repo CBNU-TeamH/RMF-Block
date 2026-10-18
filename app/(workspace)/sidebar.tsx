@@ -1,13 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { useNewDocument } from "./new-document";
-import { AdminIcon, PLUS, SEARCH, SIDEBAR_COOKIE, icon } from "./ui";
+import { AdminIcon, FileIcon, PLUS, SEARCH, SIDEBAR_COOKIE, icon } from "./ui";
 
 const railButton =
   "flex size-8 items-center justify-center rounded-control text-ink-soft hover:bg-hover hover:text-ink";
+
+/** A link at the sidebar's foot, open or folded to the rail. */
+const footLink = (collapsed: boolean, active: boolean) =>
+  collapsed
+    ? `${railButton} ${active ? "bg-hover text-ink" : ""}`
+    : `flex h-8 flex-none items-center gap-2 rounded-control px-2 hover:bg-hover ${active ? "bg-hover font-medium text-ink" : "text-ink-soft"}`;
 
 /**
  * The sidebar, collapsible to a rail of icons (#168). Collapsed, the tree is
@@ -26,6 +33,7 @@ export function Sidebar({
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(initiallyCollapsed);
+  const onFiles = usePathname() === "/files";
   const asideRef = useRef<HTMLElement>(null);
   const openNewDocument = useNewDocument();
 
@@ -87,22 +95,26 @@ export function Sidebar({
       )}
       <div className={collapsed ? "hidden" : "flex min-h-0 flex-1 flex-col"}>{children}</div>
       {/* Workspace-wide, so here rather than in the document bar — Notion's
-          Settings spot. Host only; the page itself refuses anyone else. */}
-      {isHost ? (
+          Settings spot. Files are everyone's (UC-050); 관리자 is host only, and
+          the page itself refuses anyone else. */}
+      <div className={collapsed ? "mt-auto mb-2 flex flex-col items-center gap-1" : "mb-2 flex flex-none flex-col gap-0.5"}>
         <Link
-          href="/admin"
-          aria-label="관리자"
-          title="관리자 페이지 — 호스트에게만 보입니다"
-          className={
-            collapsed
-              ? `mt-auto mb-2 ${railButton}`
-              : "mb-2 flex h-8 flex-none items-center gap-2 rounded-control px-2 text-ink-soft hover:bg-hover"
-          }
+          href="/files"
+          aria-label="파일"
+          aria-current={onFiles ? "page" : undefined}
+          title="파일 — 문서와 채팅에 올라온 파일"
+          className={footLink(collapsed, onFiles)}
         >
-          <AdminIcon size={16} />
-          {collapsed ? null : <span aria-hidden>관리자</span>}
+          <FileIcon size={16} />
+          {collapsed ? null : <span aria-hidden>파일</span>}
         </Link>
-      ) : null}
+        {isHost ? (
+          <Link href="/admin" aria-label="관리자" title="관리자 페이지 — 호스트에게만 보입니다" className={footLink(collapsed, false)}>
+            <AdminIcon size={16} />
+            {collapsed ? null : <span aria-hidden>관리자</span>}
+          </Link>
+        ) : null}
+      </div>
     </aside>
   );
 }
