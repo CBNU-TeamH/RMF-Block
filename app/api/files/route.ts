@@ -16,19 +16,18 @@ export async function GET() {
   }
 
   const documents = readDocuments();
-  let roots: Map<string, string> | null = null;
-  try {
-    roots = await readDocumentRoots(yorkieAdminAddr(), documents.map((document) => document.id));
-  } catch (error) {
-    // Chat files still list; the page says the document side could not be read.
-    console.error(`  ✗ Could not read the documents from Yorkie: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  const [roots, files, messages] = await Promise.all([
+    readDocumentRoots(yorkieAdminAddr(), documents.map((document) => document.id)).catch((error: unknown) => {
+      // Chat files still list; the page says the document side could not be read.
+      console.error(`  ✗ Could not read the documents from Yorkie: ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }),
+    fileRepository.list("document"),
+    chatService.list(),
+  ]);
 
-  const files = workspaceFiles({
-    documents,
-    roots,
-    files: await fileRepository.list("document"),
-    messages: await chatService.list(),
+  return NextResponse.json({
+    files: workspaceFiles({ documents, roots, files, messages }),
+    documentsUnavailable: roots === null,
   });
-  return NextResponse.json({ files, documentsUnavailable: roots === null });
 }
