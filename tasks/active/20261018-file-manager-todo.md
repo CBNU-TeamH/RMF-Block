@@ -62,4 +62,8 @@ the sidebar link, the chat window wrapping the shell, `goToBlock` and the endpoi
 
 ## Review
 
-Filled in at the end.
+Branch: `feat/file-manager`.
+
+Shipped milestones 1–4. Milestone 4 came from the maintainer trying the page: 미리보기 had opened a floating view, which got in the way of looking through a list, so it became a centred window shared with the chat file list and the PDF block's 전체 화면, and the 파일 link moved under 새 문서.
+
+A `/simplify` pass (four sub-agents) applied one cleanup: `GET /api/files` awaits its three independent reads together. Declined, with reasons in the PR: sharing the type tabs with the chat file list (기타 vs 문서 is deliberate), caching the project secret key (three requests per load is the design's accepted cost), a single status state, a scroll-centring helper, and dropping the `highlight` flag (UC-040 jumps stay unflashed). A `/code-review low` pass (one sub-agent) found nothing; its one open question, whether the PDF block passes `onClose`, it does.
