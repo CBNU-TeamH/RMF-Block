@@ -146,6 +146,7 @@ export function useFocusPresence({
     return () => {
       for (const type of PAUSE_EVENTS) container.removeEventListener(type, pauseFollow, { capture: true });
     };
+    // `blocksLoaded`: the container is only rendered once the blocks are.
   }, [followingId, blocksLoaded, containerRef, pauseFollow]);
 
   // Follower side (FR-030-05/07): scroll to match whenever the followed anchor

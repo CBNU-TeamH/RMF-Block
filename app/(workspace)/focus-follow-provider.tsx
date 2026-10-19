@@ -22,6 +22,10 @@ export const SHARE_STARTED_MS = 6000;
 /** Who a share is by, as its notices show them. */
 export type Sharer = { nickname: string; colorTag: string };
 
+/** The follow this browser is in. `sharer` is kept from the join: a presenter
+ *  who left is no longer in the roster to name. */
+type Follow = { id: string; paused: boolean; sharer: Sharer };
+
 type FocusFollowState = {
   /** Local UI state, never published — who is *presenting* is shared presence,
    *  who follows whom is nobody else's business (`presence-and-focus.md`).
@@ -78,9 +82,7 @@ export function useFocusFollow(): FocusFollowState {
  *  fire for someone pressing 참여하기 from the document list. */
 export function FocusFollowProvider({ children }: { children: React.ReactNode }) {
   const { members, memberId } = useWorkspacePresence();
-  const [rawFollowingId, setRawFollowingId] = useState<string | null>(null);
-  const [paused, setPaused] = useState(false);
-  const [followed, setFollowed] = useState<Sharer | null>(null);
+  const [current, setCurrent] = useState<Follow | null>(null);
   const [shareStarted, setShareStarted] = useState<(Sharer & { id: string }) | null>(null);
   const [shareEnded, setShareEnded] = useState<Sharer | null>(null);
   const [lastRoster, setLastRoster] = useState(members);
@@ -93,15 +95,14 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
   // ending fires an event and the roster is in hand. *Forgotten*, not derived
   // away — a standing id would pull this browser into their next share.
   // The same branch tells the follower the share ended (E3-3).
-  const target = rawFollowingId ? members.find((m) => m.id === rawFollowingId) : undefined;
-  if (rawFollowingId && !target?.presenting) {
-    setRawFollowingId(null);
-    setPaused(false);
-    setShareEnded(followed);
+  const target = current ? members.find((m) => m.id === current.id) : undefined;
+  if (current && !target?.presenting) {
+    setCurrent(null);
+    setShareEnded(current.sharer);
   }
-  const followedId = target?.presenting ? rawFollowingId : null;
-  const followingId = paused ? null : followedId;
-  const pausedId = paused ? followedId : null;
+  const followedId = current && target?.presenting ? current.id : null;
+  const followingId = current?.paused ? null : followedId;
+  const pausedId = current?.paused ? followedId : null;
 
   // FR-030-03: a member who was in the last roster not presenting, and is now,
   // has started a share. Against the last roster, so neither the first one nor
@@ -112,14 +113,14 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
     const started = members.find(
       (m) => m.id !== memberId && m.presenting && lastRoster.some((last) => last.id === m.id && !last.presenting),
     );
-    if (started && !rawFollowingId) {
+    if (started && !current) {
       setShareStarted({ id: started.id, nickname: started.nickname, colorTag: started.colorTag });
     } else if (shareStarted && !members.find((m) => m.id === shareStarted.id)?.presenting) {
       setShareStarted(null);
     }
   }
 
-  const pause = useCallback(() => setPaused(true), []);
+  const pause = useCallback(() => setCurrent((follow) => (follow && { ...follow, paused: true })), []);
 
   // Where this provider last sent the browser, and the route it last saw: a
   // route change it did not make is the follower's own (`presence-and-focus.md`).
@@ -205,18 +206,14 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
     pausedId,
     follow: (id) => {
       const presenter = members.find((m) => m.id === id);
-      setRawFollowingId(id);
-      setFollowed(presenter ? { nickname: presenter.nickname, colorTag: presenter.colorTag } : null);
-      setPaused(false);
+      if (!presenter) return;
+      setCurrent({ id, paused: false, sharer: { nickname: presenter.nickname, colorTag: presenter.colorTag } });
       setShareStarted(null);
       setShareEnded(null);
     },
-    unfollow: () => {
-      setRawFollowingId(null);
-      setPaused(false);
-    },
+    unfollow: () => setCurrent(null),
     pause,
-    resume: () => setPaused(false),
+    resume: () => setCurrent((follow) => follow && { ...follow, paused: false }),
     shareStarted,
     shareEnded,
     jumpTo,
