@@ -50,7 +50,7 @@
 - Browser E2E (`e2e/`): new `e2e/chat-links.e2e.ts` — a block sent from its ··· menu with a URL typed beside it; for another member the URL opens in a new tab, and the card lands on the block.
 - Container smoke (`.github/workflows/ci.yml`): no change — startup, auth and networking are untouched.
 - Commands and observed results (fill in before the PR):
-  - `pnpm typecheck`, `pnpm lint`: clean. `pnpm test`: 80 files, 867 tests passed. `pnpm comments`, `pnpm verify:docs`: clean.
+  - `pnpm typecheck`, `pnpm lint`: clean. `pnpm test`: 80 files, 868 tests passed. `pnpm build`: passed. `pnpm comments`, `pnpm verify:docs`: clean.
   - `e2e/chat-links.e2e.ts`: type-checked and collected (1 test); not run here, since this machine has no Playwright browsers.
   - In Chrome on the isolated stack, with the host on `localhost:3100` and a guest on `127.0.0.1:3100`:
     - The block's ··· menu showed 채팅으로 보내기 and 링크 복사.
@@ -80,4 +80,21 @@ FR-060-01/03/06, UC-060 E7a, FR-061-01. Resolves `chat.md`'s open question on wh
 
 ## Review
 
-Filled in at the end.
+Branch: `feat/chat-links`.
+
+Shipped milestones 1–3, with the maintainer's two choices: both ways to attach from a block (채팅으로 보내기, and 링크 복사 with paste) besides the 문서 링크 picker, and plain URLs as well as document links.
+
+A `/simplify` pass (four sub-agents) applied three cleanups:
+- one `linkLabel` rule for the input's chip and the 링크 tab;
+- the 링크 tab as its own `LinkList`, out of the file list's nested ternary;
+- `ChatMessageRow` memoised, so a keystroke in the chat input no longer re-reads every message for URLs.
+
+Declined, with reasons in the PR:
+- one block menu for the whole editor;
+- the URL as the only carrier of a block landing;
+- an excerpt helper taking a string;
+- a shell-level toast;
+- one context for the chat window's two entry points;
+- the catalogue through a context rather than props.
+
+A `/code-review low` pass (one sub-agent) raised nothing.
