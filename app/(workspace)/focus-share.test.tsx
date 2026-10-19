@@ -1,16 +1,23 @@
 // @vitest-environment happy-dom
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const follow = vi.fn();
 const presence = { members: [] as Array<unknown>, isPresenting: false, setPresenting: vi.fn() };
+const focus = {
+  followingId: null as string | null,
+  pausedId: null as string | null,
+  shareEnded: false,
+  follow,
+  unfollow: vi.fn(),
+  pause: vi.fn(),
+  resume: vi.fn(),
+};
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/documents/doc-1" }));
 vi.mock("./presence-provider", () => ({ useWorkspacePresence: () => presence }));
-vi.mock("./focus-follow-provider", () => ({
-  useFocusFollow: () => ({ followingId: null, follow, unfollow: vi.fn() }),
-}));
+vi.mock("./focus-follow-provider", () => ({ useFocusFollow: () => focus }));
 
 import { FocusShare } from "./focus-share.tsx";
 
@@ -18,6 +25,7 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   presence.members = [];
+  Object.assign(focus, { followingId: null, pausedId: null, shareEnded: false });
 });
 
 const member = (id: string, nickname: string, presenting: boolean) => ({
@@ -70,5 +78,41 @@ describe("FocusShare", () => {
     render(<FocusShare memberId="me" />);
 
     assert.equal(screen.queryByRole("combobox"), null);
+  });
+});
+
+describe("FocusShare — following, paused and ended (UC-030 E3-1, E3-3)", () => {
+  it("offers 일시 정지 beside 종료 while following", () => {
+    presence.members = [member("m-1", "가", true)];
+    focus.followingId = "m-1";
+    render(<FocusShare memberId="me" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "일시 정지" }));
+    fireEvent.click(screen.getByRole("button", { name: "가님을 따라가는 중 · 종료" }));
+
+    assert.equal(focus.pause.mock.calls.length, 1);
+    assert.equal(focus.unfollow.mock.calls.length, 1);
+  });
+
+  it("offers 재개 and 종료 while paused, not 참여하기", () => {
+    presence.members = [member("m-1", "가", true)];
+    focus.pausedId = "m-1";
+    render(<FocusShare memberId="me" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "가님 따라가기 일시 정지됨 · 재개" }));
+    fireEvent.click(screen.getByRole("button", { name: "종료" }));
+
+    assert.equal(focus.resume.mock.calls.length, 1);
+    assert.equal(focus.unfollow.mock.calls.length, 1);
+    assert.equal(screen.queryByRole("button", { name: /참여하기/ }), null);
+  });
+
+  it("says the share ended, beside whatever the control offers next", () => {
+    presence.members = [member("me", "나", false)];
+    focus.shareEnded = true;
+    render(<FocusShare memberId="me" />);
+
+    assert.equal(screen.getByRole("status").textContent, "공유가 종료되었습니다");
+    assert.ok(screen.getByRole("button", { name: "공유하기" }));
   });
 });

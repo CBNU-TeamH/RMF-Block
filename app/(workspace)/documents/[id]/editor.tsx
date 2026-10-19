@@ -129,7 +129,7 @@ export function DocumentEditor({
   const router = useRouter();
   const { client, members, memberId, isPresenting, setPresenting, setLocation } =
     useWorkspacePresence();
-  const { followingId, scrollTarget, clearScrollTarget } = useFocusFollow();
+  const { followingId, pausedId, pause, scrollTarget, clearScrollTarget } = useFocusFollow();
   const openFloating = useFloatingViews();
   // The header's slot for this document's actions (`layout.tsx`): the history
   // trigger needs this component's `client`, `docRef` and `replaceBlocks`, but
@@ -242,6 +242,7 @@ export function DocumentEditor({
     setPresenting,
     scrollTarget,
     clearScrollTarget,
+    pauseFollow: pause,
   });
 
   /** Read live, never from `blocks` state, and by iteration rather than `.find`
@@ -1131,7 +1132,7 @@ export function DocumentEditor({
         memberId={memberId}
         colorTag={colorTag}
         isPresenting={isPresenting}
-        followingId={followingId}
+        followingId={followingId ?? pausedId}
       />
 
       {/* `/페이지`'s one question. A name is asked for rather than defaulted to

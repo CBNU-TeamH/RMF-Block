@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Pause a follower who scrolls, edits or moves on, and resume (UC-030)](active/20261019-follow-pause-todo.md) | [lessons](active/20261019-follow-pause-lessons.md) |
 | [Workspace file manager (UC-050)](active/20261018-file-manager-todo.md) | [lessons](active/20261018-file-manager-lessons.md) |
 | [Simple collaborative table blocks](active/20261016-table-block-todo.md) | [lessons](active/20261016-table-block-lessons.md) |
 | [Perf campaign on an internet Wi-Fi, run with Claude](active/20261016-perf-internet-wifi-todo.md) | [lessons](active/20261016-perf-internet-wifi-lessons.md) |

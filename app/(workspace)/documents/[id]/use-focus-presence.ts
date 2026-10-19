@@ -14,6 +14,10 @@ import { flash } from "../../ui";
  *  defining a second copy of the same value. */
 export const PUBLISH_MS = 100;
 
+/** What a follower does to scroll the document or start editing it: a wheel, a
+ *  touch, a press (the scrollbar, a block, a block's controls) or typing. */
+const PAUSE_EVENTS = ["wheel", "touchmove", "pointerdown", "beforeinput"] as const;
+
 /** Focus following (UC-030) for *this* editor. The decisions are pure and tested
  *  in `lib/focus/`; only the two effects driving them are here. Crossing to a
  *  different document is `focus-follow-provider.tsx`'s, which works unmounted. */
@@ -28,6 +32,7 @@ export function useFocusPresence({
   setPresenting,
   scrollTarget,
   clearScrollTarget,
+  pauseFollow,
 }: {
   documentId: string;
   containerRef: RefObject<HTMLDivElement | null>;
@@ -45,6 +50,8 @@ export function useFocusPresence({
    *  loaded, then cleared. */
   scrollTarget: { documentId: string; blockId: string | null; highlight?: boolean } | null;
   clearScrollTarget: () => void;
+  /** UC-030 E3-1: the follower's own scroll, press or edit pauses the follow. */
+  pauseFollow: () => void;
 }) {
   // The last anchor published, so an unchanged one is not sent again.
   const lastPublishedAnchorRef = useRef<FocusAnchor | null>(null);
@@ -126,6 +133,20 @@ export function useFocusPresence({
     // this listener continuously and dropped scroll events. See
     // `presence-and-focus.md`, "What the two focus effects may depend on".
   }, [isPresenting, documentId, setPresenting, blocksLoaded, containerRef]);
+
+  // E3-1: the follower's own move pauses the follow instead of being pulled
+  // back. Intent, not `scroll` or a change to the document — the follow's own
+  // scroll, a peer's edit and the trailing block are nobody's move here
+  // (`presence-and-focus.md`).
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!followingId || !container) return;
+
+    for (const type of PAUSE_EVENTS) container.addEventListener(type, pauseFollow, { capture: true, passive: true });
+    return () => {
+      for (const type of PAUSE_EVENTS) container.removeEventListener(type, pauseFollow, { capture: true });
+    };
+  }, [followingId, blocksLoaded, containerRef, pauseFollow]);
 
   // Follower side (FR-030-05/07): scroll to match whenever the followed anchor
   // changes.

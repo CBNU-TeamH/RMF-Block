@@ -18,14 +18,28 @@ const SHARE_ICON = (
   </svg>
 );
 
-/** The one header control for UC-030's thin slice: 공유 → 참여 → 종료
- *  (FR-030-01/03/04/09). The states and the order they are checked in:
- *  `docs/design/presence-and-focus.md`, "`FocusShare`'s states" — including
- *  why one presenter at a time is what ships, and what allowing several would
- *  take (issue #100). */
+/** The one header control for UC-030: 공유 → 참여 → 일시 정지 / 재개 → 종료
+ *  (FR-030-01/03/04/08/09), and the notice that a share ended (FR-030-11). The
+ *  states and the order they are checked in: `docs/design/presence-and-focus.md`,
+ *  "`FocusShare`'s states" — including why one presenter at a time is what
+ *  ships, and what allowing several would take (issue #100). */
 export function FocusShare({ memberId }: { memberId: string }) {
+  const { shareEnded } = useFocusFollow();
+  return (
+    <>
+      {shareEnded ? (
+        <span role="status" className="text-[13px] text-ink-soft">
+          공유가 종료되었습니다
+        </span>
+      ) : null}
+      <FocusShareControl memberId={memberId} />
+    </>
+  );
+}
+
+function FocusShareControl({ memberId }: { memberId: string }) {
   const { members, isPresenting, setPresenting } = useWorkspacePresence();
-  const { followingId, follow, unfollow } = useFocusFollow();
+  const { followingId, pausedId, follow, unfollow, pause, resume } = useFocusFollow();
   const pathname = usePathname();
 
   // Sorted, so every client names the same presenter; two presenters are representable, issue #100.
@@ -33,6 +47,7 @@ export function FocusShare({ memberId }: { memberId: string }) {
     .filter((m) => m.id !== memberId && m.presenting != null)
     .sort((a, b) => a.id.localeCompare(b.id));
   const following = followingId ? members.find((m) => m.id === followingId) : undefined;
+  const paused = pausedId ? members.find((m) => m.id === pausedId) : undefined;
 
   function startSharing() {
     const documentId = documentIdFromPathname(pathname);
@@ -59,10 +74,34 @@ export function FocusShare({ memberId }: { memberId: string }) {
 
   if (following) {
     return (
-      <button type="button" onClick={unfollow} className={`${BUTTON} bg-hover text-ink`}>
-        <span aria-hidden className="size-1.5 rounded-full bg-sky-deep" />
-        {following.nickname}님을 따라가는 중 · 종료
-      </button>
+      <span className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={unfollow}
+          title="직접 스크롤하거나 편집하면 따라가기가 일시 정지됩니다"
+          className={`${BUTTON} bg-hover text-ink`}
+        >
+          <span aria-hidden className="size-1.5 rounded-full bg-sky-deep" />
+          {following.nickname}님을 따라가는 중 · 종료
+        </button>
+        <button type="button" onClick={pause} className={`${BUTTON} text-ink-soft hover:bg-hover`}>
+          일시 정지
+        </button>
+      </span>
+    );
+  }
+
+  // E3-1: the view is the follower's again until 재개 brings it back.
+  if (paused) {
+    return (
+      <span className="flex items-center gap-0.5">
+        <button type="button" onClick={resume} className={`${BUTTON} bg-sky-soft text-sky-text`}>
+          {paused.nickname}님 따라가기 일시 정지됨 · 재개
+        </button>
+        <button type="button" onClick={unfollow} className={`${BUTTON} text-ink-soft hover:bg-hover`}>
+          종료
+        </button>
+      </span>
     );
   }
 

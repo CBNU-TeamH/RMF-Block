@@ -5,21 +5,25 @@ import { act, cleanup, render } from "@testing-library/react";
 
 const push = vi.fn();
 const presence = { members: [] as Array<unknown>, memberId: "me" };
+const nav = vi.hoisted(() => ({ pathname: "/documents/d1" }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/documents/d1",
+  usePathname: () => nav.pathname,
   useRouter: () => ({ push }),
 }));
 vi.mock("./presence-provider", () => ({ useWorkspacePresence: () => presence }));
 
-import { FocusFollowProvider, useFocusFollow } from "./focus-follow-provider.tsx";
+import { FocusFollowProvider, SHARE_ENDED_MS, useFocusFollow } from "./focus-follow-provider.tsx";
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  nav.pathname = "/documents/d1";
 });
 
+const me = { id: "me", nickname: "나", colorTag: "#111" };
 const bob = { id: "bob", nickname: "밥", colorTag: "#222", location: { documentId: "d2", blockId: "b" } };
 const presenter = { ...bob, presenting: { documentId: "d1", blockId: "b", ratio: 0 } };
 
@@ -28,72 +32,52 @@ function Probe({ onState }: { onState: (state: ReturnType<typeof useFocusFollow>
   return null;
 }
 
+/** The provider and a getter for its latest state; `rerender` picks up a changed
+ *  roster or route, which the mocks above hold. */
+function setup() {
+  let state!: ReturnType<typeof useFocusFollow>;
+  const tree = () => (
+    <FocusFollowProvider>
+      <Probe onState={(s) => {
+          state = s;
+        }} />
+    </FocusFollowProvider>
+  );
+  const { rerender } = render(tree());
+  return { state: () => state, rerender: () => rerender(tree()) };
+}
+
 describe("FocusFollowProvider — jumpTo while following", () => {
-  const setup = () => {
-    let state!: ReturnType<typeof useFocusFollow>;
-    render(
-      <FocusFollowProvider>
-        <Probe onState={(s) => {
-            state = s;
-          }} />
-      </FocusFollowProvider>,
-    );
-    return () => state;
-  };
-
-  it("stays put and keeps following when the person declines", () => {
-    vi.stubGlobal("confirm", () => false);
-    presence.members = [{ id: "me", nickname: "나", colorTag: "#111" }, presenter];
-    const state = setup();
-
-    act(() => state().follow("bob"));
-    act(() => state().jumpTo("bob"));
-
-    assert.equal(push.mock.calls.length, 0);
-    assert.equal(state().returnTo, null);
-  });
-
-  it("ends the follow and moves when the person accepts", () => {
-    vi.stubGlobal("confirm", () => true);
-    presence.members = [{ id: "me", nickname: "나", colorTag: "#111" }, presenter];
-    const state = setup();
-
-    act(() => state().follow("bob"));
-    act(() => state().jumpTo("bob"));
-
-    assert.equal(state().followingId, null);
-    assert.equal(push.mock.calls[0]?.[0], "/documents/d2");
-  });
-
-  it("moves without asking when not following", () => {
+  it("pauses the follow and moves, without asking (UC-030 E3-1)", () => {
     const confirm = vi.fn(() => false);
     vi.stubGlobal("confirm", confirm);
-    presence.members = [{ id: "me", nickname: "나", colorTag: "#111" }, bob];
-    const state = setup();
+    presence.members = [me, presenter];
+    const { state } = setup();
 
+    act(() => state().follow("bob"));
     act(() => state().jumpTo("bob"));
 
     assert.equal(confirm.mock.calls.length, 0);
+    assert.equal(state().followingId, null);
+    assert.equal(state().pausedId, "bob");
     assert.equal(push.mock.calls[0]?.[0], "/documents/d2");
+  });
+
+  it("moves when not following, and leaves nothing paused", () => {
+    presence.members = [me, bob];
+    const { state } = setup();
+
+    act(() => state().jumpTo("bob"));
+
+    assert.equal(push.mock.calls[0]?.[0], "/documents/d2");
+    assert.equal(state().pausedId, null);
   });
 });
 
 describe("FocusFollowProvider — goToBlock (UC-050 E3-3)", () => {
-  const setup = () => {
-    let state!: ReturnType<typeof useFocusFollow>;
-    render(
-      <FocusFollowProvider>
-        <Probe onState={(s) => {
-            state = s;
-          }} />
-      </FocusFollowProvider>,
-    );
-    return () => state;
-  };
-
   it("opens the document at the block, marked to be highlighted", () => {
-    presence.members = [{ id: "me", nickname: "나", colorTag: "#111" }];
-    const state = setup();
+    presence.members = [me];
+    const { state } = setup();
 
     act(() => state().goToBlock("d2", "b9"));
 
@@ -102,8 +86,8 @@ describe("FocusFollowProvider — goToBlock (UC-050 E3-3)", () => {
   });
 
   it("scrolls the open document without navigating", () => {
-    presence.members = [{ id: "me", nickname: "나", colorTag: "#111" }];
-    const state = setup();
+    presence.members = [me];
+    const { state } = setup();
 
     act(() => state().goToBlock("d1", "b1"));
 
@@ -111,16 +95,134 @@ describe("FocusFollowProvider — goToBlock (UC-050 E3-3)", () => {
     assert.equal(state().scrollTarget?.blockId, "b1");
   });
 
-  it("asks before leaving a follow, and stays put when declined", () => {
-    vi.stubGlobal("confirm", () => false);
-    presence.members = [{ id: "me", nickname: "나", colorTag: "#111" }, presenter];
-    const state = setup();
+  it("pauses a follow rather than asking to end it", () => {
+    presence.members = [me, presenter];
+    const { state } = setup();
 
     act(() => state().follow("bob"));
     act(() => state().goToBlock("d2", "b9"));
 
-    assert.equal(push.mock.calls.length, 0);
-    assert.equal(state().scrollTarget, null);
+    assert.equal(state().pausedId, "bob");
+    assert.equal(push.mock.calls[0]?.[0], "/documents/d2");
+  });
+});
+
+describe("FocusFollowProvider — pausing a follow (UC-030 E3-1)", () => {
+  it("pauses and resumes", () => {
+    presence.members = [me, presenter];
+    const { state } = setup();
+
+    act(() => state().follow("bob"));
+    act(() => state().pause());
+    assert.equal(state().followingId, null);
+    assert.equal(state().pausedId, "bob");
+
+    act(() => state().resume());
     assert.equal(state().followingId, "bob");
+    assert.equal(state().pausedId, null);
+  });
+
+  it("ends from a pause", () => {
+    presence.members = [me, presenter];
+    const { state } = setup();
+
+    act(() => state().follow("bob"));
+    act(() => state().pause());
+    act(() => state().unfollow());
+
+    assert.equal(state().followingId, null);
+    assert.equal(state().pausedId, null);
+  });
+
+  it("pauses when the follower opens another document themselves", () => {
+    presence.members = [me, presenter];
+    const { state, rerender } = setup();
+
+    act(() => state().follow("bob"));
+    nav.pathname = "/documents/d9";
+    rerender();
+
+    assert.equal(state().pausedId, "bob");
+    assert.equal(push.mock.calls.length, 0);
+  });
+
+  it("pauses when the follower leaves for a page that is not a document", () => {
+    presence.members = [me, presenter];
+    const { state, rerender } = setup();
+
+    act(() => state().follow("bob"));
+    nav.pathname = "/files";
+    rerender();
+
+    assert.equal(state().pausedId, "bob");
+    assert.equal(push.mock.calls.length, 0);
+  });
+
+  it("takes the follower along when the presenter opens another document", () => {
+    presence.members = [me, presenter];
+    const { state, rerender } = setup();
+
+    act(() => state().follow("bob"));
+    presence.members = [me, { ...presenter, presenting: { documentId: "d3", blockId: "c", ratio: 0 } }];
+    rerender();
+    // The roster moves again before the route has: still one trip, not paused.
+    presence.members = [me, { ...presenter, presenting: { documentId: "d3", blockId: "c", ratio: 0.5 } }];
+    rerender();
+
+    assert.deepEqual(push.mock.calls, [["/documents/d3"]]);
+    assert.equal(state().followingId, "bob");
+  });
+
+  it("brings a resumed follower back to the presenter's document", () => {
+    presence.members = [me, presenter];
+    const { state, rerender } = setup();
+
+    act(() => state().follow("bob"));
+    act(() => state().pause());
+    nav.pathname = "/documents/d9";
+    rerender();
+    act(() => state().resume());
+
+    assert.deepEqual(push.mock.calls, [["/documents/d1"]]);
+  });
+});
+
+describe("FocusFollowProvider — the end of a share (UC-030 E3-3)", () => {
+  it("says so when the presenter stops, and clears itself", () => {
+    vi.useFakeTimers();
+    presence.members = [me, presenter];
+    const { state, rerender } = setup();
+
+    act(() => state().follow("bob"));
+    presence.members = [me, bob];
+    rerender();
+    assert.equal(state().followingId, null);
+    assert.equal(state().shareEnded, true);
+
+    act(() => vi.advanceTimersByTime(SHARE_ENDED_MS));
+    assert.equal(state().shareEnded, false);
+  });
+
+  it("says so to a paused follower too", () => {
+    presence.members = [me, presenter];
+    const { state, rerender } = setup();
+
+    act(() => state().follow("bob"));
+    act(() => state().pause());
+    presence.members = [me];
+    rerender();
+
+    assert.equal(state().pausedId, null);
+    assert.equal(state().shareEnded, true);
+  });
+
+  it("stays quiet for a follower who left with 종료", () => {
+    presence.members = [me, presenter];
+    const { state } = setup();
+
+    act(() => state().follow("bob"));
+    act(() => state().unfollow());
+
+    assert.equal(state().shareEnded, false);
   });
 });
