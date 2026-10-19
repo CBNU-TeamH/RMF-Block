@@ -1,20 +1,13 @@
 // @vitest-environment happy-dom
 import assert from "node:assert/strict";
-import { afterEach, describe, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, it } from "vitest";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-
-// Hoisted with the mock, which runs before the imports below.
-const { openFloating } = vi.hoisted(() => ({ openFloating: vi.fn() }));
-vi.mock("./floating-views.tsx", () => ({ useFloatingViews: () => openFloating }));
 
 import type { ChatMessage } from "@/lib/chat/types";
 import { ChatFiles } from "./chat-files.tsx";
 
-afterEach(() => {
-  cleanup();
-  openFloating.mockClear();
-});
+afterEach(cleanup);
 
 const sent = (id: string, fileName: string, fileType: string): ChatMessage => ({
   id,
@@ -57,7 +50,10 @@ describe("ChatFiles", () => {
 
     assert.equal(screen.queryByRole("button", { name: "logo.svg 미리보기" }), null);
     await user.click(screen.getByRole("button", { name: "photo.png 미리보기" }));
-    assert.equal(openFloating.mock.calls[0][0].fileId, "f-1");
+    const dialog = screen.getByRole("dialog", { hidden: true }) as HTMLDialogElement;
+    assert.equal(dialog.open, true);
+    assert.equal(dialog.getAttribute("aria-label"), "photo.png 미리보기");
+    await user.click(within(dialog).getByRole("button", { name: "닫기", hidden: true }));
 
     await user.click(screen.getByRole("button", { name: "문서 1" }));
     assert.equal(screen.queryByRole("button", { name: "notes.zip 미리보기" }), null);

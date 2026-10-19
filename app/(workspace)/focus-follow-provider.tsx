@@ -11,6 +11,9 @@ import { useWorkspacePresence } from "./presence-provider";
 
 type Place = NonNullable<WorkspacePresence["location"]>;
 
+/** `highlight` marks a landing someone asked for by the block (UC-050 E3-3). */
+type ScrollTarget = Place & { highlight?: boolean };
+
 type FocusFollowState = {
   /** Local UI state, never published — who is *presenting* is shared presence,
    *  who follows whom is nobody else's business (`presence-and-focus.md`). */
@@ -22,8 +25,10 @@ type FocusFollowState = {
   /** Where `jumpTo` left from — a place, or `"home"` for the page with no document — or `null`. One place, replaced by the next jump (FR-040-03). */
   returnTo: Place | "home" | null;
   goBack: () => void;
+  /** UC-050 E3-3: open a document at a block and highlight it. Ends any follow. */
+  goToBlock: (documentId: string, blockId: string) => void;
   /** A block the editor of `documentId` should scroll to once it has loaded. */
-  scrollTarget: Place | null;
+  scrollTarget: ScrollTarget | null;
   clearScrollTarget: () => void;
 };
 
@@ -34,6 +39,7 @@ const FocusFollowContext = createContext<FocusFollowState>({
   jumpTo: () => undefined,
   returnTo: null,
   goBack: () => undefined,
+  goToBlock: () => undefined,
   scrollTarget: null,
   clearScrollTarget: () => undefined,
 });
@@ -50,7 +56,7 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
   const { members, memberId } = useWorkspacePresence();
   const [rawFollowingId, setRawFollowingId] = useState<string | null>(null);
   const [returnTo, setReturnTo] = useState<Place | "home" | null>(null);
-  const [scrollTarget, setScrollTarget] = useState<Place | null>(null);
+  const [scrollTarget, setScrollTarget] = useState<ScrollTarget | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -70,7 +76,7 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
     router.push(`/documents/${documentId}`);
   }, [followingId, members, pathname, router]);
 
-  function goTo(place: Place) {
+  function goTo(place: ScrollTarget) {
     setScrollTarget(place);
     if (place.documentId !== documentIdFromPathname(pathname)) {
       router.push(`/documents/${place.documentId}`);
@@ -79,18 +85,24 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
 
   const clearScrollTarget = useCallback(() => setScrollTarget(null), []);
 
+  /** A follow would pull this browser straight back to the presenter, so moving
+   *  on means leaving it — ask first. `false` when they would rather stay. */
+  function leaveFollow(): boolean {
+    if (!followingId) return true;
+    if (!window.confirm("따라가기를 종료하고 이동하시겠습니까?")) return false;
+    setRawFollowingId(null);
+    return true;
+  }
+
   function jumpTo(targetId: string) {
     const place = members.find((m) => m.id === targetId)?.location;
-    if (!place) return;
-
-    // A follow would pull this browser straight back to the presenter, so
-    // moving on means leaving it — ask first.
-    if (followingId) {
-      if (!window.confirm("따라가기를 종료하고 이동하시겠습니까?")) return;
-      setRawFollowingId(null);
-    }
+    if (!place || !leaveFollow()) return;
     setReturnTo(members.find((m) => m.id === memberId)?.location ?? "home");
     goTo(place);
+  }
+
+  function goToBlock(documentId: string, blockId: string) {
+    if (leaveFollow()) goTo({ documentId, blockId, highlight: true });
   }
 
   function goBack() {
@@ -115,6 +127,7 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
     jumpTo,
     returnTo,
     goBack,
+    goToBlock,
     scrollTarget,
     clearScrollTarget,
   };

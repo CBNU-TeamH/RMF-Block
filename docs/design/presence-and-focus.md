@@ -57,7 +57,9 @@ expire after 30s and are refreshed by a 5s heartbeat) cannot promise. `FocusFoll
 would pull it straight back), remembers one place to return to, and hands the editor a block to
 scroll to once the document has loaded. That target expires after 10s so a failed navigation
 does not scroll a later open; a member with no focused block lands at the top of the document, and
-a block that has since been deleted leaves the scroll alone.
+a block that has since been deleted leaves the scroll alone. The file manager's 원본 위치 reuses the
+same target through `goToBlock`, marked `highlight` so the editor flashes the block it lands on
+([`file-manager.md`](file-manager.md)).
 
 Where it surfaces: the header roster lists only the members in the open document (and, dimmed at
 the end, the ones not connected); the document tree is where you find the rest — a dot per other

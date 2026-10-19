@@ -5,6 +5,8 @@ import { readBoxes } from "@/lib/focus/dom";
 import type { Block } from "@/lib/blocks/types";
 import type { WorkspacePresence } from "@/lib/presence/types";
 
+import { flash } from "../../ui";
+
 /** How often a presenter's anchor may go out, at most.
  *  simple: a plain interval, no easing or adaptive cadence
  *  (`docs/design/presence-and-focus.md`). Lower it if following reads as steppy.
@@ -41,7 +43,7 @@ export function useFocusPresence({
   setPresenting: (anchor: { documentId: string; blockId: string; ratio: number } | null) => void;
   /** A jump's destination (UC-040). Scrolled to once, when this document has
    *  loaded, then cleared. */
-  scrollTarget: { documentId: string; blockId: string | null } | null;
+  scrollTarget: { documentId: string; blockId: string | null; highlight?: boolean } | null;
   clearScrollTarget: () => void;
 }) {
   // The last anchor published, so an unchanged one is not sent again.
@@ -71,6 +73,7 @@ export function useFocusPresence({
       // to centre (its owner never focused one), the top.
       const box = target.blockId ? readBoxes(container).find((b) => b.id === target.blockId) : undefined;
       if (box) container.scrollTop = box.top - (container.clientHeight - box.height) / 2;
+      if (box && target.highlight) flash(container.querySelector(`[data-block-id="${CSS.escape(box.id)}"]`));
       else if (!target.blockId) container.scrollTop = 0;
     }
     clearScrollTarget();

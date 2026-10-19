@@ -76,38 +76,40 @@ export default async function WorkspaceLayout({
       <FocusFollowProvider>
         <FloatingViewProvider colorTag={me.colorTag} nickname={me.nickname}>
           <NewDocumentProvider>
-            {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
-                shell has to be exactly the viewport's height, not merely at least
-                it, or the row below never bounds `<main>` and the editor's own
-                scroll container grows to fit its blocks instead of scrolling. */}
-            <div className="flex h-full flex-1 bg-paper">
-              {member ? <SessionWatch /> : null}
+            {/* Around the shell, so the file manager can open it at a message; its
+                window and bar are `fixed`, floating over the shell rather than
+                taking a column from it. */}
+            <ChatWindow me={me.nickname}>
+              {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
+                  shell has to be exactly the viewport's height, not merely at least
+                  it, or the row below never bounds `<main>` and the editor's own
+                  scroll container grows to fit its blocks instead of scrolling. */}
+              <div className="flex h-full flex-1 bg-paper">
+                {member ? <SessionWatch /> : null}
 
-              <Sidebar
-                workspaceName={workspaceName}
-                isHost={isHost}
-                initiallyCollapsed={jar.get(SIDEBAR_COOKIE)?.value === "collapsed"}
-              >
-                <DocumentList documents={documents} />
-              </Sidebar>
+                <Sidebar
+                  workspaceName={workspaceName}
+                  isHost={isHost}
+                  initiallyCollapsed={jar.get(SIDEBAR_COOKIE)?.value === "collapsed"}
+                >
+                  <DocumentList documents={documents} />
+                </Sidebar>
 
-              <div className="flex min-w-0 flex-1 flex-col">
-                {/* Tabs outermost, then one bar for the document they show — its
-                    path, who is in it, and its actions — as Obsidian, Notion and
-                    wafflebase arrange it (`app-shell.md`). */}
-                <DocumentTabs documents={documents} />
-                <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">
-                  <Breadcrumb documents={documents} />
-                  <PresenceStack memberId={me.id} known={known} />
-                  <FocusShare memberId={me.id} />
-                  <div id={DOCUMENT_ACTIONS_ID} className="flex items-center empty:hidden" />
-                </header>
-                <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  {/* Tabs outermost, then one bar for the document they show — its
+                      path, who is in it, and its actions — as Obsidian, Notion and
+                      wafflebase arrange it (`app-shell.md`). */}
+                  <DocumentTabs documents={documents} />
+                  <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">
+                    <Breadcrumb documents={documents} />
+                    <PresenceStack memberId={me.id} known={known} />
+                    <FocusShare memberId={me.id} />
+                    <div id={DOCUMENT_ACTIONS_ID} className="flex items-center empty:hidden" />
+                  </header>
+                  <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+                </div>
               </div>
-
-              {/* `fixed` — it floats over the shell rather than taking a column from it. */}
-              <ChatWindow me={me.nickname} />
-            </div>
+            </ChatWindow>
           </NewDocumentProvider>
         </FloatingViewProvider>
       </FocusFollowProvider>

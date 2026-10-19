@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("./presence-provider.tsx", () => ({ useWorkspacePresence: () => ({ members: [] }) }));
@@ -11,6 +11,14 @@ import { ChatPanel } from "./chat-panel.tsx";
 
 class QuietSocket {
   addEventListener() {}
+  close() {}
+}
+
+/** Opens at once, which is what makes the panel fetch its history. */
+class OpeningSocket {
+  addEventListener(type: string, listener: () => void) {
+    if (type === "open") queueMicrotask(listener);
+  }
   close() {}
 }
 
@@ -41,5 +49,34 @@ describe("ChatPanel", () => {
     await waitFor(() =>
       assert.ok(fetch.mock.calls.some(([url, init]) => url === "/api/chat" && init?.method === "POST")),
     );
+  });
+
+  // UC-050 E3-3: the file manager opens the window at a message.
+  it("lands on a message from the history, out of the file list, and highlights it", async () => {
+    const history = [
+      { id: "m1", sender: "지은", text: "첫 메시지", sentAt: "2026-10-15T00:00:00.000Z" },
+      { id: "m2", sender: "민수", text: "", sentAt: "2026-10-15T01:00:00.000Z", attachment: { fileId: "f", fileName: "photo.jpg", fileType: "image/jpeg", size: 3 } },
+    ];
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json(history)));
+    vi.stubGlobal("WebSocket", OpeningSocket);
+    const flashed: Array<string | undefined> = [];
+    const original = HTMLElement.prototype.animate;
+    HTMLElement.prototype.animate = function (this: HTMLElement) {
+      flashed.push(this.dataset.messageId);
+      return {} as Animation;
+    };
+    try {
+      const onLanded = vi.fn();
+      const { rerender } = render(<ChatPanel me="지은" landOn={null} onLanded={onLanded} />);
+      fireEvent.click(screen.getByRole("button", { name: "파일" }));
+
+      rerender(<ChatPanel me="지은" landOn="m2" onLanded={onLanded} />);
+
+      await waitFor(() => assert.equal(onLanded.mock.calls.length, 1));
+      assert.equal(screen.getByRole("button", { name: "대화" }).getAttribute("aria-pressed"), "true");
+      assert.deepEqual(flashed, ["m2"]);
+    } finally {
+      HTMLElement.prototype.animate = original;
+    }
   });
 });

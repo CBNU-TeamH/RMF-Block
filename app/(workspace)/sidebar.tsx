@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { useNewDocument } from "./new-document";
-import { AdminIcon, PLUS, SEARCH, SIDEBAR_COOKIE, icon } from "./ui";
+import { AdminIcon, FileIcon, PLUS, SEARCH, SIDEBAR_COOKIE, icon } from "./ui";
 
 const railButton =
   "flex size-8 items-center justify-center rounded-control text-ink-soft hover:bg-hover hover:text-ink";
@@ -26,6 +27,7 @@ export function Sidebar({
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(initiallyCollapsed);
+  const onFiles = usePathname() === "/files";
   const asideRef = useRef<HTMLElement>(null);
   const openNewDocument = useNewDocument();
 
@@ -70,6 +72,15 @@ export function Sidebar({
           <button type="button" aria-label="새 문서" onClick={() => openNewDocument(null)} className={railButton}>
             {icon(PLUS, 16)}
           </button>
+          <Link
+            href="/files"
+            aria-label="파일"
+            aria-current={onFiles ? "page" : undefined}
+            title="파일 — 문서와 채팅에 올라온 파일"
+            className={`${railButton} ${onFiles ? "bg-hover text-ink" : ""}`}
+          >
+            <FileIcon size={16} />
+          </Link>
         </>
       ) : (
         <div className="mb-1 flex h-9 items-center gap-2 px-2">

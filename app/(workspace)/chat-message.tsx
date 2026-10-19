@@ -97,7 +97,7 @@ export function ChatMessageRow({
   return (
     // Left-aligned, no bubbles (`docs/ui/redesign/HANDOFF.md` §3). Your own
     // name in sky until HANDOFF's "나" badge lands.
-    <li className="flex gap-2.5 rounded-control px-2 py-1.5 hover:bg-hover">
+    <li data-message-id={message.id} className="flex gap-2.5 rounded-control px-2 py-1.5 hover:bg-hover">
       <span
         aria-hidden
         style={colorTag ? { backgroundColor: colorTag } : undefined}

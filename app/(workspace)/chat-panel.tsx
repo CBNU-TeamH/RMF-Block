@@ -7,6 +7,7 @@ import type { ChatMessage } from "@/lib/chat/types";
 import { ChatFiles } from "./chat-files";
 import { ChatMessageRow } from "./chat-message";
 import { useWorkspacePresence } from "./presence-provider";
+import { flash } from "./ui";
 
 /** The workspace chat (FR-060-01/02/04/05/07). **Prototype** — no chat artboard
  *  in `docs/ui/`, so this is built from the shell's vocabulary.
@@ -31,7 +32,16 @@ type Pending = {
 const switchClass = (on: boolean) =>
   `rounded-control px-2 py-0.5 text-[12.5px] font-medium ${on ? "bg-paper-2 text-ink" : "text-ink-faint hover:text-ink"}`;
 
-export function ChatPanel({ me }: { me: string }) {
+export function ChatPanel({
+  me,
+  landOn = null,
+  onLanded = () => undefined,
+}: {
+  me: string;
+  /** A message to scroll to and highlight once it is here (UC-050 E3-3). */
+  landOn?: string | null;
+  onLanded?: () => void;
+}) {
   const [messages, setMessages] = useState<Array<ChatMessage>>([]);
   const [pending, setPending] = useState<Array<Pending>>([]);
   const [draft, setDraft] = useState("");
@@ -40,6 +50,9 @@ export function ChatPanel({ me }: { me: string }) {
   // UC-061 step 1: the file list is a menu in this panel, fed by the same
   // `messages`, so it is live without a second fetch.
   const [showFiles, setShowFiles] = useState(false);
+  // A landing is in the conversation, which the file list hides — settled
+  // during render so the effect below measures a visible list.
+  if (landOn && showFiles) setShowFiles(false);
 
   const scroller = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -138,6 +151,19 @@ export function ChatPanel({ me }: { me: string }) {
       node.scrollTop = node.scrollHeight;
     }
   }, [messages, pending]);
+
+  // After the effect above, so a landing wins over its pull to the bottom; and
+  // on every history change, since the message may arrive with the backfill.
+  useEffect(() => {
+    const node = scroller.current;
+    const row = landOn ? node?.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(landOn)}"]`) : null;
+    if (!node || !row) return;
+    // From the two boxes, not `offsetTop`: the list is not the row's offset parent.
+    const above = row.getBoundingClientRect().top - node.getBoundingClientRect().top;
+    node.scrollTop += above - (node.clientHeight - row.offsetHeight) / 2;
+    flash(row);
+    onLanded();
+  }, [landOn, messages, onLanded]);
 
   async function deliver(entry: Pending): Promise<void> {
     let fileId = entry.fileId;
