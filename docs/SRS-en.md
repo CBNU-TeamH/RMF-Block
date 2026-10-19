@@ -656,14 +656,14 @@ flowchart LR
   3. The system shows followers in the workspace the notice "발표자가 화면 공유를 시작했습니다" (The presenter started sharing) and a "참여하기" (Join) button.
   4. A follower clicks "참여하기" (Join).
   5. The system moves the follower's screen to the presenter's current document and screen position, and switches it to presentation mode.
-  6. The system restricts document editing and independent navigation for users in presentation mode.
+  6. The system does not block a follower's document editing or navigation. When a follower navigates or edits on their own, the system pauses their presentation mode (E3-1).
   7. The presenter moves to another document or changes the screen or scroll position.
   8. The system sends the changed document ID, screen position and scroll position to followers in real time.
   9. The system shows the follower's screen at the same position as the presenter's. |
 | Alternative flows | **E3-1. Follower pauses**
-  1. The follower clicks "일시 정지" (Pause).
-  2. The system releases the follower's presentation mode.
-  3. The system releases the follower's fixed view and allows document editing and navigation.
+  1. The follower clicks "일시 정지" (Pause), or navigates or edits on their own.
+  2. The system pauses the follower's presentation mode.
+  3. The system releases the follower's fixed view and shows a "재개" (Resume) button on the follower's screen.
   4. The follower clicks "재개" (Resume).
   5. The system re-activates the follower's presentation mode.
   6. The system re-synchronizes the follower's screen with the presenter's current document and screen position.
@@ -671,13 +671,13 @@ flowchart LR
 **E3-2. Follower ends focus following**
   1. The follower clicks "종료" (End).
   2. The system ends the follower's presentation mode.
-  3. The system releases the follower's fixed view and editing restriction.
+  3. The system releases the follower's fixed view.
 
 **E3-3. Presenter disconnects**
   1. The presenter's connection ends, or the presenter ends the presentation.
   2. The system ends the presentation session.
   3. The system shows "공유가 종료되었습니다." (Sharing has ended.) on followers' screens.
-  4. The system releases followers' fixed view and editing restriction.
+  4. The system releases followers' fixed view.
 
 **E3-4. Presenter tools**
   1. The presenter uses a presenter tool to highlight a document region or a block.
@@ -686,7 +686,8 @@ flowchart LR
   4. When the presentation ends, the system removes the highlight metadata and clears the highlight from followers' screens. |
 | Outcome |   • Followers can see where the presenter is in real time.
   • Communication cost during meetings goes down. |
-| Notes |   • The presenter tools are text highlighting and underlining. |
+| Notes |   • The presenter tools are text highlighting and underlining.
+  • Not blocking a follower's editing follows the same principle as block occupancy not being an edit lock (FR-022-06); Yorkie's CRDT resolves concurrent edits. |
 
 ## UC-040
 
@@ -1016,7 +1017,7 @@ flowchart LR
   • The system shall provide presenter tools to the presenter.
   • Participants shall be able to join presentation mode. |
 | Other considerations |   • Participants shall be able to pause and resume.
-  • When the presentation ends, participants' editing restriction shall be released. |
+  • When a participant navigates or edits on their own, their participation shall be paused. |
 | Output data |   • Document ID
   • Screen position
   • Scroll position
@@ -1313,12 +1314,12 @@ The gaps in numbering (05, 07, 08, 10, 11) are confirmed intentional — no requ
 | FR-030-03 | When a presentation starts, the system shall notify other users and give them a way to join. | UC-030 |
 | FR-030-04 | A follower shall be able to join an ongoing presentation. | UC-030 |
 | FR-030-05 | When a follower joins, the system shall move the follower's screen to the presenter's current document and screen position. | UC-030 |
-| FR-030-06 | The system shall restrict a follower's document editing and independent navigation. | UC-030 |
+| FR-030-06 | The system shall not block a follower's document editing or navigation, and shall pause the follower's participation when they navigate or edit on their own. | UC-030 |
 | FR-030-07 | The system shall reflect the presenter's document, screen and scroll position changes on followers' screens in real time. | UC-030 |
 | FR-030-08 | A follower shall be able to pause and resume following the presentation. | UC-030 |
 | FR-030-09 | A follower shall be able to stop following the presentation. | UC-030 |
-| FR-030-10 | When a follower pauses or stops, the system shall release that follower's navigation and editing restrictions. | UC-030 |
-| FR-030-11 | When the presenter disconnects or ends the presentation, the system shall end the session, tell followers it ended, and release the restrictions. | UC-030 |
+| FR-030-10 | When a follower pauses or stops, the system shall release that follower's fixed view. | UC-030 |
+| FR-030-11 | When the presenter disconnects or ends the presentation, the system shall end the session, tell followers it ended, and release their fixed view. | UC-030 |
 | FR-030-12 | The presenter shall be able to highlight a document region or a block with presenter tools. | UC-030 |
 | FR-030-13 | The system shall reflect the presenter's highlights on followers' screens in real time. | UC-030 |
 | FR-030-14 | When the presentation ends, the system shall delete the highlights and related metadata stored on the presenter's and followers' side. | UC-030 |
