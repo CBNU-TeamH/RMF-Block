@@ -291,6 +291,16 @@ for (let round = 1; round <= ROUNDS; round++) {
       const clock: Note = { start: { H: await readClock(hPage), G: await readClock(gPage) } };
       r.phase = "window";
       const windowAt = now();
+      // Three more readings across the edit/chat phase let `stats.uncertainty` see whether θ drifts
+      // along a line (#215).
+      const mid: Array<Note> = [];
+      const midReadings = (async () => {
+        for (const share of [0.25, 0.5, 0.75]) {
+          await delay(Math.max(0, windowAt + share * MINUTES * 60_000 - now()));
+          mid.push({ H: await readClock(hPage), G: await readClock(gPage) });
+        }
+      })();
+      midReadings.catch(() => {}); // a round that fails first must not leave this rejection unhandled
       if (OUTAGE) {
         await work(r, actors, MINUTES, 0);
         await outage(r, h, g, probe!, meta);
@@ -305,6 +315,8 @@ for (let round = 1; round <= ROUNDS; round++) {
       if (typeof meta.cutAt === "number") marks.push({ time: meta.cutAt, text: `round ${round}: cut` });
       if (typeof meta.restoreAt === "number") marks.push({ time: meta.restoreAt, text: `round ${round}: restore` });
       r.phase = "teardown";
+      await midReadings;
+      clock.mid = mid;
       clock.end = { H: await readClock(hPage), G: await readClock(gPage) };
 
       const rtt = await gPage.evaluate(async (url) => {

@@ -50,6 +50,8 @@ type RoundRow = {
   outageRound: boolean;
   aborted: string | null;
   u: number | null;
+  /** U by the rule before mid-round readings: start and end only (#215). */
+  uLegacy: number | null;
   failures: Array<string>;
   memoryMiB: Record<Device, number | null>;
   rttMedian: number | null;
@@ -61,7 +63,8 @@ for (const name of (await readdir(run)).filter((n) => n.startsWith("round-")).so
   const dir = path.join(run, name);
   const conditions = json<{ preset: string; users: number; outage: number }>(path.join(dir, "conditions.json"));
   const signals = await rows<Signal>(path.join(dir, "signals.jsonl"));
-  const raw = json<Record<"start" | "end", Record<Device, Array<ClockSample>>>>(path.join(dir, "clock.json"));
+  type Reading = Record<Device, Array<ClockSample>>;
+  const raw = json<{ start: Reading; mid?: Array<Reading>; end: Reading }>(path.join(dir, "clock.json"));
   const abort = signals.find((s) => s.kind === "aborted");
   const failures = signals.filter((s) => !PASSIVE.has(s.kind) || s.phase === "window").map((s) => s.kind);
   const row: RoundRow = {
@@ -71,6 +74,7 @@ for (const name of (await readdir(run)).filter((n) => n.startsWith("round-")).so
     outageRound: Boolean(conditions?.outage),
     aborted: abort ? (abort.message ?? "aborted") : raw ? null : "no clock.json",
     u: null,
+    uLegacy: null,
     failures: [...new Set(failures)],
     memoryMiB: { H: null, G: null },
     rttMedian: null,
@@ -79,12 +83,12 @@ for (const name of (await readdir(run)).filter((n) => n.startsWith("round-")).so
   perRound.push(row);
   if (!raw || abort) continue;
 
-  const clocks: Record<Device, RoundClock> = {
-    H: { start: offsetFrom(raw.start.H), end: offsetFrom(raw.end.H) },
-    G: { start: offsetFrom(raw.start.G), end: offsetFrom(raw.end.G) },
-  };
+  const readings = (device: Device): RoundClock => [raw.start, ...(raw.mid ?? []), raw.end].map((r) => offsetFrom(r[device]));
+  const clocks: Record<Device, RoundClock> = { H: readings("H"), G: readings("G") };
   const u = uncertainty(clocks.H) + uncertainty(clocks.G);
   row.u = u;
+  const ends = (clock: RoundClock) => [clock[0], clock[clock.length - 1]];
+  row.uLegacy = uncertainty(ends(clocks.H)) + uncertainty(ends(clocks.G));
   const onH = (device: Device, t: number) => toH(clocks[device], t);
   const events = await rows<Event>(path.join(dir, "events.jsonl"));
   const plan = await rows<Plan>(path.join(dir, "plan.jsonl"));
@@ -168,6 +172,7 @@ const cells = (r: RoundRow) => [
   r.preset,
   String(r.users),
   r.u === null ? "—" : `${r.u.toFixed(1)} ms`,
+  r.uLegacy === null ? "—" : `${r.uLegacy.toFixed(1)} ms`,
   status(r),
   `${r.memoryMiB.H?.toFixed(0) ?? "—"} / ${r.memoryMiB.G?.toFixed(0) ?? "—"}`,
   ms(r.rttMedian),
@@ -183,8 +188,8 @@ const md = [
   "",
   `NFR-PER-001: ${summary["001"].failedRounds}/${summary["001"].rounds} baseline rounds failed (a failure signal or an aborted round; pass needs 0). Rename a round \`void-round-NN\` only after deciding it was not the product's fault.`,
   "",
-  `| Round | Preset | Users | U | Failures | Memory H / G (MiB, budget ${MEMORY_BUDGET_MIB}) | G RTT median | Outage |`,
-  "|---|---|---|---|---|---|---|---|",
+  `| Round | Preset | Users | U | U (legacy) | Failures | Memory H / G (MiB, budget ${MEMORY_BUDGET_MIB}) | G RTT median | Outage |`,
+  "|---|---|---|---|---|---|---|---|---|",
   ...perRound.map((r) => `| ${cells(r).join(" | ")} |`),
 ].join("\n");
 await writeFile(path.join(run, "summary.md"), md + "\n");
@@ -259,7 +264,7 @@ ${plot({
   color: { legend: true, domain: ["ok", "failed"], range: ["#2a9d55", "#d03030"] },
   marks: [Plot.cell(perRound, { x: "round", fill: (r: RoundRow) => (r.aborted || r.failures.length ? "failed" : "ok"), inset: 1 })],
 })}
-<table><tr><th>Round</th><th>Preset</th><th>Users</th><th>U</th><th>Failures</th><th>Memory H / G (MiB)</th><th>G RTT median</th><th>Outage</th></tr>
+<table><tr><th>Round</th><th>Preset</th><th>Users</th><th>U</th><th>U (legacy)</th><th>Failures</th><th>Memory H / G (MiB)</th><th>G RTT median</th><th>Outage</th></tr>
 ${perRound.map((r) => `<tr>${cells(r).map((cell) => `<td>${esc(cell)}</td>`).join("")}</tr>`).join("\n")}
 </table>`);
 

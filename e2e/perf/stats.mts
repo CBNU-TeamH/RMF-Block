@@ -5,7 +5,8 @@
 export type ClockSample = { sent: number; page: number; received: number };
 /** A clock offset: `theta` = their clock − ours at time `at`, good to ±`u`. */
 export type Offset = { at: number; theta: number; u: number };
-export type RoundClock = { start: Offset; end: Offset };
+/** A round's clock readings in time order: start, any taken mid-round, end. */
+export type RoundClock = Array<Offset>;
 export type Verdict = "pass" | "fail" | "inconclusive";
 
 /** Cristian's estimate from the sample with the shortest round trip. */
@@ -15,16 +16,28 @@ export function offsetFrom(samples: Array<ClockSample>): Offset {
   return { at: mid, theta: best.page - mid, u: (best.received - best.sent) / 2 };
 }
 
-/** A round's uncertainty U: the worse bound plus how far the offset drifted. */
-export function uncertainty({ start, end }: RoundClock): number {
-  return Math.max(start.u, end.u) + Math.abs(end.theta - start.theta);
+/** The least-squares line through the readings, θ as a function of time. */
+function line(clock: RoundClock): (t: number) => number {
+  const meanAt = clock.reduce((sum, r) => sum + r.at, 0) / clock.length;
+  const meanTheta = clock.reduce((sum, r) => sum + r.theta, 0) / clock.length;
+  const spread = clock.reduce((sum, r) => sum + (r.at - meanAt) ** 2, 0);
+  const slope = spread === 0 ? 0 : clock.reduce((sum, r) => sum + (r.at - meanAt) * (r.theta - meanTheta), 0) / spread;
+  return (t) => meanTheta + slope * (t - meanAt);
 }
 
-/** θ at time `t`, linear between the round's two readings and held flat outside them. */
-export function thetaAt({ start, end }: RoundClock, t: number): number {
-  if (end.at === start.at || t <= start.at) return start.theta;
-  if (t >= end.at) return end.theta;
-  return start.theta + ((end.theta - start.theta) * (t - start.at)) / (end.at - start.at);
+/** A round's uncertainty U: the worse bound plus how far any reading sits off the line θ is
+ *  corrected along. Two readings fix that line exactly and show nothing, so there the whole drift
+ *  counts instead — the rule before mid-round readings (#215). */
+export function uncertainty(clock: RoundClock): number {
+  const bound = Math.max(...clock.map((r) => r.u));
+  if (clock.length < 3) return bound + Math.abs(clock[clock.length - 1].theta - clock[0].theta);
+  const fit = line(clock);
+  return bound + Math.max(...clock.map((r) => Math.abs(r.theta - fit(r.at))));
+}
+
+/** θ at time `t`, on the line through the readings and held flat outside them. */
+export function thetaAt(clock: RoundClock, t: number): number {
+  return line(clock)(Math.min(Math.max(t, clock[0].at), clock[clock.length - 1].at));
 }
 
 /** A G timestamp on H's clock. */
