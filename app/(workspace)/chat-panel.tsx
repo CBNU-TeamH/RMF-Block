@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { parseDocumentLink } from "@/lib/chat/links";
+import { linkLabel, parseDocumentLink } from "@/lib/chat/links";
 import type { ChatLinkRequest, ChatMessage } from "@/lib/chat/types";
 
 import { ChatFiles } from "./chat-files";
@@ -62,8 +62,7 @@ export function ChatPanel({
   const [showFiles, setShowFiles] = useState(false);
   const [pickingDocument, setPickingDocument] = useState(false);
   const names = useMemo(() => new Map(documents.map((document) => [document.id, document.name])), [documents]);
-  const linkLabel = (target: ChatLinkRequest) =>
-    `${names.get(target.documentId) ?? "삭제된 문서"}${target.blockId ? ` › ${target.excerpt ?? "블록"}` : ""}`;
+  const labelOf = (target: ChatLinkRequest) => linkLabel(names.get(target.documentId) ?? "삭제된 문서", target);
   // A landing is in the conversation, which the file list hides — settled
   // during render so the effect below measures a visible list.
   if (landOn && showFiles) setShowFiles(false);
@@ -294,7 +293,7 @@ export function ChatPanel({
             {pending.map((entry) => (
               <li key={entry.key} className="flex flex-col gap-0.5 py-1.5 pr-2 pl-[44px]">
                 <p className="text-[14px] leading-[1.55] break-words whitespace-pre-wrap text-ink-faint">
-                  {entry.text || entry.file?.name || (entry.link ? linkLabel(entry.link) : "")}
+                  {entry.text || entry.file?.name || (entry.link ? labelOf(entry.link) : "")}
                 </p>
                 {entry.failed ? (
                   <button
@@ -339,7 +338,7 @@ export function ChatPanel({
 
         {link ? (
           <div className="mb-2 flex items-center gap-2 rounded-control bg-sky-soft px-2.5 py-1.5">
-            <span className="min-w-0 flex-1 truncate text-[12px] text-sky-text">{linkLabel(link)}</span>
+            <span className="min-w-0 flex-1 truncate text-[12px] text-sky-text">{labelOf(link)}</span>
             <button type="button" onClick={() => onLink(null)} aria-label="링크 첨부 취소" className="text-[12px] text-sky-text">
               ✕
             </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Fragment } from "react";
+import { Fragment, memo } from "react";
 
 import { splitUrls } from "@/lib/chat/links";
 import type { ChatAttachment, ChatLink, ChatMessage } from "@/lib/chat/types";
@@ -146,7 +146,9 @@ function FloatButton({ attachment }: { attachment: ChatAttachment }) {
   );
 }
 
-export function ChatMessageRow({
+/** Memoised: the panel re-renders on every keystroke in its input, and each row
+ *  reads its text for URLs. */
+export const ChatMessageRow = memo(function ChatMessageRow({
   message,
   mine,
   colorTag,
@@ -192,4 +194,4 @@ export function ChatMessageRow({
       </div>
     </li>
   );
-}
+});

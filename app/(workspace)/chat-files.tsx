@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 
 import { KINDS, sharedFiles } from "@/lib/chat/attachments";
-import { sharedLinks } from "@/lib/chat/links";
+import { linkLabel, sharedLinks, type SharedLink } from "@/lib/chat/links";
 import type { ChatMessage } from "@/lib/chat/types";
 import { isInlineType } from "@/lib/files/serving";
 import { readableSize } from "@/lib/files/size";
@@ -42,10 +42,8 @@ export function ChatFiles({
   const [kind, setKind] = useState<Tab>("image");
   const [previewing, setPreviewing] = useState<PreviewFile | null>(null);
   const closePreview = useCallback(() => setPreviewing(null), []);
-  const openLink = useOpenLink();
   const groups = sharedFiles(messages);
   const links = sharedLinks(messages);
-  const files = kind === "link" ? [] : groups[kind];
   const countOf = (tab: Tab) => (tab === "link" ? links.length : groups[tab].length);
 
   return (
@@ -68,55 +66,14 @@ export function ChatFiles({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
         {kind === "link" ? (
-          links.length === 0 ? (
-            <p className="pt-8 text-center text-[13px] text-ink-faint">공유된 링크가 없습니다.</p>
-          ) : (
-            <ul className="flex flex-col gap-0.5">
-              {links.map((entry, index) => {
-                const name = "link" in entry ? names.get(entry.link.documentId) : undefined;
-                const label =
-                  "url" in entry
-                    ? entry.url
-                    : `${name ?? entry.link.documentName}${entry.link.blockId ? ` › ${entry.link.excerpt ?? "블록"}` : ""}`;
-                const what = "url" in entry ? "URL" : name === undefined ? "삭제된 문서" : entry.link.blockId ? "블록" : "문서";
-                return (
-                  <li key={`${entry.messageId}:${index}`} className="flex items-center gap-2.5 rounded-control px-2 py-1.5 hover:bg-hover">
-                    <span aria-hidden className="flex size-8 flex-none items-center justify-center rounded-control bg-paper-2 text-ink-soft">
-                      <FileIcon />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13.5px] font-medium text-ink">{label}</span>
-                      <span className="block truncate text-xs text-ink-faint">
-                        {what} · {entry.sender} · <time dateTime={entry.sentAt}>{when.format(new Date(entry.sentAt))}</time>
-                      </span>
-                    </span>
-                    {"url" in entry ? (
-                      <a href={entry.url} target="_blank" rel="noopener noreferrer" aria-label={`${label} 열기`} className={ACTION}>
-                        열기
-                      </a>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={name === undefined}
-                        onClick={() => openLink(entry.link)}
-                        aria-label={`${label} 열기`}
-                        className={`${ACTION} disabled:opacity-40`}
-                      >
-                        열기
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )
-        ) : files.length === 0 ? (
+          <LinkList links={links} names={names} />
+        ) : groups[kind].length === 0 ? (
           <p className="pt-8 text-center text-[13px] text-ink-faint">
             공유된 {LABEL[kind]} 파일이 없습니다.
           </p>
         ) : (
           <ul className="flex flex-col gap-0.5">
-            {files.map(({ messageId, sender, sentAt, attachment }) => (
+            {groups[kind].map(({ messageId, sender, sentAt, attachment }) => (
               <li key={messageId} className="flex items-center gap-2.5 rounded-control px-2 py-1.5 hover:bg-hover">
                 <span aria-hidden className="flex size-8 flex-none items-center justify-center rounded-control bg-paper-2 text-ink-soft">
                   <FileIcon />
@@ -152,5 +109,51 @@ export function ChatFiles({
       </div>
       <FilePreviewDialog file={previewing} onClose={closePreview} />
     </div>
+  );
+}
+
+/** The 링크 tab (FR-061-01): document and block links, and URLs. */
+function LinkList({ links, names }: { links: Array<SharedLink>; names: Map<string, string> }) {
+  const openLink = useOpenLink();
+  if (links.length === 0) {
+    return <p className="pt-8 text-center text-[13px] text-ink-faint">공유된 링크가 없습니다.</p>;
+  }
+
+  return (
+    <ul className="flex flex-col gap-0.5">
+      {links.map((entry, index) => {
+        const name = "link" in entry ? names.get(entry.link.documentId) : undefined;
+        const label = "url" in entry ? entry.url : linkLabel(name ?? entry.link.documentName, entry.link);
+        const what = "url" in entry ? "URL" : name === undefined ? "삭제된 문서" : entry.link.blockId ? "블록" : "문서";
+        return (
+          <li key={`${entry.messageId}:${index}`} className="flex items-center gap-2.5 rounded-control px-2 py-1.5 hover:bg-hover">
+            <span aria-hidden className="flex size-8 flex-none items-center justify-center rounded-control bg-paper-2 text-ink-soft">
+              <FileIcon />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13.5px] font-medium text-ink">{label}</span>
+              <span className="block truncate text-xs text-ink-faint">
+                {what} · {entry.sender} · <time dateTime={entry.sentAt}>{when.format(new Date(entry.sentAt))}</time>
+              </span>
+            </span>
+            {"url" in entry ? (
+              <a href={entry.url} target="_blank" rel="noopener noreferrer" aria-label={`${label} 열기`} className={ACTION}>
+                열기
+              </a>
+            ) : (
+              <button
+                type="button"
+                disabled={name === undefined}
+                onClick={() => openLink(entry.link)}
+                aria-label={`${label} 열기`}
+                className={`${ACTION} disabled:opacity-40`}
+              >
+                열기
+              </button>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }

@@ -77,7 +77,12 @@ export function excerptOf(block: Block): string | undefined {
   return line.length > EXCERPT_MAX ? `${line.slice(0, EXCERPT_MAX - 1)}…` : line;
 }
 
-export type SharedLink = { messageId: string; sender: string; sentAt: string } & (
+/** A link on one line: `name`, then the block it points at. */
+export function linkLabel(name: string, link: Pick<ChatLink, "blockId" | "excerpt">): string {
+  return link.blockId ? `${name} › ${link.excerpt ?? "블록"}` : name;
+}
+
+export type SharedLink ={ messageId: string; sender: string; sentAt: string } & (
   | { link: ChatLink }
   | { url: string }
 );

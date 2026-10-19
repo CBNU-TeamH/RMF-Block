@@ -7,6 +7,7 @@ import {
   blockFromHash,
   documentLinkUrl,
   excerptOf,
+  linkLabel,
   parseDocumentLink,
   sharedLinks,
   splitUrls,
@@ -74,6 +75,14 @@ describe("excerptOf", () => {
     assert.equal(excerptOf(block({ type: "text", text: "가".repeat(200) }))?.length, EXCERPT_MAX);
     assert.equal(excerptOf(block({ type: "divider" })), undefined);
     assert.equal(excerptOf(block({ type: "text", text: "  " })), undefined);
+  });
+});
+
+describe("linkLabel", () => {
+  it("names the document, then the block by its excerpt or as 블록", () => {
+    assert.equal(linkLabel("회의록", {}), "회의록");
+    assert.equal(linkLabel("회의록", { blockId: "b", excerpt: "배포 일정" }), "회의록 › 배포 일정");
+    assert.equal(linkLabel("회의록", { blockId: "b" }), "회의록 › 블록");
   });
 });
 
