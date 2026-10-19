@@ -1,7 +1,7 @@
 # Presence and Focus Following
 
-- **Status**: Built: the presence roster, share/follow (UC-030) with ink and pointer, and location
-  tracking with jump/return (UC-040).
+- **Status**: Built: the presence roster, share/follow (UC-030) with ink and pointer, pausing and
+  resuming a follow, and location tracking with jump/return (UC-040).
 - **Owns**: `lib/presence/`, `lib/focus/`, `app/(workspace)/presence-provider.tsx`,
   `app/(workspace)/presence-stack.tsx`, `app/(workspace)/presence-avatar.tsx`,
   `app/(workspace)/focus-follow-provider.tsx`,
@@ -53,8 +53,8 @@ The second extension is `location` (UC-040): the document the member has open, a
 last focused in it. `PresenceProvider` publishes the document from the route; the editor adds the
 block on focus. A block is deliberately *not* cleared on blur — a jump to someone who clicked
 away should still land where they were working, which the per-document `activeBlockId` (entries
-expire after 30s and are refreshed by a 5s heartbeat) cannot promise. `FocusFollowProvider` owns the jump: it asks first if this browser is following someone (a follow
-would pull it straight back), remembers one place to return to, and hands the editor a block to
+expire after 30s and are refreshed by a 5s heartbeat) cannot promise. `FocusFollowProvider` owns the jump: it pauses a follow this browser is in (a running follow
+would pull it straight back — "Pausing a follow" below), remembers one place to return to, and hands the editor a block to
 scroll to once the document has loaded. That target expires after 10s so a failed navigation
 does not scroll a later open; a member with no focused block lands at the top of the document, and
 a block that has since been deleted leaves the scroll alone. The file manager's 원본 위치 reuses the
@@ -264,13 +264,70 @@ effect would only force a second render to reach the same answer. The stored id 
 not merely derived away, because leaving it standing would let the same presenter's next share
 pull every browser that once followed them back in with no 참여하기 pressed.
 
+## Pausing a follow (UC-030 E3-1)
+
+A follower is never locked. Editing needs no lock for the document's sake — Yorkie's CRDT resolves
+concurrent edits, the reason block occupancy is not an edit lock either (FR-022-06) — so what
+FR-030-06 asks for instead, since #220, is that a follower who moves on their own is **paused**
+rather than pulled back to the presenter on the presenter's next move.
+
+Paused is local state in `FocusFollowProvider`, beside who is followed: `followingId` is the
+presenter only while the follow drives the view, and `pausedId` names them while it does not. So
+the follower effect sees nothing to follow during a pause and forgets the last position it
+commanded — which is what lets 재개 re-scroll to an anchor that has not moved since. 재개 also
+re-crosses to the presenter's document if the follower left it. The ink overlay is handed
+`followingId ?? pausedId`, so a paused follower still sees the presenter's marks in that document.
+
+**What pauses is intent, not its effect.** On the editor's scroll container, a `wheel`, a
+`touchmove`, a `pointerdown` (the scrollbar, a block, a block's controls — which is where any edit
+starts) or a `beforeinput` (typing, pasting, deleting) pauses the follow (`PAUSE_EVENTS` in
+`use-focus-presence.ts`). Listening for `scroll` instead would pause on the follow's own smooth
+scroll, and listening for document changes would pause on a peer's edit, or on the editor
+appending its own trailing empty block. Keyboard scrolling without a focused block is not caught;
+a follower reaches the keyboard by pressing into the document first.
+
+**Opening another page is the follower's own move too.** The provider remembers which document
+it last sent this browser to and which route it last saw. A route change it did not make — the
+sidebar, a tab, `/files` — pauses the follow; the presenter opening another document still takes
+the follower along. A UC-040 jump and the file manager's 원본 위치 pause the follow themselves,
+before they navigate, rather than asking whether to end it: a pause is undone by 재개, so there is
+nothing to confirm.
+
+## A share's start and end are announced (FR-030-03, E3-3)
+
+The header control below shows the state a member is in. The two moments around a share also get
+a card each, which drops in from the top of the window and goes back up, like a phone's
+notification. The card shows the presenter's avatar and name over the message. The slide is the
+Web Animations API, as `flash` in `ui.tsx` is, and reduced motion skips it. A card takes clicks
+only when it has a button.
+
+- **The start** — "화면 공유를 시작했습니다" and 참여하기, for `SHARE_STARTED_MS`. A member counts as
+  having started when the last roster had them and they were not presenting, and now they are. So
+  a share already running when the roster first arrives is not announced, and neither is a
+  presenter coming back after a drop; the header's 참여하기 is there either way. It is not shown for
+  this member's own share, or to someone already following, and it goes once its share ends or
+  the member joins. The check runs during render, against the last roster held in state, like
+  the follow's own ending above. A share ended and restarted within one presence sync is not
+  announced: Yorkie sends a client's presence changes in one sync together, so the gap never
+  reaches anyone else.
+- **The end** — "공유가 종료되었습니다", for `SHARE_ENDED_MS`. The render-time branch that forgets a
+  follow whose presenter stopped presenting or left (above) also sets `shareEnded`. It fires for a
+  paused follower as well, and not for one who left with 종료. The name shown is the one kept when
+  the follow began: a presenter who disconnected is no longer in the roster to look up.
+
+The header control alone was enough when a room sat together (the first slice's call), but a
+member working in another document misses a control changing in the corner. That is the gap
+UC-030's step 3 names.
+
 ## `FocusShare`'s states
 
 It lives in the header beside `PresenceStack`, not as a toast: sharing is a state a person is *in*, and a control that shows the current state has to stay on screen rather than announce a transition and leave.
 
 One control, checked in an order that assumes a member is never simultaneously presenting and
-following: presenting → 종료 my own share; following someone → end that follow; another member
-presenting → 참여하기 for that one; otherwise → 공유하기.
+following: presenting → 종료 my own share; following someone → end that follow, with 일시 정지
+beside it; a paused follow → 재개, with 종료 beside it; another member presenting → 참여하기 for
+that one; otherwise → 공유하기. The start and end cards float above the window, so the control
+changes underneath them.
 
 **One presenter at a time, and that is a property of this control rather than of the data.**
 Nothing in FR-030 or the roster limits presenting to one member — `presenting` is a plain
