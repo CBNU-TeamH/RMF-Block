@@ -293,13 +293,31 @@ the follower along. A UC-040 jump and the file manager's 원본 위치 pause the
 before they navigate, rather than asking whether to end it: a pause is undone by 재개, so there is
 nothing to confirm.
 
-**The end of a share is announced** (E3-3). The render-time branch that forgets a follow whose
-presenter stopped presenting or left (above) also sets `shareEnded`. It fires for a paused
-follower as well, and not for one who left with 종료. `FocusShare` shows it as a card that drops in
-from the top of the window and goes back up after `SHARE_ENDED_MS`, like a phone's notification.
-The card shows the presenter's avatar and name over "공유가 종료되었습니다". The name is the one kept
-when the follow began: a presenter who disconnected is no longer in the roster to look up. The
-slide is the Web Animations API, as `flash` in `ui.tsx` is, and reduced motion skips it.
+## A share's start and end are announced (FR-030-03, E3-3)
+
+The header control below shows the state a member is in. The two moments around a share also get
+a card each, which drops in from the top of the window and goes back up, like a phone's
+notification. The card shows the presenter's avatar and name over the message. The slide is the
+Web Animations API, as `flash` in `ui.tsx` is, and reduced motion skips it. A card takes clicks
+only when it has a button.
+
+- **The start** — "화면 공유를 시작했습니다" and 참여하기, for `SHARE_STARTED_MS`. A member counts as
+  having started when the last roster had them and they were not presenting, and now they are. So
+  a share already running when the roster first arrives is not announced, and neither is a
+  presenter coming back after a drop; the header's 참여하기 is there either way. It is not shown for
+  this member's own share, or to someone already following, and it goes once its share ends or
+  the member joins. The check runs during render, against the last roster held in state, like
+  the follow's own ending above. A share ended and restarted within one presence sync is not
+  announced: Yorkie sends a client's presence changes in one sync together, so the gap never
+  reaches anyone else.
+- **The end** — "공유가 종료되었습니다", for `SHARE_ENDED_MS`. The render-time branch that forgets a
+  follow whose presenter stopped presenting or left (above) also sets `shareEnded`. It fires for a
+  paused follower as well, and not for one who left with 종료. The name shown is the one kept when
+  the follow began: a presenter who disconnected is no longer in the roster to look up.
+
+The header control alone was enough when a room sat together (the first slice's call), but a
+member working in another document misses a control changing in the corner. That is the gap
+UC-030's step 3 names.
 
 ## `FocusShare`'s states
 
@@ -308,8 +326,8 @@ It lives in the header beside `PresenceStack`, not as a toast: sharing is a stat
 One control, checked in an order that assumes a member is never simultaneously presenting and
 following: presenting → 종료 my own share; following someone → end that follow, with 일시 정지
 beside it; a paused follow → 재개, with 종료 beside it; another member presenting → 참여하기 for
-that one; otherwise → 공유하기. The end-of-share card floats above the window, so the control has
-already moved on underneath it.
+that one; otherwise → 공유하기. The start and end cards float above the window, so the control
+changes underneath them.
 
 **One presenter at a time, and that is a property of this control rather than of the data.**
 Nothing in FR-030 or the roster limits presenting to one member — `presenting` is a plain

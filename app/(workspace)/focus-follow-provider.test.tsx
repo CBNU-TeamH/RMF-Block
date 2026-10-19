@@ -13,7 +13,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("./presence-provider", () => ({ useWorkspacePresence: () => presence }));
 
-import { FocusFollowProvider, SHARE_ENDED_MS, useFocusFollow } from "./focus-follow-provider.tsx";
+import { FocusFollowProvider, SHARE_ENDED_MS, SHARE_STARTED_MS, useFocusFollow } from "./focus-follow-provider.tsx";
 
 afterEach(() => {
   cleanup();
@@ -224,5 +224,72 @@ describe("FocusFollowProvider — the end of a share (UC-030 E3-3)", () => {
     act(() => state().unfollow());
 
     assert.equal(state().shareEnded, null);
+  });
+});
+
+describe("FocusFollowProvider — the start of a share (FR-030-03)", () => {
+  it("announces a member who starts presenting, and clears itself", () => {
+    vi.useFakeTimers();
+    presence.members = [me, bob];
+    const { state, rerender } = setup();
+
+    presence.members = [me, presenter];
+    rerender();
+    assert.deepEqual(state().shareStarted, { id: "bob", nickname: "밥", colorTag: "#222" });
+
+    act(() => vi.advanceTimersByTime(SHARE_STARTED_MS));
+    assert.equal(state().shareStarted, null);
+  });
+
+  it("is quiet for a share already running when the roster arrives", () => {
+    presence.members = [];
+    const { state, rerender } = setup();
+
+    presence.members = [me, presenter];
+    rerender();
+
+    assert.equal(state().shareStarted, null);
+  });
+
+  it("is quiet for a presenter coming back after a drop", () => {
+    presence.members = [me, presenter];
+    const { state, rerender } = setup();
+
+    presence.members = [me];
+    rerender();
+    presence.members = [me, presenter];
+    rerender();
+
+    assert.equal(state().shareStarted, null);
+  });
+
+  it("is quiet for this member's own share", () => {
+    presence.members = [me, bob];
+    const { state, rerender } = setup();
+
+    presence.members = [{ ...me, presenting: { documentId: "d1", blockId: "b", ratio: 0 } }, bob];
+    rerender();
+
+    assert.equal(state().shareStarted, null);
+  });
+
+  it("goes once the member follows, or once the share ends first", () => {
+    presence.members = [me, bob];
+    const { state, rerender } = setup();
+
+    presence.members = [me, presenter];
+    rerender();
+    act(() => state().follow("bob"));
+    assert.equal(state().shareStarted, null);
+    act(() => state().unfollow());
+
+    presence.members = [me, bob];
+    rerender();
+    presence.members = [me, presenter];
+    rerender();
+    assert.equal(state().shareStarted?.id, "bob");
+    presence.members = [me, bob];
+    rerender();
+    assert.equal(state().shareStarted, null);
   });
 });

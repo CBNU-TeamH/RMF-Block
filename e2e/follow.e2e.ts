@@ -33,11 +33,11 @@ async function restingScrollTop(page: Page): Promise<number> {
 }
 
 /**
- * UC-030 E3-1 and E3-3: a follower's own scroll pauses the follow rather than
- * being pulled back, 재개 brings them to where the presenter is now, and the end
- * of the share is announced.
+ * UC-030: the start of a share is announced with a way in (FR-030-03), a
+ * follower's own scroll pauses the follow rather than being pulled back (E3-1),
+ * 재개 brings them to where the presenter is now, and the end is announced (E3-3).
  */
-test("a follower's own scroll pauses the follow, 재개 brings them back, and the end is announced", async ({ users }) => {
+test("a share's start is announced, a follower's own scroll pauses, 재개 brings them back, and the end is announced", async ({ users }) => {
   test.setTimeout(90_000);
   const lead = (await users.join(0)).page;
   const follower = (await users.join(1)).page;
@@ -57,7 +57,8 @@ test("a follower's own scroll pauses the follow, 재개 brings them back, and th
 
   await scrollToTop(lead, blocks[0].id);
   await lead.getByRole("button", { name: "공유하기", exact: true }).click();
-  await follower.getByRole("button", { name: /공유 중 · 참여하기/ }).click();
+  await expect(follower.getByRole("status").filter({ hasText: "화면 공유를 시작했습니다" })).toBeVisible();
+  await follower.getByRole("button", { name: /님의 공유에 참여하기/ }).click();
   await expect(follower.getByRole("button", { name: /따라가는 중 · 종료/ })).toBeVisible();
 
   await scroller(follower).hover();

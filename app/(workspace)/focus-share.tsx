@@ -7,7 +7,7 @@ import { anchorAt } from "@/lib/focus/anchor";
 import { readBoxes } from "@/lib/focus/dom";
 import { documentIdFromPathname } from "@/lib/focus/pathname";
 
-import { SHARE_ENDED_MS, useFocusFollow, type EndedShare } from "./focus-follow-provider";
+import { SHARE_ENDED_MS, SHARE_STARTED_MS, useFocusFollow, type Sharer } from "./focus-follow-provider";
 import { useWorkspacePresence } from "./presence-provider";
 
 /** 30px, radius 9 (`docs/ui/redesign/HANDOFF.md` §3); each state adds its colours. */
@@ -20,15 +20,38 @@ const SHARE_ICON = (
 );
 
 /** The one header control for UC-030: 공유 → 참여 → 일시 정지 / 재개 → 종료
- *  (FR-030-01/03/04/08/09), and the notice that a share ended (FR-030-11). The
- *  states and the order they are checked in: `docs/design/presence-and-focus.md`,
- *  "`FocusShare`'s states" — including why one presenter at a time is what
- *  ships, and what allowing several would take (issue #100). */
+ *  (FR-030-01/03/04/08/09), and the cards announcing a share's start and end
+ *  (FR-030-03/11). The states and the order they are checked in:
+ *  `docs/design/presence-and-focus.md`, "`FocusShare`'s states" — including
+ *  why one presenter at a time is what ships, and what allowing several would
+ *  take (issue #100). */
 export function FocusShare({ memberId }: { memberId: string }) {
-  const { shareEnded } = useFocusFollow();
+  const { shareStarted, shareEnded, follow } = useFocusFollow();
   return (
     <>
-      {shareEnded ? <ShareEndedToast ended={shareEnded} /> : null}
+      {shareStarted || shareEnded ? (
+        <div className="pointer-events-none fixed inset-x-0 top-3 z-50 flex flex-col items-center gap-2 px-4">
+          {shareStarted ? (
+            <NoticeCard
+              key={shareStarted.id}
+              sharer={shareStarted}
+              message="화면 공유를 시작했습니다"
+              lasts={SHARE_STARTED_MS}
+              action={
+                <button
+                  type="button"
+                  onClick={() => follow(shareStarted.id)}
+                  aria-label={`${shareStarted.nickname}님의 공유에 참여하기`}
+                  className={`${BUTTON} flex-none bg-sky-soft text-sky-text`}
+                >
+                  참여하기
+                </button>
+              }
+            />
+          ) : null}
+          {shareEnded ? <NoticeCard sharer={shareEnded} message="공유가 종료되었습니다" lasts={SHARE_ENDED_MS} /> : null}
+        </div>
+      ) : null}
       <FocusShareControl memberId={memberId} />
     </>
   );
@@ -36,10 +59,20 @@ export function FocusShare({ memberId }: { memberId: string }) {
 
 const SLIDE_MS = 240;
 
-/** E3-3's notice as a card that drops in from the top of the window and goes
- *  back up, like a phone's notification. The provider unmounts it after
- *  `SHARE_ENDED_MS`, so the way out starts `SLIDE_MS` before that. */
-function ShareEndedToast({ ended }: { ended: EndedShare }) {
+/** A card that drops in from the top of the window and goes back up, like a
+ *  phone's notification. Its owner unmounts it after `lasts`, so the way out
+ *  starts `SLIDE_MS` before that. */
+function NoticeCard({
+  sharer,
+  message,
+  lasts,
+  action,
+}: {
+  sharer: Sharer;
+  message: string;
+  lasts: number;
+  action?: React.ReactNode;
+}) {
   const card = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,30 +85,32 @@ function ShareEndedToast({ ended }: { ended: EndedShare }) {
     node.animate([hidden, shown], { duration: SLIDE_MS, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
     const leave = setTimeout(
       () => node.animate([shown, hidden], { duration: SLIDE_MS, easing: "ease-in", fill: "forwards" }),
-      SHARE_ENDED_MS - SLIDE_MS,
+      lasts - SLIDE_MS,
     );
     return () => clearTimeout(leave);
-  }, []);
+  }, [lasts]);
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-3 z-50 flex justify-center px-4">
-      <div
-        ref={card}
-        role="status"
-        className="flex w-full max-w-[320px] items-center gap-3 rounded-card border border-line bg-elev px-3.5 py-2.5 shadow-elev"
+    <div
+      ref={card}
+      role="status"
+      // Clickable only when there is something to click: the strip is clear underneath otherwise.
+      className={`flex w-full max-w-[340px] items-center gap-3 rounded-card border border-line bg-elev px-3.5 py-2.5 shadow-elev ${
+        action ? "pointer-events-auto" : ""
+      }`}
+    >
+      <span
+        aria-hidden
+        style={{ backgroundColor: sharer.colorTag }}
+        className="flex size-8 flex-none items-center justify-center rounded-full text-[13px] font-semibold text-white"
       >
-        <span
-          aria-hidden
-          style={{ backgroundColor: ended.colorTag }}
-          className="flex size-8 flex-none items-center justify-center rounded-full text-[13px] font-semibold text-white"
-        >
-          {ended.nickname.slice(0, 1)}
-        </span>
-        <span className="min-w-0">
-          <span className="block truncate text-[13.5px] font-semibold text-ink">{ended.nickname}</span>
-          <span className="block text-[13px] text-ink-soft">공유가 종료되었습니다</span>
-        </span>
-      </div>
+        {sharer.nickname.slice(0, 1)}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13.5px] font-semibold text-ink">{sharer.nickname}</span>
+        <span className="block text-[13px] text-ink-soft">{message}</span>
+      </span>
+      {action}
     </div>
   );
 }
