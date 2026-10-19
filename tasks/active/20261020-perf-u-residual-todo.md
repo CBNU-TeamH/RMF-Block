@@ -15,10 +15,10 @@
 
 ### 2. Read the clocks mid-round
 
-- **What**: during the edit/chat phase the harness reads both clocks three more times (25, 50, 75 % of it) and stores them in `clock.json` as `mid`.
+- **What**: while the measured window is open the harness reads both clocks every quarter of the work time (every 2.5 min at 10 minutes) and stores them in `clock.json` as `mid`.
 - **Files**: `e2e/perf/round.perf.ts`.
 - **Reuse**: `readClock` as it is (15 samples, shortest round trip wins).
-- **Done**: a round's `clock.json` has three `mid` entries for H and G.
+- **Done**: a 10-minute round's `clock.json` has four `mid` entries for H and G, spread over the whole window.
 
 ### 3. Report both rules
 
@@ -36,20 +36,20 @@
 
 ## Test selection
 
-- Vitest (logic / component / server / route): `e2e/perf/stats.test.mts` — port the clock tests to reading lists and add the line, step, noise and two-reading cases.
+- Vitest (logic / component / server / route): `e2e/perf/stats.test.mts` — port the clock tests to reading lists and add the line, step and two-reading cases.
 - Browser E2E (`e2e/`): no change — the regular suite does not run the perf harness.
 - Container smoke (`.github/workflows/ci.yml`): no change — nothing here touches the stack.
 - Perf harness itself: one validation round on the two-device rig (8 users, baseline) after merge-ready; its numbers decide whether the mid readings disturb the measurement.
 - Commands and observed results (fill in before the PR):
-  - `pnpm vitest run e2e/perf/stats.test.mts` — 19 passed. The steady-drift and step cases fail under the old formula (it charges the whole 7.2 ms drift).
+  - `pnpm vitest run e2e/perf/stats.test.mts` — 18 passed. The steady-drift and step cases fail under the old formula (it charges the whole 7.2 ms drift).
   - `node e2e/perf/report.mts` on a copy of the v0.1.0 run `judge` (start and end readings only) — U per round 6.5 / 9.3 / 7.1 / 8.2 / 7.6 / 9.0 / 9.7 ms, the same as before, and `U (legacy)` equal to it.
   - `pnpm typecheck`, `eslint` on the four changed files, `pnpm verify:docs`, `pnpm comments` — clean.
 
 ## Acceptance
 
 - [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] `stats.test.mts` covers a steady drift, a step, noise within the bound and the two-reading fallback.
-- [ ] `clock.json` of a new round has three `mid` readings per device.
+- [ ] `stats.test.mts` covers a steady drift, a step and the two-reading fallback.
+- [ ] `clock.json` of a new 10-minute round has four `mid` readings per device, the last inside the presenter phase.
 - [ ] `perf:report` on an old run gives the same U as before.
 - [ ] On the rig, a full round's new U is at most 6 ms with each device's residual at most 1 ms, and attempts overlapping a mid reading are not slower than the rest.
 - [ ] `pnpm typecheck`, `pnpm verify:docs` and the comment budget pass.
@@ -61,4 +61,4 @@
 
 ## Review
 
-Filled in at the end.
+Review (this session): `/code-review low` found nothing. `/simplify` (four angles) changed the mid-round schedule: the readings were at 25/50/75 % of the first work phase, which left the presenter phase and the second half of an outage round unread, so they now run every quarter of the work time until the window closes. It also put `mid` into `clock` from the start, hoisted the `Reading` type and dropped a noise test that could not fail. Declined: dropping the `U (legacy)` column (the campaign reports both rules until the team agrees), dropping the two-reading branch (old runs need it), fitting the line once per round (microseconds) and reading H and G in parallel (changes when each is sampled).

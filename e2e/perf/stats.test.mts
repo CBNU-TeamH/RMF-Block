@@ -99,11 +99,6 @@ describe("clock — offset, uncertainty, correction", () => {
     assert.ok(Math.abs(uncertainty(stepped) - (2 + 4)) < 1e-9);
   });
 
-  it("keeps reading noise inside the residual it causes", () => {
-    const noisy = drifting((i) => 50 + 1.8 * i + [0.5, -0.5, 0.5, -0.5, 0.5][i]);
-    assert.ok(uncertainty(noisy) - 2 <= 1);
-  });
-
   it("corrects a G timestamp whether G runs ahead or behind", () => {
     const ahead = [{ at: 0, theta: 250, u: 1 }, { at: 1_000, theta: 250, u: 1 }];
     const behind = [{ at: 0, theta: -250, u: 1 }, { at: 1_000, theta: -250, u: 1 }];

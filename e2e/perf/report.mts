@@ -23,6 +23,7 @@ type Device = "H" | "G";
 type Event = { device: Device; kind: string; item: string; marker: string; t: number };
 type Plan = { item: string; marker: string; from: string; phase?: "outage" | "resend" };
 type Signal = { kind: string; phase: string; message?: string };
+type Reading = Record<Device, Array<ClockSample>>;
 type Meta = Partial<Record<"cutAt" | "restoreAt" | "resendAt" | "chatReopenAt" | "sessionReopenAt", number | null>> & { failedShown?: boolean };
 
 async function rows<T>(file: string): Promise<Array<T>> {
@@ -63,7 +64,6 @@ for (const name of (await readdir(run)).filter((n) => n.startsWith("round-")).so
   const dir = path.join(run, name);
   const conditions = json<{ preset: string; users: number; outage: number }>(path.join(dir, "conditions.json"));
   const signals = await rows<Signal>(path.join(dir, "signals.jsonl"));
-  type Reading = Record<Device, Array<ClockSample>>;
   const raw = json<{ start: Reading; mid?: Array<Reading>; end: Reading }>(path.join(dir, "clock.json"));
   const abort = signals.find((s) => s.kind === "aborted");
   const failures = signals.filter((s) => !PASSIVE.has(s.kind) || s.phase === "window").map((s) => s.kind);

@@ -288,15 +288,15 @@ for (let round = 1; round <= ROUNDS; round++) {
       await Promise.all(actors.map((actor) => openChat(actor.page)));
       if (probe) await probe.ready();
 
-      const clock: Note = { start: { H: await readClock(hPage), G: await readClock(gPage) } };
+      const mid: Array<Note> = [];
+      const clock: Note = { start: { H: await readClock(hPage), G: await readClock(gPage) }, mid };
       r.phase = "window";
       const windowAt = now();
-      // Three more readings across the edit/chat phase let `stats.uncertainty` see whether θ drifts
-      // along a line (#215).
-      const mid: Array<Note> = [];
+      // Mid-window readings, every quarter of MINUTES until the window closes (#215).
+      let closeWindow = () => {};
+      const closed = new Promise<false>((resolve) => (closeWindow = () => resolve(false)));
       const midReadings = (async () => {
-        for (const share of [0.25, 0.5, 0.75]) {
-          await delay(Math.max(0, windowAt + share * MINUTES * 60_000 - now()));
+        while (await Promise.race([delay(MINUTES * 15_000).then(() => true), closed])) {
           mid.push({ H: await readClock(hPage), G: await readClock(gPage) });
         }
       })();
@@ -315,8 +315,8 @@ for (let round = 1; round <= ROUNDS; round++) {
       if (typeof meta.cutAt === "number") marks.push({ time: meta.cutAt, text: `round ${round}: cut` });
       if (typeof meta.restoreAt === "number") marks.push({ time: meta.restoreAt, text: `round ${round}: restore` });
       r.phase = "teardown";
+      closeWindow();
       await midReadings;
-      clock.mid = mid;
       clock.end = { H: await readClock(hPage), G: await readClock(gPage) };
 
       const rtt = await gPage.evaluate(async (url) => {
