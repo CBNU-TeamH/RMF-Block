@@ -61,8 +61,23 @@ app/(workspace)/
 .data/files/             — uploaded bytes, named by id; `index.json` alongside them
 ```
 
-`ChatService.send()` requires text or an attachment, caps text at 2000 characters
-(`ChatValidationError`, surfaced as 400), and persists before it broadcasts. The panel tracks each
+`ChatService.send()` requires text, a file or a link (`ChatValidationError`, surfaced as 400). UC-060
+starts with "텍스트 또는 URL을 입력하거나 파일을 첨부한다", so a photo with nothing typed under it is a
+message. It does not check `sender`: that comes from the session, whose nickname was trimmed and
+checked when it was minted (`SessionRegistry.join`).
+
+It caps text at 2000 characters. Neither `request.json()` nor the custom server caps a body, and
+every append rewrites the whole JSON file, so unbounded text would both fill the disk and make
+each send O(n).
+
+It persists before it broadcasts, so no client sees a message over the socket that a restart would
+fail to produce from `list()`. A message stores `""` for no text, and leaves out `attachment` and
+`link` rather than storing `undefined`, which the JSON store would read back as `null`.
+
+The class spells its fields out rather than using TS parameter properties: Vitest loads it under
+Node's type stripping, which cannot emit the assignments a parameter property implies.
+
+The panel tracks each
 send as pending or failed so a failure reaches the sender (FR-060-07). A resend after a failed send
 reuses the already-uploaded `fileId` instead of uploading again.
 
