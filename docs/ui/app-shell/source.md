@@ -22,6 +22,11 @@ which no newer file replaces.
 The LocalGuard-era product name and its `LG` logo mark were stripped on import — see
 [`../dashboard/source.md`](../dashboard/source.md#names-and-the-logo).
 
+**Changed after import (2026-10-19, #220):** the follower view's 🔒 "편집은 잠시 비활성" badge
+(`ReadOnlyHint`) is now `FollowHint`, saying that a follower's own scroll or edit pauses the follow,
+and the "읽기 전용" wording left the section subtitle and the follower artboard's label. UC-030 no
+longer locks a follower (FR-030-06); the design project still shows the old badge.
+
 ## Not imported
 
 `App Shell Wireframes (Standalone).html` (1.4 MB) and `export/` (another 1.4 MB copy) are the

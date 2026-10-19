@@ -41,7 +41,7 @@ Management features layered on top of an already-working workspace and editor �
 
 ## Phase 3 — Collaboration awareness
 
-- Focus following / presenter mode (UC-030) — the most complex feature after the core editor: session state, follower input lock, presenter tools, pause/resume.
+- Focus following / presenter mode (UC-030) — the most complex feature after the core editor: session state, presenter tools, and pausing a follower who navigates or edits on their own, with resume.
 - User tracking / jump-to-user (UC-040).
 
 **Exit criteria**: a presenter can drive every follower's view in real time, and any user can jump to and back from another user's position.
