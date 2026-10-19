@@ -6,10 +6,9 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 const sendToChat = vi.fn();
 vi.mock("../../chat-window", () => ({ useSendToChat: () => sendToChat }));
 
-import type { Block } from "@/lib/blocks/types";
 import { BlockMenu } from "./block-menu.tsx";
 
-const BLOCK = { id: "b-1", type: "text", text: "배포 일정" } as unknown as Block;
+const menu = <BlockMenu documentId="doc-1" blockId="b-1" readExcerpt={() => "배포 일정"} />;
 
 afterEach(() => {
   cleanup();
@@ -23,8 +22,8 @@ const choose = (item: string) => {
 };
 
 describe("BlockMenu (FR-060-03)", () => {
-  it("sends the block to chat with its opening text", () => {
-    render(<BlockMenu documentId="doc-1" block={BLOCK} />);
+  it("sends the block to chat with its opening text, read when sent", () => {
+    render(menu);
 
     choose("채팅으로 보내기");
 
@@ -41,7 +40,7 @@ describe("BlockMenu (FR-060-03)", () => {
         return true;
       },
     });
-    render(<BlockMenu documentId="doc-1" block={BLOCK} />);
+    render(menu);
 
     choose("링크 복사");
 

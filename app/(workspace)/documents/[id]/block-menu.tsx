@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import type { Block } from "@/lib/blocks/types";
-import { documentLinkUrl, excerptOf } from "@/lib/chat/links";
+import { documentLinkUrl } from "@/lib/chat/links";
 
 import { useSendToChat } from "../../chat-window";
 import { DocumentRowMenu } from "../../document-row-menu";
@@ -14,7 +13,16 @@ const COPIED_MS = 1500;
 
 /** A block's ··· menu in the gutter: the two ways to share it in chat (FR-060-03,
  *  `docs/design/chat.md`, "Links"). */
-export function BlockMenu({ documentId, block }: { documentId: string; block: Block }) {
+export function BlockMenu({
+  documentId,
+  blockId,
+  readExcerpt,
+}: {
+  documentId: string;
+  blockId: string;
+  /** Read when sent, not when rendered: the text is the live document's. */
+  readExcerpt: () => string | undefined;
+}) {
   const sendToChat = useSendToChat();
   const [copied, setCopied] = useState<boolean | null>(null);
 
@@ -32,12 +40,12 @@ export function BlockMenu({ documentId, block }: { documentId: string; block: Bl
           {
             label: "채팅으로 보내기",
             icon: icon(<path d="M2.5 8l11-5-4 11-2-4.5z" />),
-            onSelect: () => sendToChat({ documentId, blockId: block.id, excerpt: excerptOf(block) }),
+            onSelect: () => sendToChat({ documentId, blockId, excerpt: readExcerpt() }),
           },
           {
             label: "링크 복사",
             icon: icon(<path d="M7 9a3 3 0 004.2 0l2-2a3 3 0 00-4.2-4.2l-.8.8M9 7a3 3 0 00-4.2 0l-2 2A3 3 0 007 13.2l.8-.8" />),
-            onSelect: () => void copyText(documentLinkUrl(window.location.origin, documentId, block.id)).then(setCopied),
+            onSelect: () => void copyText(documentLinkUrl(window.location.origin, documentId, blockId)).then(setCopied),
           },
         ]}
       />
