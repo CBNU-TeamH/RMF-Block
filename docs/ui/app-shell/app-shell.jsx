@@ -2820,13 +2820,13 @@ const FollowerBanner = () =>
       <span style={{ color: 'var(--ink-soft)' }}> · API 명세서 페이지</span>
     </span>
     <span style={{ flex: 1 }} />
-    <span className="tag" style={{ background: 'var(--paper)', fontSize: 11 }}>⏸ 일시 중지</span>
+    <span className="tag" style={{ background: 'var(--paper)', fontSize: 11 }}>⏸ 일시 정지</span>
     <span className="tag" style={{ background: 'var(--paper)', fontSize: 11 }}>그만 따라가기</span>
   </div>;
 
 
-// Read-only hint badge for follower
-const ReadOnlyHint = () =>
+// Hint badge for follower: their own scroll or edit pauses the follow (UC-030 E3-1)
+const FollowHint = () =>
 <div style={{
   position: 'absolute', bottom: 28, left: '50%',
   transform: 'translateX(-50%)',
@@ -2839,8 +2839,8 @@ const ReadOnlyHint = () =>
   zIndex: 35,
   backdropFilter: 'blur(2px)'
 }}>
-    <span>🔒</span>
-    <span>발표자의 시점을 따라가는 중 — 편집은 잠시 비활성</span>
+    <span>⏸</span>
+    <span>직접 스크롤하거나 편집하면 따라가기가 일시 정지됩니다</span>
   </div>;
 
 
@@ -2873,7 +2873,7 @@ const VariantFollower = () =>
         <DrawingMarks />
         {/* Presenter's laser pointer */}
         <LaserPointer x={460} y={340} />
-        <ReadOnlyHint />
+        <FollowHint />
         <FloatingTOC active={2} />
       </div>
     </div>
@@ -2989,7 +2989,7 @@ const MultiFocusGrid = () => {
 Object.assign(window, {
   PresenterBanner, PenToolbar, DrawingMarks,
   VariantPresenter, VariantFollower,
-  FollowerBanner, ReadOnlyHint, MultiFocusGrid, FocusSessionCard
+  FollowerBanner, FollowHint, MultiFocusGrid, FocusSessionCard
 });
 
 
@@ -3133,12 +3133,12 @@ const App = () =>
     <DCSection
     id="focus-following"
     title="포커스 팔로잉"
-    subtitle="발표자 시점에 그리기 도구 제공, 참여자는 같은 위치를 읽기 전용으로 본다.">
+    subtitle="발표자 시점에 그리기 도구 제공, 참여자는 같은 위치를 따라 보고, 직접 스크롤하거나 편집하면 따라가기가 일시 정지된다.">
     
       <DCArtboard id="ff-presenter" label="① 발표자 — 펜 도구 + 본인 그린 마크 + 'N명 따라보는 중'" width={SHELL_W} height={SHELL_H}>
         <Card><VariantPresenter /></Card>
       </DCArtboard>
-      <DCArtboard id="ff-follower" label="② 참여자 — 따라가는 중 배너 + 발표자 마크 (읽기 전용)" width={SHELL_W} height={SHELL_H}>
+      <DCArtboard id="ff-follower" label="② 참여자 — 따라가는 중 배너 + 발표자 마크" width={SHELL_W} height={SHELL_H}>
         <Card><VariantFollower /></Card>
       </DCArtboard>
       <DCArtboard id="ff-multi" label="③ 다중 발표 — 포커스 팔로잉 탭의 정사각 카드 그리드" width={1280} height={760}>
