@@ -66,4 +66,15 @@ FR-030-06/08/10/11, UC-030 E3-1 and E3-3, as changed by #220. The UC-040 jump an
 
 ## Review
 
-Filled in at the end.
+Branch: `feat/follow-pause`.
+
+Shipped milestones 1–3. Milestone 3 grew during review: the end notice became a card that drops in from the top, and the maintainer asked for the start of a share to get the same card, with 참여하기.
+
+A `/simplify` pass (four sub-agents) applied one cleanup: who is followed, whether paused, and the presenter's name are one `Follow` state instead of three. Declined, with reasons in the PR:
+- pausing at each navigation source rather than on a route change;
+- moving start detection into presence;
+- a shared toast component;
+- a decorative `Avatar` variant;
+- a timer helper.
+
+A `/code-review low` pass (one sub-agent) raised one finding, not reachable as built: the end card has no `key`, so a second end within 4s would reuse the first card's timers. A second end needs a `follow()` in between, though, and that clears the first card.
