@@ -62,6 +62,11 @@
     - 링크 복사 copied `http://localhost:3100/documents/<id>#block=<id>` and showed 복사됨. That copy went through `navigator.clipboard`; the fallback is the unit test's.
     - Opening that address in the guest's tab highlighted the block and dropped the hash.
     - The 링크 tab listed all five, newest first, with the deleted one disabled and the URL opening in a new tab.
+  - Rechecked on a rebuilt stack after the `/simplify` cleanups, as the host:
+    - the chip read "미리보기 테스트 › 배포 일정 확인", and the sent card arrived;
+    - the 링크 tab listed eight, and its 열기 highlighted the block;
+    - the 이미지 and PDF tabs were unchanged;
+    - typed text with `(https://en.wikipedia.org/wiki/Foo_(bar)).` linked the URL with its own `)` and without the sentence's `).`.
   - Fixed on the way:
     - The first excerpt read "블록": the editor's `blocks` state does not follow typing, so the excerpt is now read from the live text when sent.
     - 복사됨 was invisible once the pointer left the row: it sat inside the hover-only wrapper.
