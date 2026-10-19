@@ -8,7 +8,7 @@ const presence = { members: [] as Array<unknown>, isPresenting: false, setPresen
 const focus = {
   followingId: null as string | null,
   pausedId: null as string | null,
-  shareEnded: false,
+  shareEnded: null as { nickname: string; colorTag: string } | null,
   follow,
   unfollow: vi.fn(),
   pause: vi.fn(),
@@ -17,7 +17,7 @@ const focus = {
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/documents/doc-1" }));
 vi.mock("./presence-provider", () => ({ useWorkspacePresence: () => presence }));
-vi.mock("./focus-follow-provider", () => ({ useFocusFollow: () => focus }));
+vi.mock("./focus-follow-provider", () => ({ useFocusFollow: () => focus, SHARE_ENDED_MS: 4000 }));
 
 import { FocusShare } from "./focus-share.tsx";
 
@@ -25,7 +25,7 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   presence.members = [];
-  Object.assign(focus, { followingId: null, pausedId: null, shareEnded: false });
+  Object.assign(focus, { followingId: null, pausedId: null, shareEnded: null });
 });
 
 const member = (id: string, nickname: string, presenting: boolean) => ({
@@ -107,12 +107,12 @@ describe("FocusShare — following, paused and ended (UC-030 E3-1, E3-3)", () =>
     assert.equal(screen.queryByRole("button", { name: /참여하기/ }), null);
   });
 
-  it("says the share ended, beside whatever the control offers next", () => {
+  it("says whose share ended in a card, and the control moves on", () => {
     presence.members = [member("me", "나", false)];
-    focus.shareEnded = true;
+    focus.shareEnded = { nickname: "가", colorTag: "#123456" };
     render(<FocusShare memberId="me" />);
 
-    assert.equal(screen.getByRole("status").textContent, "공유가 종료되었습니다");
+    assert.match(screen.getByRole("status").textContent ?? "", /가.*공유가 종료되었습니다/);
     assert.ok(screen.getByRole("button", { name: "공유하기" }));
   });
 });

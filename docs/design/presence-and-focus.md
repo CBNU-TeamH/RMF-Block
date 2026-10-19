@@ -294,9 +294,12 @@ before they navigate, rather than asking whether to end it: a pause is undone by
 nothing to confirm.
 
 **The end of a share is announced** (E3-3). The render-time branch that forgets a follow whose
-presenter stopped presenting or left (above) also sets `shareEnded`, and `FocusShare` shows
-"공유가 종료되었습니다" for `SHARE_ENDED_MS`. It fires for a paused follower as well, and not for one
-who left with 종료.
+presenter stopped presenting or left (above) also sets `shareEnded`. It fires for a paused
+follower as well, and not for one who left with 종료. `FocusShare` shows it as a card that drops in
+from the top of the window and goes back up after `SHARE_ENDED_MS`, like a phone's notification.
+The card shows the presenter's avatar and name over "공유가 종료되었습니다". The name is the one kept
+when the follow began: a presenter who disconnected is no longer in the roster to look up. The
+slide is the Web Animations API, as `flash` in `ui.tsx` is, and reduced motion skips it.
 
 ## `FocusShare`'s states
 
@@ -305,8 +308,8 @@ It lives in the header beside `PresenceStack`, not as a toast: sharing is a stat
 One control, checked in an order that assumes a member is never simultaneously presenting and
 following: presenting → 종료 my own share; following someone → end that follow, with 일시 정지
 beside it; a paused follow → 재개, with 종료 beside it; another member presenting → 참여하기 for
-that one; otherwise → 공유하기. "공유가 종료되었습니다" sits beside whichever of these shows, for
-the few seconds after a followed share ends.
+that one; otherwise → 공유하기. The end-of-share card floats above the window, so the control has
+already moved on underneath it.
 
 **One presenter at a time, and that is a property of this control rather than of the data.**
 Nothing in FR-030 or the roster limits presenting to one member — `presenting` is a plain

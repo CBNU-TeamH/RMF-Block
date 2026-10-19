@@ -197,13 +197,13 @@ describe("FocusFollowProvider — the end of a share (UC-030 E3-3)", () => {
     presence.members = [me, bob];
     rerender();
     assert.equal(state().followingId, null);
-    assert.equal(state().shareEnded, true);
+    assert.deepEqual(state().shareEnded, { nickname: "밥", colorTag: "#222" });
 
     act(() => vi.advanceTimersByTime(SHARE_ENDED_MS));
-    assert.equal(state().shareEnded, false);
+    assert.equal(state().shareEnded, null);
   });
 
-  it("says so to a paused follower too", () => {
+  it("says so to a paused follower too, and names a presenter who has left the roster", () => {
     presence.members = [me, presenter];
     const { state, rerender } = setup();
 
@@ -213,7 +213,7 @@ describe("FocusFollowProvider — the end of a share (UC-030 E3-3)", () => {
     rerender();
 
     assert.equal(state().pausedId, null);
-    assert.equal(state().shareEnded, true);
+    assert.deepEqual(state().shareEnded, { nickname: "밥", colorTag: "#222" });
   });
 
   it("stays quiet for a follower who left with 종료", () => {
@@ -223,6 +223,6 @@ describe("FocusFollowProvider — the end of a share (UC-030 E3-3)", () => {
     act(() => state().follow("bob"));
     act(() => state().unfollow());
 
-    assert.equal(state().shareEnded, false);
+    assert.equal(state().shareEnded, null);
   });
 });

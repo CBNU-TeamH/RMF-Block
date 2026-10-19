@@ -17,6 +17,10 @@ type ScrollTarget = Place & { highlight?: boolean };
 /** How long "공유가 종료되었습니다" stays (UC-030 E3-3). */
 export const SHARE_ENDED_MS = 4000;
 
+/** Who the ended share was by — kept from the join, since a presenter who left
+ *  is no longer in the roster to look up. */
+export type EndedShare = { nickname: string; colorTag: string };
+
 type FocusFollowState = {
   /** Local UI state, never published — who is *presenting* is shared presence,
    *  who follows whom is nobody else's business (`presence-and-focus.md`).
@@ -30,7 +34,7 @@ type FocusFollowState = {
   pause: () => void;
   resume: () => void;
   /** UC-030 E3-3: the share being followed has just ended. Clears itself. */
-  shareEnded: boolean;
+  shareEnded: EndedShare | null;
   /** UC-040: go to where a member is (FR-040-02). Pauses any follow. */
   jumpTo: (memberId: string) => void;
   /** Where `jumpTo` left from — a place, or `"home"` for the page with no document — or `null`. One place, replaced by the next jump (FR-040-03). */
@@ -50,7 +54,7 @@ const FocusFollowContext = createContext<FocusFollowState>({
   unfollow: () => undefined,
   pause: () => undefined,
   resume: () => undefined,
-  shareEnded: false,
+  shareEnded: null,
   jumpTo: () => undefined,
   returnTo: null,
   goBack: () => undefined,
@@ -71,7 +75,8 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
   const { members, memberId } = useWorkspacePresence();
   const [rawFollowingId, setRawFollowingId] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
-  const [shareEnded, setShareEnded] = useState(false);
+  const [followed, setFollowed] = useState<EndedShare | null>(null);
+  const [shareEnded, setShareEnded] = useState<EndedShare | null>(null);
   const [returnTo, setReturnTo] = useState<Place | "home" | null>(null);
   const [scrollTarget, setScrollTarget] = useState<ScrollTarget | null>(null);
   const pathname = usePathname();
@@ -85,7 +90,7 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
   if (rawFollowingId && !target?.presenting) {
     setRawFollowingId(null);
     setPaused(false);
-    setShareEnded(true);
+    setShareEnded(followed);
   }
   const followedId = target?.presenting ? rawFollowingId : null;
   const followingId = paused ? null : followedId;
@@ -123,7 +128,7 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (!shareEnded) return;
-    const timer = setTimeout(() => setShareEnded(false), SHARE_ENDED_MS);
+    const timer = setTimeout(() => setShareEnded(null), SHARE_ENDED_MS);
     return () => clearTimeout(timer);
   }, [shareEnded]);
 
@@ -170,9 +175,11 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
     followingId,
     pausedId,
     follow: (id) => {
+      const presenter = members.find((m) => m.id === id);
       setRawFollowingId(id);
+      setFollowed(presenter ? { nickname: presenter.nickname, colorTag: presenter.colorTag } : null);
       setPaused(false);
-      setShareEnded(false);
+      setShareEnded(null);
     },
     unfollow: () => {
       setRawFollowingId(null);

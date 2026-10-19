@@ -1,12 +1,13 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 import { anchorAt } from "@/lib/focus/anchor";
 import { readBoxes } from "@/lib/focus/dom";
 import { documentIdFromPathname } from "@/lib/focus/pathname";
 
-import { useFocusFollow } from "./focus-follow-provider";
+import { SHARE_ENDED_MS, useFocusFollow, type EndedShare } from "./focus-follow-provider";
 import { useWorkspacePresence } from "./presence-provider";
 
 /** 30px, radius 9 (`docs/ui/redesign/HANDOFF.md` §3); each state adds its colours. */
@@ -27,13 +28,55 @@ export function FocusShare({ memberId }: { memberId: string }) {
   const { shareEnded } = useFocusFollow();
   return (
     <>
-      {shareEnded ? (
-        <span role="status" className="text-[13px] text-ink-soft">
-          공유가 종료되었습니다
-        </span>
-      ) : null}
+      {shareEnded ? <ShareEndedToast ended={shareEnded} /> : null}
       <FocusShareControl memberId={memberId} />
     </>
+  );
+}
+
+const SLIDE_MS = 240;
+
+/** E3-3's notice as a card that drops in from the top of the window and goes
+ *  back up, like a phone's notification. The provider unmounts it after
+ *  `SHARE_ENDED_MS`, so the way out starts `SLIDE_MS` before that. */
+function ShareEndedToast({ ended }: { ended: EndedShare }) {
+  const card = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const node = card.current;
+    // happy-dom has no `animate`; reduced motion just shows and hides it.
+    if (!node?.animate || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+    const hidden = { transform: "translateY(-120%)", opacity: 0 };
+    const shown = { transform: "translateY(0)", opacity: 1 };
+    node.animate([hidden, shown], { duration: SLIDE_MS, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
+    const leave = setTimeout(
+      () => node.animate([shown, hidden], { duration: SLIDE_MS, easing: "ease-in", fill: "forwards" }),
+      SHARE_ENDED_MS - SLIDE_MS,
+    );
+    return () => clearTimeout(leave);
+  }, []);
+
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-3 z-50 flex justify-center px-4">
+      <div
+        ref={card}
+        role="status"
+        className="flex w-full max-w-[320px] items-center gap-3 rounded-card border border-line bg-elev px-3.5 py-2.5 shadow-elev"
+      >
+        <span
+          aria-hidden
+          style={{ backgroundColor: ended.colorTag }}
+          className="flex size-8 flex-none items-center justify-center rounded-full text-[13px] font-semibold text-white"
+        >
+          {ended.nickname.slice(0, 1)}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-[13.5px] font-semibold text-ink">{ended.nickname}</span>
+          <span className="block text-[13px] text-ink-soft">공유가 종료되었습니다</span>
+        </span>
+      </div>
+    </div>
   );
 }
 

@@ -22,14 +22,14 @@
 
 ### 3. Tell the follower the share ended
 
-- **What**: when the presenter ends the share or disconnects, the follower sees "공유가 종료되었습니다" for a few seconds (E3-3 step 3, FR-030-11).
+- **What**: when the presenter ends the share or disconnects, a card with the presenter's name and "공유가 종료되었습니다" drops in from the top of the window and goes back up a few seconds later, like a phone's notification (E3-3 step 3, FR-030-11).
 - **Files**: `app/(workspace)/focus-follow-provider.tsx`, `app/(workspace)/focus-share.tsx`.
 - **Reuse**: the render-time branch that already forgets a follow whose presenter stopped.
-- **Done**: the notice shows for a follower, active or paused, and not for one who left with 종료.
+- **Done**: the card shows for a follower, active or paused, names a presenter who has already left the roster, and does not show for a follower who left with 종료.
 
 ## Test selection
 
-- Vitest (logic / component / server / route): `focus-follow-provider.test.tsx` rewritten around the new behaviour — a jump and 원본 위치 pause instead of asking; pause and resume; the follower opening another document, or a page that is not one, pauses; the presenter opening another takes the follower along once; 재개 re-crosses to the presenter's document; the end notice shows for an active or paused follower and not after 종료, and clears after `SHARE_ENDED_MS`. `focus-share.test.tsx` extended — 일시 정지 beside 종료, 재개 and 종료 while paused, the notice beside the next control. New `documents/[id]/use-focus-presence.test.tsx` — a wheel, touch, press or typing pauses; a `scroll` alone does not; nothing listens while not following.
+- Vitest (logic / component / server / route): `focus-follow-provider.test.tsx` rewritten around the new behaviour — a jump and 원본 위치 pause instead of asking; pause and resume; the follower opening another document, or a page that is not one, pauses; the presenter opening another takes the follower along once; 재개 re-crosses to the presenter's document; the end notice carries the presenter's name, shows for an active or paused follower (including one whose presenter left the roster) and not after 종료, and clears after `SHARE_ENDED_MS`. `focus-share.test.tsx` extended — 일시 정지 beside 종료, 재개 and 종료 while paused, the card with the presenter's name while the control moves on. New `documents/[id]/use-focus-presence.test.tsx` — a wheel, touch, press or typing pauses; a `scroll` alone does not; nothing listens while not following.
 - Browser E2E (`e2e/`): new `e2e/follow.e2e.ts` — a real wheel pauses the follow, the presenter's move does not reach the paused view, 재개 lands on the presenter's block, and the end is announced. `e2e/perf/round.perf.ts` is unchanged: it still finds the follower by the `…따라가는 중 · 종료` button, which keeps its name.
 - Container smoke (`.github/workflows/ci.yml`): no change — startup, auth and networking are untouched.
 - Commands and observed results (fill in before the PR):
@@ -42,7 +42,9 @@
     - 재개 brought the follower to the host's position.
     - A wheel event paused it.
     - Typing into a block that was focused without a press paused it (`beforeinput`).
-    - Not yet seen there: a route change of the follower's own, and the end notice. The extension disconnected first.
+    - The follower opened 파일 in the sidebar: stayed on `/files`, paused, not pulled back.
+    - 재개 from there returned the follower to the presenter's document, following again.
+    - The host's 공유 종료 dropped the card in at the top centre (the presenter's avatar, "Host", "공유가 종료되었습니다"). It was gone 4.5s later, and the follower's control had moved on to 공유하기.
   - The browser tool's scroll action fires no `wheel` event (it scrolls by script), so in that tool a scroll does not pause. A real wheel or trackpad does, as `e2e/follow.e2e.ts`'s `mouse.wheel` does.
 
 ## Acceptance
