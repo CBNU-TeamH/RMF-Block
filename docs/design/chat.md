@@ -1,11 +1,12 @@
-# Chat — Module Design (Version A: text and file attachments)
+# Chat — Module Design (Version A: text, files and links)
 
-- **Status**: Agreed. Built through file attachments and the chat file list (UC-061, #146);
-  link attachments are still out of scope — see below.
+- **Status**: Agreed. Built: text, file attachments, document and block links and URLs (#147),
+  and the chat file list with its 링크 tab (UC-061, #146).
 - **Owns**: `lib/chat/`, `lib/files/` (the upload/serving mechanism — see "Module structure"
   below; reused by the PDF block in `docs/design/document-editing.md`, not re-explained there),
   `app/(workspace)/chat-message.tsx`, `app/(workspace)/chat-panel.tsx`, `app/(workspace)/chat-files.tsx`,
-  `app/(workspace)/chat-window.tsx`, `app/api/chat/`, `app/api/files/`.
+  `app/(workspace)/chat-window.tsx`, `app/(workspace)/documents/[id]/block-menu.tsx` (a block's ···
+  menu, which shares it in chat), `app/api/chat/`, `app/api/files/`.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(b) (Chat API group); [`docs/design/api.md`](api.md) §5 (Version A vs Version B); [`docs/SRS-ko.md`](../SRS-ko.md) FR-060, SIR006
 
 ## Scope
@@ -13,12 +14,8 @@
 This doc is **Version A**; the A/B split and the open question between them are
 [`api.md`](api.md) §5's. It covers FR-060-01 (text), FR-060-02 (file
 attachments), FR-060-04 (realtime delivery), FR-060-05 (history and attachment info persisted),
-FR-060-07 (failure surfaced to sender).
-
-Still out, and each for its own reason: **URL and block/document-link attachments**
-(FR-060-03/06) are a second attachment kind carrying no bytes, and the `attachment` field below
-is shaped so they join as a sibling rather than a special case. Until they land, the file list
-below has no 링크 tab.
+FR-060-07 (failure surfaced to sender), and the links: URLs in a message (FR-060-01) and
+document or block links that open where they point (FR-060-03/06, E7a) — "Links" below.
 
 The UI is a **prototype**. There is no chat artboard in [`docs/ui/`](../ui/), so the panel and
 its floating window borrow the shell's own tokens and are meant to be replaced once a design
@@ -122,11 +119,62 @@ type ChatMessage = {
 and its attachment info travelling together and UC-060 step 1 has the user typing text *or*
 attaching a file.
 
+## Links
+
+A link travels on its own field, `link`, beside `attachment` rather than as a kind of it. Every
+reader of `attachment` — this file list, the file manager, the floating view — reads a file
+there, and one message can carry text, a file and a link at once.
+
+**What the server takes, and what it fills in.** The client sends `{ documentId, blockId?,
+excerpt? }`. The route checks the document is in the catalogue and takes its name from there, as
+it takes a file's from the store (below). It does not check the block: only the document's
+content holds that, and the reader finds out. `excerpt` is display text: the sender's own words
+about what they shared, like the message's text, trimmed and capped at `EXCERPT_MAX`.
+
+**What is kept, and what is live.**
+
+- The card shows the document's name as the catalogue has it now, so a rename follows.
+- Once the document is gone (deleted, or in the trash), the card shows the name kept on the link,
+  dimmed, and does nothing.
+- The excerpt is kept, not read live. The chat does not hold the document, and a message records
+  what was shared when it was sent. The editor's own link blocks cache nothing
+  ([`document-editing.md`](document-editing.md) §12), because they are the document rather than a
+  record of it.
+- A block deleted since still opens the document. The landing then leaves the scroll alone, the
+  rule every jump follows ([`presence-and-focus.md`](presence-and-focus.md)).
+
+The catalogue is the layout's, passed to `ChatWindow`. The sidebar's `router.refresh()` keeps it
+current, so the chat opens no socket of its own for names.
+
+**Opening one** (`useOpenLink` in `chat-message.tsx`). A block link lands on its block, highlighted
+— `goToBlock`, as the file manager's 원본 위치 does. A document link opens the document. Either way
+a follow is paused, not ended.
+
+**Attaching one**, three ways:
+
+- **채팅으로 보내기**, from a block's ··· menu in the editor's gutter (`block-menu.tsx`).
+  `useSendToChat` opens the window with the link attached. The window, not the panel, holds the
+  waiting link, so it survives the window being closed.
+- **링크 복사**, from the same menu, copies `/documents/<id>#block=<blockId>`. Guests on the LAN are
+  on plain HTTP, which is not a secure context, so there is no `navigator.clipboard` there.
+  `copyText` in `ui.tsx` falls back to `execCommand("copy")`. Pasting such an address into the
+  chat input attaches it rather than typing it, when the catalogue has the document. The address
+  is read from any host, since the host's `localhost` and a guest's LAN address are one workspace.
+  The address also works outside the chat: `FocusFollowProvider` reads `#block=` once per route,
+  lands on the block highlighted, and drops the hash.
+- **문서 링크**, a button in the chat input, picks a whole document from the catalogue.
+
+**URLs.** Only `http` and `https` become links (`splitUrls` in `lib/chat/links.ts`). A
+`javascript:` URL stays text. They open in a new tab with `noopener noreferrer`. Sentence
+punctuation after a URL stays outside it; a `)` closes the URL's own `(` first.
+
 ## The file list
 
 UC-061 is a "파일" switch at the top of the chat panel, beside "대화". It lists every attachment
 in the history, newest first, in tabs by kind — 이미지, PDF, 문서 — each row with its name,
-kind, size, sender and time (FR-061-01/02).
+kind, size, sender and time (FR-061-01/02). A fourth tab, 링크, lists the document and block links
+and the URLs (`sharedLinks`), each with 열기. That tab is this list's own: the file manager shares
+`KINDS` and has no links to list.
 
 - **Derived from the messages, not the file store.** `.data/files/` also holds document uploads,
   and a message already carries who sent its file and when. The panel's own `messages` feed it,
@@ -179,8 +227,9 @@ Two rules are worth stating because the obvious implementation gets them wrong:
 
 ## What the server decides, and what it refuses to be told
 
-Two fields on `SendChatMessageInput` are resolved by the route from the session and **never taken
-from the request body**.
+Three fields on `SendChatMessageInput` are resolved by the route **rather than taken from the
+request body**: `sender` from the session, `attachment` from the file store, and `link`'s document
+name from the catalogue ("Links" above).
 
 `sender` comes from `currentMember()`, the session's nickname. A `sender` in the request body is
 ignored, and a request with no session is refused with 401 before anything is stored, so it is
@@ -210,9 +259,8 @@ guess whether it was evicted or the network dropped, and those want different ha
 
 ## Open questions
 
-- **URL and block/document-link attachments** (FR-060-03/06). The `attachment` field is shaped
-  to take a sibling kind, but what a link attachment stores — and what happens to it when the
-  block it points at is deleted — is that task's question.
+- **A copied block address pasted into a document.** It could make the `block-link` block, which
+  has no creator yet ([`document-editing.md`](document-editing.md)). Nothing does that today.
 - **Deleting an attachment.** No FR covers it, and it raises one this module should not answer
   alone: whether removing a file removes the message that carried it.
 - **A real design for the UI.** What ships is a prototype built from the shell's tokens.

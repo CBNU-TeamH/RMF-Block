@@ -1,10 +1,15 @@
 "use client";
 
-import type { ChatAttachment, ChatMessage } from "@/lib/chat/types";
+import { useRouter } from "next/navigation";
+import { Fragment } from "react";
+
+import { splitUrls } from "@/lib/chat/links";
+import type { ChatAttachment, ChatLink, ChatMessage } from "@/lib/chat/types";
 import { isInlineType } from "@/lib/files/serving";
 import { readableSize } from "@/lib/files/size";
 
 import { useFloatingViews } from "./floating-views";
+import { useFocusFollow } from "./focus-follow-provider";
 import { FileIcon } from "./ui";
 
 /** One message in the chat panel (FR-060-01/02). **Prototype** — `docs/ui/` has
@@ -67,6 +72,64 @@ function Attachment({ attachment }: { attachment: ChatAttachment }) {
   );
 }
 
+/** FR-060-06: a block link lands on its block, highlighted (E7a); a document
+ *  link opens the document. Shared by the message and the 링크 tab. */
+export function useOpenLink(): (link: ChatLink) => void {
+  const { goToBlock } = useFocusFollow();
+  const router = useRouter();
+  return (link) =>
+    link.blockId ? goToBlock(link.documentId, link.blockId) : router.push(`/documents/${link.documentId}`);
+}
+
+/** A link's card. `name` is the document's name now, `undefined` once it is
+ *  gone — then the card shows the name it was sent with, dimmed, and is inert. */
+function LinkCard({ link, name }: { link: ChatLink; name: string | undefined }) {
+  const open = useOpenLink();
+  const gone = name === undefined;
+
+  return (
+    <button
+      type="button"
+      disabled={gone}
+      onClick={() => open(link)}
+      className="mt-1 flex w-fit max-w-full items-center gap-2.5 rounded-control bg-paper-2 py-1.5 pr-3 pl-1.5 text-left enabled:hover:bg-hover disabled:opacity-60"
+    >
+      <span aria-hidden className="flex size-8 flex-none items-center justify-center rounded-control bg-paper text-ink-soft">
+        <FileIcon />
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-[13.5px] font-medium text-ink">{name ?? link.documentName}</span>
+        <span className="block truncate text-xs text-ink-faint">
+          {gone ? "삭제된 문서" : link.blockId ? (link.excerpt ?? "블록") : "문서"}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/** FR-060-01: a message's `http(s)` URLs open in a new tab; the rest is text. */
+function MessageText({ text }: { text: string }) {
+  return (
+    <p className="text-[14px] leading-[1.55] break-words whitespace-pre-wrap text-ink">
+      {splitUrls(text).map((part, index) =>
+        "url" in part ? (
+          <a
+            key={index}
+            href={part.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="break-all text-sky-text underline underline-offset-2 hover:text-sky-deep"
+          >
+            {part.url}
+          </a>
+        ) : (
+          <Fragment key={index}>{part.text}</Fragment>
+        ),
+      )}
+    </p>
+  );
+}
+
 /** FR-070-01's "or a file" — which types float: `docs/design/floating-view.md`. */
 function FloatButton({ attachment }: { attachment: ChatAttachment }) {
   const openFloating = useFloatingViews();
@@ -87,9 +150,12 @@ export function ChatMessageRow({
   message,
   mine,
   colorTag,
+  linkName,
 }: {
   message: ChatMessage;
   mine: boolean;
+  /** The linked document's current name, `undefined` once it is gone. */
+  linkName?: string;
   /** The sender's colour when the roster knows them, so one person reads the
    * same here as in the document list and the presence stack. */
   colorTag: string | undefined;
@@ -118,13 +184,10 @@ export function ChatMessageRow({
           </time>
         </span>
 
-        {message.text ? (
-          <p className="text-[14px] leading-[1.55] break-words whitespace-pre-wrap text-ink">
-            {message.text}
-          </p>
-        ) : null}
+        {message.text ? <MessageText text={message.text} /> : null}
 
         {message.attachment ? <Attachment attachment={message.attachment} /> : null}
+        {message.link ? <LinkCard link={message.link} name={linkName} /> : null}
         {message.attachment ? <FloatButton attachment={message.attachment} /> : null}
       </div>
     </li>

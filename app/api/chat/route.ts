@@ -2,8 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { currentMember } from "@/lib/auth/current-member";
 import { chatService } from "@/lib/chat/chat-service";
-import { ChatValidationError, type ChatAttachment } from "@/lib/chat/types";
+import { EXCERPT_MAX } from "@/lib/chat/links";
+import { ChatValidationError, type ChatAttachment, type ChatLink } from "@/lib/chat/types";
+import { readDocuments } from "@/lib/documents/documents";
 import { fileRepository } from "@/lib/files/file-repository";
+
+/** Longer than any block id the editor mints (a UUID is 36), short of anything a
+ *  JSON store should keep. */
+const BLOCK_ID_MAX = 64;
 
 /** Chat history (GET) and send (POST) — FR-060-01/04/05/07, `docs/design/api.md`
  *  §5 Version A. POST persists then broadcasts over the socket inside
@@ -49,10 +55,33 @@ export async function POST(request: NextRequest) {
     };
   }
 
+  // FR-060-03: the request names a document, and a block in it; the catalogue
+  // names the document. Whether the block still exists is the reader's to find
+  // out — only the document holds that (`docs/design/chat.md`, "Links").
+  let link: ChatLink | undefined;
+  if (body?.link !== undefined) {
+    const { documentId, blockId, excerpt } = body.link ?? {};
+    const document = typeof documentId === "string" ? readDocuments().find((d) => d.id === documentId) : undefined;
+    if (!document) {
+      return NextResponse.json({ error: "링크한 문서를 찾을 수 없습니다." }, { status: 400 });
+    }
+    if (blockId !== undefined && (typeof blockId !== "string" || !blockId || blockId.length > BLOCK_ID_MAX)) {
+      return NextResponse.json({ error: "invalid block id" }, { status: 400 });
+    }
+
+    const shown = typeof excerpt === "string" ? excerpt.trim().slice(0, EXCERPT_MAX) : "";
+    link = {
+      documentId: document.id,
+      ...(blockId ? { blockId } : {}),
+      documentName: document.name,
+      ...(shown ? { excerpt: shown } : {}),
+    };
+  }
+
   try {
-    // The session decides who sent this; the body is only read for `text` and
-    // which file to attach.
-    const message = await chatService.send({ sender: member.nickname, text, attachment });
+    // The session decides who sent this; the body is only read for `text`, which
+    // file to attach and what to link.
+    const message = await chatService.send({ sender: member.nickname, text, attachment, link });
     return NextResponse.json(message, { status: 201 });
   } catch (error) {
     if (error instanceof ChatValidationError) {

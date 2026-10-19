@@ -49,6 +49,7 @@ import { useFocusFollow } from "../../focus-follow-provider";
 import { Avatar } from "../../presence-avatar";
 import { useWorkspacePresence } from "../../presence-provider";
 import { DividerBlockView } from "./divider-block";
+import { BlockMenu } from "./block-menu";
 import { DocLinkBlockView } from "./doc-link-block";
 import { FileBlockView } from "./file-block";
 import { ImageBlockView } from "./image-block";
@@ -1028,6 +1029,10 @@ export function DocumentEditor({
               />
             </span>
           ) : null}
+          {/* FR-060-03: the block's ··· menu, left of the floating view's button. */}
+          <span className="absolute top-[4px] -left-[74px] opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-within:opacity-100">
+            <BlockMenu documentId={documentId} block={block} />
+          </span>
           {/* UC-070's entry point — left of the drag handle, shown the way it is. */}
           {canFloat(block) ? (
             <button

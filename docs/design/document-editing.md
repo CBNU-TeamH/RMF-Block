@@ -4,9 +4,10 @@
 - **Owns**: `lib/blocks/`, `lib/documents/`, `app/(workspace)/documents/`, `app/api/documents/`,
   `app/(workspace)/document-list.tsx`, `app/(workspace)/document-actions.tsx`,
   `app/(workspace)/document-row-menu.tsx` (the sidebar's document tree and its row actions).
-  One file under the third path — its use-focus-presence hook — is more specifically owned
-  elsewhere, by [`docs/design/presence-and-focus.md`](presence-and-focus.md), whose file-level
-  claim wins over this directory-level one.
+  Two files under the third path are more specifically owned elsewhere, and those file-level
+  claims win over this directory-level one: its use-focus-presence hook, by
+  [`docs/design/presence-and-focus.md`](presence-and-focus.md), and a block's ··· menu
+  (`block-menu.tsx`), by [`docs/design/chat.md`](chat.md).
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(a), §5; [`docs/SRS-ko.md`](../SRS-ko.md) §4.1
 
 ## Scope
@@ -579,8 +580,9 @@ brings the link back to life. The deleted document's own file blocks, hidden whi
 trash, come back the same way ([`api.md`](api.md#files)). The picker leaves the current document out of its own
 list, since a link to the page you are on is a loop with only a back button out.
 
-`block-link` (type 12) still has no creator: it needs a way to point at one block inside a
-document, which nothing offers yet.
+`block-link` (type 12) still has no creator. A way to point at one block now exists: a block's ···
+menu in the gutter, left of the floating view's button, copies the block's address (링크 복사) or
+sends it to chat ([`chat.md`](chat.md), "Links"). Nothing yet turns that address into a block.
 
 ## Undo is per person, and it is Yorkie's
 

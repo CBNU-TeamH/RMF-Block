@@ -34,11 +34,12 @@ export class ChatService {
   // checked for emptiness when it was minted (`SessionRegistry.join`) — so
   // there is nothing left for this method to catch. `text` is still whatever
   // the person typed.
-  async send({ sender, text, attachment }: SendChatMessageInput): Promise<ChatMessage> {
+  async send({ sender, text, attachment, link }: SendChatMessageInput): Promise<ChatMessage> {
     // Text *or* an attachment, not text unconditionally. UC-060's first step is
     // "텍스트 또는 URL을 입력하거나 파일을 첨부한다" — a photo with nothing
-    // typed under it is a message, and requiring text would refuse it.
-    if (!text?.trim() && !attachment) {
+    // typed under it is a message, and requiring text would refuse it. A link
+    // alone is one too (FR-060-03).
+    if (!text?.trim() && !attachment && !link) {
       throw new ChatValidationError("메시지나 첨부 파일 중 하나는 있어야 합니다.");
     }
     // Neither `request.json()` (App Router) nor the custom server caps body
@@ -58,6 +59,7 @@ export class ChatService {
       // the key into the JSON store as `null` on the way back, and a message
       // with no attachment should simply not have one.
       ...(attachment ? { attachment } : {}),
+      ...(link ? { link } : {}),
       sentAt: new Date().toISOString(),
     };
 

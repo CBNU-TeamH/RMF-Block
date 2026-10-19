@@ -79,7 +79,7 @@ export default async function WorkspaceLayout({
             {/* Around the shell, so the file manager can open it at a message; its
                 window and bar are `fixed`, floating over the shell rather than
                 taking a column from it. */}
-            <ChatWindow me={me.nickname}>
+            <ChatWindow me={me.nickname} documents={documents}>
               {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
                   shell has to be exactly the viewport's height, not merely at least
                   it, or the row below never bounds `<main>` and the editor's own

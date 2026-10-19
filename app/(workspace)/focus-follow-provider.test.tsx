@@ -293,3 +293,14 @@ describe("FocusFollowProvider — the start of a share (FR-030-03)", () => {
     assert.equal(state().shareStarted, null);
   });
 });
+
+describe("FocusFollowProvider — a copied block address (FR-060-03)", () => {
+  it("lands on the block, highlighted, and drops the hash", () => {
+    window.history.replaceState(null, "", "/documents/d1#block=b-9");
+    presence.members = [me];
+    const { state } = setup();
+
+    assert.deepEqual(state().scrollTarget, { documentId: "d1", blockId: "b-9", highlight: true });
+    assert.equal(window.location.hash, "");
+  });
+});

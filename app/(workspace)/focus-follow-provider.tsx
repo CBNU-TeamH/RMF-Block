@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
+import { blockFromHash } from "@/lib/chat/links";
 import { documentIdFromPathname } from "@/lib/focus/pathname";
 
 import type { WorkspacePresence } from "@/lib/presence/types";
@@ -192,6 +193,17 @@ export function FocusFollowProvider({ children }: { children: React.ReactNode })
     else goTo(returnTo);
     setReturnTo(null);
   }
+
+  // A copied block address (`#block=`, FR-060-03) lands on its block, highlighted,
+  // however it was opened — then the hash leaves the address bar.
+  useEffect(() => {
+    const documentId = documentIdFromPathname(pathname);
+    const blockId = blockFromHash(window.location.hash);
+    if (!documentId || !blockId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the hash is browser-only state, read once per route
+    setScrollTarget({ documentId, blockId, highlight: true });
+    window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+  }, [pathname]);
 
   // A jump whose document never loads (deleted, navigation failed) must not
   // linger and scroll the next time that document opens.
