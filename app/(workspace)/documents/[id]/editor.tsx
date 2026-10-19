@@ -1037,7 +1037,7 @@ export function DocumentEditor({
             </span>
           ) : null}
           {/* FR-060-03: the block's ··· menu, left of the floating view's button. */}
-          <span className="absolute top-[4px] -left-[74px] opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-within:opacity-100">
+          <span className="absolute top-[4px] -left-[74px]">
             <BlockMenu documentId={documentId} blockId={block.id} readExcerpt={() => excerptFor(block)} />
           </span>
           {/* UC-070's entry point — left of the drag handle, shown the way it is. */}
