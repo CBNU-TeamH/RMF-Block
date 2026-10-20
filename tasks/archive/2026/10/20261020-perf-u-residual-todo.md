@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-20
 **Issue**: #215 (U grows with round length); blocks #191's judgment cell
-**Design**: the clock section of [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../../docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) (§기본 방식 1), changed here — an agreed document, so the PR waits for the team's agreement
+**Design**: the clock section of [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../../../../docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) (§기본 방식 1), changed here — an agreed document, so the PR waits for the team's agreement
 
 ## Milestones
 
@@ -47,12 +47,12 @@
 
 ## Acceptance
 
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] `stats.test.mts` covers a steady drift, a step and the two-reading fallback.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] `stats.test.mts` covers a steady drift, a step and the two-reading fallback.
 - [ ] `clock.json` of a new 10-minute round has four `mid` readings per device, the last inside the presenter phase.
-- [ ] `perf:report` on an old run gives the same U as before.
+- [x] `perf:report` on an old run gives the same U as before.
 - [ ] On the rig, a full round's new U is at most 6 ms with each device's residual at most 1 ms, and attempts overlapping a mid reading are not slower than the rest.
-- [ ] `pnpm typecheck`, `pnpm verify:docs` and the comment budget pass.
+- [x] `pnpm typecheck`, `pnpm verify:docs` and the comment budget pass.
 
 ## Cross-cutting
 
@@ -66,3 +66,5 @@ Review (this session): `/code-review low` found nothing. `/simplify` (four angle
 CodeRabbit (4 comments): fixed the runbook's interval wording (a quarter of `PERF_MINUTES`, not "every 2–3 minutes"). Declined: translating the changed paragraph to English (the criteria doc is Korean end to end until its own translation task, AGENTS.md §5), writing "provisional" into the criteria text (the doc merges only once the team agrees; until then the campaign reports both U rules and marks its verdict provisional), and discarding a mid reading that finishes after the window closes (it is a valid reading on the same clock and only helps the fit).
 
 Also in this PR: `.github/CODEOWNERS` named the maintainer's old login `@taejinchoi-cbnu`, which GitHub reported as an unknown owner after the account was renamed to `TaeTaeJin`, so review requests no longer reached them.
+
+Archived on merge with the two rig boxes open (four `mid` readings in a new round's `clock.json`; new U ≤ 6 ms with residual ≤ 1 ms, and no slowdown around mid readings). They are the `u-check` round of the v0.1.0 campaign, which runs when G is back on the rig's Wi-Fi and reports on #191.

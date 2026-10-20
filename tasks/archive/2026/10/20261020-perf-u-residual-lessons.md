@@ -9,11 +9,12 @@ that the next person does not rediscover this.
 
 - OS time sync cannot help: the harness reads `performance.timeOrigin + performance.now()`, a monotonic clock that Windows w32time never slews. H's own ~10 ppm rate error showed up as G's drift, and chrony on G plus w32time on H left U unchanged (10.8–11.9 ms).
 - θ_H compares two clocks on the same machine, so it can never show H's drift; only θ_G, measured against H, does.
+- Shortening w32time's poll interval to 64 s made H's wall clock swing by hundreds of ms (+226 → −176 → +358 ms) instead of settling.
 
 ## What we would do differently
 
-- ...
+- Check what the formula charges against what the correction already removes before tuning the machines. U had added the whole start-to-end drift that `thetaAt` already corrects, and two time-sync setups and six voided rounds came before anyone read `uncertainty()`.
 
 ## Worth extracting
 
-- ...
+- None.

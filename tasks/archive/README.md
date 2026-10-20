@@ -8,6 +8,9 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Perf harness counts the clock residual, not the drift, in U](2026/10/20261020-perf-u-residual-todo.md) | [lessons](2026/10/20261020-perf-u-residual-lessons.md) |
+| [Perf campaign on an internet Wi-Fi, run with Claude](2026/10/20261016-perf-internet-wifi-todo.md) | [lessons](2026/10/20261016-perf-internet-wifi-lessons.md) |
+| [Perf harness measures v0.0.2](2026/10/20261015-perf-pin-0.0.2-todo.md) | [lessons](2026/10/20261015-perf-pin-0.0.2-lessons.md) |
 | [Observation stack and result charts for the perf campaign](2026/10/20261013-perf-observability-todo.md) | [lessons](2026/10/20261013-perf-observability-lessons.md) |
 | [Two-device performance harness (e2e/perf)](2026/10/20261013-perf-harness-todo.md) | [lessons](2026/10/20261013-perf-harness-lessons.md) |
 | [Drift audit: every design doc, after admin, tabs, the .data/ layer and packaging](2026/10/20261010-drift-audit-todo.md) | [lessons](2026/10/20261010-drift-audit-lessons.md) |

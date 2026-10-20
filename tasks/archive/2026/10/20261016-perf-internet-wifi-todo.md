@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-16
 **Issue**: #191 (the on-device run this changes), #163
-**Design**: [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../../docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) — this task changes its measurement network; the operator steps are [`docs/perf/runbook-ko.md`](../../docs/perf/runbook-ko.md)
+**Design**: [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../../../../docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md) — this task changes its measurement network; the operator steps are [`docs/perf/runbook-ko.md`](../../../../docs/perf/runbook-ko.md)
 
 The rig was to run on an offline hotspot from a Linux laptop. On 2026-10-16 that stopped making sense: no one
 can use Claude on the hotspot, and the library Wi-Fi was not congested, so delay is injected on purpose anyway.
@@ -50,7 +50,7 @@ Decided by the user, with the team's agreement beforehand:
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior. For each relevant layer, name existing tests
 that cover it, required updates/new cases, or a concrete reason no change is needed.
 
@@ -67,10 +67,10 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 
 What has to be true for this task to be finished. Runnable checks beat prose.
 
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
 - [x] `pnpm verify:docs` passes.
 - [x] `grep -n "핫스팟\|AP 노트북" docs/perf/runbook-ko.md docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md` finds only the sentences saying the hotspot was the earlier plan (runbook §3.0, criteria 부하 구성).
-- [ ] Rehearsal A on the chosen Wi-Fi, run by Claude: G reaches H (`/join` and Yorkie health 200), `"gRemote": true`, U ≤ 10 ms. Needs G on that Wi-Fi, so it runs after the PR opens and is reported there.
+- [x] Rehearsal A on the chosen Wi-Fi, run by Claude: G reaches H (`/join` and Yorkie health 200), `"gRemote": true`, U ≤ 10 ms. Needs G on that Wi-Fi, so it runs after the PR opens and is reported there. Met by the v0.1.0 campaign (#191, #214): the two-device run `judge` on that Wi-Fi had U 6.5–9.7 ms per round.
 
 ## Cross-cutting
 
