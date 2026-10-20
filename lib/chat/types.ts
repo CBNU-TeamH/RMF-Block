@@ -11,12 +11,28 @@ export type ChatAttachment = {
   size: number;
 };
 
+/** A document, or one block in it, travelling with a message (FR-060-03). The
+ *  name and excerpt are what was shared when it was sent — why kept, not read
+ *  live: `docs/design/chat.md`, "Links". */
+export type ChatLink = {
+  documentId: string;
+  /** Absent for a link to the whole document. */
+  blockId?: string;
+  documentName: string;
+  /** The block's opening text, or its file's name. */
+  excerpt?: string;
+};
+
+/** What a sender names to link; the server describes the rest (FR-060-03). */
+export type ChatLinkRequest = Pick<ChatLink, "documentId" | "blockId" | "excerpt">;
+
 export type ChatMessage = {
   id: string;
   sender: string;
   /** Empty when the message is only an attachment — see `SendChatMessageInput`. */
   text: string;
   attachment?: ChatAttachment;
+  link?: ChatLink;
   sentAt: string;
 };
 
@@ -26,6 +42,8 @@ export type SendChatMessageInput = {
   text: string | undefined;
   /** From the store, never the request (`docs/design/chat.md`). */
   attachment?: ChatAttachment;
+  /** Its document's name from the catalogue, never the request. */
+  link?: ChatLink;
 };
 
 /** Thrown for input the sender controls — route.ts maps this to a 400, not a 500. */

@@ -171,3 +171,15 @@ test("send() still caps text when an attachment rides with it", async () => {
     ChatValidationError,
   );
 });
+
+test("send() takes a link alone as a message, and leaves the key out without one", async () => {
+  // FR-060-03: a link is something to send, like a file.
+  const service = new ChatService(fakeRepository(), fakeBroadcaster());
+  const link = { documentId: "doc-1", blockId: "b-1", documentName: "회의록", excerpt: "배포 일정" };
+
+  const linked = await service.send({ sender: "alice", text: "", link });
+  const plain = await service.send({ sender: "alice", text: "hi" });
+
+  assert.deepEqual(linked.link, link);
+  assert.equal("link" in plain, false);
+});
