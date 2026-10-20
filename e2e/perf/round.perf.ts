@@ -288,9 +288,19 @@ for (let round = 1; round <= ROUNDS; round++) {
       await Promise.all(actors.map((actor) => openChat(actor.page)));
       if (probe) await probe.ready();
 
-      const clock: Note = { start: { H: await readClock(hPage), G: await readClock(gPage) } };
+      const mid: Array<Note> = [];
+      const clock: Note = { start: { H: await readClock(hPage), G: await readClock(gPage) }, mid };
       r.phase = "window";
       const windowAt = now();
+      // Mid-window readings, every quarter of MINUTES until the window closes (#215).
+      let closeWindow = () => {};
+      const closed = new Promise<false>((resolve) => (closeWindow = () => resolve(false)));
+      const midReadings = (async () => {
+        while (await Promise.race([delay(MINUTES * 15_000).then(() => true), closed])) {
+          mid.push({ H: await readClock(hPage), G: await readClock(gPage) });
+        }
+      })();
+      midReadings.catch(() => {}); // a round that fails first must not leave this rejection unhandled
       if (OUTAGE) {
         await work(r, actors, MINUTES, 0);
         await outage(r, h, g, probe!, meta);
@@ -305,6 +315,8 @@ for (let round = 1; round <= ROUNDS; round++) {
       if (typeof meta.cutAt === "number") marks.push({ time: meta.cutAt, text: `round ${round}: cut` });
       if (typeof meta.restoreAt === "number") marks.push({ time: meta.restoreAt, text: `round ${round}: restore` });
       r.phase = "teardown";
+      closeWindow();
+      await midReadings;
       clock.end = { H: await readClock(hPage), G: await readClock(gPage) };
 
       const rtt = await gPage.evaluate(async (url) => {

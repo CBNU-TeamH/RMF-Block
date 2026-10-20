@@ -83,19 +83,31 @@ describe("clock — offset, uncertainty, correction", () => {
     assert.deepEqual(offset, { at: 103, theta: 1_000, u: 3 });
   });
 
-  it("adds the drift to the worse bound", () => {
-    assert.equal(uncertainty({ start: { at: 0, theta: 50, u: 2 }, end: { at: 600_000, theta: 54, u: 3 } }), 7);
+  // Five readings over a 12-minute window, θ drifting 0.6 ms a minute.
+  const drifting = (theta: (i: number) => number) => Array.from({ length: 5 }, (_, i) => ({ at: i * 180_000, theta: theta(i), u: 2 }));
+
+  it("adds the whole drift to the worse bound when only start and end were read", () => {
+    assert.equal(uncertainty([{ at: 0, theta: 50, u: 2 }, { at: 600_000, theta: 54, u: 3 }]), 7);
+  });
+
+  it("charges nothing for a steady drift once mid-round readings show it is a line", () => {
+    assert.ok(Math.abs(uncertainty(drifting((i) => 50 + 1.8 * i)) - 2) < 1e-9);
+  });
+
+  it("charges a step in the offset by how far it leaves the line", () => {
+    const stepped = drifting((i) => 50 + 1.8 * i + (i === 2 ? 5 : 0));
+    assert.ok(Math.abs(uncertainty(stepped) - (2 + 4)) < 1e-9);
   });
 
   it("corrects a G timestamp whether G runs ahead or behind", () => {
-    const ahead = { start: { at: 0, theta: 250, u: 1 }, end: { at: 1_000, theta: 250, u: 1 } };
-    const behind = { start: { at: 0, theta: -250, u: 1 }, end: { at: 1_000, theta: -250, u: 1 } };
+    const ahead = [{ at: 0, theta: 250, u: 1 }, { at: 1_000, theta: 250, u: 1 }];
+    const behind = [{ at: 0, theta: -250, u: 1 }, { at: 1_000, theta: -250, u: 1 }];
     assert.equal(toH(ahead, 750), 500);
     assert.equal(toH(behind, 250), 500);
   });
 
-  it("interpolates the offset between the two readings and holds it outside", () => {
-    const clock = { start: { at: 0, theta: 0, u: 1 }, end: { at: 100, theta: 10, u: 1 } };
+  it("follows the line between the readings and holds it outside", () => {
+    const clock = [{ at: 0, theta: 0, u: 1 }, { at: 100, theta: 10, u: 1 }];
     assert.equal(thetaAt(clock, 50), 5);
     assert.equal(thetaAt(clock, -5), 0);
     assert.equal(thetaAt(clock, 500), 10);
