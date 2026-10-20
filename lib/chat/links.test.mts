@@ -54,6 +54,7 @@ describe("document link addresses", () => {
     assert.equal(parseDocumentLink("https://example.com/somewhere"), null);
     assert.equal(parseDocumentLink("/documents/doc-1"), null);
     assert.equal(parseDocumentLink("회의록 링크 http://localhost:3000/documents/doc-1"), null);
+    assert.equal(parseDocumentLink("http://localhost:3000/documents/%E0%A4"), null);
   });
 
   it("read the block off a hash", () => {

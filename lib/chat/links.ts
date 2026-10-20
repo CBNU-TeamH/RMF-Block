@@ -64,8 +64,14 @@ export function parseDocumentLink(text: string): { documentId: string; blockId?:
   const match = /^\/documents\/([^/]+)\/?$/.exec(url.pathname);
   if ((url.protocol !== "http:" && url.protocol !== "https:") || !match) return null;
 
+  let documentId: string;
+  try {
+    documentId = decodeURIComponent(match[1]);
+  } catch {
+    return null; // a malformed %-escape (`/documents/%E0%A4`) is not an address either
+  }
   const blockId = blockFromHash(url.hash);
-  return { documentId: decodeURIComponent(match[1]), ...(blockId ? { blockId } : {}) };
+  return { documentId, ...(blockId ? { blockId } : {}) };
 }
 
 /** What a link to `block` shows of it: its text's first line, or its file's
