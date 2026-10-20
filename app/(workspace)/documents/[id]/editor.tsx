@@ -41,6 +41,7 @@ import {
 } from "@/lib/blocks/reorder";
 import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
+import { excerptOf } from "@/lib/chat/links";
 import { HOST_PRESENCE } from "@/lib/presence/types";
 
 import { CANCEL, DIALOG_TITLE, DOCUMENT_ACTIONS_ID, FIELD_LABEL, Spinner, confirmClass, inputClass } from "../../ui";
@@ -49,6 +50,7 @@ import { useFocusFollow } from "../../focus-follow-provider";
 import { Avatar } from "../../presence-avatar";
 import { useWorkspacePresence } from "../../presence-provider";
 import { DividerBlockView } from "./divider-block";
+import { BlockMenu } from "./block-menu";
 import { DocLinkBlockView } from "./doc-link-block";
 import { FileBlockView } from "./file-block";
 import { ImageBlockView } from "./image-block";
@@ -257,6 +259,12 @@ export function DocumentEditor({
   function liveTextOf(root: BlockDocumentRoot, blockId: BlockId): string {
     return liveBlockOf(root, blockId)?.content?.text?.toString() ?? "";
   }
+
+  /** What a chat link shows of `block` (FR-060-03), from the live text. */
+  const excerptFor = (block: Block) => {
+    const doc = docRef.current;
+    return excerptOf(doc && "text" in block ? { ...block, text: liveTextOf(doc.getRoot(), block.id) } : block);
+  };
 
   /** The one mutation path (`docs/design/document-editing.md`). `false` means the
    *  edit did not land, which is never an error to report. */
@@ -1028,6 +1036,10 @@ export function DocumentEditor({
               />
             </span>
           ) : null}
+          {/* FR-060-03: the block's ··· menu, left of the floating view's button. */}
+          <span className="absolute top-[4px] -left-[74px]">
+            <BlockMenu documentId={documentId} blockId={block.id} readExcerpt={() => excerptFor(block)} />
+          </span>
           {/* UC-070's entry point — left of the drag handle, shown the way it is. */}
           {canFloat(block) ? (
             <button

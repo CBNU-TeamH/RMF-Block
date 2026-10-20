@@ -67,6 +67,31 @@ export function flash(element: Element | null | undefined): void {
   );
 }
 
+/** Copies `text`, falling back where `navigator.clipboard` is missing: plain HTTP
+ *  on the LAN, where guests are, is not a secure context. `false` if neither worked. */
+export async function copyText(text: string): Promise<boolean> {
+  if (window.isSecureContext && navigator.clipboard) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Denied permission — the fallback below needs none.
+    }
+  }
+
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.opacity = "0";
+  document.body.append(area);
+  area.select();
+  // Deprecated, and the one copy a page outside a secure context still has.
+  const copied = document.execCommand("copy");
+  area.remove();
+  return copied;
+}
+
 /** The shell's 16px line icons (`docs/ui/redesign/HANDOFF.md` §3). */
 export const icon = (path: React.ReactNode, size = 15) => (
   <svg

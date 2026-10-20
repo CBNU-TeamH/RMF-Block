@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useState } from "react";
 
+import type { ChatLinkRequest } from "@/lib/chat/types";
 import {
   BAR_HEIGHT,
   applyGesture,
@@ -49,11 +50,29 @@ function writeFrame(frame: Frame): void {
 const OpenChatAtContext = createContext<(messageId: string) => void>(() => undefined);
 export const useOpenChatAt = () => useContext(OpenChatAtContext);
 
-/** Wraps the shell so anything in it can open the window at a message. */
-export function ChatWindow({ me, children }: { me: string; children: React.ReactNode }) {
+/** Opens the window with a link attached to the next message (FR-060-03) —
+ *  the editor's 채팅으로 보내기. */
+const SendToChatContext = createContext<(link: ChatLinkRequest) => void>(() => undefined);
+export const useSendToChat = () => useContext(SendToChatContext);
+
+/** Wraps the shell so anything in it can open the window at a message, or with
+ *  a link attached. */
+export function ChatWindow({
+  me,
+  documents,
+  children,
+}: {
+  me: string;
+  /** The layout's catalogue, for a link's current name and whether it is gone. */
+  documents: Array<{ id: string; name: string }>;
+  children: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const [frame, setFrame] = useState<Frame | null>(null);
   const [landOn, setLandOn] = useState<string | null>(null);
+  // The link waiting for the next message. Here rather than in the panel, so it
+  // outlives the window being closed.
+  const [link, setLink] = useState<ChatLinkRequest | null>(null);
 
   // Resolved on first open, not during render: `window` does not exist while
   // this component renders on the server, and neither does the saved frame.
@@ -69,6 +88,13 @@ export function ChatWindow({ me, children }: { me: string; children: React.React
     [openWindow],
   );
   const landed = useCallback(() => setLandOn(null), []);
+  const sendToChat = useCallback(
+    (next: ChatLinkRequest) => {
+      setLink(next);
+      openWindow();
+    },
+    [openWindow],
+  );
 
   // Saved when the gesture ends rather than on every move — one write per
   // drag instead of one per frame.
@@ -76,46 +102,48 @@ export function ChatWindow({ me, children }: { me: string; children: React.React
 
   return (
     <OpenChatAtContext.Provider value={openAt}>
-      {children}
-      {open && frame ? (
-        <FloatingFrame
-          frame={frame}
-          begin={begin}
-          label="채팅"
-          title={
-            <span className="text-[13px] font-semibold text-ink">채팅</span>
-          }
-          resize="edges"
-          closeLabel="채팅 닫기"
-          onClose={() => setOpen(false)}
-          className="z-40"
-        >
-          <ChatPanel me={me} landOn={landOn} onLanded={landed} />
-        </FloatingFrame>
-      ) : null}
+      <SendToChatContext.Provider value={sendToChat}>
+        {children}
+        {open && frame ? (
+          <FloatingFrame
+            frame={frame}
+            begin={begin}
+            label="채팅"
+            title={
+              <span className="text-[13px] font-semibold text-ink">채팅</span>
+            }
+            resize="edges"
+            closeLabel="채팅 닫기"
+            onClose={() => setOpen(false)}
+            className="z-40"
+          >
+            <ChatPanel me={me} documents={documents} link={link} onLink={setLink} landOn={landOn} onLanded={landed} />
+          </FloatingFrame>
+        ) : null}
 
-      {/* The height here is the same number `window-frame` keeps the window
-          clear of. A Tailwind class would be a second place to change it, and
-          the two drifting apart is exactly how the window ends up covering the
-          button that opens it. */}
-      <div
-        style={{ height: BAR_HEIGHT }}
-        className="fixed right-3 bottom-0 z-30 flex items-center"
-      >
-        <button
-          type="button"
-          onClick={() => (open ? setOpen(false) : openWindow())}
-          aria-expanded={open}
-          className={`flex h-8 items-center gap-1.5 rounded-control px-3 text-[13.5px] font-medium shadow-elev ${
-            open ? "bg-sky-soft text-sky-text" : "bg-elev text-ink-soft hover:text-ink"
-          }`}
+        {/* The height here is the same number `window-frame` keeps the window
+            clear of. A Tailwind class would be a second place to change it, and
+            the two drifting apart is exactly how the window ends up covering the
+            button that opens it. */}
+        <div
+          style={{ height: BAR_HEIGHT }}
+          className="fixed right-3 bottom-0 z-30 flex items-center"
         >
-          <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round">
-            <path d="M3 3.5h10v7H7l-3 2.5v-2.5H3z" />
-          </svg>
-          채팅
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => (open ? setOpen(false) : openWindow())}
+            aria-expanded={open}
+            className={`flex h-8 items-center gap-1.5 rounded-control px-3 text-[13.5px] font-medium shadow-elev ${
+              open ? "bg-sky-soft text-sky-text" : "bg-elev text-ink-soft hover:text-ink"
+            }`}
+          >
+            <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round">
+              <path d="M3 3.5h10v7H7l-3 2.5v-2.5H3z" />
+            </svg>
+            채팅
+          </button>
+        </div>
+      </SendToChatContext.Provider>
     </OpenChatAtContext.Provider>
   );
 }

@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { ChatMessage } from "@/lib/chat/types";
+import { linkLabel, parseDocumentLink } from "@/lib/chat/links";
+import type { ChatLinkRequest, ChatMessage } from "@/lib/chat/types";
 
 import { ChatFiles } from "./chat-files";
 import { ChatMessageRow } from "./chat-message";
 import { useWorkspacePresence } from "./presence-provider";
-import { flash } from "./ui";
+import { FileIcon, flash } from "./ui";
 
 /** The workspace chat (FR-060-01/02/04/05/07). **Prototype** — no chat artboard
  *  in `docs/ui/`, so this is built from the shell's vocabulary.
@@ -26,6 +27,7 @@ type Pending = {
    *  send tends to fail, and a second copy would strand the first — deleting a
    *  file is out of scope, so an orphan is permanent. */
   fileId?: string;
+  link?: ChatLinkRequest;
   failed: boolean;
 };
 
@@ -34,10 +36,18 @@ const switchClass = (on: boolean) =>
 
 export function ChatPanel({
   me,
+  documents,
+  link,
+  onLink,
   landOn = null,
   onLanded = () => undefined,
 }: {
   me: string;
+  /** The layout's catalogue: a link's current name, and whether it is gone. */
+  documents: Array<{ id: string; name: string }>;
+  /** The link the next message carries (FR-060-03), held by the window. */
+  link: ChatLinkRequest | null;
+  onLink: (link: ChatLinkRequest | null) => void;
   /** A message to scroll to and highlight once it is here (UC-050 E3-3). */
   landOn?: string | null;
   onLanded?: () => void;
@@ -50,6 +60,9 @@ export function ChatPanel({
   // UC-061 step 1: the file list is a menu in this panel, fed by the same
   // `messages`, so it is live without a second fetch.
   const [showFiles, setShowFiles] = useState(false);
+  const [pickingDocument, setPickingDocument] = useState(false);
+  const names = useMemo(() => new Map(documents.map((document) => [document.id, document.name])), [documents]);
+  const labelOf = (target: ChatLinkRequest) => linkLabel(names.get(target.documentId) ?? "삭제된 문서", target);
   // A landing is in the conversation, which the file list hides — settled
   // during render so the effect below measures a visible list.
   if (landOn && showFiles) setShowFiles(false);
@@ -185,7 +198,7 @@ export function ChatPanel({
     const sent = await fetch("/api/chat", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: entry.text, fileId }),
+      body: JSON.stringify({ text: entry.text, fileId, link: entry.link }),
     });
     if (!sent.ok) throw new Error(await sent.text());
 
@@ -213,11 +226,12 @@ export function ChatPanel({
   }
 
   function submit() {
-    if (!draft.trim() && !file) return;
+    if (!draft.trim() && !file && !link) return;
 
-    send({ key: String(++nextKey.current), text: draft, file, failed: false });
+    send({ key: String(++nextKey.current), text: draft, file, link: link ?? undefined, failed: false });
     setDraft("");
     setFile(null);
+    onLink(null);
     if (picker.current) picker.current.value = "";
   }
 
@@ -255,7 +269,7 @@ export function ChatPanel({
         </button>
       </div>
 
-      {showFiles ? <ChatFiles messages={messages} /> : null}
+      {showFiles ? <ChatFiles messages={messages} names={names} /> : null}
 
       {/* Hidden rather than unmounted, so coming back from the file list finds
           the conversation where it was left. */}
@@ -272,13 +286,14 @@ export function ChatPanel({
                 colorTag={colourOf(message.sender)}
                 message={message}
                 mine={message.sender === me}
+                linkName={message.link ? names.get(message.link.documentId) : undefined}
               />
             ))}
 
             {pending.map((entry) => (
               <li key={entry.key} className="flex flex-col gap-0.5 py-1.5 pr-2 pl-[44px]">
                 <p className="text-[14px] leading-[1.55] break-words whitespace-pre-wrap text-ink-faint">
-                  {entry.text || entry.file?.name}
+                  {entry.text || entry.file?.name || (entry.link ? labelOf(entry.link) : "")}
                 </p>
                 {entry.failed ? (
                   <button
@@ -298,6 +313,38 @@ export function ChatPanel({
       </div>
 
       <div hidden={showFiles} className="flex-none px-3 pt-2.5 pb-3">
+        {/* FR-060-03's picker for a whole document; a block is sent from the editor. */}
+        {pickingDocument ? (
+          <div className="mb-2 rounded-control border border-line bg-elev p-1">
+            <p className="px-2 py-1 text-[12px] text-ink-faint">어느 문서를 보낼까요?</p>
+            <ul className="flex max-h-40 flex-col gap-px overflow-y-auto">
+              {documents.map((document) => (
+                <li key={document.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onLink({ documentId: document.id });
+                      setPickingDocument(false);
+                    }}
+                    className="flex h-7 w-full items-center truncate rounded-control px-2 text-left text-[13px] text-ink hover:bg-hover"
+                  >
+                    {document.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {link ? (
+          <div className="mb-2 flex items-center gap-2 rounded-control bg-sky-soft px-2.5 py-1.5">
+            <span className="min-w-0 flex-1 truncate text-[12px] text-sky-text">{labelOf(link)}</span>
+            <button type="button" onClick={() => onLink(null)} aria-label="링크 첨부 취소" className="text-[12px] text-sky-text">
+              ✕
+            </button>
+          </div>
+        ) : null}
+
         {file ? (
           <div className="mb-2 flex items-center gap-2 rounded-control bg-paper-2 px-2.5 py-1.5">
             <span className="min-w-0 flex-1 truncate text-[12px] text-ink">{file.name}</span>
@@ -332,6 +379,15 @@ export function ChatPanel({
               <path d="M10.5 4.5l-4.8 4.8a1.4 1.4 0 002 2l5.1-5.1a2.8 2.8 0 00-4-4L3.7 7.3a4.2 4.2 0 006 6l3.8-3.8" />
             </svg>
           </button>
+          <button
+            type="button"
+            onClick={() => setPickingDocument((open) => !open)}
+            aria-label="문서 링크 첨부"
+            aria-expanded={pickingDocument}
+            className="flex size-[30px] flex-none items-center justify-center rounded-control text-ink-faint hover:bg-hover hover:text-ink"
+          >
+            <FileIcon size={16} />
+          </button>
 
           <textarea
             value={draft}
@@ -344,12 +400,20 @@ export function ChatPanel({
                 submit();
               }
             }}
-            // A pasted screenshot is the case this feature is most for.
+            // A pasted screenshot is the case this feature is most for. A pasted
+            // document or block address (링크 복사) is attached as a link rather
+            // than typed, when it names a document this workspace has.
             onPaste={(event) => {
               const pasted = event.clipboardData.files[0];
               if (pasted) {
                 event.preventDefault();
                 setFile(pasted);
+                return;
+              }
+              const target = parseDocumentLink(event.clipboardData.getData("text/plain"));
+              if (target && names.has(target.documentId)) {
+                event.preventDefault();
+                onLink(target);
               }
             }}
             rows={1}
@@ -361,7 +425,7 @@ export function ChatPanel({
           <button
             type="button"
             onClick={submit}
-            disabled={!draft.trim() && !file}
+            disabled={!draft.trim() && !file && !link}
             className="h-[30px] flex-none rounded-control bg-sky-deep px-3 text-[13px] font-semibold text-white disabled:bg-hover disabled:text-ink-faint"
           >
             전송
