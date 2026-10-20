@@ -62,3 +62,7 @@
 ## Review
 
 Review (this session): `/code-review low` found nothing. `/simplify` (four angles) changed the mid-round schedule: the readings were at 25/50/75 % of the first work phase, which left the presenter phase and the second half of an outage round unread, so they now run every quarter of the work time until the window closes. It also put `mid` into `clock` from the start, hoisted the `Reading` type and dropped a noise test that could not fail. Declined: dropping the `U (legacy)` column (the campaign reports both rules until the team agrees), dropping the two-reading branch (old runs need it), fitting the line once per round (microseconds) and reading H and G in parallel (changes when each is sampled).
+
+CodeRabbit (4 comments): fixed the runbook's interval wording (a quarter of `PERF_MINUTES`, not "every 2–3 minutes"). Declined: translating the changed paragraph to English (the criteria doc is Korean end to end until its own translation task, AGENTS.md §5), writing "provisional" into the criteria text (the doc merges only once the team agrees; until then the campaign reports both U rules and marks its verdict provisional), and discarding a mid reading that finishes after the window closes (it is a valid reading on the same clock and only helps the fit).
+
+Also in this PR: `.github/CODEOWNERS` named the maintainer's old login `@taejinchoi-cbnu`, which GitHub reported as an unknown owner after the account was renamed to `TaeTaeJin`, so review requests no longer reached them.
