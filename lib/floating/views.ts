@@ -27,6 +27,8 @@ export const refKey = (ref: ViewRef) =>
 
 export type Size = { width: number; height: number };
 
+export type Point = { x: number; y: number };
+
 /** `base` is the content's own size at scale 1, measured once it first renders.
  *  The window keeps that ratio, and its width over `base.width` is the scale. */
 export type FloatingView = ViewRef & { frame: Frame; base?: Size };
@@ -48,8 +50,6 @@ const HEIGHT = 220;
 /** How far each new window steps down-right from the last, so a second one never
  *  lands exactly on top of the first and hides it. */
 const CASCADE = 24;
-
-export type Point = { x: number; y: number };
 
 const sameRef = (a: ViewRef, b: ViewRef) => refKey(a) === refKey(b);
 
@@ -112,7 +112,7 @@ export function openView(
   views: Array<FloatingView>,
   ref: ViewRef,
   viewport: Viewport,
-  origin: Point = { x: 0, y: 0 },
+  origin: Point,
 ): Array<FloatingView> {
   if (views.length >= MAX_VIEWS || views.some((view) => sameRef(view, ref))) return views;
 
@@ -151,7 +151,7 @@ export function moveView(
 }
 
 /** Records the measured content size and fits the window to it at scale 1,
- *  keeping its top-left — where `openView` put it. */
+ *  keeping its top-left. */
 export function fitView(
   views: Array<FloatingView>,
   ref: ViewRef,

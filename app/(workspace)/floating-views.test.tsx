@@ -67,7 +67,7 @@ describe("FloatingViewProvider — the cap (#144)", () => {
   it("opens a view just inside the main area's top-left (#224)", () => {
     const main = document.createElement("main");
     main.id = MAIN_ID;
-    main.getBoundingClientRect = () => DOMRect.fromRect({ x: 260, y: 90, width: 1000, height: 600 });
+    main.getBoundingClientRect = () => ({ left: 260, top: 90 }) as DOMRect;
     document.body.append(main);
     const button = setup(<Opener />);
 

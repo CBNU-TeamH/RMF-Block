@@ -49,7 +49,7 @@
     - Escape closes the window it is in, but not during a composition, from inside a dialog, or once something inside used it.
   - New `app/(workspace)/floating-views.test.tsx`: a sixth view is refused with the notice; an open one again says nothing; a view opens just inside the main area's top-left.
   - `chat-panel.test.tsx`: Escape with a draft or a file stays in the panel; Escape closes the document picker first.
-- Browser E2E (`e2e/`): new `e2e/floating-windows.e2e.ts`. The first view opens 24px inside the main area; a sixth is refused with the notice; a click on the backmost raises it above the chat window, and Escape closes only it. The rows it floats sit below filler lines, since at Playwright's 1280px the views cover the top of the editor.
+- Browser E2E (`e2e/`): new `e2e/floating-windows.e2e.ts`. The first view opens 24px inside the main area; a sixth is refused with the notice; a click on the backmost raises it above the chat window, and Escape closes only it. It runs at 1920×1080: at Playwright's 1280px the views cover the editor's left margin, where the float buttons are.
 - Container smoke (`.github/workflows/ci.yml`): no change — startup, auth and networking are untouched.
 - Commands and observed results (fill in before the PR):
   - `pnpm typecheck`, `pnpm lint`: clean. `pnpm test`: 82 files, 886 tests passed. `pnpm build`: passed (also after the `/simplify` cleanups). `pnpm comments`, `pnpm verify:docs`: clean.
@@ -108,5 +108,11 @@ Declined, with reasons in the PR:
 - one handler for the chat panel's two Escapes: they are independent;
 - a shared transient-notice hook: the other three copies are outside this diff, and none has the same shape;
 - `openView` returning an outcome instead of the provider's ref: telling a refusal from inside the state updater would be a side effect there.
+
+A second `/simplify` pass, on the top-left placement (#224), applied these:
+- `openView`'s `origin` is required, not defaulted to the viewport's corner, so no caller can open a view under the sidebar by leaving it out;
+- the E2E runs at desktop width instead of typing filler lines to keep the float buttons clear.
+
+Declined: the provider holding a ref to the main area instead of `MAIN_ID`. The layout that renders `<main>` is a server component, and cannot hand a client provider a ref.
 
 A `/code-review low` pass (one sub-agent) raised nothing.

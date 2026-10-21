@@ -10,16 +10,18 @@ import { blockValues, createDocument, firstBlock, openChat, openDocument } from 
 test("floating windows open top-left, the pressed one comes to the front, Escape closes it, and a sixth is refused", async ({ users }) => {
   test.setTimeout(90_000);
   const page = (await users.join(0)).page;
+  // At laptop width the views cover the editor's left margin, where the float
+  // buttons are — the cost `floating-view.md` records. At desktop width the
+  // editor's column sits clear of them.
+  await page.setViewportSize({ width: 1920, height: 1080 });
   const name = `e2e windows ${Date.now()}`;
   const document = await createDocument(page, name);
 
   await openDocument(page, document);
   await firstBlock(page).focus();
-  // The views open over the top of the editor, so the rows they come from sit
-  // below them, where their buttons stay uncovered.
-  for (let index = 0; index < 14; index++) {
+  for (let index = 0; index < 6; index++) {
     if (index > 0) await page.keyboard.press("Enter");
-    await page.keyboard.insertText(index < 8 ? `filler ${index}` : `line ${index - 8}`);
+    await page.keyboard.insertText(`line ${index}`);
   }
   const rows = await blockValues(page);
   const float = async (text: string) => {
@@ -32,6 +34,7 @@ test("floating windows open top-left, the pressed one comes to the front, Escape
   const z = (window: ReturnType<typeof view>) => window.evaluate((element) => Number((element as HTMLElement).style.zIndex));
 
   await float("line 0");
+  // `MAIN_ID` in `ui.tsx`.
   const main = (await page.locator("#workspace-main").boundingBox())!;
   const first = (await view("line 0").boundingBox())!;
   expect(first.x - main.x).toBeCloseTo(24, 0);
