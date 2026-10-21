@@ -106,6 +106,7 @@ export function ChatWindow({
         {children}
         {open && frame ? (
           <FloatingFrame
+            layer="chat"
             frame={frame}
             begin={begin}
             label="채팅"
@@ -115,7 +116,6 @@ export function ChatWindow({
             resize="edges"
             closeLabel="채팅 닫기"
             onClose={() => setOpen(false)}
-            className="z-40"
           >
             <ChatPanel me={me} documents={documents} link={link} onLink={setLink} landOn={landOn} onLanded={landed} />
           </FloatingFrame>

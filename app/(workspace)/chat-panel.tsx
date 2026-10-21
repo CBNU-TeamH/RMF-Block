@@ -312,7 +312,16 @@ export function ChatPanel({
         )}
       </div>
 
-      <div hidden={showFiles} className="flex-none px-3 pt-2.5 pb-3">
+      <div
+        hidden={showFiles}
+        // The open picker takes the first Escape, before the window does.
+        onKeyDown={(event) => {
+          if (event.key !== "Escape" || !pickingDocument) return;
+          event.preventDefault();
+          setPickingDocument(false);
+        }}
+        className="flex-none px-3 pt-2.5 pb-3"
+      >
         {/* FR-060-03's picker for a whole document; a block is sent from the editor. */}
         {pickingDocument ? (
           <div className="mb-2 rounded-control border border-line bg-elev p-1">
@@ -399,6 +408,9 @@ export function ChatPanel({
                 event.preventDefault();
                 submit();
               }
+              // Used, so the window's Escape leaves it open: closing would lose
+              // what was typed or picked.
+              if (event.key === "Escape" && (draft || file)) event.preventDefault();
             }}
             // A pasted screenshot is the case this feature is most for. A pasted
             // document or block address (링크 복사) is attached as a link rather

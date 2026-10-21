@@ -177,3 +177,37 @@ describe("ChatPanel — links (FR-060-01/03/06)", () => {
     assert.deepEqual(onLink.mock.calls, [[null]]);
   });
 });
+
+describe("ChatPanel — Escape (#144)", () => {
+  const quiet = () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json([])));
+    vi.stubGlobal("WebSocket", QuietSocket);
+    return render(<ChatPanel me="지은" {...shell} />);
+  };
+  /** `false` once something used the key — what tells the window to stay. */
+  const escape = (element: Element) => fireEvent.keyDown(element, { key: "Escape" });
+
+  it("leaves the window to close an empty input, and keeps a draft or a file", () => {
+    const { container } = quiet();
+    const input = screen.getByRole("textbox", { name: "채팅 메시지" });
+
+    assert.equal(escape(input), true);
+    fireEvent.change(input, { target: { value: "초안" } });
+    assert.equal(escape(input), false);
+
+    fireEvent.change(input, { target: { value: "" } });
+    const file = new File(["x"], "사진.png", { type: "image/png" });
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [file] } });
+    assert.equal(escape(input), false);
+  });
+
+  it("closes the document picker first", () => {
+    quiet();
+    const button = screen.getByRole("button", { name: "문서 링크 첨부" });
+    fireEvent.click(button);
+
+    assert.equal(escape(button), false);
+    assert.equal(screen.queryByText("어느 문서를 보낼까요?"), null);
+    assert.equal(escape(button), true);
+  });
+});

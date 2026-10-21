@@ -1,9 +1,10 @@
 # Floating view — Module Design
 
 - **Status**: Agreed 2026-09-24. Built for text-bearing, image and PDF blocks, and for image
-  and PDF chat attachments (#143).
+  and PDF chat attachments (#143). Bring to front, Escape and a cap of five views: #144.
 - **Owns**: `lib/floating/`, `app/(workspace)/floating-views.tsx`,
-  `app/(workspace)/floating-frame.tsx`, `app/(workspace)/use-frame-gesture.ts`.
+  `app/(workspace)/floating-frame.tsx`, `app/(workspace)/use-frame-gesture.ts`,
+  `app/(workspace)/window-stack.tsx`.
 - **Related**: [`docs/SRS-ko.md`](../SRS-ko.md) UC-070, FR-070-01..06, SIR007;
   [`document-editing.md`](document-editing.md), "Attaching under React's Strict Mode" (the
   shared attachment); [`chat.md`](chat.md), "The floating window" (the geometry it reuses);
@@ -119,16 +120,55 @@ red on hover; the chat window's turns dark. While a gesture runs,
 every `<iframe>` on the page has `pointer-events: none`, because a PDF under the pointer would
 otherwise take the moves for itself and stall the drag, and pointer capture does not hold across
 Chrome's PDF viewer (measured with Playwright).
-Windows sit at `z-[35]`: above the chat bar, below the chat window.
+Which window is in front is "In front, and Escape" below.
 
 The saved list is re-fitted to the current viewport on load and on every viewport resize
 (`fitFloating`), so a window saved on a larger screen is never left off-screen. There is one
 window per block or file: opening one that already has a window does nothing, and a saved entry that is
 malformed or a duplicate is dropped on load (`parseViews`).
 
+## In front, and Escape
+
+The chat window and every floating view share one stacking order, back to front
+(`window-stack.tsx`). `FloatingFrame` does the rest, so both kinds of window behave alike.
+
+- **A press or a focus raises a window**, and a window that opens comes up in front.
+  - The frame listens in the capture phase, so the title bar's drag and the buttons raise it too.
+  - A press inside a PDF never reaches the page, but the focus it moves does, so a PDF window
+    comes up as well.
+- **The order is `z-index` 34 to 39**, room for five views and the chat window. That is over the
+  chat bar (`z-30`) and under the shell's menus (`z-40`), so a menu opened over a window still
+  shows.
+- **Escape closes the window you are working in**, the one focus is in.
+  - A press anywhere in a window focuses it. The title bar's drag prevents the default that
+    would, so the frame takes focus itself.
+  - The editor's Escape (the `/` menu, a row's menu) is outside every window and never reaches
+    one.
+  - Inside a PDF, the viewer has the keyboard. Escape there does nothing until the frame is
+    pressed.
+
+  Escape is left alone in three cases:
+  - **During an IME composition**, where it cancels the composition.
+  - **Inside a `<dialog>`** the window opened, such as the chat file list's preview. The dialog
+    closes itself on the same key, and one key should close one layer.
+  - **Once something inside has used it** (`preventDefault`). The chat input does, while it holds
+    text or a file: closing the window would lose them. So does the chat's document picker, which
+    closes first.
+
+## At most five
+
+A sixth floating view is refused, and "플로팅 뷰는 최대 5개까지 열 수 있습니다." shows for 2.5s.
+
+- **Why a cap.** Each view holds a document's attachment or a PDF viewer, and the stacking
+  order above is sized for five.
+- **Why refuse rather than close the oldest.** The maintainer chose it: a window that closes on
+  its own may be the one being read.
+- Opening a view that is already open still does nothing, and says nothing.
+- A saved list longer than five, from before the cap, keeps its first five (`parseViews`).
+
 ## Not built
 
-- **No bring-to-front, no cap on open windows, no keyboard move or resize.** The chat window
-  has none of these either.
+- **No keyboard move or resize** (#231). The chat window has none either.
 - **No smarter cascade.** New windows step 24px down-left from the top right. Small fitted
-  windows overlap one another's content; each title bar stays visible.
+  windows overlap one another's content; each title bar stays visible. Where a window should
+  open instead is #224.

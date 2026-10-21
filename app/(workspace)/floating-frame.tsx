@@ -2,6 +2,8 @@
 
 import type { Frame, GestureKind } from "@/lib/chat/window-frame";
 
+import { useWindowLayer } from "./window-stack";
+
 /** The three resize borders. Invisible and found by the cursor changing, like a
  *  desktop window's — and wider than the 1px they sit on, because a border you
  *  have to hit precisely is a border you miss. */
@@ -13,8 +15,10 @@ const BORDERS: Array<{ kind: GestureKind; className: string }> = [
 
 /** The chrome every floating window shares — the chat window and each floating
  *  view: a title bar that moves it, a close button, and either three resize
- *  borders or one corner grip. */
+ *  borders or one corner grip. Also where they share being raised and closed
+ *  (`docs/design/floating-view.md`, "In front, and Escape"). */
 export function FloatingFrame({
+  layer,
   frame,
   begin,
   resize,
@@ -23,9 +27,10 @@ export function FloatingFrame({
   closeLabel,
   closeClassName = "text-ink-faint hover:text-ink",
   onClose,
-  className,
   children,
 }: {
+  /** This window's key in the stacking order. */
+  layer: string;
   frame: Frame;
   /** A method, so a caller whose hook only knows its own kinds still fits. */
   begin(kind: GestureKind | "corner"): (event: React.PointerEvent) => void;
@@ -36,16 +41,33 @@ export function FloatingFrame({
   closeLabel: string;
   closeClassName?: string;
   onClose: () => void;
-  /** Stacking and anything else only this window wants on its frame. */
-  className: string;
   children: React.ReactNode;
 }) {
+  const { zIndex, raise } = useWindowLayer(layer);
+
   return (
     <section
       aria-label={label}
-      style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}
+      // Focusable, so a press anywhere in it makes it the window Escape closes.
+      tabIndex={-1}
+      style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height, zIndex }}
+      // Capture, so the title bar's drag and the buttons raise it too. The title
+      // bar's `preventDefault` would keep focus where it was, so take it here.
+      onPointerDownCapture={(event) => {
+        raise();
+        if (!event.currentTarget.contains(document.activeElement)) event.currentTarget.focus({ preventScroll: true });
+      }}
+      // A press inside a PDF never reaches this document, but its focus does.
+      onFocusCapture={raise}
+      onKeyDown={(event) => {
+        // Not during a composition, where Escape cancels it; not from a dialog,
+        // which closes itself on it; not once something inside has used it.
+        if (event.key !== "Escape" || event.nativeEvent.isComposing || event.defaultPrevented) return;
+        if (event.target instanceof Element && event.target.closest("dialog")) return;
+        onClose();
+      }}
       // The ring marks the window you're working in (HANDOFF's "active window").
-      className={`fixed flex flex-col overflow-hidden rounded-card bg-elev shadow-elev focus-within:shadow-[0_0_0_2px_var(--color-sky-ring),var(--shadow-elev)] ${className}`}
+      className="fixed flex flex-col overflow-hidden rounded-card bg-elev shadow-elev outline-none focus-within:shadow-[0_0_0_2px_var(--color-sky-ring),var(--shadow-elev)]"
     >
       <header
         onPointerDown={begin("move")}

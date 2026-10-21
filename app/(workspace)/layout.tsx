@@ -22,6 +22,7 @@ import { PresenceProvider } from "./presence-provider";
 import { PresenceStack } from "./presence-stack";
 import { Sidebar } from "./sidebar";
 import { DOCUMENT_ACTIONS_ID, SIDEBAR_COOKIE } from "./ui";
+import { WindowStackProvider } from "./window-stack";
 
 /**
  * The workspace shell — the sidebar document tree and the header of
@@ -74,44 +75,48 @@ export default async function WorkspaceLayout({
       port={yorkie.port}
     >
       <FocusFollowProvider>
-        <FloatingViewProvider colorTag={me.colorTag} nickname={me.nickname}>
-          <NewDocumentProvider>
-            {/* Around the shell, so the file manager can open it at a message; its
-                window and bar are `fixed`, floating over the shell rather than
-                taking a column from it. */}
-            <ChatWindow me={me.nickname} documents={documents}>
-              {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
-                  shell has to be exactly the viewport's height, not merely at least
-                  it, or the row below never bounds `<main>` and the editor's own
-                  scroll container grows to fit its blocks instead of scrolling. */}
-              <div className="flex h-full flex-1 bg-paper">
-                {member ? <SessionWatch /> : null}
+        {/* Around both kinds of window — the floating views and, inside them, the
+            chat window — since they share one stacking order. */}
+        <WindowStackProvider>
+          <FloatingViewProvider colorTag={me.colorTag} nickname={me.nickname}>
+            <NewDocumentProvider>
+              {/* Around the shell, so the file manager can open it at a message; its
+                  window and bar are `fixed`, floating over the shell rather than
+                  taking a column from it. */}
+              <ChatWindow me={me.nickname} documents={documents}>
+                {/* `h-full` for the same reason `app/layout.tsx`'s body carries it: the
+                    shell has to be exactly the viewport's height, not merely at least
+                    it, or the row below never bounds `<main>` and the editor's own
+                    scroll container grows to fit its blocks instead of scrolling. */}
+                <div className="flex h-full flex-1 bg-paper">
+                  {member ? <SessionWatch /> : null}
 
-                <Sidebar
-                  workspaceName={workspaceName}
-                  isHost={isHost}
-                  initiallyCollapsed={jar.get(SIDEBAR_COOKIE)?.value === "collapsed"}
-                >
-                  <DocumentList documents={documents} />
-                </Sidebar>
+                  <Sidebar
+                    workspaceName={workspaceName}
+                    isHost={isHost}
+                    initiallyCollapsed={jar.get(SIDEBAR_COOKIE)?.value === "collapsed"}
+                  >
+                    <DocumentList documents={documents} />
+                  </Sidebar>
 
-                <div className="flex min-w-0 flex-1 flex-col">
-                  {/* Tabs outermost, then one bar for the document they show — its
-                      path, who is in it, and its actions — as Obsidian, Notion and
-                      wafflebase arrange it (`app-shell.md`). */}
-                  <DocumentTabs documents={documents} />
-                  <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">
-                    <Breadcrumb documents={documents} />
-                    <PresenceStack memberId={me.id} known={known} />
-                    <FocusShare memberId={me.id} />
-                    <div id={DOCUMENT_ACTIONS_ID} className="flex items-center empty:hidden" />
-                  </header>
-                  <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    {/* Tabs outermost, then one bar for the document they show — its
+                        path, who is in it, and its actions — as Obsidian, Notion and
+                        wafflebase arrange it (`app-shell.md`). */}
+                    <DocumentTabs documents={documents} />
+                    <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">
+                      <Breadcrumb documents={documents} />
+                      <PresenceStack memberId={me.id} known={known} />
+                      <FocusShare memberId={me.id} />
+                      <div id={DOCUMENT_ACTIONS_ID} className="flex items-center empty:hidden" />
+                    </header>
+                    <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+                  </div>
                 </div>
-              </div>
-            </ChatWindow>
-          </NewDocumentProvider>
-        </FloatingViewProvider>
+              </ChatWindow>
+            </NewDocumentProvider>
+          </FloatingViewProvider>
+        </WindowStackProvider>
       </FocusFollowProvider>
     </PresenceProvider>
   );

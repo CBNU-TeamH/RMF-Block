@@ -4,16 +4,19 @@ import { describe, it } from "vitest";
 import { BAR_HEIGHT, MIN_HEIGHT, MIN_WIDTH } from "../chat/window-frame.ts";
 import {
   HEADER,
+  MAX_VIEWS,
   MIN_CONTENT_WIDTH,
   MIN_FIT_WIDTH,
   applyFloatingGesture,
   closeView,
   fitFloating,
   fitView,
+  isFull,
   moveView,
   openView,
   parseViews,
   refKey,
+  type FloatingView,
 } from "./views.ts";
 
 const viewport = { width: 1280, height: 800 };
@@ -62,6 +65,28 @@ describe("openView", () => {
   it("steps each further window off the last one", () => {
     const [first, second] = openView(openView([], a, viewport), b, viewport);
     assert.notDeepEqual(first.frame, second.frame);
+  });
+});
+
+describe("the cap (#144)", () => {
+  const block = (i: number) => ({ documentId: "doc-1", blockId: `b-${i}` });
+  let full: Array<FloatingView> = [];
+  for (let i = 0; i < MAX_VIEWS; i++) full = openView(full, block(i), viewport);
+
+  it("refuses one more view past MAX_VIEWS, and says so", () => {
+    assert.equal(full.length, MAX_VIEWS);
+    assert.equal(openView(full, block(MAX_VIEWS), viewport), full);
+    assert.equal(isFull(full, block(MAX_VIEWS)), true);
+  });
+
+  it("is not full for a view already open, or below the cap", () => {
+    assert.equal(isFull(full, block(0)), false);
+    assert.equal(isFull(full.slice(1), block(MAX_VIEWS)), false);
+  });
+
+  it("keeps the first MAX_VIEWS of a longer saved list", () => {
+    const saved = Array.from({ length: MAX_VIEWS + 2 }, (_, i) => ({ ...block(i), frame }));
+    assert.deepEqual(parseViews(JSON.stringify(saved)), saved.slice(0, MAX_VIEWS));
   });
 });
 

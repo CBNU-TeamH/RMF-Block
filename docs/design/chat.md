@@ -221,6 +221,15 @@ it again every time is the annoyance this removes. It lives in `localStorage` be
 exactly what it is — one viewer's convenience, on one device, worth nothing to anyone else and
 never sent anywhere.
 
+It shares the floating views' stacking order and Escape ([`floating-view.md`](floating-view.md),
+"In front, and Escape"). A press in it brings it in front of them, and Escape closes it. The
+panel has two exceptions:
+
+- **The input keeps a draft.** An Escape while the input holds text or a file is used there, and
+  the window stays open, since closing it would lose them. A link waiting to be sent survives a
+  close anyway, because the window holds it (see "Links").
+- **The document picker closes first.** An Escape while it is open closes only the picker.
+
 **All of it is arithmetic in `lib/chat/window-frame.ts`, with the viewport passed in as an
 argument**, so every rule can be checked without a browser. That matters more here than the
 size of the feature suggests, because the failure mode is unrecoverable: a window dragged off

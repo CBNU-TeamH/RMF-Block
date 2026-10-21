@@ -6,6 +6,10 @@ import { BAR_HEIGHT, clamp, toFrame, type Frame, type Viewport } from "../chat/w
 
 export const STORAGE_KEY = "rmf-floating-views";
 
+/** The most views open at once (#144). Each holds a document's attachment or a
+ *  PDF viewer, and the stacking order in `window-stack.tsx` is sized for it. */
+export const MAX_VIEWS = 5;
+
 export type BlockRef = { documentId: string; blockId: string };
 
 /** A stored file shown on its own — a chat attachment (#143). Its four fields are
@@ -90,18 +94,25 @@ export function parseViews(raw: string | null): Array<FloatingView> {
     const view: FloatingView = { ...ref, frame };
     if (base) view.base = base;
     if (!views.some((open) => sameRef(open, view))) views.push(view);
+    // A list saved before the cap keeps its first views.
+    if (views.length === MAX_VIEWS) break;
   }
   return views;
 }
 
+/** Whether opening `ref` is refused for the cap — never for a view already open. */
+export const isFull = (views: Array<FloatingView>, ref: ViewRef) =>
+  views.length >= MAX_VIEWS && !views.some((view) => sameRef(view, ref));
+
 /** Adds a view of `ref`, or leaves the list alone if that source is already
- *  open — two windows of one block or file show nothing the first did not. */
+ *  open — two windows of one block or file show nothing the first did not — or
+ *  if the list is full. */
 export function openView(
   views: Array<FloatingView>,
   ref: ViewRef,
   viewport: Viewport,
 ): Array<FloatingView> {
-  if (views.some((view) => sameRef(view, ref))) return views;
+  if (isFull(views, ref) || views.some((view) => sameRef(view, ref))) return views;
 
   const slot = (i: number) =>
     clamp(
