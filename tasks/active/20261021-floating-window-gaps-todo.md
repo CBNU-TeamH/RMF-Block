@@ -43,7 +43,7 @@
 - Browser E2E (`e2e/`): new `e2e/floating-windows.e2e.ts`. Two floating views overlap; a click on the one behind raises it, Escape closes it, and a sixth view is refused with the notice.
 - Container smoke (`.github/workflows/ci.yml`): no change — startup, auth and networking are untouched.
 - Commands and observed results (fill in before the PR):
-  - `pnpm typecheck`, `pnpm lint`: clean. `pnpm test`: 82 files, 884 tests passed. `pnpm build`: passed. `pnpm comments`, `pnpm verify:docs`: clean.
+  - `pnpm typecheck`, `pnpm lint`: clean. `pnpm test`: 82 files, 884 tests passed. `pnpm build`: passed (also after the `/simplify` cleanups). `pnpm comments`, `pnpm verify:docs`: clean.
   - Each guard in `FloatingFrame` was removed in turn; each removal failed a test. The guards are the composition, the dialog, `defaultPrevented`, the focus on a press, the focus raise and the window blur.
   - `e2e/floating-windows.e2e.ts`: type-checked and collected (1 test); not run here, since this machine has no Playwright browsers.
   - In Chrome on the isolated stack, as the host, with a text, an image, a PDF and two more image views. Every press and key was real unless noted:
@@ -73,4 +73,24 @@ FR-070-02 and FR-070-06 (several views pinned above the work), and WBS 11.1. `fl
 
 ## Review
 
-Filled in at the end.
+Branch: `feat/floating-window-gaps`.
+
+Shipped milestones 1–3, with the maintainer's choices:
+- a cap of five, refused with a notice;
+- Escape closes only the window focus is in;
+- keyboard move and resize split off to #231.
+
+The browser check caught one gap: a press inside a PDF raised nothing until the frame also listened for the window's blur.
+
+A `/simplify` pass (four sub-agents) applied three cleanups:
+- the z-index base is worked out from `MAX_VIEWS`, so a larger cap cannot push windows over the menus;
+- `openView` no longer runs the duplicate check twice;
+- `drop` keeps the order as is for a key already gone.
+
+Declined, with reasons in the PR:
+- one Escape rule without the `<dialog>` exception: a native dialog closes on the key's default action, so it cannot `preventDefault` and still close;
+- one handler for the chat panel's two Escapes: they are independent;
+- a shared transient-notice hook: the other three copies are outside this diff, and none has the same shape;
+- `openView` returning an outcome instead of the provider's ref: telling a refusal from inside the state updater would be a side effect there.
+
+A `/code-review low` pass (one sub-agent) raised nothing.
