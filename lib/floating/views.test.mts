@@ -73,7 +73,7 @@ describe("the cap (#144)", () => {
   let full: Array<FloatingView> = [];
   for (let i = 0; i < MAX_VIEWS; i++) full = openView(full, block(i), viewport);
 
-  it("refuses one more view past MAX_VIEWS, and says so", () => {
+  it("refuses one more view past MAX_VIEWS", () => {
     assert.equal(full.length, MAX_VIEWS);
     assert.equal(openView(full, block(MAX_VIEWS), viewport), full);
     assert.equal(isFull(full, block(MAX_VIEWS)), true);

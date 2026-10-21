@@ -2,12 +2,16 @@
 
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react";
 
+import { MAX_VIEWS } from "@/lib/floating/views";
+
 /** Which floating window is in front (#144). The chat window and every floating
  *  view share one order, back to front, so the one in use is never under another. */
 
-/** The backmost window's `z-index`. Five views and the chat window end at 39:
- *  over the chat bar (`z-30`), under the shell's menus (`z-40`). */
-const BASE = 34;
+/** The shell's menus (`z-40`), which every window stays under. */
+const MENUS = 40;
+/** The backmost window's `z-index`: the views and the chat window end just
+ *  under the menus, and still over the chat bar (`z-30`). */
+const BASE = MENUS - (MAX_VIEWS + 1);
 
 type Stack = {
   order: Array<string>;
@@ -24,7 +28,10 @@ export function WindowStackProvider({ children }: { children: React.ReactNode })
       setOrder((current) => (current.at(-1) === key ? current : [...current.filter((k) => k !== key), key])),
     [],
   );
-  const drop = useCallback((key: string) => setOrder((current) => current.filter((k) => k !== key)), []);
+  const drop = useCallback(
+    (key: string) => setOrder((current) => (current.includes(key) ? current.filter((k) => k !== key) : current)),
+    [],
+  );
   const value = useMemo(() => ({ order, raise, drop }), [order, raise, drop]);
 
   return <StackContext.Provider value={value}>{children}</StackContext.Provider>;

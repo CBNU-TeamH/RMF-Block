@@ -112,7 +112,7 @@ export function openView(
   ref: ViewRef,
   viewport: Viewport,
 ): Array<FloatingView> {
-  if (isFull(views, ref) || views.some((view) => sameRef(view, ref))) return views;
+  if (views.length >= MAX_VIEWS || views.some((view) => sameRef(view, ref))) return views;
 
   const slot = (i: number) =>
     clamp(

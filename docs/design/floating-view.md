@@ -139,7 +139,8 @@ The chat window and every floating view share one stacking order, back to front
     frame raises itself on that.
 - **The order is `z-index` 34 to 39**, room for five views and the chat window. That is over the
   chat bar (`z-30`) and under the shell's menus (`z-40`), so a menu opened over a window still
-  shows.
+  shows. The base is worked out from `MAX_VIEWS`, so a larger cap moves it down rather than
+  over the menus.
 - **Escape closes the window you are working in**, the one focus is in.
   - A press anywhere in a window focuses it. The title bar's drag prevents the default that
     would, so the frame takes focus itself.
