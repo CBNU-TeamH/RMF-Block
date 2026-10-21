@@ -134,8 +134,9 @@ The chat window and every floating view share one stacking order, back to front
 
 - **A press or a focus raises a window**, and a window that opens comes up in front.
   - The frame listens in the capture phase, so the title bar's drag and the buttons raise it too.
-  - A press inside a PDF never reaches the page, but the focus it moves does, so a PDF window
-    comes up as well.
+  - A press inside a PDF reaches only its iframe, and Chrome gives the page no focus event for
+    it either. The page sees only its own window blur, with the iframe already active, so the
+    frame raises itself on that.
 - **The order is `z-index` 34 to 39**, room for five views and the chat window. That is over the
   chat bar (`z-30`) and under the shell's menus (`z-40`), so a menu opened over a window still
   shows.

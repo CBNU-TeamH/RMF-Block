@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import type { Frame, GestureKind } from "@/lib/chat/window-frame";
 
 import { useWindowLayer } from "./window-stack";
@@ -44,9 +46,21 @@ export function FloatingFrame({
   children: React.ReactNode;
 }) {
   const { zIndex, raise } = useWindowLayer(layer);
+  const section = useRef<HTMLElement>(null);
+
+  // A press inside a PDF reaches only its iframe. The page sees no focus event,
+  // just its own window losing focus, with the iframe already active (Chrome).
+  useEffect(() => {
+    const onBlur = () => {
+      if (section.current?.contains(document.activeElement)) raise();
+    };
+    window.addEventListener("blur", onBlur);
+    return () => window.removeEventListener("blur", onBlur);
+  }, [raise]);
 
   return (
     <section
+      ref={section}
       aria-label={label}
       // Focusable, so a press anywhere in it makes it the window Escape closes.
       tabIndex={-1}
@@ -57,7 +71,7 @@ export function FloatingFrame({
         raise();
         if (!event.currentTarget.contains(document.activeElement)) event.currentTarget.focus({ preventScroll: true });
       }}
-      // A press inside a PDF never reaches this document, but its focus does.
+      // Tabbing in raises it as a press does.
       onFocusCapture={raise}
       onKeyDown={(event) => {
         // Not during a composition, where Escape cancels it; not from a dialog,

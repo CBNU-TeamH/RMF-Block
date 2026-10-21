@@ -43,6 +43,21 @@
 - Browser E2E (`e2e/`): new `e2e/floating-windows.e2e.ts`. Two floating views overlap; a click on the one behind raises it, Escape closes it, and a sixth view is refused with the notice.
 - Container smoke (`.github/workflows/ci.yml`): no change — startup, auth and networking are untouched.
 - Commands and observed results (fill in before the PR):
+  - `pnpm typecheck`, `pnpm lint`: clean. `pnpm test`: 82 files, 884 tests passed. `pnpm build`: passed. `pnpm comments`, `pnpm verify:docs`: clean.
+  - Each guard in `FloatingFrame` was removed in turn; each removal failed a test. The guards are the composition, the dialog, `defaultPrevented`, the focus on a press, the focus raise and the window blur.
+  - `e2e/floating-windows.e2e.ts`: type-checked and collected (1 test); not run here, since this machine has no Playwright browsers.
+  - In Chrome on the isolated stack, as the host, with a text, an image, a PDF and two more image views. Every press and key was real unless noted:
+    - The five opened at z 34–38. A sixth (opened by a script) was refused, and the notice showed at the bottom centre.
+    - After a reload the five came back in their saved order.
+    - A press inside the PDF viewer raised it (36 → 38). That press first did not raise it at all; see "Fixed on the way".
+    - A press on the backmost window's title bar raised it to the front and focused it. Escape then closed only that one, and the order closed up to 34–37.
+    - The chat window opened in front of the views (38). A press on a view's title bar then put that view above the chat.
+    - In the chat input, Escape with a draft kept the window and the draft; with the input cleared, Escape closed it.
+    - With the document picker open, the first Escape closed only the picker, and the second closed the window.
+    - With the chat file list's preview open, the first Escape closed only the dialog, which handed focus back inside the chat. The second closed the chat.
+    - Two Escapes in the editor, around a typed `/`, closed no window.
+  - Not checked in the browser: Escape during a real IME composition (the unit test fires one).
+  - Fixed on the way: a press inside a PDF raised nothing. Chrome gives the page no focus event for it, so the frame now also raises on the window's `blur` when the iframe it holds is active.
 
 ## Acceptance
 

@@ -1,12 +1,15 @@
 // @vitest-environment happy-dom
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 import { FloatingFrame } from "./floating-frame.tsx";
 import { WindowStackProvider } from "./window-stack.tsx";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 const frame = { x: 0, y: 0, width: 300, height: 200 };
 
@@ -47,7 +50,7 @@ describe("FloatingFrame — in front (#144)", () => {
     assert.equal(document.activeElement === screen.getByRole("region", { name: "a" }), true);
   });
 
-  it("raises a window focused from the keyboard, or from inside a PDF", () => {
+  it("raises a window focused from the keyboard", () => {
     render(
       <WindowStackProvider>
         <Window name="a">
@@ -58,6 +61,26 @@ describe("FloatingFrame — in front (#144)", () => {
     );
 
     fireEvent.focus(screen.getByRole("button", { name: "안" }));
+
+    assert.ok(zOf("a") > zOf("b"));
+  });
+
+  // What Chrome does for a press inside a PDF: no focus event on the page, only
+  // its window blurring with the iframe active.
+  it("raises a window whose PDF took the focus", () => {
+    render(
+      <WindowStackProvider>
+        <Window name="a">
+          <iframe title="PDF" />
+        </Window>
+        <Window name="b" />
+      </WindowStackProvider>,
+    );
+    vi.spyOn(document, "activeElement", "get").mockReturnValue(screen.getByTitle("PDF"));
+
+    act(() => {
+      window.dispatchEvent(new Event("blur"));
+    });
 
     assert.ok(zOf("a") > zOf("b"));
   });
