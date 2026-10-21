@@ -36,6 +36,7 @@ import {
   type FileRef,
   type FloatingGesture,
   type FloatingView,
+  type Point,
   type Size,
   type ViewRef,
 } from "@/lib/floating/views";
@@ -43,6 +44,7 @@ import {
 import { CODE_SURFACE } from "./documents/[id]/text-block";
 import { FloatingFrame } from "./floating-frame";
 import { useWorkspacePresence } from "./presence-provider";
+import { MAIN_ID } from "./ui";
 import { useFrameGesture, viewport, type FrameRules } from "./use-frame-gesture";
 
 /** Floating views (UC-070): blocks and stored files pinned into windows over the
@@ -59,6 +61,13 @@ export const useFloatingViews = () => useContext(FloatingViewsContext);
 
 /** How long the cap's notice stays. */
 const NOTICE_MS = 2500;
+
+/** Where a new view opens: the main area's top-left, which moves with the
+ *  sidebar opening and collapsing (#224). */
+function mainArea(): Point {
+  const rect = document.getElementById(MAIN_ID)?.getBoundingClientRect();
+  return rect ? { x: rect.left, y: rect.top } : { x: 0, y: 0 };
+}
 
 function readViews(): Array<FloatingView> {
   try {
@@ -119,7 +128,8 @@ export function FloatingViewProvider({
         setRefused(Date.now());
         return;
       }
-      update((current) => openView(current, ref, viewport()));
+      const origin = mainArea();
+      update((current) => openView(current, ref, viewport(), origin));
     },
     [update],
   );

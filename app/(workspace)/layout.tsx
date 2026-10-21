@@ -21,7 +21,7 @@ import { NewDocumentProvider } from "./new-document";
 import { PresenceProvider } from "./presence-provider";
 import { PresenceStack } from "./presence-stack";
 import { Sidebar } from "./sidebar";
-import { DOCUMENT_ACTIONS_ID, SIDEBAR_COOKIE } from "./ui";
+import { DOCUMENT_ACTIONS_ID, MAIN_ID, SIDEBAR_COOKIE } from "./ui";
 import { WindowStackProvider } from "./window-stack";
 
 /**
@@ -110,7 +110,7 @@ export default async function WorkspaceLayout({
                       <FocusShare memberId={me.id} />
                       <div id={DOCUMENT_ACTIONS_ID} className="flex items-center empty:hidden" />
                     </header>
-                    <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+                    <main id={MAIN_ID} className="min-h-0 flex-1 overflow-hidden">{children}</main>
                   </div>
                 </div>
               </ChatWindow>

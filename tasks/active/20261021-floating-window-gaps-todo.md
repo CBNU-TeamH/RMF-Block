@@ -1,7 +1,7 @@
-# Floating window gaps: bring to front, Escape, and a cap on open views
+# Floating window gaps: bring to front, Escape, a cap on open views, and opening top-left
 
 **Created**: 2026-10-21
-**Issue**: #144 (absorbs #116; keyboard move and resize split off to #231)
+**Issue**: #144 (absorbs #116; keyboard move and resize split off to #231), #224
 **Design**: [Floating view](../../docs/design/floating-view.md)
 
 ## Milestones
@@ -29,18 +29,27 @@
 - **Reuse**: `openView`, which already refuses a duplicate; and the dark pill of `block-menu.tsx`'s 복사됨.
 - **Done**: the sixth open leaves five windows and shows the notice. Opening one that is already open still does nothing, without the notice.
 
+### 4. A new view opens at the top left (#224)
+
+- **What**: a new floating view opens 24px inside the main area's top-left, right of the sidebar whether it is open or collapsed, and the next steps down-right. Fitting keeps the top-left, so the corner grip has room to grow at once. A window restored from `localStorage` stays where it was saved. The maintainer chose this placement after hearing what it costs on a laptop-width screen: the window covers the editor's left margin.
+- **Files**: `lib/floating/views.ts`, `app/(workspace)/floating-views.tsx`, `app/(workspace)/ui.tsx` (`MAIN_ID`), `app/(workspace)/layout.tsx`.
+- **Reuse**: `openView`'s free-slot search, which now matches a slot by its corner instead of its right edge.
+- **Done**: the first view opens at the main area's corner plus 24px, and a second 24px down-right of it.
+
 ## Test selection
 
 - Vitest (logic / component / server / route):
-  - `lib/floating/views.test.mts`: `openView` refuses past `MAX_VIEWS` but not a duplicate; `parseViews` keeps the first five.
+  - `lib/floating/views.test.mts`:
+    - `openView` refuses past `MAX_VIEWS` but not a duplicate, and `parseViews` keeps the first five;
+    - a view opens inside `origin` and cascades down-right, and fitting keeps the top-left (#224).
   - New `app/(workspace)/floating-frame.test.tsx`, which tests the stack through the frame both windows render:
     - a window that opens is in front, and a press raises one and focuses it;
     - a focus raises one;
     - a closed window leaves no gap, and the front stays under `z-40`;
     - Escape closes the window it is in, but not during a composition, from inside a dialog, or once something inside used it.
-  - New `app/(workspace)/floating-views.test.tsx`: a sixth view is refused with the notice; an open one again says nothing.
+  - New `app/(workspace)/floating-views.test.tsx`: a sixth view is refused with the notice; an open one again says nothing; a view opens just inside the main area's top-left.
   - `chat-panel.test.tsx`: Escape with a draft or a file stays in the panel; Escape closes the document picker first.
-- Browser E2E (`e2e/`): new `e2e/floating-windows.e2e.ts`. Two floating views overlap; a click on the one behind raises it, Escape closes it, and a sixth view is refused with the notice.
+- Browser E2E (`e2e/`): new `e2e/floating-windows.e2e.ts`. The first view opens 24px inside the main area; a sixth is refused with the notice; a click on the backmost raises it above the chat window, and Escape closes only it. The rows it floats sit below filler lines, since at Playwright's 1280px the views cover the top of the editor.
 - Container smoke (`.github/workflows/ci.yml`): no change — startup, auth and networking are untouched.
 - Commands and observed results (fill in before the PR):
   - `pnpm typecheck`, `pnpm lint`: clean. `pnpm test`: 82 files, 884 tests passed. `pnpm build`: passed (also after the `/simplify` cleanups). `pnpm comments`, `pnpm verify:docs`: clean.
@@ -65,11 +74,12 @@
 - [ ] A click or focus in the chat window or any floating view brings it to the front, also inside a PDF.
 - [ ] Escape closes the focused window, and only it. A composition, a dialog, a draft and the editor's own Escape are left alone.
 - [ ] A sixth floating view is refused with the notice.
+- [ ] A new floating view opens at the main area's top-left and cascades down-right; a restored one stays where it was saved.
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm verify:docs`, `pnpm comments` pass.
 
 ## Cross-cutting
 
-FR-070-02 and FR-070-06 (several views pinned above the work), and WBS 11.1. `floating-view.md` loses "bring-to-front" and "cap" from "Not built", and `chat.md`'s floating window gets Escape. The SRS is unchanged. #116 closes with this. #231 takes the keyboard. #224 (where a new window opens) is not part of this.
+FR-070-02 and FR-070-06 (several views pinned above the work), and WBS 11.1. `floating-view.md` loses "bring-to-front" and "cap" from "Not built", and `chat.md`'s floating window gets Escape. The SRS is unchanged. #116 closes with this. #231 takes the keyboard. #224 closes with this too.
 
 ## Review
 

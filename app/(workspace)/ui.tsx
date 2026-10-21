@@ -12,6 +12,10 @@ export const SIDEBAR_COOKIE = "rmf-sidebar";
  *  actions (`createPortal` in `editor.tsx`) — the layout cannot reach them. */
 export const DOCUMENT_ACTIONS_ID = "document-actions";
 
+/** The workspace's main area, right of the sidebar, where a new floating view
+ *  opens (`floating-views.tsx`). */
+export const MAIN_ID = "workspace-main";
+
 export const DIALOG =
   "mx-auto mt-[18vh] w-full max-w-[400px] rounded-card bg-elev p-5 text-ink shadow-elev backdrop:bg-scrim";
 export const DIALOG_TITLE = "text-[17px] font-bold tracking-tight text-ink";

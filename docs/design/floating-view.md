@@ -2,6 +2,7 @@
 
 - **Status**: Agreed 2026-09-24. Built for text-bearing, image and PDF blocks, and for image
   and PDF chat attachments (#143). Bring to front, Escape and a cap of five views: #144.
+  Opening at the top left: #224.
 - **Owns**: `lib/floating/`, `app/(workspace)/floating-views.tsx`,
   `app/(workspace)/floating-frame.tsx`, `app/(workspace)/use-frame-gesture.ts`,
   `app/(workspace)/window-stack.tsx`.
@@ -109,6 +110,21 @@ ratio locked, and the content scales with it.
 - **Content that grows later** (someone keeps typing) scrolls inside the window. It does not
   resize the window under the reader, because `base` is fixed at the first fit.
 
+## Where it opens
+
+A new window opens 24px inside the main area's top-left, right of the sidebar whether it is open
+or collapsed (`MAIN_ID`). Each further window steps 24px down-right, and fitting keeps the
+top-left (#224).
+
+- **Why the left.** The corner grip is bottom-right, so a window that just opened can grow at
+  once. Opened at the top right, it had 24px to grow into and had to be moved first.
+- **What it costs.** On a laptop-width screen (1280–1440px) the editor's column comes close to
+  the sidebar. A new window then covers the column's left margin, where the float buttons are,
+  and the start of the text. The maintainer chose this over two alternatives: covering the
+  sidebar's document list, or keeping the top right with a bottom-left grip.
+- **A window restored from `localStorage` stays where it was saved**, at the top right for one
+  saved before this change. Where a window sits may be where its owner put it.
+
 ## Moving and resizing
 
 The pointer plumbing in `use-frame-gesture.ts` and the chrome in `floating-frame.tsx` (title
@@ -171,6 +187,5 @@ A sixth floating view is refused, and "플로팅 뷰는 최대 5개까지 열 �
 ## Not built
 
 - **No keyboard move or resize** (#231). The chat window has none either.
-- **No smarter cascade.** New windows step 24px down-left from the top right. Small fitted
-  windows overlap one another's content; each title bar stays visible. Where a window should
-  open instead is #224.
+- **No smarter cascade.** New windows step 24px down-right from the main area's top-left. Small
+  fitted windows overlap one another's content; each title bar stays visible.

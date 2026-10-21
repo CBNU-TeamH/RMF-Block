@@ -7,6 +7,7 @@ import { useRef } from "react";
 vi.mock("./presence-provider.tsx", () => ({ useWorkspacePresence: () => ({ client: null }) }));
 
 import { FloatingViewProvider, useFloatingViews } from "./floating-views.tsx";
+import { MAIN_ID } from "./ui.tsx";
 
 class QuietSocket {
   addEventListener() {}
@@ -17,6 +18,7 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   window.localStorage.clear();
+  document.getElementById(MAIN_ID)?.remove();
 });
 
 /** Opens a view of the next chat image on each press — files need no Yorkie client. */
@@ -60,6 +62,19 @@ describe("FloatingViewProvider — the cap (#144)", () => {
 
     assert.equal(views().length, 5);
     assert.equal(screen.getByRole("status").textContent, "플로팅 뷰는 최대 5개까지 열 수 있습니다.");
+  });
+
+  it("opens a view just inside the main area's top-left (#224)", () => {
+    const main = document.createElement("main");
+    main.id = MAIN_ID;
+    main.getBoundingClientRect = () => DOMRect.fromRect({ x: 260, y: 90, width: 1000, height: 600 });
+    document.body.append(main);
+    const button = setup(<Opener />);
+
+    fireEvent.click(button);
+
+    const [view] = views();
+    assert.deepEqual([view.style.left, view.style.top], ["284px", "114px"]);
   });
 
   it("says nothing for a view already open", () => {

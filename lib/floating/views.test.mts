@@ -23,6 +23,8 @@ const viewport = { width: 1280, height: 800 };
 const a = { documentId: "doc-1", blockId: "b-1" };
 const b = { documentId: "doc-1", blockId: "b-2" };
 const frame = { x: 10, y: 20, width: 300, height: 240 };
+/** The main area's top-left, right of an open sidebar. */
+const main = { x: 260, y: 90 };
 
 describe("openView", () => {
   it("adds a window inside the viewport and clear of the chat bar", () => {
@@ -65,6 +67,15 @@ describe("openView", () => {
   it("steps each further window off the last one", () => {
     const [first, second] = openView(openView([], a, viewport), b, viewport);
     assert.notDeepEqual(first.frame, second.frame);
+  });
+
+  // #224: the corner grip is bottom-right, so a window that opens on the left
+  // can grow at once.
+  it("opens inside the main area's top-left, and cascades down-right", () => {
+    const [first, second] = openView(openView([], a, viewport, main), b, viewport, main);
+
+    assert.deepEqual([first.frame.x, first.frame.y], [main.x + 24, main.y + 24]);
+    assert.deepEqual([second.frame.x - first.frame.x, second.frame.y - first.frame.y], [24, 24]);
   });
 });
 
@@ -173,14 +184,14 @@ describe("a file as the source (#143)", () => {
 });
 
 describe("fitView", () => {
-  it("sizes the window to the content at scale 1, keeping its right edge", () => {
-    const [opened] = openView([], a, viewport);
+  it("sizes the window to the content at scale 1, keeping its top-left", () => {
+    const [opened] = openView([], a, viewport, main);
     const [fitted] = fitView([opened], a, { width: 180, height: 40 }, viewport);
 
     assert.deepEqual(fitted.base, { width: 180, height: 40 });
     assert.equal(fitted.frame.width, 180);
     assert.equal(fitted.frame.height, HEADER + 40);
-    assert.equal(fitted.frame.x + fitted.frame.width, opened.frame.x + opened.frame.width);
+    assert.deepEqual([fitted.frame.x, fitted.frame.y], [opened.frame.x, opened.frame.y]);
   });
 
   it("never fits a window narrower than its title needs", () => {
