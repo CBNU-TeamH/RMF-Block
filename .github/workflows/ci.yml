@@ -90,7 +90,9 @@ jobs:
   # name because that is the required check the branch ruleset names.
   container:
     name: container smoke test
-    runs-on: ubuntu-latest
+    # Not `ubuntu-latest` until MongoDB 8.3.14 (#229): mongod 8.3.13 reads
+    # 24.04's `7.0.0-1017-azure` kernel as an incompatible one and exits.
+    runs-on: ubuntu-22.04
     env:
       # The server refuses to start without one (lib/workspace-config.ts), and
       # there is no .env here. Also what the join assertions below type in.
@@ -331,6 +333,12 @@ jobs:
         run: |
           mkdir -p e2e-artifacts
           docker compose logs app yorkie | sed -E 's/secret=[^[:space:]]+/secret=[REDACTED]/g' | tee e2e-artifacts/server.log
+
+      # Only on a failure, since a healthy mongod's log is long. A mongod that
+      # exits says why only there, whichever step it took down (#229).
+      - name: MongoDB log
+        if: failure()
+        run: docker compose logs mongo
 
       - name: E2E report
         if: ${{ steps.e2e.outcome == 'failure' }}
