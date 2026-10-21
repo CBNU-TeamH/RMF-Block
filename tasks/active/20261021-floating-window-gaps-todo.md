@@ -52,7 +52,7 @@
 - Browser E2E (`e2e/`): new `e2e/floating-windows.e2e.ts`. The first view opens 24px inside the main area; a sixth is refused with the notice; a click on the backmost raises it above the chat window, and Escape closes only it. The rows it floats sit below filler lines, since at Playwright's 1280px the views cover the top of the editor.
 - Container smoke (`.github/workflows/ci.yml`): no change — startup, auth and networking are untouched.
 - Commands and observed results (fill in before the PR):
-  - `pnpm typecheck`, `pnpm lint`: clean. `pnpm test`: 82 files, 884 tests passed. `pnpm build`: passed (also after the `/simplify` cleanups). `pnpm comments`, `pnpm verify:docs`: clean.
+  - `pnpm typecheck`, `pnpm lint`: clean. `pnpm test`: 82 files, 886 tests passed. `pnpm build`: passed (also after the `/simplify` cleanups). `pnpm comments`, `pnpm verify:docs`: clean.
   - Each guard in `FloatingFrame` was removed in turn; each removal failed a test. The guards are the composition, the dialog, `defaultPrevented`, the focus on a press, the focus raise and the window blur.
   - `e2e/floating-windows.e2e.ts`: type-checked and collected (1 test); not run here, since this machine has no Playwright browsers.
   - In Chrome on the isolated stack, as the host, with a text, an image, a PDF and two more image views. Every press and key was real unless noted:
@@ -65,6 +65,12 @@
     - With the document picker open, the first Escape closed only the picker, and the second closed the window.
     - With the chat file list's preview open, the first Escape closed only the dialog, which handed focus back inside the chat. The second closed the chat.
     - Two Escapes in the editor, around a typed `/`, closed no window.
+  - The top-left placement (#224), on a rebuilt stack with the main area at (260, 90):
+    - A new image view opened at (284, 114).
+    - A real drag on its corner, straight after opening, grew it from 384×260 to 679×432 with its top-left still, and the size was saved.
+    - With the sidebar collapsed (main area at 48), the next view opened at (72, 114).
+    - A view saved at the old top-right spot (1919, 56) came back there after a reload, as did the other two.
+    - With (284, 114) taken, the next view opened at (308, 138).
   - Not checked in the browser: Escape during a real IME composition (the unit test fires one).
   - Fixed on the way: a press inside a PDF raised nothing. Chrome gives the page no focus event for it, so the frame now also raises on the window's `blur` when the iframe it holds is active.
 
