@@ -8,7 +8,11 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Floating window gaps: bring to front, Escape, a cap on open views, and opening top-left](2026/10/20261021-floating-window-gaps-todo.md) | [lessons](2026/10/20261021-floating-window-gaps-lessons.md) |
 | [Perf harness counts the clock residual, not the drift, in U](2026/10/20261020-perf-u-residual-todo.md) | [lessons](2026/10/20261020-perf-u-residual-lessons.md) |
+| [Pause a follower who scrolls, edits or moves on, and resume (UC-030)](2026/10/20261019-follow-pause-todo.md) | [lessons](2026/10/20261019-follow-pause-lessons.md) |
+| [Chat links: document and block links that jump, URLs, and a 링크 tab](2026/10/20261019-chat-links-todo.md) | [lessons](2026/10/20261019-chat-links-lessons.md) |
+| [Workspace file manager (UC-050)](2026/10/20261018-file-manager-todo.md) | [lessons](2026/10/20261018-file-manager-lessons.md) |
 | [Perf campaign on an internet Wi-Fi, run with Claude](2026/10/20261016-perf-internet-wifi-todo.md) | [lessons](2026/10/20261016-perf-internet-wifi-lessons.md) |
 | [Perf harness measures v0.0.2](2026/10/20261015-perf-pin-0.0.2-todo.md) | [lessons](2026/10/20261015-perf-pin-0.0.2-lessons.md) |
 | [Observation stack and result charts for the perf campaign](2026/10/20261013-perf-observability-todo.md) | [lessons](2026/10/20261013-perf-observability-lessons.md) |

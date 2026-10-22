@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-19
 **Issue**: #105 (re-scoped by #220)
-**Design**: [Presence and focus following](../../docs/design/presence-and-focus.md)
+**Design**: [Presence and focus following](../../../../docs/design/presence-and-focus.md)
 
 ## Milestones
 

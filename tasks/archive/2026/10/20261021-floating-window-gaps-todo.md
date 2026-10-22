@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-21
 **Issue**: #144 (absorbs #116; keyboard move and resize split off to #231), #224
-**Design**: [Floating view](../../docs/design/floating-view.md)
+**Design**: [Floating view](../../../../docs/design/floating-view.md)
 
 ## Milestones
 
