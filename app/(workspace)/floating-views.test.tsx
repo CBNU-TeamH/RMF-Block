@@ -86,3 +86,41 @@ describe("FloatingViewProvider — the cap (#144)", () => {
     assert.equal(screen.queryByRole("status"), null);
   });
 });
+
+describe("FloatingViewProvider — a saved view's document (#187)", () => {
+  const frame = { x: 300, y: 120, width: 200, height: 120 };
+  /** A block view saved before the reload, and the catalogue that reload gets. */
+  const restore = (catalogue: Response) => {
+    window.localStorage.setItem("rmf-floating-views", JSON.stringify([{ documentId: "doc-1", blockId: "b-1", frame }]));
+    vi.stubGlobal("fetch", vi.fn(async () => catalogue));
+    vi.stubGlobal("WebSocket", QuietSocket);
+    render(
+      <FloatingViewProvider colorTag="#000" nickname="지은">
+        {null}
+      </FloatingViewProvider>,
+    );
+  };
+  const document = (id: string, name: string) => ({ id, name, createdBy: "지은", createdAt: "", updatedAt: "" });
+
+  it("is deleted once the catalogue has loaded without it", async () => {
+    restore(Response.json({ documents: [document("doc-2", "남은 문서")] }));
+
+    assert.ok(await screen.findByText("원본 문서가 삭제되었습니다."));
+    assert.ok(screen.getByRole("region", { name: "플로팅 뷰: 삭제된 문서" }));
+  });
+
+  it("keeps its name while the catalogue has it", async () => {
+    restore(Response.json({ documents: [document("doc-1", "회의록")] }));
+
+    assert.ok(await screen.findByRole("region", { name: "플로팅 뷰: 회의록" }));
+    assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
+  });
+
+  it("is not taken for deleted when the catalogue never arrives", async () => {
+    restore(new Response("nope", { status: 500 }));
+
+    assert.ok(await screen.findByRole("region", { name: "플로팅 뷰: …" }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
+  });
+});

@@ -96,7 +96,7 @@ export function FloatingViewProvider({
 }) {
   const { client } = useWorkspacePresence();
   const [views, setViews] = useState<Array<FloatingView>>([]);
-  const names = useDocumentNames();
+  const nameOf = useDocumentNames();
   // When an open was last refused for the cap; `null` while no notice shows.
   const [refused, setRefused] = useState<number | null>(null);
   // Read by `open`, which then stays one function however the list changes —
@@ -175,7 +175,7 @@ export function FloatingViewProvider({
           client={client}
           colorTag={colorTag}
           nickname={nickname}
-          documentName={isFileRef(view) ? undefined : names.get(view.documentId)}
+          documentName={isFileRef(view) ? undefined : nameOf(view.documentId)}
           onClose={close}
           onFit={fit}
           onMove={move}
@@ -197,11 +197,14 @@ export function FloatingViewProvider({
 const sameFrame = (a: Frame, b: Frame) =>
   a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
 
-/** Every document's name by id, `null` once deleted: the catalogue once, then
- *  kept current by the workspace socket — the same events and shape
- *  `document-list.tsx` listens to. */
-function useDocumentNames(): Map<string, string | null> {
+/** A document's name by id: the catalogue once, then kept current by the
+ *  workspace socket — the same events and shape `document-list.tsx` listens to.
+ *  `null` once it is gone: deleted live, or missing from the catalogue once that
+ *  has loaded, as is a saved view's deleted before a reload (#187). `undefined`
+ *  until the catalogue arrives, or if it never does. */
+function useDocumentNames(): (id: string) => string | null | undefined {
   const [names, setNames] = useState<Map<string, string | null>>(new Map());
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -211,7 +214,9 @@ function useDocumentNames(): Map<string, string | null> {
     fetch("/api/documents")
       .then((response) => (response.ok ? response.json() : null))
       .then((body: { documents: Array<WorkspaceDocument> } | null) => {
-        if (!cancelled && body) merge(body.documents.map((d) => [d.id, d.name]));
+        if (cancelled || !body) return;
+        merge(body.documents.map((d) => [d.id, d.name]));
+        setLoaded(true);
       })
       .catch(() => undefined);
 
@@ -240,7 +245,10 @@ function useDocumentNames(): Map<string, string | null> {
     };
   }, []);
 
-  return names;
+  return useCallback(
+    (id: string) => (names.has(id) ? names.get(id) : loaded ? null : undefined),
+    [names, loaded],
+  );
 }
 
 type Mirror =
