@@ -221,7 +221,9 @@ function useDocumentNames(): Map<string, string | null> {
         const gone = restored.flatMap((view): Array<[string, null]> =>
           isFileRef(view) || live.has(view.documentId) ? [] : [[view.documentId, null]],
         );
-        merge([...live, ...gone]);
+        // Under what the socket said while this loaded, which is newer: a
+        // document restored from the trash meanwhile is not gone.
+        setNames((current) => new Map([...live, ...gone, ...current]));
       })
       .catch(() => undefined);
 

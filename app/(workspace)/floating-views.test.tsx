@@ -14,6 +14,15 @@ class QuietSocket {
   close() {}
 }
 
+/** A socket the test speaks through: the last one opened takes `push`. */
+class PushSocket {
+  static push: (event: string, payload: unknown) => void = () => undefined;
+  addEventListener(_type: string, listener: (event: { data: string }) => void) {
+    PushSocket.push = (event, payload) => listener({ data: JSON.stringify({ event, payload }) });
+  }
+  close() {}
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -175,6 +184,28 @@ describe("FloatingViewProvider — a saved view's document (#187)", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     assert.ok(screen.getByRole("region", { name: "플로팅 뷰: …" }));
+    assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
+  });
+
+  it("keeps what the socket said while the catalogue loaded, as a restore from the trash", async () => {
+    window.localStorage.setItem(
+      "rmf-floating-views",
+      JSON.stringify([{ documentId: "doc-1", blockId: "b-1", frame: { x: 300, y: 120, width: 200, height: 120 } }]),
+    );
+    let respond: (response: Response) => void = () => undefined;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => (respond = resolve))));
+    vi.stubGlobal("WebSocket", PushSocket);
+    render(
+      <FloatingViewProvider colorTag="#000" nickname="지은">
+        {null}
+      </FloatingViewProvider>,
+    );
+
+    act(() => PushSocket.push("document:created", { document: entry("doc-1", "복원된 문서") }));
+    await act(async () => respond(Response.json({ documents: [] })));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    assert.ok(screen.getByRole("region", { name: "플로팅 뷰: 복원된 문서" }));
     assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
   });
 });

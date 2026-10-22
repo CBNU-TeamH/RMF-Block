@@ -71,8 +71,9 @@ is missing from it was deleted before the reload, and its delete event went with
 That view is disabled the same way.
 
 Only restored views are judged this way. A view opened later may name a document whose created
-event has not reached this page yet; that shows "…" until its name arrives, not "deleted". So
-does every view if the catalogue never loads.
+event has not reached this page yet; that shows "…" until its name arrives, not "deleted". If
+the catalogue never loads, every view shows "…" until a socket event names it or reports it
+deleted. An event that arrives while the catalogue loads wins over it, since it is newer.
 
 The provider lives in the workspace layout, which never remounts across document navigation.
 That is all FR-070-03 takes.
