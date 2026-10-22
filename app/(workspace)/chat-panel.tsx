@@ -248,6 +248,13 @@ export function ChatPanel({
         const dropped = event.dataTransfer.files[0];
         if (dropped) setFile(dropped);
       }}
+      // Used from anywhere in the panel, so the window's Escape leaves it open:
+      // closing would lose what was typed or picked. Not inside a dialog,
+      // whose own Escape must still close it.
+      onKeyDown={(event) => {
+        const inDialog = event.target instanceof Element && event.target.closest("dialog");
+        if (event.key === "Escape" && (draft || file) && !inDialog) event.preventDefault();
+      }}
       className={`flex min-h-0 flex-1 flex-col ${dragging ? "bg-sky-soft" : "bg-elev"}`}
     >
       <div className="flex flex-none gap-1 border-b border-line px-3 py-1.5">
@@ -312,7 +319,16 @@ export function ChatPanel({
         )}
       </div>
 
-      <div hidden={showFiles} className="flex-none px-3 pt-2.5 pb-3">
+      <div
+        hidden={showFiles}
+        // The open picker takes the first Escape, before the window does.
+        onKeyDown={(event) => {
+          if (event.key !== "Escape" || !pickingDocument) return;
+          event.preventDefault();
+          setPickingDocument(false);
+        }}
+        className="flex-none px-3 pt-2.5 pb-3"
+      >
         {/* FR-060-03's picker for a whole document; a block is sent from the editor. */}
         {pickingDocument ? (
           <div className="mb-2 rounded-control border border-line bg-elev p-1">

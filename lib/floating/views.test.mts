@@ -4,26 +4,31 @@ import { describe, it } from "vitest";
 import { BAR_HEIGHT, MIN_HEIGHT, MIN_WIDTH } from "../chat/window-frame.ts";
 import {
   HEADER,
+  MAX_VIEWS,
   MIN_CONTENT_WIDTH,
   MIN_FIT_WIDTH,
   applyFloatingGesture,
   closeView,
   fitFloating,
   fitView,
+  isFull,
   moveView,
   openView,
   parseViews,
   refKey,
+  type FloatingView,
 } from "./views.ts";
 
 const viewport = { width: 1280, height: 800 };
 const a = { documentId: "doc-1", blockId: "b-1" };
 const b = { documentId: "doc-1", blockId: "b-2" };
 const frame = { x: 10, y: 20, width: 300, height: 240 };
+/** The main area's top-left, right of an open sidebar. */
+const main = { x: 260, y: 90 };
 
 describe("openView", () => {
   it("adds a window inside the viewport and clear of the chat bar", () => {
-    const [view] = openView([], a, viewport);
+    const [view] = openView([], a, viewport, main);
 
     assert.equal(refKey(view), refKey(a));
     assert.ok(view.frame.width >= MIN_WIDTH && view.frame.height >= MIN_HEIGHT);
@@ -32,42 +37,71 @@ describe("openView", () => {
   });
 
   it("does not open the same block twice", () => {
-    const once = openView([], a, viewport);
-    assert.equal(openView(once, a, viewport), once);
+    const once = openView([], a, viewport, main);
+    assert.equal(openView(once, a, viewport, main), once);
   });
 
   it("never lands a window on another after one has closed", () => {
     const c = { documentId: "doc-1", blockId: "b-3" };
-    const three = openView(openView(openView([], a, viewport), b, viewport), c, viewport);
-    const reopened = openView(closeView(three, b), b, viewport);
+    const three = openView(openView(openView([], a, viewport, main), b, viewport, main), c, viewport, main);
+    const reopened = openView(closeView(three, b), b, viewport, main);
     const spots = reopened.map((view) => `${view.frame.x},${view.frame.y}`);
     assert.equal(new Set(spots).size, 3, spots.join(" "));
   });
 
   it("keeps cascading after windows were fitted to their content", () => {
-    let views = openView([], a, viewport);
+    let views = openView([], a, viewport, main);
     views = fitView(views, a, { width: 100, height: 30 }, viewport);
-    views = openView(views, b, viewport);
+    views = openView(views, b, viewport, main);
     views = fitView(views, b, { width: 150, height: 30 }, viewport);
     assert.notEqual(views[0].frame.y, views[1].frame.y);
   });
 
   it("still opens a window when a tiny viewport has no free slot", () => {
     const tiny = { width: 300, height: 300 };
-    let views = openView([], a, tiny);
-    views = openView(views, b, tiny);
-    assert.equal(openView(views, { documentId: "d", blockId: "c" }, tiny).length, 3);
+    let views = openView([], a, tiny, main);
+    views = openView(views, b, tiny, main);
+    assert.equal(openView(views, { documentId: "d", blockId: "c" }, tiny, main).length, 3);
   });
 
   it("steps each further window off the last one", () => {
-    const [first, second] = openView(openView([], a, viewport), b, viewport);
+    const [first, second] = openView(openView([], a, viewport, main), b, viewport, main);
     assert.notDeepEqual(first.frame, second.frame);
+  });
+
+  it("opens inside the main area's top-left, and cascades down-right (#224)", () => {
+    const [first, second] = openView(openView([], a, viewport, main), b, viewport, main);
+
+    assert.deepEqual([first.frame.x, first.frame.y], [main.x + 24, main.y + 24]);
+    assert.deepEqual([second.frame.x - first.frame.x, second.frame.y - first.frame.y], [24, 24]);
+  });
+});
+
+describe("the cap (#144)", () => {
+  const block = (i: number) => ({ documentId: "doc-1", blockId: `b-${i}` });
+  let full: Array<FloatingView> = [];
+  for (let i = 0; i < MAX_VIEWS; i++) full = openView(full, block(i), viewport, main);
+
+  it("refuses one more view past MAX_VIEWS", () => {
+    assert.equal(full.length, MAX_VIEWS);
+    assert.equal(openView(full, block(MAX_VIEWS), viewport, main), full);
+    assert.equal(isFull(full, block(MAX_VIEWS)), true);
+  });
+
+  it("is not full for a view already open, or below the cap", () => {
+    assert.equal(isFull(full, block(0)), false);
+    assert.equal(isFull(full.slice(1), block(MAX_VIEWS)), false);
+  });
+
+  it("keeps the first MAX_VIEWS of a longer saved list", () => {
+    const saved = Array.from({ length: MAX_VIEWS + 2 }, (_, i) => ({ ...block(i), frame }));
+    assert.deepEqual(parseViews(JSON.stringify(saved)), saved.slice(0, MAX_VIEWS));
   });
 });
 
 describe("closeView / moveView", () => {
   it("touch only the named block", () => {
-    const views = openView(openView([], a, viewport), b, viewport);
+    const views = openView(openView([], a, viewport, main), b, viewport, main);
 
     assert.deepEqual(closeView(views, a), [views[1]]);
 
@@ -114,18 +148,18 @@ describe("a file as the source (#143)", () => {
   const file = { fileId: "f-1", fileName: "plan.pdf", fileType: "application/pdf", size: 2048 };
 
   it("opens beside block windows and only once", () => {
-    const views = openView(openView([], a, viewport), file, viewport);
+    const views = openView(openView([], a, viewport, main), file, viewport, main);
     assert.equal(views.length, 2);
-    assert.equal(openView(views, file, viewport), views);
+    assert.equal(openView(views, file, viewport, main), views);
   });
 
   it("is told apart from a block whose ids happen to read the same", () => {
     const lookalike = { documentId: "file", blockId: "f-1" };
-    assert.equal(openView(openView([], file, viewport), lookalike, viewport).length, 2);
+    assert.equal(openView(openView([], file, viewport, main), lookalike, viewport, main).length, 2);
   });
 
   it("closes, moves and fits by its file id alone", () => {
-    const views = openView(openView([], a, viewport), file, viewport);
+    const views = openView(openView([], a, viewport, main), file, viewport, main);
     const moved = moveView(views, file, frame);
     assert.deepEqual(moved[1].frame, frame);
     assert.deepEqual(moved[0], views[0]);
@@ -148,25 +182,25 @@ describe("a file as the source (#143)", () => {
 });
 
 describe("fitView", () => {
-  it("sizes the window to the content at scale 1, keeping its right edge", () => {
-    const [opened] = openView([], a, viewport);
+  it("sizes the window to the content at scale 1, keeping its top-left", () => {
+    const [opened] = openView([], a, viewport, main);
     const [fitted] = fitView([opened], a, { width: 180, height: 40 }, viewport);
 
     assert.deepEqual(fitted.base, { width: 180, height: 40 });
     assert.equal(fitted.frame.width, 180);
     assert.equal(fitted.frame.height, HEADER + 40);
-    assert.equal(fitted.frame.x + fitted.frame.width, opened.frame.x + opened.frame.width);
+    assert.deepEqual([fitted.frame.x, fitted.frame.y], [opened.frame.x, opened.frame.y]);
   });
 
   it("never fits a window narrower than its title needs", () => {
-    const [opened] = openView([], a, viewport);
+    const [opened] = openView([], a, viewport, main);
     const [fitted] = fitView([opened], a, { width: 60, height: 30 }, viewport);
     assert.equal(fitted.frame.width, MIN_FIT_WIDTH);
     assert.equal(fitted.frame.height, HEADER + 30);
   });
 
   it("shrinks content taller than the viewport, ratio kept", () => {
-    const [opened] = openView([], a, viewport);
+    const [opened] = openView([], a, viewport, main);
     const [fitted] = fitView([opened], a, { width: 400, height: 2000 }, viewport);
     const content = fitted.frame.height - HEADER;
 

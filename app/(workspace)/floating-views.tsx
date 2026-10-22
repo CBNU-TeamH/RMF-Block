@@ -20,12 +20,14 @@ import type { Frame } from "@/lib/chat/window-frame";
 import type { WorkspaceDocument } from "@/lib/documents/documents";
 import { acquireBlockDocument, releaseBlockDocument } from "@/lib/documents/attach-pool";
 import {
+  MAX_VIEWS,
   STORAGE_KEY,
   applyFloatingGesture,
   closeView,
   fitFloating,
   fitView,
   isFileRef,
+  isFull,
   moveView,
   openView,
   parseViews,
@@ -34,6 +36,7 @@ import {
   type FileRef,
   type FloatingGesture,
   type FloatingView,
+  type Point,
   type Size,
   type ViewRef,
 } from "@/lib/floating/views";
@@ -41,6 +44,7 @@ import {
 import { CODE_SURFACE } from "./documents/[id]/text-block";
 import { FloatingFrame } from "./floating-frame";
 import { useWorkspacePresence } from "./presence-provider";
+import { MAIN_ID } from "./ui";
 import { useFrameGesture, viewport, type FrameRules } from "./use-frame-gesture";
 
 /** Floating views (UC-070): blocks and stored files pinned into windows over the
@@ -54,6 +58,16 @@ import { useFrameGesture, viewport, type FrameRules } from "./use-frame-gesture"
 const FloatingViewsContext = createContext<(ref: ViewRef) => void>(() => undefined);
 
 export const useFloatingViews = () => useContext(FloatingViewsContext);
+
+/** How long the cap's notice stays. */
+const NOTICE_MS = 2500;
+
+/** Where a new view opens: the main area's top-left, which moves with the
+ *  sidebar opening and collapsing (#224). */
+function mainArea(): Point {
+  const rect = document.getElementById(MAIN_ID)?.getBoundingClientRect();
+  return rect ? { x: rect.left, y: rect.top } : { x: 0, y: 0 };
+}
 
 function readViews(): Array<FloatingView> {
   try {
@@ -83,6 +97,14 @@ export function FloatingViewProvider({
   const { client } = useWorkspacePresence();
   const [views, setViews] = useState<Array<FloatingView>>([]);
   const names = useDocumentNames();
+  // When an open was last refused for the cap; `null` while no notice shows.
+  const [refused, setRefused] = useState<number | null>(null);
+  // Read by `open`, which then stays one function however the list changes —
+  // the editor is among its consumers.
+  const viewsRef = useRef(views);
+  useEffect(() => {
+    viewsRef.current = views;
+  }, [views]);
 
   // After mount, not during render: the server has no `localStorage`.
   useEffect(() => {
@@ -101,9 +123,21 @@ export function FloatingViewProvider({
   }, []);
 
   const open = useCallback(
-    (ref: ViewRef) => update((current) => openView(current, ref, viewport())),
+    (ref: ViewRef) => {
+      if (isFull(viewsRef.current, ref)) {
+        setRefused(Date.now());
+        return;
+      }
+      const origin = mainArea();
+      update((current) => openView(current, ref, viewport(), origin));
+    },
     [update],
   );
+  useEffect(() => {
+    if (refused === null) return;
+    const timer = setTimeout(() => setRefused(null), NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [refused]);
   const close = useCallback((ref: ViewRef) => update((current) => closeView(current, ref)), [update]);
   const move = useCallback(
     (ref: ViewRef, frame: Frame) => update((current) => moveView(current, ref, frame)),
@@ -148,6 +182,14 @@ export function FloatingViewProvider({
           view={view}
         />
       ))}
+      {refused !== null ? (
+        <p
+          role="status"
+          className="pointer-events-none fixed bottom-14 left-1/2 z-50 -translate-x-1/2 rounded-control bg-ink px-3 py-1.5 text-[13px] whitespace-nowrap text-paper shadow-elev"
+        >
+          플로팅 뷰는 최대 {MAX_VIEWS}개까지 열 수 있습니다.
+        </p>
+      ) : null}
     </FloatingViewsContext.Provider>
   );
 }
@@ -413,6 +455,7 @@ const FloatingWindow = memo(function FloatingWindow({
 
   return (
     <FloatingFrame
+      layer={refKey(view)}
       frame={frame}
       begin={begin}
       resize="corner"
@@ -423,7 +466,6 @@ const FloatingWindow = memo(function FloatingWindow({
       closeLabel="플로팅 뷰 닫기"
       closeClassName="text-ink-faint hover:text-danger"
       onClose={() => onClose(view)}
-      className="z-[35]"
     >
       <div className="min-h-0 flex-1 overflow-auto">
         {block && !gone ? (

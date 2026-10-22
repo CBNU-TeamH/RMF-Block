@@ -1,9 +1,11 @@
 # Floating view — Module Design
 
 - **Status**: Agreed 2026-09-24. Built for text-bearing, image and PDF blocks, and for image
-  and PDF chat attachments (#143).
+  and PDF chat attachments (#143). Bring to front, Escape and a cap of five views: #144.
+  Opening at the top left: #224.
 - **Owns**: `lib/floating/`, `app/(workspace)/floating-views.tsx`,
-  `app/(workspace)/floating-frame.tsx`, `app/(workspace)/use-frame-gesture.ts`.
+  `app/(workspace)/floating-frame.tsx`, `app/(workspace)/use-frame-gesture.ts`,
+  `app/(workspace)/window-stack.tsx`.
 - **Related**: [`docs/SRS-ko.md`](../SRS-ko.md) UC-070, FR-070-01..06, SIR007;
   [`document-editing.md`](document-editing.md), "Attaching under React's Strict Mode" (the
   shared attachment); [`chat.md`](chat.md), "The floating window" (the geometry it reuses);
@@ -108,6 +110,21 @@ ratio locked, and the content scales with it.
 - **Content that grows later** (someone keeps typing) scrolls inside the window. It does not
   resize the window under the reader, because `base` is fixed at the first fit.
 
+## Where it opens
+
+A new window opens 24px inside the main area's top-left, right of the sidebar whether it is open
+or collapsed (`MAIN_ID`). Each further window steps 24px down-right, and fitting keeps the
+top-left (#224).
+
+- **Why the left.** The corner grip is bottom-right, so a window that just opened can grow at
+  once. Opened at the top right, it had 24px to grow into and had to be moved first.
+- **What it costs.** On a laptop-width screen (1280–1440px) the editor's column comes close to
+  the sidebar. A new window then covers the column's left margin, where the float buttons are,
+  and the start of the text. The maintainer chose this over two alternatives: covering the
+  sidebar's document list, or keeping the top right with a bottom-left grip.
+- **A window restored from `localStorage` stays where it was saved**, at the top right for one
+  saved before this change. Where a window sits may be where its owner put it.
+
 ## Moving and resizing
 
 The pointer plumbing in `use-frame-gesture.ts` and the chrome in `floating-frame.tsx` (title
@@ -119,16 +136,56 @@ red on hover; the chat window's turns dark. While a gesture runs,
 every `<iframe>` on the page has `pointer-events: none`, because a PDF under the pointer would
 otherwise take the moves for itself and stall the drag, and pointer capture does not hold across
 Chrome's PDF viewer (measured with Playwright).
-Windows sit at `z-[35]`: above the chat bar, below the chat window.
+Which window is in front is "In front, and Escape" below.
 
 The saved list is re-fitted to the current viewport on load and on every viewport resize
 (`fitFloating`), so a window saved on a larger screen is never left off-screen. There is one
 window per block or file: opening one that already has a window does nothing, and a saved entry that is
 malformed or a duplicate is dropped on load (`parseViews`).
 
+## In front, and Escape
+
+The chat window and every floating view share one stacking order, back to front
+(`window-stack.tsx`). `FloatingFrame` does the rest, so both kinds of window behave alike.
+
+- **A press or a focus raises a window**, and a window that opens comes up in front.
+  - The frame listens in the capture phase, so the title bar's drag and the buttons raise it too.
+  - A press inside a PDF reaches only its iframe, and Chrome gives the page no focus event for
+    it either. The page sees only its own window blur, with the iframe already active, so the
+    frame raises itself on that.
+- **The order is `z-index` 34 to 39**, room for five views and the chat window. That is over the
+  chat bar (`z-30`) and under the shell's menus (`z-40`), so a menu opened over a window still
+  shows. The base is worked out from `MAX_VIEWS`, so a larger cap moves it down rather than
+  over the menus.
+- **Escape closes the window you are working in**, the one focus is in.
+  - A press anywhere in a window focuses it. The title bar's drag prevents the default that
+    would, so the frame takes focus itself.
+  - The editor's Escape (the `/` menu, a row's menu) is outside every window and never reaches
+    one.
+  - Inside a PDF, the viewer has the keyboard. Escape there does nothing until the frame is
+    pressed.
+
+  Escape is left alone in three cases:
+  - **During an IME composition**, where it cancels the composition.
+  - **Inside a `<dialog>`** the window opened, such as the chat file list's preview. The dialog
+    closes itself on the same key, and one key should close one layer.
+  - **Once something inside has used it** (`preventDefault`). The chat panel does, from anywhere
+    in it, while its input holds text or a file: closing the window would lose them. So does the
+    chat's document picker, which closes first.
+
+## At most five
+
+A sixth floating view is refused, and "플로팅 뷰는 최대 5개까지 열 수 있습니다." shows for 2.5s.
+
+- **Why a cap.** Each view holds a document's attachment or a PDF viewer, and the stacking
+  order above is sized for five.
+- **Why refuse rather than close the oldest.** The maintainer chose it: a window that closes on
+  its own may be the one being read.
+- Opening a view that is already open still does nothing, and says nothing.
+- A saved list longer than five, from before the cap, keeps its first five (`parseViews`).
+
 ## Not built
 
-- **No bring-to-front, no cap on open windows, no keyboard move or resize.** The chat window
-  has none of these either.
-- **No smarter cascade.** New windows step 24px down-left from the top right. Small fitted
-  windows overlap one another's content; each title bar stays visible.
+- **No keyboard move or resize** (#231). The chat window has none either.
+- **No smarter cascade.** New windows step 24px down-right from the main area's top-left. Small
+  fitted windows overlap one another's content; each title bar stays visible.

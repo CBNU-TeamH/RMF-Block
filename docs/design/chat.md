@@ -221,6 +221,19 @@ it again every time is the annoyance this removes. It lives in `localStorage` be
 exactly what it is — one viewer's convenience, on one device, worth nothing to anyone else and
 never sent anywhere.
 
+It shares the floating views' stacking order and Escape ([`floating-view.md`](floating-view.md),
+"In front, and Escape"). A press in it brings it in front of them, and Escape closes it.
+The panel has two exceptions:
+
+- **The input keeps a draft.** While the input holds text or a file, an Escape anywhere in the
+  panel is used there and the window stays open: closing it would lose them. One inside a dialog
+  is left alone, so the file list's preview still closes on it. A link waiting to be sent
+  survives a close anyway, because the window holds it (see "Links").
+- **The document picker closes first.** An Escape while it is open closes only the picker.
+
+채팅으로 보내기 and the file manager's way to a message bring an already open window forward too
+(`useRaiseWindow`). Otherwise the link or the message could sit under a floating view.
+
 **All of it is arithmetic in `lib/chat/window-frame.ts`, with the viewport passed in as an
 argument**, so every rule can be checked without a browser. That matters more here than the
 size of the feature suggests, because the failure mode is unrecoverable: a window dragged off

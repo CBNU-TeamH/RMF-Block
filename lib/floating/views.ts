@@ -6,6 +6,10 @@ import { BAR_HEIGHT, clamp, toFrame, type Frame, type Viewport } from "../chat/w
 
 export const STORAGE_KEY = "rmf-floating-views";
 
+/** The most views open at once (#144). Each holds a document's attachment or a
+ *  PDF viewer, and the stacking order in `window-stack.tsx` is sized for it. */
+export const MAX_VIEWS = 5;
+
 export type BlockRef = { documentId: string; blockId: string };
 
 /** A stored file shown on its own — a chat attachment (#143). Its four fields are
@@ -22,6 +26,8 @@ export const refKey = (ref: ViewRef) =>
   isFileRef(ref) ? `file:${ref.fileId}` : `block:${ref.documentId}:${ref.blockId}`;
 
 export type Size = { width: number; height: number };
+
+export type Point = { x: number; y: number };
 
 /** `base` is the content's own size at scale 1, measured once it first renders.
  *  The window keeps that ratio, and its width over `base.width` is the scale. */
@@ -41,11 +47,9 @@ const LOOSE: Size = { width: 0, height: 0 };
 /** Until the content is measured — wireframe size, `FloatedMirror`. */
 const WIDTH = 320;
 const HEIGHT = 220;
-/** How far each new window steps down-left from the last, so a second one never
+/** How far each new window steps down-right from the last, so a second one never
  *  lands exactly on top of the first and hides it. */
 const CASCADE = 24;
-/** Clear of the workspace header. */
-const TOP = 56;
 
 const sameRef = (a: ViewRef, b: ViewRef) => refKey(a) === refKey(b);
 
@@ -90,24 +94,33 @@ export function parseViews(raw: string | null): Array<FloatingView> {
     const view: FloatingView = { ...ref, frame };
     if (base) view.base = base;
     if (!views.some((open) => sameRef(open, view))) views.push(view);
+    // A list saved before the cap keeps its first views.
+    if (views.length === MAX_VIEWS) break;
   }
   return views;
 }
 
+/** Whether opening `ref` is refused for the cap — never for a view already open. */
+export const isFull = (views: Array<FloatingView>, ref: ViewRef) =>
+  views.length >= MAX_VIEWS && !views.some((view) => sameRef(view, ref));
+
 /** Adds a view of `ref`, or leaves the list alone if that source is already
- *  open — two windows of one block or file show nothing the first did not. */
+ *  open — two windows of one block or file show nothing the first did not — or
+ *  if the list is full. It opens just inside `origin`, the main area's top-left,
+ *  and the next steps down-right, so the corner grip has room to grow (#224). */
 export function openView(
   views: Array<FloatingView>,
   ref: ViewRef,
   viewport: Viewport,
+  origin: Point,
 ): Array<FloatingView> {
-  if (views.some((view) => sameRef(view, ref))) return views;
+  if (views.length >= MAX_VIEWS || views.some((view) => sameRef(view, ref))) return views;
 
   const slot = (i: number) =>
     clamp(
       {
-        x: viewport.width - WIDTH - CASCADE - i * CASCADE,
-        y: TOP + i * CASCADE,
+        x: origin.x + CASCADE + i * CASCADE,
+        y: origin.y + CASCADE + i * CASCADE,
         width: WIDTH,
         height: HEIGHT,
       },
@@ -115,12 +128,11 @@ export function openView(
       LOOSE,
     );
   // The first slot no window still sits on — counting windows instead lands a
-  // new one exactly on another once an earlier one has closed. By right edge:
-  // fitting keeps it and moves `x`. Capped: on a small viewport far slots
-  // clamp onto one spot and would never come free.
-  const right = (frame: Frame) => frame.x + frame.width;
+  // new one exactly on another once an earlier one has closed. By its corner,
+  // which fitting keeps. Capped: on a small viewport far slots clamp onto one
+  // spot and would never come free.
   const taken = (frame: Frame) =>
-    views.some((view) => right(view.frame) === right(frame) && view.frame.y === frame.y);
+    views.some((view) => view.frame.x === frame.x && view.frame.y === frame.y);
   let i = 0;
   while (i < views.length && taken(slot(i))) i += 1;
   return [...views, { ...ref, frame: slot(i) }];
@@ -139,7 +151,7 @@ export function moveView(
 }
 
 /** Records the measured content size and fits the window to it at scale 1,
- *  keeping its right edge — new windows cascade from the top right. */
+ *  keeping its top-left. */
 export function fitView(
   views: Array<FloatingView>,
   ref: ViewRef,
@@ -150,12 +162,7 @@ export function fitView(
   return views.map((view) => {
     if (!sameRef(view, ref)) return view;
     const { frame } = view;
-    const sized = {
-      x: frame.x + frame.width - base.width,
-      y: frame.y,
-      width: base.width,
-      height: HEADER + base.height,
-    };
+    const sized = { x: frame.x, y: frame.y, width: base.width, height: HEADER + base.height };
     return { ...view, base, frame: fitFloating(sized, base, viewport) };
   });
 }
