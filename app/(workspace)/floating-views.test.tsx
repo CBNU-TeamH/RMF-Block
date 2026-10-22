@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useRef } from "react";
 
 vi.mock("./presence-provider.tsx", () => ({ useWorkspacePresence: () => ({ client: null }) }));
@@ -146,6 +146,33 @@ describe("FloatingViewProvider — a saved view's document (#187)", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     fireEvent.click(screen.getByRole("button", { name: "열기" }));
+
+    assert.ok(screen.getByRole("region", { name: "플로팅 뷰: …" }));
+    assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
+  });
+
+  it("leaves a view opened while the catalogue loads unknown, too", async () => {
+    window.localStorage.clear();
+    let respond: (response: Response) => void = () => undefined;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => (respond = resolve))));
+    vi.stubGlobal("WebSocket", QuietSocket);
+    function Open() {
+      const open = useFloatingViews();
+      return (
+        <button type="button" onClick={() => open({ documentId: "doc-new", blockId: "b-1" })}>
+          열기
+        </button>
+      );
+    }
+    render(
+      <FloatingViewProvider colorTag="#000" nickname="지은">
+        <Open />
+      </FloatingViewProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "열기" }));
+    await act(async () => respond(Response.json({ documents: [] })));
+    await new Promise((resolve) => setTimeout(resolve, 20));
 
     assert.ok(screen.getByRole("region", { name: "플로팅 뷰: …" }));
     assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
