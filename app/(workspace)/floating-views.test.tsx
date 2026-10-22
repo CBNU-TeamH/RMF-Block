@@ -100,17 +100,17 @@ describe("FloatingViewProvider — a saved view's document (#187)", () => {
       </FloatingViewProvider>,
     );
   };
-  const document = (id: string, name: string) => ({ id, name, createdBy: "지은", createdAt: "", updatedAt: "" });
+  const entry = (id: string, name: string) => ({ id, name, createdBy: "지은", createdAt: "", updatedAt: "" });
 
-  it("is deleted once the catalogue has loaded without it", async () => {
-    restore(Response.json({ documents: [document("doc-2", "남은 문서")] }));
+  it("is deleted when the catalogue it was restored into lacks its document", async () => {
+    restore(Response.json({ documents: [entry("doc-2", "남은 문서")] }));
 
     assert.ok(await screen.findByText("원본 문서가 삭제되었습니다."));
     assert.ok(screen.getByRole("region", { name: "플로팅 뷰: 삭제된 문서" }));
   });
 
   it("keeps its name while the catalogue has it", async () => {
-    restore(Response.json({ documents: [document("doc-1", "회의록")] }));
+    restore(Response.json({ documents: [entry("doc-1", "회의록")] }));
 
     assert.ok(await screen.findByRole("region", { name: "플로팅 뷰: 회의록" }));
     assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
@@ -121,6 +121,33 @@ describe("FloatingViewProvider — a saved view's document (#187)", () => {
 
     assert.ok(await screen.findByRole("region", { name: "플로팅 뷰: …" }));
     await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
+  });
+
+  // Only a restored view is judged by the catalogue: one opened later may name a
+  // document whose created event has not reached this page yet.
+  it("leaves a view opened afterwards for a document the catalogue lacks unknown", async () => {
+    window.localStorage.clear();
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ documents: [] })));
+    vi.stubGlobal("WebSocket", QuietSocket);
+    function Open() {
+      const open = useFloatingViews();
+      return (
+        <button type="button" onClick={() => open({ documentId: "doc-new", blockId: "b-1" })}>
+          열기
+        </button>
+      );
+    }
+    render(
+      <FloatingViewProvider colorTag="#000" nickname="지은">
+        <Open />
+      </FloatingViewProvider>,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    fireEvent.click(screen.getByRole("button", { name: "열기" }));
+
+    assert.ok(screen.getByRole("region", { name: "플로팅 뷰: …" }));
     assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
   });
 });

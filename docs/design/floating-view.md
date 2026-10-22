@@ -65,10 +65,14 @@ and `document:deleted` events, the ones `document-list.tsx` already listens to. 
 every window live. A deleted **document** disables its windows with
 "원본 문서가 삭제되었습니다.", the same treatment a deleted block gets.
 
-A document missing from the catalogue once it has loaded counts as deleted too. The catalogue
-lists only live documents (the trash is the host's), and a view saved before its document was
-deleted gets no delete event after a reload (#187). Until the catalogue arrives, and if it never
-does, the title shows "…" rather than taking the document for deleted.
+A view restored after a reload is checked against the catalogue as it loads (#187). The
+catalogue lists only live documents (the trash is the host's), so a restored view whose document
+is missing from it was deleted before the reload, and its delete event went with the last page.
+That view is disabled the same way.
+
+Only restored views are judged this way. A view opened later may name a document whose created
+event has not reached this page yet; that shows "…" until its name arrives, not "deleted". So
+does every view if the catalogue never loads.
 
 The provider lives in the workspace layout, which never remounts across document navigation.
 That is all FR-070-03 takes.
