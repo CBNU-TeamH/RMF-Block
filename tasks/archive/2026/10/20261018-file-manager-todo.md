@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-18
 **Issue**: #164
-**Design**: [File manager](../../docs/design/file-manager.md)
+**Design**: [File manager](../../../../docs/design/file-manager.md)
 
 ## Milestones
 

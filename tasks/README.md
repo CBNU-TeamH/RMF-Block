@@ -24,10 +24,6 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
-| [Floating window gaps: bring to front, Escape, a cap on open views, and opening top-left](active/20261021-floating-window-gaps-todo.md) | [lessons](active/20261021-floating-window-gaps-lessons.md) |
-| [Pause a follower who scrolls, edits or moves on, and resume (UC-030)](active/20261019-follow-pause-todo.md) | [lessons](active/20261019-follow-pause-lessons.md) |
-| [Chat links: document and block links that jump, URLs, and a 링크 tab](active/20261019-chat-links-todo.md) | [lessons](active/20261019-chat-links-lessons.md) |
-| [Workspace file manager (UC-050)](active/20261018-file-manager-todo.md) | [lessons](active/20261018-file-manager-lessons.md) |
 | [Simple collaborative table blocks](active/20261016-table-block-todo.md) | [lessons](active/20261016-table-block-lessons.md) |
 | [Admin and user-location E2E after admin integration](active/20261007-admin-e2e-todo.md) | [lessons](active/20261007-admin-e2e-lessons.md) |
 
