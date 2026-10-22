@@ -16,6 +16,10 @@ import {
 import { ChatPanel } from "./chat-panel";
 import { FloatingFrame } from "./floating-frame";
 import { useFrameGesture, viewport, type FrameRules } from "./use-frame-gesture";
+import { useRaiseWindow } from "./window-stack";
+
+/** The chat window's key in the windows' stacking order. */
+const CHAT_LAYER = "chat";
 
 /** The chat window and the bar that opens it. A floating window, not a rail —
  *  where chat wants to sit depends on what is under it. The title bar moves it,
@@ -76,10 +80,14 @@ export function ChatWindow({
 
   // Resolved on first open, not during render: `window` does not exist while
   // this component renders on the server, and neither does the saved frame.
+  const raise = useRaiseWindow();
   const openWindow = useCallback(() => {
     setFrame((current) => current ?? clamp(readFrame() ?? defaultFrame(viewport()), viewport()));
     setOpen(true);
-  }, []);
+    // An open window mounts no frame, so nothing else would bring it forward
+    // over the floating views for a message to land on or a link to attach.
+    raise(CHAT_LAYER);
+  }, [raise]);
   const openAt = useCallback(
     (messageId: string) => {
       setLandOn(messageId);
@@ -106,7 +114,7 @@ export function ChatWindow({
         {children}
         {open && frame ? (
           <FloatingFrame
-            layer="chat"
+            layer={CHAT_LAYER}
             frame={frame}
             begin={begin}
             label="채팅"

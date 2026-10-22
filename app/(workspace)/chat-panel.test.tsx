@@ -201,6 +201,16 @@ describe("ChatPanel — Escape (#144)", () => {
     assert.equal(escape(input), false);
   });
 
+  it("keeps a draft from an Escape anywhere in the panel, but not from a dialog's own", () => {
+    const { container } = quiet();
+    fireEvent.change(screen.getByRole("textbox", { name: "채팅 메시지" }), { target: { value: "초안" } });
+    const files = screen.getByRole("button", { name: "파일", pressed: false });
+    fireEvent.click(files);
+
+    assert.equal(escape(files), false);
+    assert.equal(escape(container.querySelector("dialog")!), true);
+  });
+
   it("closes the document picker first", () => {
     quiet();
     const button = screen.getByRole("button", { name: "문서 링크 첨부" });

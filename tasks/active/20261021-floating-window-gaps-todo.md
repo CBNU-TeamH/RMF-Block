@@ -71,6 +71,10 @@
     - With the sidebar collapsed (main area at 48), the next view opened at (72, 114).
     - A view saved at the old top-right spot (1919, 56) came back there after a reload, as did the other two.
     - With (284, 114) taken, the next view opened at (308, 138).
+  - After CodeRabbit's review, on a rebuilt stack:
+    - With a draft typed and focus moved to the chat's 파일 switch, Escape kept the window and the draft.
+    - With the draft still there, the file list's preview still closed on Escape.
+    - With the PDF view raised above the open chat, 채팅으로 보내기 brought the chat back in front (37 → 38), showing the attached link.
   - Not checked in the browser: Escape during a real IME composition (the unit test fires one).
   - Fixed on the way: a press inside a PDF raised nothing. Chrome gives the page no focus event for it, so the frame now also raises on the window's `blur` when the iframe it holds is active.
 
@@ -116,3 +120,9 @@ A second `/simplify` pass, on the top-left placement (#224), applied these:
 Declined: the provider holding a ref to the main area instead of `MAIN_ID`. The layout that renders `<main>` is a server component, and cannot hand a client provider a ref.
 
 A `/code-review low` pass (one sub-agent) raised nothing.
+
+CodeRabbit raised two findings on the PR, both fixed:
+- Escape from a chat button other than the input closed the window and lost a draft. The draft guard now sits on the whole panel, except inside a dialog.
+- 채팅으로 보내기 and the file manager's way to a message left an already open chat under the floating views. `useRaiseWindow` now raises it, from a context of its own so the chat window does not re-render when the order changes.
+
+The owning-docs reminder for `app-shell.md` was right too: its provider list now has `WindowStackProvider`, and it names `MAIN_ID`.

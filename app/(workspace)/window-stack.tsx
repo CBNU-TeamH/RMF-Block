@@ -20,6 +20,12 @@ type Stack = {
 };
 
 const StackContext = createContext<Stack>({ order: [], raise: () => undefined, drop: () => undefined });
+/** `raise` alone, which never changes: holding it re-renders nothing when the order does. */
+const RaiseContext = createContext<(key: string) => void>(() => undefined);
+
+/** Raises a window by its key from outside it — the chat window, brought forward
+ *  by 채팅으로 보내기 while already open. */
+export const useRaiseWindow = () => useContext(RaiseContext);
 
 export function WindowStackProvider({ children }: { children: React.ReactNode }) {
   const [order, setOrder] = useState<Array<string>>([]);
@@ -34,7 +40,11 @@ export function WindowStackProvider({ children }: { children: React.ReactNode })
   );
   const value = useMemo(() => ({ order, raise, drop }), [order, raise, drop]);
 
-  return <StackContext.Provider value={value}>{children}</StackContext.Provider>;
+  return (
+    <RaiseContext.Provider value={raise}>
+      <StackContext.Provider value={value}>{children}</StackContext.Provider>
+    </RaiseContext.Provider>
+  );
 }
 
 /** `key`'s place in the order. It joins in front when it mounts — a window just

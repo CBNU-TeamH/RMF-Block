@@ -169,9 +169,9 @@ The chat window and every floating view share one stacking order, back to front
   - **During an IME composition**, where it cancels the composition.
   - **Inside a `<dialog>`** the window opened, such as the chat file list's preview. The dialog
     closes itself on the same key, and one key should close one layer.
-  - **Once something inside has used it** (`preventDefault`). The chat input does, while it holds
-    text or a file: closing the window would lose them. So does the chat's document picker, which
-    closes first.
+  - **Once something inside has used it** (`preventDefault`). The chat panel does, from anywhere
+    in it, while its input holds text or a file: closing the window would lose them. So does the
+    chat's document picker, which closes first.
 
 ## At most five
 

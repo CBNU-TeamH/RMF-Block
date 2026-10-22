@@ -34,8 +34,10 @@ layout and its page in parallel, and a client navigation skips the layout, so `r
 to `/admin`, the setup screen (UC-010) — outside the group like `/join`, since there is no
 workspace yet to frame. The sidebar shows the host, and only the host, a **관리자** link with a shield (`AdminIcon` in `ui.tsx`) to the same page, at its foot. Everyone has a **파일** link under 새 문서 (the file manager, [`file-manager.md`](file-manager.md)).
 
-Below the gate the layout nests `PresenceProvider`, `FocusFollowProvider`,
-`FloatingViewProvider`, `NewDocumentProvider` and `ChatWindow` around the sidebar/header/`<main>` frame. The chat window
+Below the gate the layout nests `PresenceProvider`, `FocusFollowProvider`, `WindowStackProvider`
+(the floating windows' stacking order, [`floating-view.md`](floating-view.md)),
+`FloatingViewProvider`, `NewDocumentProvider` and `ChatWindow` around the sidebar/header/`<main>` frame.
+`<main>` carries `MAIN_ID`, the corner a new floating view opens at. The chat window
 and its bar are `fixed`, outside the column layout; it wraps the frame so the file manager can open it at a message. They live here, not in a page, so floating windows and chat never
 remount across navigation. The host has no `WorkspaceMember`, so it is given `HOST_PRESENCE` in
 place of one, and `SessionWatch` (which shows an eviction) mounts for members only. It also hands `PresenceStack` the recorded members (`sessionRegistry.members()` without `lastJoinedAt`), so the roster can show who is not connected; `PresenceStack` calls `router.refresh()` once for a connected member it has not seen recorded, which is how a later joiner reaches that list.

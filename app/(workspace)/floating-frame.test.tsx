@@ -4,7 +4,7 @@ import { afterEach, describe, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 import { FloatingFrame } from "./floating-frame.tsx";
-import { WindowStackProvider } from "./window-stack.tsx";
+import { WindowStackProvider, useRaiseWindow } from "./window-stack.tsx";
 
 afterEach(() => {
   cleanup();
@@ -81,6 +81,28 @@ describe("FloatingFrame — in front (#144)", () => {
     act(() => {
       window.dispatchEvent(new Event("blur"));
     });
+
+    assert.ok(zOf("a") > zOf("b"));
+  });
+
+  it("raises a window from outside it, as the chat is when already open", () => {
+    function Bring() {
+      const raise = useRaiseWindow();
+      return (
+        <button type="button" onClick={() => raise("a")}>
+          앞으로
+        </button>
+      );
+    }
+    render(
+      <WindowStackProvider>
+        <Window name="a" />
+        <Window name="b" />
+        <Bring />
+      </WindowStackProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "앞으로" }));
 
     assert.ok(zOf("a") > zOf("b"));
   });

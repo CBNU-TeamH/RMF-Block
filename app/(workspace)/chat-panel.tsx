@@ -248,6 +248,13 @@ export function ChatPanel({
         const dropped = event.dataTransfer.files[0];
         if (dropped) setFile(dropped);
       }}
+      // Used from anywhere in the panel, so the window's Escape leaves it open:
+      // closing would lose what was typed or picked. Not inside a dialog,
+      // whose own Escape must still close it.
+      onKeyDown={(event) => {
+        const inDialog = event.target instanceof Element && event.target.closest("dialog");
+        if (event.key === "Escape" && (draft || file) && !inDialog) event.preventDefault();
+      }}
       className={`flex min-h-0 flex-1 flex-col ${dragging ? "bg-sky-soft" : "bg-elev"}`}
     >
       <div className="flex flex-none gap-1 border-b border-line px-3 py-1.5">
@@ -408,9 +415,6 @@ export function ChatPanel({
                 event.preventDefault();
                 submit();
               }
-              // Used, so the window's Escape leaves it open: closing would lose
-              // what was typed or picked.
-              if (event.key === "Escape" && (draft || file)) event.preventDefault();
             }}
             // A pasted screenshot is the case this feature is most for. A pasted
             // document or block address (링크 복사) is attached as a link rather
