@@ -207,11 +207,23 @@ function useDocumentNames(): Map<string, string | null> {
     let cancelled = false;
     const merge = (entries: Array<[string, string | null]>) =>
       setNames((current) => new Map([...current, ...entries]));
+    // Read now, before the catalogue: a view opened while it loads is not a
+    // restored one, and may name a document newer than the catalogue (#187).
+    const restored = readViews();
 
     fetch("/api/documents")
       .then((response) => (response.ok ? response.json() : null))
       .then((body: { documents: Array<WorkspaceDocument> } | null) => {
-        if (!cancelled && body) merge(body.documents.map((d) => [d.id, d.name]));
+        if (cancelled || !body) return;
+        const live = new Map(body.documents.map((d) => [d.id, d.name]));
+        // A restored view's document missing here was deleted before this page
+        // loaded, and its delete event went with the last one.
+        const gone = restored.flatMap((view): Array<[string, null]> =>
+          isFileRef(view) || live.has(view.documentId) ? [] : [[view.documentId, null]],
+        );
+        // Under what the socket said while this loaded, which is newer: a
+        // document restored from the trash meanwhile is not gone.
+        setNames((current) => new Map([...live, ...gone, ...current]));
       })
       .catch(() => undefined);
 

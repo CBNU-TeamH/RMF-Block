@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useRef } from "react";
 
 vi.mock("./presence-provider.tsx", () => ({ useWorkspacePresence: () => ({ client: null }) }));
@@ -11,6 +11,15 @@ import { MAIN_ID } from "./ui.tsx";
 
 class QuietSocket {
   addEventListener() {}
+  close() {}
+}
+
+/** A socket the test speaks through: the last one opened takes `push`. */
+class PushSocket {
+  static push: (event: string, payload: unknown) => void = () => undefined;
+  addEventListener(_type: string, listener: (event: { data: string }) => void) {
+    PushSocket.push = (event, payload) => listener({ data: JSON.stringify({ event, payload }) });
+  }
   close() {}
 }
 
@@ -84,5 +93,119 @@ describe("FloatingViewProvider — the cap (#144)", () => {
 
     assert.equal(views().length, 1);
     assert.equal(screen.queryByRole("status"), null);
+  });
+});
+
+describe("FloatingViewProvider — a saved view's document (#187)", () => {
+  const frame = { x: 300, y: 120, width: 200, height: 120 };
+  /** A block view saved before the reload, and the catalogue that reload gets. */
+  const restore = (catalogue: Response) => {
+    window.localStorage.setItem("rmf-floating-views", JSON.stringify([{ documentId: "doc-1", blockId: "b-1", frame }]));
+    vi.stubGlobal("fetch", vi.fn(async () => catalogue));
+    vi.stubGlobal("WebSocket", QuietSocket);
+    render(
+      <FloatingViewProvider colorTag="#000" nickname="지은">
+        {null}
+      </FloatingViewProvider>,
+    );
+  };
+  const entry = (id: string, name: string) => ({ id, name, createdBy: "지은", createdAt: "", updatedAt: "" });
+
+  it("is deleted when the catalogue it was restored into lacks its document", async () => {
+    restore(Response.json({ documents: [entry("doc-2", "남은 문서")] }));
+
+    assert.ok(await screen.findByText("원본 문서가 삭제되었습니다."));
+    assert.ok(screen.getByRole("region", { name: "플로팅 뷰: 삭제된 문서" }));
+  });
+
+  it("keeps its name while the catalogue has it", async () => {
+    restore(Response.json({ documents: [entry("doc-1", "회의록")] }));
+
+    assert.ok(await screen.findByRole("region", { name: "플로팅 뷰: 회의록" }));
+    assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
+  });
+
+  it("is not taken for deleted when the catalogue never arrives", async () => {
+    restore(new Response("nope", { status: 500 }));
+
+    assert.ok(await screen.findByRole("region", { name: "플로팅 뷰: …" }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
+  });
+
+  // Only a restored view is judged by the catalogue: one opened later may name a
+  // document whose created event has not reached this page yet.
+  it("leaves a view opened afterwards for a document the catalogue lacks unknown", async () => {
+    window.localStorage.clear();
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ documents: [] })));
+    vi.stubGlobal("WebSocket", QuietSocket);
+    function Open() {
+      const open = useFloatingViews();
+      return (
+        <button type="button" onClick={() => open({ documentId: "doc-new", blockId: "b-1" })}>
+          열기
+        </button>
+      );
+    }
+    render(
+      <FloatingViewProvider colorTag="#000" nickname="지은">
+        <Open />
+      </FloatingViewProvider>,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    fireEvent.click(screen.getByRole("button", { name: "열기" }));
+
+    assert.ok(screen.getByRole("region", { name: "플로팅 뷰: …" }));
+    assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
+  });
+
+  it("leaves a view opened while the catalogue loads unknown, too", async () => {
+    window.localStorage.clear();
+    let respond: (response: Response) => void = () => undefined;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => (respond = resolve))));
+    vi.stubGlobal("WebSocket", QuietSocket);
+    function Open() {
+      const open = useFloatingViews();
+      return (
+        <button type="button" onClick={() => open({ documentId: "doc-new", blockId: "b-1" })}>
+          열기
+        </button>
+      );
+    }
+    render(
+      <FloatingViewProvider colorTag="#000" nickname="지은">
+        <Open />
+      </FloatingViewProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "열기" }));
+    await act(async () => respond(Response.json({ documents: [] })));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    assert.ok(screen.getByRole("region", { name: "플로팅 뷰: …" }));
+    assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
+  });
+
+  it("keeps what the socket said while the catalogue loaded, as a restore from the trash", async () => {
+    window.localStorage.setItem(
+      "rmf-floating-views",
+      JSON.stringify([{ documentId: "doc-1", blockId: "b-1", frame: { x: 300, y: 120, width: 200, height: 120 } }]),
+    );
+    let respond: (response: Response) => void = () => undefined;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => (respond = resolve))));
+    vi.stubGlobal("WebSocket", PushSocket);
+    render(
+      <FloatingViewProvider colorTag="#000" nickname="지은">
+        {null}
+      </FloatingViewProvider>,
+    );
+
+    act(() => PushSocket.push("document:created", { document: entry("doc-1", "복원된 문서") }));
+    await act(async () => respond(Response.json({ documents: [] })));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    assert.ok(screen.getByRole("region", { name: "플로팅 뷰: 복원된 문서" }));
+    assert.equal(screen.queryByText("원본 문서가 삭제되었습니다."), null);
   });
 });
