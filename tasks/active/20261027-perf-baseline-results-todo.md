@@ -72,4 +72,12 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+Review (a separate Sonnet session, `/code-review low` then `/simplify`, report-only). Applied in 7cbaa37:
+- **Rules linked, not restated.** Rules are left to the criteria doc and the runbook: nearest-rank p95, the #226 line fit, the memory metric, the replacement rule, the backoff (`docs/design/chat.md`), and the preset/protocol text. The doc keeps only the as-run deviations.
+- **No issue status.** The "Issues found" table has no state column (`docs/conventions.md`: an issue's status lives in the issue). #213 and #216 are dropped, because they are not results.
+- **Nothing that goes stale on merge.** Gone: the narration of unmerged harness fixes, and "kept until this file merges".
+- **One resource-peaks table** replaces four scattered sentences. This also fixes the review's one correctness finding: the "stayed in the baseline's range" claim, which the numbers contradicted.
+- **Merged tables.** The 1st and 2nd runs share one table with a run column. The judgment cell's row is gone from the ramps table, `heavy-b` is one sentence, and the blackhole and raw-data sections are shorter. The device IPs are gone.
+
+Declined:
+- **Collapsing the 20-row per-round table to ranges.** #191's results template asks for θ and U per round. The rows that look alike are the point: they show U holding under the rule from #226 across 20 rounds.
