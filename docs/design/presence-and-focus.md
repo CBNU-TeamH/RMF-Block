@@ -470,7 +470,7 @@ publish mid-drag. `PUBLISH_MS` — the scroll anchor's own trailing-edge throttl
 exported from `use-focus-presence.ts` and reused here rather than defined a second time at the
 same value: one throttle idiom, one source of truth for its cadence.
 
-Publishing is explicit calls at the four moments that need different rules, not an effect on the
+Publishing is explicit calls at the moments that need different rules, not an effect on the
 presenter's own `mine` state, which would fire on every change while a stroke is drawn:
 
 - **starting a stroke** publishes immediately — once up front, not only on the next move, the same
@@ -483,6 +483,10 @@ presenter's own `mine` state, which would fire on every change while a stroke is
   tick that, since the drag just ended, may never come.
 - **지우기 and ending the share** were never on the throttle path to begin with — a direct call and
   a small effect, respectively, both unconditional.
+- **deselecting the pointer tool** (without ending the share) publishes `pointer: null`, so the
+  last position does not stay on followers' screens.
+- **a cancelled stroke** cancels any pending timer and publishes the committed marks, so the partial
+  stroke already published mid-drag does not stand.
 
 A follower who attaches mid-stroke needs no special case: presence carries full current state on
 every write (no delta, again), so whatever the presenter's last publish sent — in-progress points
@@ -580,6 +584,9 @@ that clears `shouldAcceptPoint`'s thinning floor overwrites `pointerRef.current`
 single current point, throttled by the same `schedulePublish`/`PUBLISH_MS` marks already use. The
 payload is therefore constant-size regardless of how long or how fast the presenter has been moving,
 which is the one thing that would have made a fading trail expensive to publish.
+
+Marks are drawn in the presenter's `colorTag`; the pointer and its trail are a fixed `danger` red,
+so a pointer never shares a colour with someone in the roster.
 
 The trail a follower sees is built entirely on their own side: each arriving point is stamped with
 `Date.now()` *at arrival* and appended to a local buffer, aged out past `TRAIL_MS` (1,500ms —

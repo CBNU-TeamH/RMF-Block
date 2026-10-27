@@ -53,7 +53,7 @@ webhook could verify with no table at all.
 
 ### The pieces around it
 
-Three files carry parts of this model that no endpoint row shows.
+These files carry parts of this model that no endpoint row shows.
 
 `lib/workspace-config.ts` holds the workspace name and access password (FR-010-01/02,
 FR-020-02). They are state, in `.data/workspace.json`: the host sets them on the admin page's setup
@@ -73,6 +73,13 @@ startup prints that setup is unfinished.
 `lib/yorkie-admin.ts` registers this server's auth webhook with Yorkie at startup
 (NFR-SEC-002/005). It is what makes §2's webhook actually get called — a Yorkie that was never
 told to ask would accept any client that can reach port 8080.
+
+`app/admin/page.tsx` is the host's page (UC-010/UC-011); anyone else is sent to `/`. Until the
+workspace is open it is the setup screen (`POST /api/workspace`). Once it is open it holds the
+password change (`PATCH /api/workspace/password`), the connected guests with a kick
+(`DELETE /api/workspace/members/:id`) and the trash with a restore
+(`POST /api/workspace/trash/:id/restore`). Each visit to an open workspace's page also purges trash
+entries past their TTL (`purgeExpiredTrash`); a failure there is logged and retried on the next visit.
 
 `app/session-watch.tsx` is the client half of FR-020-08's one-device rule: when a nickname is
 claimed on another device, the displaced session is revoked server-side and this component is

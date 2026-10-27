@@ -36,6 +36,7 @@ lib/chat/
   chat-service.ts       — ChatService(repository, broadcaster): send()/list()
   window-frame.ts      — the floating window's geometry, as pure functions
   attachments.ts       — the file list's grouping: kindOf, sharedFiles
+  links.ts             — URL splitting, document/block addresses, the 링크 tab's sharedLinks
 lib/files/
   types.ts             — StoredFile metadata
   file-repository.ts   — bytes on disk, metadata in JSON

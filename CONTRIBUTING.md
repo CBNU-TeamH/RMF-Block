@@ -126,6 +126,10 @@ work: [`docs/testing.md`](docs/testing.md).
   **`docs:`** work — branch `docs/archive-<slug>`, commit and PR titled `docs: archive …` — since it
   only moves task documents and regenerates the two task indexes; no application code or behaviour
   changes.
+- **Bot comments**: on a PR, one comment lists the owning docs (each doc's **Owns** line) that the
+  change touched code under but left unedited — a reminder, not a gate. After a merge to `main`, the
+  PR is reminded to archive its task, and once enough tasks are archived an issue says a drift audit
+  is due (`.github/workflows/post-merge-reminders.yml`).
 
 ## Releasing
 
