@@ -57,7 +57,7 @@ Management features layered on top of an already-working workspace and editor �
 
 ## Phase 5 — Hardening
 
-- Load-test baseline for the 8-user assumption (NFR-PER-001/006). How each NFR-PER item is measured — tool, rig, clock, pass threshold — is settled in [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md); what remains here is running it and recording the numbers.
+- Load-test baseline for the 8-user assumption (NFR-PER-001/006). How each NFR-PER item is measured — tool, rig, clock, pass threshold — is settled in [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md); v0.1.0's numbers are in [`docs/perf/v0.1.0-baseline.md`](docs/perf/v0.1.0-baseline.md).
 - Security pass: input validation, upload restrictions, unauthorized-access checks (NFR-SEC-003/004/005).
 - Crash/restart recovery verification (NFR-SAF-003, NFR-REL-002) — against Yorkie/MongoDB for document content and `.data/` for app state, the two stores ADR-002 leaves.
 
