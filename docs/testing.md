@@ -1,6 +1,6 @@
 # Testing strategy
 
-- **Status**: All five layers landed; the E2E layer is not a required check yet. Server-component Tier 2 (extract gate/join logic into
+- **Status**: All five layers landed; what blocks a merge is [`AGENTS.md`](../AGENTS.md) §6. Server-component Tier 2 (extract gate/join logic into
   `lib/`) is tracked in [issue #112](https://github.com/CBNU-TeamH/RMF-Block/issues/112).
 - **Owns**: none — this is process/strategy, not a module's design rationale. The five layers
   below name which existing design doc still owns *why* each module behaves the way it does; this

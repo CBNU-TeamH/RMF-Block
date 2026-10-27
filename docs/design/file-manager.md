@@ -16,8 +16,8 @@ messages carry. Grouped by type, previewed, downloaded, and followed back to whe
 
 ## The page
 
-A dedicated page, `/files`, opened from **파일** under 새 문서 in the sidebar (and after it on the
-collapsed rail), shown to everyone. It is not a tab: the document tab bar holds document ids only, and nothing here needed
+A dedicated page, `/files`, opened from **파일** in the sidebar ([`app-shell.md`](app-shell.md)).
+It is not a tab: the document tab bar holds document ids only, and nothing here needed
 it to hold anything else. On it:
 
 - **Type tabs** — 이미지, PDF, 기타 — each with its count (FR-050-01). The classification is the
@@ -85,9 +85,9 @@ server logs why.
   same scroll target, marked `highlight`, and the editor flashes the block when it lands
   (`flash` in `ui.tsx`). Like that jump, it pauses a follow it is in (재개 undoes that; see
   [`presence-and-focus.md`](presence-and-focus.md), "Pausing a follow").
-- **A chat file** opens the chat window at its message and highlights it. The window now wraps the
-  workspace shell so anything in it can call `useOpenChatAt`; the panel scrolls once the message
-  is in its history, which may arrive with the backfill.
+- **A chat file** opens the chat window at its message and highlights it (see
+  [`app-shell.md`](app-shell.md) for why the window wraps the shell); the panel scrolls once the
+  message is in its history, which may arrive with the backfill.
 
 ## Not built
 

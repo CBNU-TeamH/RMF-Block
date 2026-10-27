@@ -228,9 +228,8 @@ It shares the floating views' stacking order and Escape ([`floating-view.md`](fl
 The panel has two exceptions:
 
 - **The input keeps a draft.** While the input holds text or a file, an Escape anywhere in the
-  panel is used there and the window stays open: closing it would lose them. One inside a dialog
-  is left alone, so the file list's preview still closes on it. A link waiting to be sent
-  survives a close anyway, because the window holds it (see "Links").
+  panel is used there and the window stays open: closing it would lose them. A link waiting to be
+  sent survives a close anyway, because the window holds it (see "Links").
 - **The document picker closes first.** An Escape while it is open closes only the picker.
 
 채팅으로 보내기 and the file manager's way to a message bring an already open window forward too
@@ -281,7 +280,7 @@ attached file and an embedded one are one thing seen from two places.
 send emits `'error'` on the socket, and with no listener `EventEmitter` rethrows it and takes the
 whole process down. Next included, since this is one process.
 
-**A connection without a session id still works — for `revoke()` attribution, not for authentication.** `wsHub.broadcast()` fans every event to every connection with no per-path filtering, and the document catalogue shares the hub, so an anonymous chat socket would let anyone on the LAN read document names. Both `/api/chat/ws` and `/api/workspace/ws` therefore require a live session or the host secret to complete the upgrade at all (`server/index.mts`). Chat's connections are still not filed under a session afterward — `revoke()` has nothing to evict them by — and posting requires a session (`POST /api/chat`). ([ADR-006](../adr/006-workspace-chat-socket-auth.md) records this as a decision.)
+**A chat connection carries no session id**, so `revoke()` has nothing to evict it by, and posting requires a session (`POST /api/chat`). The upgrade itself is gated: [`api.md`](api.md#4-websocket--client--rmf-block-server) §4, and why in [ADR-006](../adr/006-workspace-chat-socket-auth.md).
 
 **A revoked socket is told before it is closed.** A client that only saw the close would have to
 guess whether it was evicted or the network dropped, and those want different handling

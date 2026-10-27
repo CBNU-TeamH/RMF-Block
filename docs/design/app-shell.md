@@ -40,7 +40,7 @@ Below the gate the layout nests `PresenceProvider`, `FocusFollowProvider`, `Wind
 `<main>` carries `MAIN_ID`, the corner a new floating view opens at. The chat window
 and its bar are `fixed`, outside the column layout; it wraps the frame so the file manager can open it at a message. They live here, not in a page, so floating windows and chat never
 remount across navigation. The host has no `WorkspaceMember`, so it is given `HOST_PRESENCE` in
-place of one, and `SessionWatch` (which shows an eviction) mounts for members only. It also hands `PresenceStack` the recorded members (`sessionRegistry.members()` without `lastJoinedAt`), so the roster can show who is not connected; `PresenceStack` calls `router.refresh()` once for a connected member it has not seen recorded, which is how a later joiner reaches that list.
+place of one, and `SessionWatch` (which shows an eviction) mounts for members only. It also hands `PresenceStack` the recorded members (identity fields, without `lastJoinedAt`), so the roster can show who is not connected; how a later joiner reaches that list is in [`presence-and-focus.md`](presence-and-focus.md).
 
 ## One catalogue read per request
 
