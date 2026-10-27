@@ -21,6 +21,9 @@ export default defineConfig({
   use: {
     baseURL: `http://${process.env.HOST_LAN_IP ?? "127.0.0.1"}:${process.env.PERF_APP_PORT ?? "3000"}`,
     trace: "off",
+    // Unbounded by default: a click that never finds its button held a round for 40 minutes (#218).
+    actionTimeout: 60_000,
+    navigationTimeout: 60_000,
   },
   projects: [{ name: "perf", use: { ...devices["Desktop Chrome"] } }],
 });
