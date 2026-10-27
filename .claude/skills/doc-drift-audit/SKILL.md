@@ -79,6 +79,7 @@ Auditors read stale content and overstate fixes. Give one agent `references/veri
   node $SKILL/scripts/render-checklist.mjs <scratch>/audit --verify <scratch>/verify-AF.json > <scratch>/checklist.md
   gh issue comment $ISSUE --body-file <scratch>/checklist.md   # prints the comment URL; its #issuecomment-<id> is the id below
   ```
+  Post `audit/*.json` and `verify-AF.json` on the issue too (a gist if a comment is too short): approval can take days, and whoever resumes at step 7 needs the finding bodies, not just the one-line fixes.
   Items are grouped by the file they edit, so overlapping findings from different auditors sit together. Unticked means not applied. Ask the person who asked for the audit (or the repo's maintainer) to tick the items, and **wait for them to say they're done** — don't infer approval from silence. If they answer in chat instead, tick for them and record their decisions at the top of the comment. Then read them back:
   ```sh
   gh api repos/{owner}/{repo}/issues/comments/<id> -q .body | node $SKILL/scripts/read-approvals.mjs -

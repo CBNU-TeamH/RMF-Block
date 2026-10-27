@@ -126,10 +126,9 @@ work: [`docs/testing.md`](docs/testing.md).
   **`docs:`** work — branch `docs/archive-<slug>`, commit and PR titled `docs: archive …` — since it
   only moves task documents and regenerates the two task indexes; no application code or behaviour
   changes.
-- **Bot comments**: on a PR, one comment lists the owning docs (each doc's **Owns** line) that the
-  change touched code under but left unedited — a reminder, not a gate. After a merge to `main`, the
-  PR is reminded to archive its task, and once enough tasks are archived an issue says a drift audit
-  is due (`.github/workflows/post-merge-reminders.yml`).
+- **Bot comments** are reminders, not gates: a PR is told which owning docs its code changes left
+  unedited (`doc-reminders*.yml`); after a merge it is reminded to archive its task, and an issue
+  opens when a drift audit is due (`post-merge-reminders.yml`).
 
 ## Releasing
 
@@ -139,7 +138,8 @@ Each GitHub milestone is named after the release that closes it: `v0.1.0`, `v0.2
 last release (`0.1.1`). `v0.0.1` and `v0.0.2` predate this scheme.
 
 Pushing the tag runs `.github/workflows/release.yml`; the order of its steps and how a failed run
-resumes are [ADR-009](docs/adr/009-distribution-ghcr-image-tag-release.md) Decisions 3 and 5.
+resumes are [ADR-009](docs/adr/009-distribution-ghcr-image-tag-release.md) Decisions 3 and 5. The
+release attaches `docker-compose.yml`, its image pinned to `X.Y.Z`, and `env.sample`.
 
 To cut `X.Y.Z`:
 

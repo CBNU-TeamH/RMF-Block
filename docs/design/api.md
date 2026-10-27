@@ -74,12 +74,9 @@ startup prints that setup is unfinished.
 (NFR-SEC-002/005). It is what makes §2's webhook actually get called — a Yorkie that was never
 told to ask would accept any client that can reach port 8080.
 
-`app/admin/page.tsx` is the host's page (UC-010/UC-011); anyone else is sent to `/`. Until the
-workspace is open it is the setup screen (`POST /api/workspace`). Once it is open it holds the
-password change (`PATCH /api/workspace/password`), the connected guests with a kick
-(`DELETE /api/workspace/members/:id`) and the trash with a restore
-(`POST /api/workspace/trash/:id/restore`). Each visit to an open workspace's page also purges trash
-entries past their TTL (`purgeExpiredTrash`); a failure there is logged and retried on the next visit.
+`app/admin/page.tsx` is the host's page (UC-010/UC-011); anyone else is sent to `/`. It is the
+setup screen until the workspace is open, then the password change, the connected guests with a
+kick, and the trash with a restore — the Workspace rows in §1.
 
 `app/session-watch.tsx` is the client half of FR-020-08's one-device rule: when a nickname is
 claimed on another device, the displaced session is revoked server-side and this component is
@@ -154,8 +151,8 @@ ceiling a guest who knows the password could spend the process's memory one join
 through a session and still bounds the damage.
 
 **A failed write rolls back only for a new member.** The two cases are not the same failure. A
-returning member is already on disk, so a failed write costs only a fresher `lastJoinedAt`. A brand-new member was never durable, and
-every mutation belongs to that one call (they cannot have displaced anyone, so there is nothing to
+returning member is already on disk, so a failed write costs only a fresher `lastJoinedAt`. A
+brand-new member was never durable, and every mutation belongs to that one call (they cannot have displaced anyone, so there is nothing to
 put back); leaving those in place would strand a session nobody holds, and the nickname would read
 as taken until the process restarted.
 
@@ -297,7 +294,8 @@ is what the error message says. The request carrying it is larger: `content-leng
 `multipart/form-data` body — boundary lines, each part's headers, the CRLFs. So the declared length
 is measured against its own slightly higher ceiling, and only the parsed `file.size` is measured
 against 25 MB. The first check exists to bound what `formData()` will buffer, not to decide the
-verdict ([#57](https://github.com/CBNU-TeamH/RMF-Block/issues/57)).
+verdict: one constant for both would reject a file of exactly 25 MB
+([#57](https://github.com/CBNU-TeamH/RMF-Block/issues/57)) or, raised, admit an oversized one.
 
 File responses are `Cache-Control: private`. They cross a LAN that may have caches of its own in front of them, and a file belongs to one workspace — `private` keeps a shared cache from holding one and serving it on.
 
@@ -377,9 +375,8 @@ shared screen under UC-030, never see it), the browser passes that through the S
 `authTokenInjector`, and this webhook answers. The host has no workspace session, so the
 `role` cookie is exchanged under the `host:<secret>` prefix (`HOST_SESSION_PREFIX`) and the
 webhook allows such a token without a session lookup; revoking the host is the restart, which
-clears the token registry and, unless `HOST_SECRET` is pinned (the authentication model above),
-the secret. Startup writes the webhook onto Yorkie's project
-itself, over the Admin API (below).
+clears the token registry and the secret ([unless `HOST_SECRET` is pinned](#authentication-model)).
+Startup writes the webhook onto Yorkie's project itself, over the Admin API (below).
 
 The webhook asks two questions, not one. A token can be valid while the session behind it is
 gone — a device displaced by another (FR-020-08) keeps its token — so tokens point at sessions and

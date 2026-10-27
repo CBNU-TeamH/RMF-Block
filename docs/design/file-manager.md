@@ -25,9 +25,8 @@ it to hold anything else. On it:
   both places; here the third is named 기타, since "문서" would read as the file's source.
 - **A table**, newest first: name, source, size, uploaded by, date (FR-050-02).
 - **Per row**: 미리보기 (FR-050-03, below) for the types the preview route serves inline
-  (`INLINE_TYPES` in `lib/files/serving.ts`); 기타 is download-only until UC-080's viewers exist. A
-  chat image of another type, an SVG for one, still sits under 이미지 but is download-only, because
-  chat uploads keep the type the client claimed. 원본 위치 (E3-3) and 내려받기
+  ([`api.md`](api.md#files)); 기타 is download-only until UC-080's viewers exist. `kindOf` files any
+  `image/*` under 이미지, so a chat SVG sits there but is download-only. 원본 위치 (E3-3) and 내려받기
   (FR-050-04).
 
 The list is fetched when the page opens. Nothing asks for it to update live.
@@ -40,20 +39,20 @@ is a `<dialog>` opened with `showModal()` (`file-preview-dialog.tsx`), and the c
 (UC-061) and a PDF block's 전체 화면 (`pdf-block.tsx`) open the same one.
 
 It is a page rather than a floating view, because a floating view is small, stays where it was
-dropped and comes back after a reload, which gets in the way when looking through files. Floating views remain for blocks and for a chat
-message's own 플로팅 뷰로 열기 (UC-070).
+dropped and comes back after a reload, which gets in the way when looking through files. Floating
+views remain for blocks and for a chat message's own 플로팅 뷰로 열기 (UC-070).
 
 ## Chat files are listed too
 
 UC-050 is worded for files embedded in documents; chat attachments are UC-061's, in the chat
 window. Both are listed here because someone looking for a file rarely knows which of the two it
-went through. The source column tells them apart
-(the document's name, or 채팅). The SRS is unchanged: this adds to UC-050 without contradicting it,
+went through. The source column tells them apart (the document's name, or 채팅). The SRS is unchanged: this adds to UC-050 without contradicting it,
 and UC-061 still stands on its own.
 
 ## Which block holds a file
 
-The file store records the upload and the document, when the upload recorded one, but not the block.
+The file store records the upload and, when the upload recorded one, the document, but not the
+block.
 Rather than record it at upload, `GET /api/files` reads it from the documents on every request:
 
 - One Yorkie Admin `GetDocuments` call returns every catalogue document's root (`include_root`).

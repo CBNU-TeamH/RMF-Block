@@ -709,9 +709,10 @@ does the same, because `Math.trunc` of one is `NaN` and `counters.length = NaN` 
 `readBlocks` alone closes that path, since every rendered block comes through it; the other two are
 there so the value is never stored in the first place.
 
-**Tab is intercepted only on a list block and inside a table cell** (where it moves between cells). Everywhere else it keeps its default and moves focus.
-Trapping Tab inside every textarea would leave a keyboard user unable to get out of the editor, and
-that trade — one key on one block type — is cheaper than an editor nobody can leave.
+**Tab is intercepted only on a list block and inside a table cell**, where it moves between
+cells. Everywhere else it keeps its default and moves focus. Trapping Tab inside every textarea
+would leave a keyboard user unable to get out of the editor; taking it only where it has a job is
+cheaper than an editor nobody can leave.
 
 Checklist blocks do not nest. SRS §4.1 gives nesting to 목록 only, and `TypeFields` carries `depth`
 only on `list`; extending it is a model change and an SRS question, not an oversight.
