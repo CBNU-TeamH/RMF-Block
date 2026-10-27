@@ -483,7 +483,8 @@ and leave the next keystroke diffing against the wrong string.
 `document-list.tsx` draws the catalogue as a tree in the sidebar (FR-020-06, the document half).
 The rows come from `treeRows` in `lib/documents/tree.ts`, which leaves a collapsed node's
 descendants out rather than marking them, and draws a `parentId` naming a missing document as a
-root. Collapsing is per viewer and not saved. Each row's menu (`document-row-menu.tsx`) offers
+root. Collapsing is per viewer and not saved. A search query skips the tree: matching documents
+are listed flat, with no expand toggle. Each row's menu (`document-row-menu.tsx`) offers
 하위 문서 추가, 이름 변경, 이동 and 삭제. The last three share one dialog in
 `document-actions.tsx` (FR-023-01~06); the endpoints are in [`api.md`](api.md), "The document
 endpoints".
