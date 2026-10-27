@@ -35,6 +35,19 @@ describe("BlockLinkBlockView", () => {
     assert.equal(screen.queryByRole("button", { name: /블록$/ }), null);
   });
 
+  it("keeps the link on any other failure and asks again on retry", async () => {
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { status: 500 }))
+      .mockResolvedValueOnce(Response.json({ document: { name: "회의록" } }));
+    render(<BlockLinkBlockView block={block} onDelete={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /다시 시도/ }));
+    assert.ok(await screen.findByRole("button", { name: "회의록 › 블록" }));
+    assert.equal(fetch.mock.calls.length, 2);
+    assert.equal(screen.queryByText("삭제된 문서의 블록입니다."), null);
+  });
+
   it("removes itself only after a confirmation", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ document: { name: "A" } }));
     const onDelete = vi.fn();

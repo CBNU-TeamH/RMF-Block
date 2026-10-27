@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import type { BlockLinkBlock } from "@/lib/blocks/types";
 
 import { useFocusFollow } from "../../focus-follow-provider";
 import { FileIcon } from "../../ui";
+import { useDocumentName } from "./use-document-name";
 
 /**
  * A link to one block in a document (SRS §4.1 type 12), made by pasting a
@@ -25,26 +26,8 @@ export function BlockLinkBlockView({
   onDelete: (blockId: string) => void;
 }) {
   const { goToBlock } = useFocusFollow();
-  const [name, setName] = useState<string | null>(null);
-  const [missing, setMissing] = useState(false);
+  const { name, missing, failed, retry } = useDocumentName(block.documentId);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetch(`/api/documents/${block.documentId}`)
-      .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
-      .then((body) => {
-        if (!cancelled) setName(body.document?.name ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setMissing(true);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [block.documentId]);
 
   return (
     <div className="group/link -mx-1 flex items-center gap-2 rounded-control px-1 py-1 text-[16.5px] hover:bg-hover">
@@ -62,7 +45,17 @@ export function BlockLinkBlockView({
           onClick={() => goToBlock(block.documentId, block.blockId)}
           className="min-w-0 truncate text-left font-medium text-ink underline decoration-line-strong underline-offset-4"
         >
-          {name ? `${name} › 블록` : "여는 중…"}
+          {name ? `${name} › 블록` : failed ? "블록으로 이동" : "여는 중…"}
+        </button>
+      )}
+
+      {failed && (
+        <button
+          type="button"
+          onClick={retry}
+          className="shrink-0 h-6 rounded-control px-2 text-xs font-medium text-ink-soft hover:bg-hover"
+        >
+          이름을 불러오지 못했습니다 · 다시 시도
         </button>
       )}
 

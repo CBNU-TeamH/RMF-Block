@@ -287,8 +287,6 @@ guess whether it was evicted or the network dropped, and those want different ha
 
 ## Open questions
 
-- **A copied block address pasted into a document.** It could make the `block-link` block, which
-  has no creator yet ([`document-editing.md`](document-editing.md)). Nothing does that today.
 - **Deleting an attachment.** No FR covers it, and it raises one this module should not answer
   alone: whether removing a file removes the message that carried it.
 - **A real design for the UI.** What ships is a prototype built from the shell's tokens.
