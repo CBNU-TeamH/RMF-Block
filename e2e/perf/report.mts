@@ -5,7 +5,7 @@ import * as Plot from "@observablehq/plot";
 import { Window } from "happy-dom";
 
 import { readJsonFile } from "../../lib/json-file.ts";
-import { account, ecdf, offsetFrom, p95, toH, uncertainty, verdict, type ClockSample, type RoundClock } from "./stats.mts";
+import { account, ecdf, joinAttempt, offsetFrom, p95, toH, uncertainty, verdict, type ClockSample, type RoundClock } from "./stats.mts";
 
 /** `pnpm perf:report perf-results/<run-id>`: the run's raw files → `summary.json` and the
  *  markdown table #191 records, plus `summary.html` (charts drawn from the same numbers). Every number follows #189's measurement contracts. A round is
@@ -81,6 +81,9 @@ for (const name of (await readdir(run)).filter((n) => n.startsWith("round-")).so
     outage: null,
   };
   perRound.push(row);
+  const events = await rows<Event>(path.join(dir, "events.jsonl"));
+  const join = joinAttempt(events, signals);
+  if (join) pool("003 G", name, [{ marker: name, t0: join.t0 }], join.t1 === undefined ? [] : [{ marker: name, t1: join.t1 }], 0);
   if (!raw || abort) continue;
 
   const readings = (device: Device): RoundClock => [raw.start, ...(raw.mid ?? []), raw.end].map((r) => offsetFrom(r[device]));
@@ -90,7 +93,6 @@ for (const name of (await readdir(run)).filter((n) => n.startsWith("round-")).so
   const ends = (clock: RoundClock) => [clock[0], clock[clock.length - 1]];
   row.uLegacy = uncertainty(ends(clocks.H)) + uncertainty(ends(clocks.G));
   const onH = (device: Device, t: number) => toH(clocks[device], t);
-  const events = await rows<Event>(path.join(dir, "events.jsonl"));
   const plan = await rows<Plan>(path.join(dir, "plan.jsonl"));
   const meta = json<Meta>(path.join(dir, "meta.json")) ?? {};
   const received = (to: Device, item: string, from: string) =>
@@ -105,10 +107,6 @@ for (const name of (await readdir(run)).filter((n) => n.startsWith("round-")).so
       if (sends.length) pool(`${item} ${from}→${to}`, name, sends, received(to, item, from), u);
     }
   }
-  const join = (kind: string) => events.find((e) => e.device === "G" && e.item === "003" && e.kind === kind)?.t;
-  const joinRecv = join("recv");
-  pool("003 G", name, [{ marker: name, t0: join("send") ?? NaN }], joinRecv === undefined ? [] : [{ marker: name, t1: joinRecv }], 0);
-
   const memory = await rows<{ device: Device; pid: number; bytes: number }>(path.join(dir, "memory.jsonl"));
   for (const device of ["H", "G"] as const) {
     const peaks = new Map<number, number>();
@@ -139,7 +137,8 @@ for (const name of (await readdir(run)).filter((n) => n.startsWith("round-")).so
 }
 
 const samples = new Map<string, Array<number>>();
-const items = [...pooled].map(([key, { sends, recvs, u }]) => {
+// By item number, as #191's results table lists them; a stable sort keeps each item's directions in order.
+const items = [...pooled].sort(([a], [b]) => a.slice(0, 3).localeCompare(b.slice(0, 3))).map(([key, { sends, recvs, u }]) => {
   const a = account(sends, recvs, TIMEOUT[key.slice(0, 3)]);
   samples.set(key, a.samples);
   const value = p95(a.samples);
