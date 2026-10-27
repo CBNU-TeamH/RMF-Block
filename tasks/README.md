@@ -24,7 +24,6 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
-| [Drift audit: the design docs against the code since #184](active/20261023-drift-audit-todo.md) | [lessons](active/20261023-drift-audit-lessons.md) |
 | [Simple collaborative table blocks](active/20261016-table-block-todo.md) | [lessons](active/20261016-table-block-lessons.md) |
 | [Admin and user-location E2E after admin integration](active/20261007-admin-e2e-todo.md) | [lessons](active/20261007-admin-e2e-lessons.md) |
 

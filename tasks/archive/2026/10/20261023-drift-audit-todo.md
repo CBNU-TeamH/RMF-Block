@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-23
 **Issue**: #228
-**Design**: [`.claude/skills/doc-drift-audit/SKILL.md`](../../.claude/skills/doc-drift-audit/SKILL.md) — the procedure; this task is one run of it
+**Design**: [`.claude/skills/doc-drift-audit/SKILL.md`](../../../../.claude/skills/doc-drift-audit/SKILL.md) — the procedure; this task is one run of it
 
 ## Milestones
 
@@ -31,7 +31,7 @@
 ### 2. Audit and verify
 
 - **What**: one read-only auditor sub-agent (Sonnet) per part, then one verifier for every A/F finding.
-- **Done**: `audit/*.json` and `verify-AF.json` in the session scratchpad.
+- **Done**: every A/F finding verified.
 
 ### 3. Triage and approval
 
@@ -48,13 +48,13 @@
 - Vitest (logic / component / server / route): no change expected — documentation only. A stale code comment fixed under F is checked by `pnpm lint` and `pnpm test`.
 - Browser E2E (`e2e/`): no change — documentation only.
 - Container smoke (`.github/workflows/ci.yml`): no change.
-- Commands and observed results (fill in before the PR):
+- Commands and observed results:
   - `pnpm verify:docs` (all seven checks) and `pnpm comments`: clean after each category commit.
   - `docker compose config` still parses `docker-compose.yml`, where only comments changed. It stops only at the missing `.env` values, as it does on `main`.
   - Before/after (`baseline.mjs` over the six parts):
     - `f81a3f6` reproduces the audit's baseline exactly: 24 files, 336,179 bytes, 4,776 lines.
     - `main` at `196eca9`, before this PR: 336,942 bytes, 4,783 lines.
-    - This PR: 335,970 bytes, 4,787 lines. That is −972 bytes; B added content, and C and D removed some.
+    - This PR: 335,715 bytes, 4,784 lines. That is −1,227 bytes; B added content, and C and D removed some.
 
 ## Acceptance
 
@@ -69,29 +69,6 @@ Closes #228. Code bugs the audit finds are filed as issues, not fixed here. Requ
 
 ## Review
 
-**Who did what.** `ujin999` ran steps 1–5 on 2026-10-23: the baseline, eight auditors, A/F verification and the checklist on #228. `TaeTaeJin` took over steps 6–8 on 2026-10-27 in one Claude Code session.
-
-**Approved.** The coordinator's recommendation (ticks and the decision note are on the #228 checklist):
-- Applied: all 11 verified A items and 33 B/C/D items. presence-a-04 and shell-files-history-04 were one edit.
-- Not applied:
-  - api-09, editing-a-02 and editing-a-06 edit an ADR, and ADRs keep their history.
-  - workflow-03, workflow-04 and workflow-05 would undo what #184 kept: the native-dev Yorkie addresses in CONTRIBUTING.md, and a self-contained README.
-  - editing-b-02: #242 made it untrue, because `block-link` now has a creator.
-
-**Re-checked against `main`.** Five commits landed after the base (#242–#246). Every item was re-read against the current file before it was applied.
-- One more stale line was fixed with D: "the future 블록 링크 블록" in `document-editing.md`.
-- #242 had already removed chat.md's open question about pasting a block address.
-
-**Review.** Three single-session rounds:
-1. Nothing lost. Every moved fact is present at its owner:
-   - ADR-009 Decisions 3 and 5 for the release steps;
-   - AGENTS.md §6 for what blocks a merge;
-   - `presence-and-focus.md` for `router.refresh()`;
-   - ADR-006 for the hub-broadcast reason;
-   - `app-shell.md` for the 파일 link and the rail.
-2. The edits are true. The A/B items were checked against `ci.yml` and `workspace-config.ts`, `yorkie-admin.ts`, `ink-overlay.tsx`, `document-list.tsx`, `app/admin/page.tsx` and `editor.tsx`.
-3. The rest of the diff. One fix: "settled there" in `architecture.md` now names its doc.
-
-No round found anything blocking.
-
-**Other.** The edits were made in one session with no editor sub-agents. There were about 45 edits, mostly in disjoint files, which one pass handled. No E (requirements) or F (code) findings.
+- `ujin999` ran steps 1–5 on 2026-10-23; `TaeTaeJin` ran steps 6–8 on 2026-10-27 in one session, with no editor sub-agents.
+- Applied: 11 A items and 33 B/C/D items (presence-a-04 and shell-files-history-04 were one edit), plus "the future 블록 링크 블록" found while applying. Not applied: three ADR edits (api-09, editing-a-02, editing-a-06); workflow-03/04/05, which #184 kept; editing-b-02, made untrue by #242. Each item was re-read against `main` (five commits past the base) before it was applied.
+- Three review rounds (nothing lost, edits true, rest of the diff), then `/code-review low` and `/simplify`; their fixes are in the last commit before the archive. No E or F findings.

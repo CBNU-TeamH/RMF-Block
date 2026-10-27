@@ -17,4 +17,4 @@ that the next person does not rediscover this.
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- **For the skill's step 6:** attach `audit/*.json` and `verify-AF.json` to the audit issue, or commit them under the task, so another session can resume at step 7.
+- **For the skill's step 6:** post `audit/*.json` and `verify-AF.json` on the audit issue, so another session can resume at step 7. Promoted to the skill's step 6.
