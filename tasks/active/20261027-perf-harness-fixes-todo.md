@@ -18,7 +18,7 @@
 - **What**:
   - Playwright actions and navigations time out after a minute, and connecting to G does too.
   - A round that runs past `2 × MINUTES + OUTAGE + 10` minutes (`PERF_STALL_MINUTES` overrides) records `stalled`, then closes its pages and H's browser, so the hung call rejects. The round's own `catch` and `finally` then run: G's trace stops and the stack goes down.
-  - The stack is taken down in `afterEach`, which runs even after a Playwright timeout, unlike the test's `finally`. The test timeout follows the stall limit (+5 min).
+  - The stack is taken down in `afterEach`, which runs even after a Playwright timeout, unlike the test's `finally`. The test timeout is the stall limit + 10 min, because the timer starts after `stackUp` (up to 5 min) and cleanup needs time after it.
 - **Files**: `e2e/perf/round.perf.ts`, `playwright.perf.config.ts`.
 - **Reuse**:
   - The existing `finally` already stops G's trace and takes the stack down.
@@ -92,7 +92,7 @@ Review: a separate Sonnet session ran `/code-review low`, then `/simplify`, repo
 - **The wait moved from the check to the release.** `stackDown` now waits for the ports to come free, and `stackUp` checks both ports at once and fails fast.
 - **One teardown path.** `afterEach` is the only caller of `stackDown`; the round's `finally` still detaches Prometheus first.
 - **The stall timer** closes H's browser whole, and only the contexts of the background users' and G's browsers.
-- **The test timeout** is the stall limit + 5 min, so the timer always fires first. This holds for any `PERF_MINUTES`, which the fixed 40 min did not.
+- **The test timeout** is set from the stall limit (+10 min after CodeRabbit), so the timer always fires first. This holds for any `PERF_MINUTES`, which the fixed 40 min did not.
 - **#238 as a pure `joinAttempt`.** It gives one definition of a 003 attempt and replaces a 50 s report-spawning test with a 3-case unit test. The report lists items in #191's order.
 - **Shorter text.** The STALL comment is one line, and the runbook rows point to the appendix for the formula.
 
@@ -100,3 +100,12 @@ Review: a separate Sonnet session ran `/code-review low`, then `/simplify`, repo
 - **Moving stack, browsers and cleanup into a Playwright fixture.** It is the more general shape, but it is a larger rewrite of the round, and the current shape now passes the one-machine check.
 - **Dropping the action and navigation timeouts in favour of the stall timer alone.** They fail an unbounded click within a minute and name the locator. The timer stays for calls with no timeout option, such as `evaluate` and `newPage`.
 - **Writing `events.jsonl` in `finally`.** A round that aborts after a successful join still loses that join's sample. Saving it means reading pages that may already be dead, which is a separate change. Noted on #238.
+
+**CodeRabbit** (3 comments on `e5722f0`):
+- **Fixed: `afterEach` now detaches Prometheus before `stackDown`** when a timeout skipped the round's `finally`. A still-connected Prometheus keeps `compose down` from removing the network.
+- **Fixed: the test timeout is now the stall limit + 10 min.** The stall timer starts only after `stackUp`, which can take up to 5 min, so with + 5 the two deadlines could coincide.
+- **Fixed: the port probe destroys any connection it accepts.** Otherwise a client that connected during the probe would hold `close()` open.
+- **Declined: stopping G's trace and closing the browsers from `afterEach`.**
+  - After a real timeout, the stall timer has already failed to unstick the round.
+  - A call to G there can hang like the one that timed out.
+  - The worker restart that follows a failed test closes the browsers anyway.
