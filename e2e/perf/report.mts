@@ -81,7 +81,11 @@ for (const name of (await readdir(run)).filter((n) => n.startsWith("round-")).so
     outage: null,
   };
   perRound.push(row);
-  if (!raw || abort) continue;
+  if (!raw || abort) {
+    // A join that timed out stays one of 003's attempts though the round then aborted (#238).
+    if (signals.some((s) => s.kind === "join-timeout")) pool("003 G", name, [{ marker: name, t0: NaN }], [], 0);
+    continue;
+  }
 
   const readings = (device: Device): RoundClock => [raw.start, ...(raw.mid ?? []), raw.end].map((r) => offsetFrom(r[device]));
   const clocks: Record<Device, RoundClock> = { H: readings("H"), G: readings("G") };
