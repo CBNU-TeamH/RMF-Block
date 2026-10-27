@@ -94,8 +94,8 @@ jobs:
     # 24.04's `7.0.0-1017-azure` kernel as an incompatible one and exits.
     runs-on: ubuntu-22.04
     env:
-      # The server refuses to start without one (lib/workspace-config.ts), and
-      # there is no .env here. Also what the join assertions below type in.
+      # Seeds the workspace at startup (lib/workspace-config.ts), so the join
+      # assertions below have a password to type in; there is no .env here.
       WORKSPACE_PASSWORD: ci-smoke-test
       # Compose refuses to start Yorkie without these two (#200).
       YORKIE_ADMIN_PASSWORD: ci-yorkie-admin-1

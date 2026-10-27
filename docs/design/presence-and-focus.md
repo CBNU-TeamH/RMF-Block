@@ -380,13 +380,11 @@ metrics — rejected in #95 with that reasoning, not forgotten.
 
 ### Why x is measured against the block, not the container
 
-The scroll container carries `-ml-4 pl-4` — load-bearing for the drag handle, which is why it
-cannot simply be dropped. That padding puts a block's `offsetLeft` at 16 while an absolutely
-positioned overlay's `left: 0` sits at the padding box edge, and `clientWidth` and
-`getBoundingClientRect().width` disagree by a scrollbar. Measuring `x` as a fraction of the
-block's **own** box sidesteps all three: `offsetLeft`/`offsetWidth` are in exactly the space
-`offsetTop`/`offsetHeight` already are, so the two axes compose by construction rather than by
-arithmetic that has to be kept in step.
+The blocks sit in a centred, padded column inside the scroll container, so a block's left edge
+moves with the window width, and `clientWidth` and `getBoundingClientRect().width` disagree by a
+scrollbar. Measuring `x` as a fraction of the block's **own** box sidesteps both:
+`offsetLeft`/`offsetWidth` are in the same `offsetParent` space as `offsetTop`/`offsetHeight`, so
+the two axes compose by construction rather than by arithmetic that has to be kept in step.
 
 That is what `readBoxes` widened for. `InkBox` is `BlockBox` plus the horizontal half, and
 `Array<InkBox>` satisfies every `Array<BlockBox>` parameter, so the scroll-anchor callers did not

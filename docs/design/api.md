@@ -363,7 +363,7 @@ Chat has two candidate implementations (§5). These REST endpoints belong to **v
 | Direction | Call | Purpose | Traceability |
 | --- | --- | --- | --- |
 | Yorkie → server | `POST /api/internal/yorkie/auth` (auth webhook) | Yorkie asks us to authorize each client operation: validate the token and that its session is still live (workspace-membership and per-document access checks are not built) | Execution arm of the FR-010/FR-020 auth chain, NFR-SEC-002/005 |
-| Server → Yorkie | Admin API, read-only — document summaries and active editors | Supplementary source for who is editing what | FR-040 (support), FR-022-06 (support) |
+| Server → Yorkie | Admin API — `LogIn`, `ChangePassword`, `UpdateProject` at startup (webhook registration, below); `GetProject`, `GetDocuments` for the file manager's document roots ([`file-manager.md`](file-manager.md)) | Wire the auth webhook; list the documents files belong to | FR-020 (support), FR-050 (support) |
 
 **Implemented.** Yorkie's port is still published, but reaching it no longer gets anyone in:
 without a token this server issued, a client is refused at `ActivateClient`, before it touches a
@@ -373,7 +373,8 @@ shared screen under UC-030, never see it), the browser passes that through the S
 `authTokenInjector`, and this webhook answers. The host has no workspace session, so the
 `role` cookie is exchanged under the `host:<secret>` prefix (`HOST_SESSION_PREFIX`) and the
 webhook allows such a token without a session lookup; revoking the host is the restart, which
-clears the secret and the token registry together. Startup writes the webhook onto Yorkie's project
+clears the token registry and, unless `HOST_SECRET` is pinned (the authentication model above),
+the secret. Startup writes the webhook onto Yorkie's project
 itself, over the Admin API (below).
 
 The webhook asks two questions, not one. A token can be valid while the session behind it is

@@ -60,7 +60,7 @@ MongoDB is Yorkie's internal store — the App/WS Server never connects to it, a
 
 The wire protocol is Yorkie's own client SDK — not ours to design. What we do own is the **shape of data placed inside it**:
 
-- **Document schema** (CRDT document content — persisted, shared): every block has a common envelope `{ id, type }`; `type` is one of the twelve block types in SRS §4.1 (텍스트, 제목, 목록, 체크리스트, 인용문, 코드, 구분선, 파일, 이미지, PDF, 문서 링크, 블록 링크). Each type owns its own `content` payload shape. Block order is the Yorkie Array position itself, not a stored field — there is no `order` field. Field-level detail is settled in [`document-editing.md`](document-editing.md), which covers all twelve types.
+- **Document schema** (CRDT document content — persisted, shared): every block has a common envelope `{ id, type }`; `type` is one of the block types in SRS §4.1, listed in [`document-editing.md`](document-editing.md). Each type owns its own `content` payload shape. Block order is the Yorkie Array position itself, not a stored field — there is no `order` field. Field-level detail is settled there.
 - **Presence schema** (ephemeral, per-connected-client — not persisted): the fields are in `lib/presence/types.ts` and `lib/presence/occupancy.ts`, explained in [`presence-and-focus.md`](presence-and-focus.md). `activeBlockId` is the block-occupancy signal (SIR003 — display-only, never a lock, per FR-022-06).
 
 ### (b) Client ↔ App/WS Server (API groups)
@@ -124,7 +124,7 @@ production a failure there is fatal. Why it exits rather than throws, and the de
 | Presence and focus ride the client-to-Yorkie channel; no server-side present/follow state ([`presence-and-focus.md`](presence-and-focus.md)) | |
 | App/WS Server runs as one process — a Next.js custom server handling REST + WebSocket together, not split across services | |
 | Reconnect grace period = 30s (UC-022 비고) | |
-| Block schema field-level detail per type (`document-editing.md`, all 12 types agreed) | |
+| Block schema field-level detail per type (`document-editing.md`, every type agreed) | |
 | Document key = plain id (no prefix); revoke-all = container restart — see the auth model in [`api.md`](api.md#authentication-model) | |
 | FR-022 numbering gap (05/07/08/10/11) confirmed intentional | |
 

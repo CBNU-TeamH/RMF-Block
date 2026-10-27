@@ -24,8 +24,10 @@ it to hold anything else. On it:
   chat file list's (`kindOf` in `lib/chat/attachments.ts`), so a file sits under the same tab in
   both places; here the third is named 기타, since "문서" would read as the file's source.
 - **A table**, newest first: name, source, size, uploaded by, date (FR-050-02).
-- **Per row**: 미리보기 (FR-050-03, below) for the types the preview route serves inline — images
-  and PDFs; 기타 is download-only until UC-080's viewers exist. 원본 위치 (E3-3) and 내려받기
+- **Per row**: 미리보기 (FR-050-03, below) for the types the preview route serves inline
+  (`INLINE_TYPES` in `lib/files/serving.ts`); 기타 is download-only until UC-080's viewers exist. A
+  chat image of another type, an SVG for one, still sits under 이미지 but is download-only, because
+  chat uploads keep the type the client claimed. 원본 위치 (E3-3) and 내려받기
   (FR-050-04).
 
 The list is fetched when the page opens. Nothing asks for it to update live.
@@ -81,7 +83,8 @@ server logs why.
 - **A document file** opens its document at the block and highlights it (step 4). This is the
   jump to a person (UC-040) without the person: `goToBlock` in `focus-follow-provider.tsx` sets the
   same scroll target, marked `highlight`, and the editor flashes the block when it lands
-  (`flash` in `ui.tsx`). Like that jump, it asks before leaving a follow.
+  (`flash` in `ui.tsx`). Like that jump, it pauses a follow it is in (재개 undoes that; see
+  [`presence-and-focus.md`](presence-and-focus.md), "Pausing a follow").
 - **A chat file** opens the chat window at its message and highlights it. The window now wraps the
   workspace shell so anything in it can call `useOpenChatAt`; the panel scrolls once the message
   is in its history, which may arrive with the backfill.

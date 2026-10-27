@@ -4,10 +4,9 @@
 - **Owns**: `lib/blocks/`, `lib/documents/`, `app/(workspace)/documents/`, `app/api/documents/`,
   `app/(workspace)/document-list.tsx`, `app/(workspace)/document-actions.tsx`,
   `app/(workspace)/document-row-menu.tsx` (the sidebar's document tree and its row actions).
-  Two files under the third path are more specifically owned elsewhere, and those file-level
-  claims win over this directory-level one: its use-focus-presence hook, by
-  [`docs/design/presence-and-focus.md`](presence-and-focus.md), and a block's ··· menu
-  (`block-menu.tsx`), by [`docs/design/chat.md`](chat.md).
+  A file under the third path that another doc names at file level is owned there, and that claim
+  wins over this directory-level one: [`presence-and-focus.md`](presence-and-focus.md),
+  [`chat.md`](chat.md) and [`version-history.md`](version-history.md) each claim some.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(a), §5; [`docs/SRS-ko.md`](../SRS-ko.md) §4.1
 
 ## Scope
@@ -700,7 +699,7 @@ does the same, because `Math.trunc` of one is `NaN` and `counters.length = NaN` 
 `readBlocks` alone closes that path, since every rendered block comes through it; the other two are
 there so the value is never stored in the first place.
 
-**Tab is intercepted only on a list block.** Everywhere else it keeps its default and moves focus.
+**Tab is intercepted only on a list block and inside a table cell** (where it moves between cells). Everywhere else it keeps its default and moves focus.
 Trapping Tab inside every textarea would leave a keyboard user unable to get out of the editor, and
 that trade — one key on one block type — is cheaper than an editor nobody can leave.
 

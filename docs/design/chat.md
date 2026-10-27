@@ -127,6 +127,7 @@ type ChatMessage = {
   text: string;
   sentAt: string;
   attachment?: ChatAttachment;
+  link?: ChatLink; // "Links" below
 };
 ```
 
