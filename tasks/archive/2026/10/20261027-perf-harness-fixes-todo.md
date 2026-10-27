@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-27
 **Issue**: #217, #218, #238
-**Design**: none — harness robustness and one report rule the criteria already state (#191 "Report shape"); [`docs/perf/runbook-ko.md`](../../docs/perf/runbook-ko.md) §16 changes with it
+**Design**: none — harness robustness and one report rule the criteria already state (#191 "Report shape"); [`docs/perf/runbook-ko.md`](../../../../docs/perf/runbook-ko.md) §16 changes with it
 
 ## Milestones
 
@@ -39,7 +39,7 @@
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior. For each relevant layer, name existing tests
 that cover it, required updates/new cases, or a concrete reason no change is needed.
 

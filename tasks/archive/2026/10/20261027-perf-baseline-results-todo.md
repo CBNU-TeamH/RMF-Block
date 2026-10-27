@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-27
 **Issue**: #191 (judgment cell + ramps), #193 (congestion presets and outage recovery)
-**Design**: none — this records numbers measured under [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../../docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md); it changes no rule
+**Design**: none — this records numbers measured under [`docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md`](../../../../docs/PERFORMANCE-QUANTIFICATION-CRITERIA-ko.md); it changes no rule
 
 ## Milestones
 
@@ -44,7 +44,7 @@
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior. For each relevant layer, name existing tests
 that cover it, required updates/new cases, or a concrete reason no change is needed.
 
@@ -58,12 +58,12 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 
 ## Acceptance
 
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] `docs/perf/v0.1.0-baseline.md` has #191's two results tables filled in for `judge3`, plus the per-round θ/U, memory and `docker stats` peaks, and the conditions.
-- [ ] Each #193 cell has its applied settings, measured RTT, pooled p95 per direction (or per-path recovery), and a check that the degradation was removed.
-- [ ] Failed rounds are shown as failures. Replaced rounds have their class and reason. The 1st/2nd runs are both shown.
-- [ ] #37's failures (session reconnect never happens) are reported separately.
-- [ ] `pnpm verify:docs` passes.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] `docs/perf/v0.1.0-baseline.md` has #191's two results tables filled in for `judge3`, plus the per-round θ/U and memory, and the conditions. `docker stats` is given as each cell's peak, in one resource table, not per round.
+- [x] Each #193 cell has its applied settings, measured RTT, pooled p95 per direction (or per-path recovery), and a check that the degradation was removed.
+- [x] Failed rounds are shown as failures. Replaced rounds have their class and reason. The 1st/2nd runs are both shown.
+- [x] #37's failures (session reconnect never happens) are reported separately.
+- [x] `pnpm verify:docs` passes.
 
 ## Cross-cutting
 
