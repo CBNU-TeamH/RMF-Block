@@ -92,6 +92,19 @@ export function account(
   return { attempted: sends.length, observed: sends.length - timedOut, timedOut, unmatched, duplicate, samples };
 }
 
+/** A round's NFR-PER-003 attempt: G's join from its events, or a timed-out one from the
+ *  `join-timeout` signal of a round that aborted before writing events (#238). `null` when G
+ *  never tried to join. */
+export function joinAttempt(
+  events: Array<{ device: string; item: string; kind: string; t: number }>,
+  signals: Array<{ kind: string }>,
+): { t0: number; t1?: number } | null {
+  const at = (kind: string) => events.find((e) => e.device === "G" && e.item === "003" && e.kind === kind)?.t;
+  const t0 = at("send");
+  if (t0 === undefined && !signals.some((s) => s.kind === "join-timeout")) return null;
+  return { t0: t0 ?? NaN, t1: at("recv") };
+}
+
 /** The ECDF over attempts, finite samples only: each step is its rank over every attempt, so a
  *  timed-out attempt never appears yet still holds the curve below 1 (the gap is the time-outs). */
 export function ecdf(samples: Array<number>): Array<{ ms: number; share: number }> {

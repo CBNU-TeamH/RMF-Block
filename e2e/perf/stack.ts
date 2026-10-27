@@ -25,10 +25,10 @@ export type StackOptions = {
 };
 export type Stack = StackOptions & { file: string; containers: Array<string> };
 
-/** Docker Desktop releases a finished round's published port a moment after `compose down`
- *  returns, so the check retries for a minute before it calls the port taken (#217). */
-export async function free(host: string, port: number) {
-  for (let attempt = 0; ; attempt++) {
+/** Throws if the port is taken, once `waitMs` has passed without it coming free. */
+export async function free(host: string, port: number, waitMs = 0) {
+  const deadline = Date.now() + waitMs;
+  for (;;) {
     const server = net.createServer();
     try {
       await new Promise<void>((resolve, reject) => {
@@ -39,8 +39,8 @@ export async function free(host: string, port: number) {
       return;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EADDRINUSE") throw error;
-      if (attempt >= 30) throw new Error(`Port ${host}:${port} is in use; stop whatever holds it.`);
-      await delay(2000);
+      if (Date.now() >= deadline) throw new Error(`Port ${host}:${port} is in use; stop whatever holds it.`);
+      await delay(500);
     }
   }
 }
@@ -57,8 +57,7 @@ type Service = {
 /** One round's own Compose project, read from the base file only so the clone's override (a
  *  source build) never applies — the same renaming and refusals as `scripts/e2e-isolated.mjs`. */
 export async function stackUp(options: StackOptions): Promise<Stack> {
-  await free(options.bind, options.appPort);
-  await free(options.bind, options.yorkiePort);
+  await Promise.all([free(options.bind, options.appPort), free(options.bind, options.yorkiePort)]);
   // Fresh per round, like the volume, in the shape `scripts/ensure-yorkie-secrets.sh` generates.
   const config = JSON.parse(await docker(
     ["compose", "-f", "docker-compose.yml", "config", "--format", "json"],
@@ -129,6 +128,9 @@ export async function stackDown(stack: Stack): Promise<void> {
   } finally {
     await docker([...compose, "down", "--volumes", "--remove-orphans"]);
   }
+  // Docker Desktop releases the published ports a moment after `down` returns; the next round
+  // would otherwise find them taken (#217).
+  await Promise.all([free(stack.bind, stack.appPort, 60_000), free(stack.bind, stack.yorkiePort, 60_000)]);
 }
 
 /** `docker stats` for the round's containers every 5 s into `docker-stats.jsonl`, until `stop()`. */

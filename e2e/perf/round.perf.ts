@@ -26,8 +26,7 @@ const APP_PORT = Number(env.PERF_APP_PORT ?? 3000);
 const YORKIE_PORT = Number(env.PERF_YORKIE_PORT ?? 8080);
 const G_WS = env.PERF_G_WS || undefined;
 const OBSERVE = env.PERF_OBSERVE === "1";
-/** A round still open after this is stalled (#218): the work, the presenter or outage phase, and
- *  ten minutes for setup and checks. Real rounds took 13 min at 10 minutes and 6 at 2 + 40 s. */
+/** A round still open after this many minutes is stalled and closed (#218; runbook appendix). */
 const STALL_MINUTES = Number(env.PERF_STALL_MINUTES ?? 2 * MINUTES + OUTAGE / 60 + 10);
 const PASSWORD = env.E2E_WORKSPACE_PASSWORD!;
 const BASE_URL = `http://${HOST}:${APP_PORT}`;
@@ -189,8 +188,8 @@ async function verify(r: Round, actors: Array<Actor>) {
 
 const jsonl = (rows: Array<object>) => rows.map((row) => JSON.stringify(row)).join("\n") + (rows.length ? "\n" : "");
 
-/** The round's stack until its `finally` takes it down. A Playwright timeout skips that `finally`
- *  but still runs `afterEach`, so a stack is never left holding the next round's ports (#218). */
+/** The round's stack, taken down here rather than in the round's `finally`: a Playwright timeout
+ *  skips that `finally` but still runs `afterEach` (#218). */
 let leftover: Stack | null = null;
 test.afterEach(async () => {
   const stack = leftover;
@@ -200,6 +199,7 @@ test.afterEach(async () => {
 
 for (let round = 1; round <= ROUNDS; round++) {
   test(`round ${round}`, async ({ users, browser }) => {
+    test.setTimeout((STALL_MINUTES + 5) * 60_000); // after the stall timer, with room for the cleanup
     const dir = path.join(RUN_DIR, `round-${String(round).padStart(2, "0")}`);
     await mkdir(dir, { recursive: true });
     const write = (name: string, data: string) => writeFile(path.join(dir, name), data);
@@ -256,10 +256,10 @@ for (let round = 1; round <= ROUNDS; round++) {
       : null;
     const stall = setTimeout(() => {
       r.notes.push({ at: now(), who: "harness", phase: r.phase, kind: "stalled" });
-      // Rejects whatever call hangs, so the catch and finally below still run. G's connection stays
-      // open: only the session that started G's trace can end it.
-      for (const b of [browser, ...browsers]) for (const context of b.contexts()) void context.close().catch(() => {});
-      void browsers[0]?.close().catch(() => {}); // H's own, for a hang before its context exists
+      // Rejects whatever call hangs, so the catch and finally below still run: H's browser closes
+      // whole, the background users' and G's contexts only, since G's trace ends on its connection.
+      void browsers[0]?.close().catch(() => {});
+      for (const b of [browser, browsers[1]]) for (const context of b?.contexts() ?? []) void context.close().catch(() => {});
     }, STALL_MINUTES * 60_000);
     try {
       const hBrowser = await chromium.launch(measuringLaunch());
@@ -376,9 +376,9 @@ for (let round = 1; round <= ROUNDS; round++) {
       } finally {
         try {
           if (memory) await Promise.allSettled([memory.H.stop(), memory.G.stop()]);
-          for (const browser of browsers) await browser.close().catch(() => {});
+          for (const b of browsers) await b.close().catch(() => {});
         } finally {
-          // Before `stackDown`: a connected Prometheus keeps `compose down` from removing the network.
+          // Before `afterEach`'s `stackDown`: a connected Prometheus keeps `compose down` from removing the network.
           if (observed) {
             await detach(observed, marks).catch(async (error) => {
               // Kept apart from the signals: an observer cleanup failure says nothing about NFR-PER.
@@ -387,8 +387,6 @@ for (let round = 1; round <= ROUNDS; round++) {
               await write("meta.json", JSON.stringify(meta));
             });
           }
-          leftover = null;
-          await stackDown(stack);
         }
       }
     }
