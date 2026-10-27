@@ -57,6 +57,12 @@ describe("document link addresses", () => {
     assert.equal(parseDocumentLink("http://localhost:3000/documents/%E0%A4"), null);
   });
 
+  it("are not an address followed by more lines", () => {
+    assert.equal(parseDocumentLink("http://h/documents/d1#block=b9\nnote"), null);
+    assert.equal(parseDocumentLink("http://h/documents/d1\n#block=b9"), null);
+    assert.equal(parseDocumentLink("http://h/documents/d1#block=b9\r\n두 번째 줄"), null);
+  });
+
   it("read the block off a hash", () => {
     assert.equal(blockFromHash("#block=b-1"), "b-1");
     assert.equal(blockFromHash(""), null);
