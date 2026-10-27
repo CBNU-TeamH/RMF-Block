@@ -39,22 +39,21 @@ browser's own viewer — with 내려받기 and 닫기; Esc and a click on the di
 is a `<dialog>` opened with `showModal()` (`file-preview-dialog.tsx`), and the chat file list
 (UC-061) and a PDF block's 전체 화면 (`pdf-block.tsx`) open the same one.
 
-It was a floating view at first. Trying the page, the maintainer found a floating view in the way
-for looking through files — small, left where it was dropped, back after a reload — and chose this
-over a panel on the right half (2026-10-18). Floating views remain for blocks and for a chat
+It is a page rather than a floating view, because a floating view is small, stays where it was
+dropped and comes back after a reload, which gets in the way when looking through files. Floating views remain for blocks and for a chat
 message's own 플로팅 뷰로 열기 (UC-070).
 
 ## Chat files are listed too
 
 UC-050 is worded for files embedded in documents; chat attachments are UC-061's, in the chat
 window. Both are listed here because someone looking for a file rarely knows which of the two it
-went through — the maintainer's call when this was designed. The source column tells them apart
+went through. The source column tells them apart
 (the document's name, or 채팅). The SRS is unchanged: this adds to UC-050 without contradicting it,
 and UC-061 still stands on its own.
 
 ## Which block holds a file
 
-The file store records the upload — and, since some point, the document — but not the block.
+The file store records the upload and the document, when the upload recorded one, but not the block.
 Rather than record it at upload, `GET /api/files` reads it from the documents on every request:
 
 - One Yorkie Admin `GetDocuments` call returns every catalogue document's root (`include_root`).

@@ -178,8 +178,7 @@ without needing to render the client component around it.
 ## What the two focus effects may depend on
 
 The presenter effect and the follower effect sit next to each other and have **opposite**
-dependency rules. Both were arrived at by measurement, and both look like mistakes until the
-reason is written down.
+dependency rules, and both look like mistakes until the reason is written down.
 
 **The presenter effect must not depend on `blocks`.** It depends on `blocksLoaded`, a boolean that
 flips once. The scroll container does not exist while `blocks` is still `null`, so the effect
@@ -268,7 +267,7 @@ pull every browser that once followed them back in with no 참여하기 pressed.
 
 A follower is never locked. Editing needs no lock for the document's sake — Yorkie's CRDT resolves
 concurrent edits, the reason block occupancy is not an edit lock either (FR-022-06) — so what
-FR-030-06 asks for instead, since #220, is that a follower who moves on their own is **paused**
+FR-030-06 asks for instead is that a follower who moves on their own is **paused**
 rather than pulled back to the presenter on the presenter's next move.
 
 Paused is local state in `FocusFollowProvider`, beside who is followed: `followingId` is the
@@ -315,8 +314,7 @@ only when it has a button.
   paused follower as well, and not for one who left with 종료. The name shown is the one kept when
   the follow began: a presenter who disconnected is no longer in the roster to look up.
 
-The header control alone was enough when a room sat together (the first slice's call), but a
-member working in another document misses a control changing in the corner. That is the gap
+A member working in another document misses a control changing in the corner. That is the gap
 UC-030's step 3 names.
 
 ## `FocusShare`'s states
@@ -386,9 +384,8 @@ scrollbar. Measuring `x` as a fraction of the block's **own** box sidesteps both
 `offsetLeft`/`offsetWidth` are in the same `offsetParent` space as `offsetTop`/`offsetHeight`, so
 the two axes compose by construction rather than by arithmetic that has to be kept in step.
 
-That is what `readBoxes` widened for. `InkBox` is `BlockBox` plus the horizontal half, and
-`Array<InkBox>` satisfies every `Array<BlockBox>` parameter, so the scroll-anchor callers did not
-change at all.
+`InkBox` is `BlockBox` plus the horizontal half, so `Array<InkBox>` satisfies every
+`Array<BlockBox>` parameter.
 
 ### Two quantizations, for two different reasons
 
@@ -444,7 +441,7 @@ Three caps follow, each with a stated basis rather than a round number:
   isn't a physical distance comparable across blocks). The figure follows the precedent issue #95
   already cites, Yorkie's own cursors example, which thins at the same 2px.
 - **`MAX_POINTS_PER_MARK = 600`** — `MARK_CAP` bounds how many marks a member may hold, but never
-  looked inside one, and a mark is no longer the fixed ~110-byte shape it was sized against. 600
+  looked inside one, so a cap on points per mark is needed as well. 600
   points is ~1,200px of accepted travel at the 2px floor, enough for one horizontal pass across a
   laptop-width pane. Past the cap, extending a mark is a no-op: the stroke freezes rather than
   losing its start, which would be more code and would move where the stroke appears to begin.
@@ -550,16 +547,11 @@ caret. Something has to be on top to take the drag instead. With no tool selecte
 ### The pointer needed no capture mechanism of its own
 
 FR-030-12's other half: a dot that shows where the presenter is pointing, fading a couple seconds
-after it stops moving — for gesturing while talking, not for leaving a mark. The natural worry is
-that it needs its own input-handling architecture, since underline/highlight need the SVG to
-*capture* pointer events (a bare `<textarea>` would otherwise take the caret on the first click of a
-drag). A pointer has no drag to protect.
+after it stops moving — for gesturing while talking, not for leaving a mark.
 
-That worry turns out to be moot once one product decision is made: **while the pointer tool is
-selected, clicking into the document is blocked** — exactly like the two drawing tools already are.
-Once that's true, the SVG's existing capture (`z-20 touch-none` while *any* tool is selected,
-unchanged since underline/highlight) already blocks the click underneath for free — the pointer tool
-doesn't need a reason of its own to be `z-20`, it inherits one. So the pointer is a third branch on
+**While the pointer tool is selected, clicking into the document is blocked**, as it is for the two
+drawing tools, so the SVG's existing capture (`z-20 touch-none` while *any* tool is selected) covers
+it. The pointer is a third branch on
 the handlers that already exist, not a parallel architecture: `onPointerDown` gains one line (the
 pointer tool never starts a mark), and `onPointerMove` gains a branch that publishes a position
 instead of extending a stroke. `onPointerUp`/`onPointerCancel` need no changes at all — both already

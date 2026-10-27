@@ -106,13 +106,10 @@ services:
     # lose the race to Mongo's first accepting connection and crash-loop; waiting
     # for Mongo to report healthy removes that race at the source.
     #
-    #
-    # Yorkie gets one too, which this file used to say was impossible: "its image
-    # carries no curl, wget, nc, and its shell has no /dev/tcp". The first half
-    # holds and the second does not — the image ships `/bin/bash`, and bash's
-    # `/dev/tcp` works. It is why `test` spells out `bash` rather than using
-    # `CMD-SHELL`: `/bin/sh` here is dash, which has no `/dev/tcp` and fails with
-    # "Directory nonexistent".
+    # Yorkie gets one too: its image has no curl, wget or nc, but it ships
+    # `/bin/bash`, and bash's `/dev/tcp` works. That is why `test` spells out
+    # `bash` rather than using `CMD-SHELL`: `/bin/sh` here is dash, which has no
+    # `/dev/tcp` and fails with "Directory nonexistent".
     #
     # Running is not proof on its own — with a bad Mongo URI Yorkie crash-loops
     # while `--wait` still exits 0 — so the probe asks the health endpoint

@@ -132,8 +132,8 @@ top-left (#224).
   the sidebar. A new window then covers the column's left margin, where the float buttons are,
   and the start of the text. The maintainer chose this over two alternatives: covering the
   sidebar's document list, or keeping the top right with a bottom-left grip.
-- **A window restored from `localStorage` stays where it was saved**, at the top right for one
-  saved before this change. Where a window sits may be where its owner put it.
+- **A window restored from `localStorage` stays where it was saved.** Where a window sits may be
+  where its owner put it.
 
 ## Moving and resizing
 

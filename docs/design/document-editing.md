@@ -23,8 +23,8 @@ Block = { id: string (uuid), type: string, content: <type-specific, see below> }
 
 - `root.blocks` is a **Yorkie Array**, not an Object keyed by id. Yorkie's Array is RGA-backed, so concurrent inserts at the same position already converge deterministically — block order is the array position itself, not a stored field.
 - Reordering (FR-022-04) uses the array's native `moveAfter`/`moveFront` — no custom merge logic, per ADR-001.
-- `id` stays on every block regardless of position, since presence (`activeBlockId`) and the future 블록 링크 블록 need a stable reference independent of array order.
-- Block/text color and styling is intentionally not part of any block's `content` below; the question was tracked in [issue #6](https://github.com/CBNU-TeamH/RMF-Block/issues/6) (closed).
+- `id` stays on every block regardless of position, since presence (`activeBlockId`) and the 블록 링크 block need a stable reference independent of array order.
+- Block/text color and styling is intentionally not part of any block's `content` below.
 
 ## Every text-bearing block wraps its text
 
@@ -731,9 +731,8 @@ Neither caller can name the depth itself — the `/` menu's items are static and
 carries none — so `preservingDepth` (`lib/blocks/indent.ts`) carries it from the block being
 converted, at both call sites.
 
-`level`, `style` are not protected the way `depth` now is — the same silent-flatten shape applies
-to either of them the moment two block types share one, and nothing today would catch it before a
-user does.
+Only `depth` is preserved; `level` and `style` would be flattened the same way if two block types
+ever shared one.
 
 ### Three places a drag can land
 

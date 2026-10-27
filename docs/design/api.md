@@ -154,8 +154,7 @@ ceiling a guest who knows the password could spend the process's memory one join
 through a session and still bounds the damage.
 
 **A failed write rolls back only for a new member.** The two cases are not the same failure. A
-returning member is already on disk, so a failed write costs only a fresher `lastJoinedAt` — the
-state this app ran in before members persisted at all. A brand-new member was never durable, and
+returning member is already on disk, so a failed write costs only a fresher `lastJoinedAt`. A brand-new member was never durable, and
 every mutation belongs to that one call (they cannot have displaced anyone, so there is nothing to
 put back); leaving those in place would strand a session nobody holds, and the nickname would read
 as taken until the process restarted.
@@ -298,9 +297,7 @@ is what the error message says. The request carrying it is larger: `content-leng
 `multipart/form-data` body — boundary lines, each part's headers, the CRLFs. So the declared length
 is measured against its own slightly higher ceiling, and only the parsed `file.size` is measured
 against 25 MB. The first check exists to bound what `formData()` will buffer, not to decide the
-verdict; collapsing them onto one constant is what made a file of exactly 25 MB fail
-([#57](https://github.com/CBNU-TeamH/RMF-Block/issues/57)), and raising that one constant instead
-would have admitted a genuinely oversized file.
+verdict ([#57](https://github.com/CBNU-TeamH/RMF-Block/issues/57)).
 
 File responses are `Cache-Control: private`. They cross a LAN that may have caches of its own in front of them, and a file belongs to one workspace — `private` keeps a shared cache from holding one and serving it on.
 
@@ -363,7 +360,7 @@ Chat has two candidate implementations (§5). These REST endpoints belong to **v
 | `POST` | `/api/chat` | Send and persist a message | guest | FR-060-01~03/05 | — |
 | `POST` | `/api/chat/files` | Upload a file to attach to a message | guest | FR-060-02 | ✅ |
 
-`POST /api/chat/files` is not in the original draft but is unavoidable: chat attachments are bytes, and bytes cannot go through Yorkie, so both chat versions need this REST path even when version B carries the messages themselves over CRDT.
+`POST /api/chat/files` is unavoidable: chat attachments are bytes, and bytes cannot go through Yorkie, so both chat versions need this REST path even when version B carries the messages themselves over CRDT.
 
 ## 2. RPC — rmf-block-server ↔ Yorkie
 
