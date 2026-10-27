@@ -51,6 +51,19 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 - Container smoke (`.github/workflows/ci.yml`): no change, because nothing here touches the stack's images or startup.
 - Perf harness itself: a one-machine stall run on H (milestone 2's Done). It is run by hand, because a hang cannot be staged in CI.
 - Commands and observed results (fill in before the PR):
+  - `vitest run e2e/perf`: 3 files and 20 tests pass.
+    - `report.test.mts` runs the whole report process, which takes about 50 s on a WSL `/mnt/c` checkout, so its timeout is 120 s.
+  - `tsc --noEmit`, `eslint` on the six changed files, `verify:docs`, `comment-budget`: clean.
+  - `perf:report` on a copy of `judge3`:
+    - `003 G` changes from "19 / 19 / 0, n<20" to "20 attempted, 19 observed, 1 timed out, p95 635 ms, pass".
+    - Every other row is unchanged. The 003 row now prints first, because round-01 pools it first.
+  - **H, one machine** (`PERF_SINGLE_MACHINE=1 PERF_ROUNDS=2 PERF_USERS=2 PERF_MINUTES=1 PERF_STALL_MINUTES=2`, harness `ffa0fac`, 2026-10-27 14:31–14:36):
+    - Both rounds hit the limit in the presenter phase and wrote `stalled` (phase `window`). About 0.3–1 s later they wrote `aborted: page.evaluate: Target page, context or browser has been closed`.
+    - Each round finished in 2.6–2.7 min with `signals.jsonl`, `meta.json`, `plan.jsonl` and `server.log` written.
+    - Round 2 started without a port abort, and `docker compose ls` was empty afterwards.
+  - **Not run on the rig**:
+    - **The remote-G path.** G's browser server was down, so the check that a stalled round ends G's trace and leaves the next round free of "still tracing" was not repeated. The same close-the-page mechanism ended `ramp4-b` round-02 that way on 2026-10-26.
+    - **The `afterEach` path** after a real 40-min timeout. It was checked only with a throwaway spec.
 
 ## Acceptance
 
