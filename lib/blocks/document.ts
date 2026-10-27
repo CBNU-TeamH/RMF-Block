@@ -150,10 +150,9 @@ function readBlock(stored: ReadableBlock | null): Block | null {
     case "divider":
       return { id, type: "divider" };
 
-    // `block-link` has no creator yet (the others are in `lib/blocks/create.ts`),
-    // so one that turns up came from elsewhere. Read anyway rather than dropped: a document that
-    // renders half its blocks is worse than one that renders a file block
-    // with a blank name.
+    // A stored block missing its content is read anyway rather than dropped: a
+    // document that renders half its blocks is worse than one that renders a
+    // file block with a blank name.
     case "file":
       return {
         id,

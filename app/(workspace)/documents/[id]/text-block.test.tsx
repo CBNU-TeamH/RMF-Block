@@ -20,6 +20,7 @@ function renderBlock(
   initialText = "",
 ) {
   const onSplit = vi.fn();
+  const onPasteBlocks = vi.fn();
   let handler: (patch: TextPatch) => void = () => {};
   render(
     <TextBlockView
@@ -41,13 +42,13 @@ function renderBlock(
       onSlashSelect={vi.fn()}
       onFocusBlock={vi.fn()}
       onIndent={vi.fn()}
-      onPasteBlocks={vi.fn()}
+      onPasteBlocks={onPasteBlocks}
       onHistory={vi.fn()}
     />,
   );
 
   const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
-  return { textarea, onSplit, remote: (patch: TextPatch) => handler(patch) };
+  return { textarea, onSplit, onPasteBlocks, remote: (patch: TextPatch) => handler(patch) };
 }
 
 function menuLabels(): Array<string> {
@@ -197,5 +198,29 @@ describe("TextBlockView's remote edits", () => {
 
     assert.equal(live(), "가가Xb");
     assert.equal(textarea.value, live());
+  });
+});
+
+describe("pasting a block address", () => {
+  const address = "http://192.168.0.2:3000/documents/d1#block=b9";
+  const paste = (textarea: HTMLTextAreaElement, text: string) =>
+    fireEvent.paste(textarea, { clipboardData: { getData: () => text } });
+
+  it("is handed to the editor when the block is empty", () => {
+    const { textarea, onPasteBlocks } = renderBlock();
+    paste(textarea, address);
+    assert.deepEqual(onPasteBlocks.mock.calls, [["b1", address]]);
+  });
+
+  it("stays an ordinary paste in a block that already has text", () => {
+    const { textarea, onPasteBlocks } = renderBlock({ type: "text" }, null, "memo ");
+    paste(textarea, address);
+    assert.equal(onPasteBlocks.mock.calls.length, 0);
+  });
+
+  it("stays an ordinary paste for a document address with no block", () => {
+    const { textarea, onPasteBlocks } = renderBlock();
+    paste(textarea, "http://192.168.0.2:3000/documents/d1");
+    assert.equal(onPasteBlocks.mock.calls.length, 0);
   });
 });

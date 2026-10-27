@@ -580,9 +580,15 @@ brings the link back to life. The deleted document's own file blocks, hidden whi
 trash, come back the same way ([`api.md`](api.md#files)). The picker leaves the current document out of its own
 list, since a link to the page you are on is a loop with only a back button out.
 
-`block-link` (type 12) still has no creator. A way to point at one block now exists: a block's ···
-menu in the gutter, left of the floating view's button, copies the block's address (링크 복사) or
-sends it to chat ([`chat.md`](chat.md), "Links"). Nothing yet turns that address into a block.
+**A block link (type 12) is made by pasting a block address.** The block's ··· menu in the gutter,
+left of the floating view's button, copies its address (링크 복사) or sends it to chat
+([`chat.md`](chat.md), "Links"). Pasting that address into an *empty* block puts a `block-link`
+block above it — the way a divider is inserted, so the empty block stays under it for whatever is
+typed next. This is the one single-line paste that reaches `handlePaste`; into a block that already
+has text, or a document address with no `#block=`, the paste stays ordinary text. The block stores
+`documentId` and `blockId` only. Clicking it goes where a chat link goes (`goToBlock`); a target
+document that is gone renders as unavailable, and a deleted block cannot be told from here, so it
+lands on its document.
 
 ## Undo is per person, and it is Yorkie's
 
@@ -638,7 +644,7 @@ empty document.
 **A single-line paste is not a block operation.** It goes through the textarea's own default,
 which already lands at the caret, mid-word, and fires `onInput` after. Only a newline in the
 clipboard makes a paste structural — which keeps the common paste on the path that already works,
-and means the code below is never reached by the ordinary case.
+and means the code below is never reached by the ordinary case. (The exception is a block address pasted into an empty block; see "The document link block" below.)
 
 A multi-line paste becomes one block per line. **The first line reuses the block being pasted
 into** rather than inserting above it: that block already holds the caret, and making a new one to

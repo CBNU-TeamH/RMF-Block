@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
 import {
+  createBlockLink,
   createChecklist,
   createCode,
   createDivider,
@@ -130,5 +131,18 @@ describe("block factories", () => {
     assert.equal(pdf.fileName, "보고서.pdf");
     assert.equal(pdf.size, 2048);
     assert.deepEqual(Object.keys(pdf).sort(), ["fileId", "fileName", "id", "size", "type"]);
+  });
+});
+
+describe("createBlockLink", () => {
+  it("keeps the target's ids and nothing else", () => {
+    const link = createBlockLink("doc-1", "block-9");
+    assert.match(link.id, UUID_V4);
+    assert.deepEqual({ ...link, id: "x" }, {
+      id: "x",
+      type: "block-link",
+      documentId: "doc-1",
+      blockId: "block-9",
+    });
   });
 });

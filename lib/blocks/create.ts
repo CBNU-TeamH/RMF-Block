@@ -1,6 +1,7 @@
 import { listDepth } from "./document.ts";
 import type {
   BlockId,
+  BlockLinkBlock,
   ChecklistBlock,
   CodeBlock,
   DividerBlock,
@@ -102,6 +103,13 @@ export function createImage(file: {
  *  first time anyone renames — unlike a file block's name, which cannot. */
 export function createDocLink(documentId: string): DocLinkBlock {
   return { id: newBlockId(), type: "doc-link", documentId };
+}
+
+/** SRS §4.1 type 12: the 문서 ID + 블록 위치 pair. Nothing about the target is
+ *  cached, for the reason `createDocLink` gives — and `blockId` is the target's
+ *  stable id, never its array position. */
+export function createBlockLink(documentId: string, blockId: BlockId): BlockLinkBlock {
+  return { id: newBlockId(), type: "block-link", documentId, blockId };
 }
 
 /** FR-022-13, and the fallback for every type FR-022-14 does not name a viewer
