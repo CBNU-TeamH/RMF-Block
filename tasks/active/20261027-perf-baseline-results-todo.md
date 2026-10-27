@@ -28,10 +28,11 @@
     - `judge`, `judge-b`, `judge-c`, `judge2`: U over 10 ms under the old rule (#215). Superseded by `judge3` after #226.
     - `ramp4`, `ramp4-b`: the reasons are taken from the #191 comments.
     - Rounds that were not replaced stay in the table even when they failed.
-  - **Issues found** in this campaign (#209–#241), one line each, with their state.
+  - **Issues found** in this campaign (#209–#241), one line each. Their state stays in the issues.
   - **Raw data.** It stays on H, gitignored, and is not deleted until this PR merges.
 - **Done**:
-  - Every number in the doc matches the run's `summary.md` (spot-checked per table).
+  - The p95, attempt, U, memory and RTT figures match each run's `summary.md` (spot-checked per table).
+  - θ, the 003 join times and the `docker stats` peaks are read from the round files, because `summary.md` does not carry them. The doc's header says which is which.
   - The doc gives the verdict only for the judgment cell.
 
 ### 2. Point the roadmap at it
