@@ -60,7 +60,7 @@ MongoDB is Yorkie's internal store — the App/WS Server never connects to it, a
 
 The wire protocol is Yorkie's own client SDK — not ours to design. What we do own is the **shape of data placed inside it**:
 
-- **Document schema** (CRDT document content — persisted, shared): every block has a common envelope `{ id, type }`; `type` is one of the block types in SRS §4.1, listed in [`document-editing.md`](document-editing.md). Each type owns its own `content` payload shape. Block order is the Yorkie Array position itself, not a stored field — there is no `order` field. Field-level detail is settled there.
+- **Document schema** (CRDT document content — persisted, shared): every block has a common envelope `{ id, type }`; `type` is one of the block types in SRS §4.1, listed in [`document-editing.md`](document-editing.md). Each type owns its own `content` payload shape. Block order is the Yorkie Array position itself, not a stored field — there is no `order` field. Field-level detail is settled in the same doc.
 - **Presence schema** (ephemeral, per-connected-client — not persisted): the fields are in `lib/presence/types.ts` and `lib/presence/occupancy.ts`, explained in [`presence-and-focus.md`](presence-and-focus.md). `activeBlockId` is the block-occupancy signal (SIR003 — display-only, never a lock, per FR-022-06).
 
 ### (b) Client ↔ App/WS Server (API groups)
