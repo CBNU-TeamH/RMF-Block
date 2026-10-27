@@ -11,7 +11,7 @@ that the next person does not rediscover this.
 
 ## What we would do differently
 
-- **Give every job a `timeout-minutes` when it is written.** `ci.yml` had one on each job, and `release.yml` was the one without.
+- **Give a long job a `timeout-minutes` when it is written.** Most of `ci.yml`'s jobs had one, and `release.yml`, the longest, did not.
 
 ## Worth extracting
 
