@@ -25,14 +25,24 @@ export type StackOptions = {
 };
 export type Stack = StackOptions & { file: string; containers: Array<string> };
 
-async function free(host: string, port: number) {
-  const server = net.createServer();
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", (error: NodeJS.ErrnoException) =>
-      reject(error.code === "EADDRINUSE" ? new Error(`Port ${host}:${port} is in use; stop whatever holds it.`) : error));
-    server.listen(port, host, resolve);
-  });
-  await new Promise((resolve) => server.close(resolve));
+/** Docker Desktop releases a finished round's published port a moment after `compose down`
+ *  returns, so the check retries for a minute before it calls the port taken (#217). */
+export async function free(host: string, port: number) {
+  for (let attempt = 0; ; attempt++) {
+    const server = net.createServer();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(port, host, resolve);
+      });
+      await new Promise((resolve) => server.close(resolve));
+      return;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EADDRINUSE") throw error;
+      if (attempt >= 30) throw new Error(`Port ${host}:${port} is in use; stop whatever holds it.`);
+      await delay(2000);
+    }
+  }
 }
 
 type Service = {
