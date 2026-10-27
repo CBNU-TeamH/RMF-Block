@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
-import { account, ecdf, offsetFrom, p95, thetaAt, toH, uncertainty, verdict } from "./stats.mts";
+import { account, ecdf, joinAttempt, offsetFrom, p95, thetaAt, toH, uncertainty, verdict } from "./stats.mts";
 
 const range = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
 
@@ -126,5 +126,22 @@ describe("ecdf — the result chart's curve over attempts", () => {
   it("reaches 0.95 exactly at the nearest-rank p95", () => {
     const samples = [...range(19), Infinity];
     assert.equal(ecdf(samples).find((point) => point.share >= 0.95)?.ms, p95(samples));
+  });
+});
+
+describe("joinAttempt — NFR-PER-003's attempt per round", () => {
+  const send = { device: "G", item: "003", kind: "send", t: 100 };
+  const recv = { device: "G", item: "003", kind: "recv", t: 650 };
+
+  it("takes G's join from its events", () => {
+    assert.deepEqual(joinAttempt([send, recv], []), { t0: 100, t1: 650 });
+  });
+
+  it("keeps a join that timed out in a round that then aborted and wrote no events", () => {
+    assert.deepEqual(joinAttempt([], [{ kind: "join-timeout" }, { kind: "aborted" }]), { t0: NaN, t1: undefined });
+  });
+
+  it("has no attempt when the round aborted before G joined", () => {
+    assert.equal(joinAttempt([], [{ kind: "aborted" }]), null);
   });
 });

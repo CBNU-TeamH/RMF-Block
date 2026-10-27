@@ -509,7 +509,9 @@ H의 측정 브라우저는 loopback으로 서버에 붙기 때문에 열화가 
 | H에서 하네스가 `never served /join`으로 멈춤 | `HOST_LAN_IP`에 `<H_IP>`를 그대로 넣음, 또는 mirrored 모드 Windows H에 `hostAddressLoopback`이 없음 | `conditions.json`의 `host` 확인, §2.2의 `.wslconfig` 설정 |
 | 페이지는 열리는데 편집 내용이나 접속자 목록이 안 보임 | 8080 차단 | H 방화벽의 8080을 확인하고, G에서 health 응답이 `200`인지 확인 |
 | 처음부터 `⚠ 연결 끊김`이 뜸 | Yorkie 최초 연결 실패(#37) | 새로고침하지 않고 회차 실패로 기록. 반복되면 8080과 Yorkie 컨테이너 상태 확인 |
-| 회차가 `still tracing for an interrupted run`으로 바로 실패함 | 앞선 실행이 Ctrl+C나 오류로 강제 종료되면서 G 브라우저에 메모리 추적이 남음 | G에서 브라우저 서버를 `Ctrl+C`로 끄고 `pnpm perf:browser`로 다시 띄운 뒤, 새 주소로 `PERF_G_WS`를 다시 정함 |
+| 회차가 `still tracing for an interrupted run`으로 바로 실패함 | 앞선 실행을 Ctrl+C로 끊어서 G 브라우저에 메모리 추적이 남음(멈춘 회차는 하네스가 스스로 추적을 끄므로 이 원인이 아님) | G에서 브라우저 서버를 `Ctrl+C`로 끄고 `pnpm perf:browser`로 다시 띄운 뒤, 새 주소로 `PERF_G_WS`를 다시 정함 |
+| 회차가 `aborted`로 끝나고 다음 회차가 이어서 시작됨(`stalled`가 앞에 남기도 함) | 클릭 같은 동작이 1분 안에 끝나지 않았거나, 회차가 `PERF_STALL_MINUTES`(부록) 안에 끝나지 않아 하네스가 회차를 닫음 | 하네스를 끄지 않음. `aborted` 메시지와 `phase`로 멈춘 곳을 기록하고 §9로 분류 |
+| 회차가 바로 `Port 0.0.0.0:3000 is in use`로 실패함 | 앞 실행의 스택이나 다른 프로그램이 포트를 잡고 있음(정상으로 끝난 회차의 포트 반납은 하네스가 기다려 줌) | `docker compose ls`에서 남은 `rmf-perf-…` 프로젝트를 `docker compose -p <이름> down --volumes`로 지움 |
 | H가 G 브라우저 서버에 연결하지 못함 | G 방화벽, 주소 오타, Playwright 버전 불일치 | §2.1의 커밋이 두 기기에서 같은지, §3의 G 방화벽 확인 |
 | 시계 offset이 회차마다 크게 다름 | 한쪽 기기가 절전에 들어갔거나, 시간 동기화로 시계가 점프함 | §4 위생 항목을 다시 확인하고 그 회차는 무효 처리 |
 | 회차 도중 기기가 잠기거나 꺼짐 | 절전 설정 | §4 확인, 그 회차는 무효 처리 |
@@ -562,6 +564,7 @@ H의 측정 브라우저는 loopback으로 서버에 붙기 때문에 열화가 
 | `PERF_MINUTES` | `10` | 편집·채팅 단계 길이(분). 단절 회차에서는 앞뒤 작업 단계 각각의 길이 |
 | `PERF_ROUNDS` | `1` | 회차 수 |
 | `PERF_OUTAGE` | `0` | `20`이나 `40`이면 단절 회차(§13) |
+| `PERF_STALL_MINUTES` | `2 × PERF_MINUTES + 단절 + 10` | 회차가 이 시간(분) 안에 끝나지 않으면 하네스가 멈춘 것으로 보고 회차를 닫고 정리합니다(§16) |
 | `PERF_PRESET` | `baseline` | 결과에 적을 열화 이름. 도구는 사람이 직접 겁니다 |
 | `PERF_APP_PORT`, `PERF_YORKIE_PORT` | `3000`, `8080` | 측정 스택 포트 |
 | `PERF_BIND` | `0.0.0.0` | 포트를 열 주소 |
