@@ -55,9 +55,13 @@ export function blockFromHash(hash: string): string | null {
  *  From any host: the host's `localhost` and a guest's LAN address are the same
  *  workspace. Whether the document exists is the caller's to check. */
 export function parseDocumentLink(text: string): { documentId: string; blockId?: string } | null {
+  const trimmed = text.trim();
+  // `new URL` drops a newline or tab inside the text, so "address\nnote" would read as one
+  // address with the note glued onto its block id.
+  if (/\s/.test(trimmed)) return null;
   let url: URL;
   try {
-    url = new URL(text.trim());
+    url = new URL(trimmed);
   } catch {
     return null;
   }

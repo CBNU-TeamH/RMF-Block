@@ -12,6 +12,7 @@ import {
   slashMenuItems,
   type SlashAction,
 } from "@/lib/blocks/slash-menu";
+import { parseDocumentLink } from "@/lib/chat/links";
 import { diffRange, shiftCaret, type TextPatch } from "@/lib/blocks/text-surface";
 import { BlockNotFoundError, editBlockText, type BlockArray } from "@/lib/blocks/operations";
 import type { BlockDocumentRoot } from "@/lib/blocks/document";
@@ -519,8 +520,11 @@ export function TextBlockView({
         if (cellBinding) return;
         const text = event.clipboardData.getData("text/plain");
         // Only a newline makes this a block operation (`document-editing.md`,
-        // "Pasting more than one line").
-        if (!text.includes("\n") && !text.includes("\r")) return;
+        // "Pasting more than one line") — and a block address pasted into an
+        // empty block, which becomes a block-link block.
+        const blockAddress =
+          event.currentTarget.value === "" && parseDocumentLink(text)?.blockId !== undefined;
+        if (!blockAddress && !text.includes("\n") && !text.includes("\r")) return;
 
         event.preventDefault();
         onPasteBlocks(blockId, text);

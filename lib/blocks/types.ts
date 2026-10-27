@@ -69,9 +69,8 @@ export type DividerBlock = BlockBase & {
   type: "divider";
 };
 
-/** Of the five below only `block-link` has no creator today — it waits on a way
- *  to point at one block. All five stay typed, so `BLOCK_KINDS` and every
- *  renderer must handle them. */
+/** All five below stay typed, so `BLOCK_KINDS` and every renderer must handle
+ *  them. `block-link` is made by pasting a block address (링크 복사). */
 
 /** A reference plus display metadata cached at upload (NFR-PER-002); the bytes
  *  stay out of Yorkie. `fileType` is free-form on purpose (FR-022-13). */

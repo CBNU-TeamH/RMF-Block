@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import type { DocLinkBlock } from "@/lib/blocks/types";
 
 import { FileIcon } from "../../ui";
+import { useDocumentName } from "./use-document-name";
 
 /**
  * A link to another document (SRS §4.1 type 11).
@@ -23,28 +24,8 @@ export function DocLinkBlockView({
   /** Removing a block is the document's operation, not this component's. */
   onDelete: (blockId: string) => void;
 }) {
-  const [name, setName] = useState<string | null>(null);
-  const [missing, setMissing] = useState(false);
+  const { name, missing, failed, retry } = useDocumentName(block.documentId);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    // The catalogue, not the document itself: this needs a name, and asking
-    // Yorkie for one would mean attaching to a document nobody is reading.
-    fetch(`/api/documents/${block.documentId}`)
-      .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
-      .then((body) => {
-        if (!cancelled) setName(body.document?.name ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setMissing(true);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [block.documentId]);
 
   return (
     <div className="group/link -mx-1 flex items-center gap-2 rounded-control px-1 py-1 text-[16.5px] hover:bg-hover">
@@ -61,8 +42,18 @@ export function DocLinkBlockView({
           href={`/documents/${block.documentId}`}
           className="min-w-0 truncate font-medium text-ink underline decoration-line-strong underline-offset-4"
         >
-          {name ?? "여는 중…"}
+          {name ?? (failed ? "문서 열기" : "여는 중…")}
         </Link>
+      )}
+
+      {failed && (
+        <button
+          type="button"
+          onClick={retry}
+          className="shrink-0 h-6 rounded-control px-2 text-xs font-medium text-ink-soft hover:bg-hover"
+        >
+          이름을 불러오지 못했습니다 · 다시 시도
+        </button>
       )}
 
       {confirmingDelete ? (

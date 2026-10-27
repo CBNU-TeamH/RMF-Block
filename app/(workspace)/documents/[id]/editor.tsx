@@ -8,6 +8,7 @@ import {
   createChecklist,
   createCode,
   createDivider,
+  createBlockLink,
   createDocLink,
   createHeading,
   createList,
@@ -41,7 +42,7 @@ import {
 } from "@/lib/blocks/reorder";
 import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
-import { excerptOf } from "@/lib/chat/links";
+import { excerptOf, parseDocumentLink } from "@/lib/chat/links";
 import { HOST_PRESENCE } from "@/lib/presence/types";
 
 import { CANCEL, DIALOG_TITLE, DOCUMENT_ACTIONS_ID, FIELD_LABEL, Spinner, confirmClass, inputClass } from "../../ui";
@@ -51,6 +52,7 @@ import { Avatar } from "../../presence-avatar";
 import { useWorkspacePresence } from "../../presence-provider";
 import { DividerBlockView } from "./divider-block";
 import { BlockMenu } from "./block-menu";
+import { BlockLinkBlockView } from "./block-link-block";
 import { DocLinkBlockView } from "./doc-link-block";
 import { FileBlockView } from "./file-block";
 import { ImageBlockView } from "./image-block";
@@ -568,6 +570,16 @@ export function DocumentEditor({
   const handlePaste = (blockId: BlockId, text: string) => {
     if (!blocks) return;
 
+    // A block address pasted into an empty block (the only single-line paste
+    // that reaches here) becomes a block-link block above it, the way a divider
+    // does — the empty block stays under it for whatever is typed next.
+    const address = parseDocumentLink(text);
+    if (address?.blockId) {
+      const link = toStoredBlock(createBlockLink(address.documentId, address.blockId));
+      applyEdit((_root, array) => insertBlockAfter(array, idBeforeInOrder(order, blockId), link));
+      return;
+    }
+
     const lines = parsePaste(text);
     const first = lines[0];
     if (!first) return;
@@ -873,13 +885,11 @@ export function DocumentEditor({
           <UnsupportedBlock type={block.type} />
         );
 
-      // The two link blocks wait on the document tree (UC-021/023), which is
-      // what would give them a `documentId` to point at.
       case "link":
-        // `block-link` (SRS type 12) has no creator yet — it needs a way to
-        // point at one block inside a document, which nothing offers.
         return block.type === "doc-link" ? (
           <DocLinkBlockView block={block} onDelete={handleDeleteBlock} />
+        ) : block.type === "block-link" ? (
+          <BlockLinkBlockView block={block} onDelete={handleDeleteBlock} />
         ) : (
           <UnsupportedBlock type={block.type} />
         );

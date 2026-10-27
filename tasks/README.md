@@ -26,6 +26,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 | :--- | :--- |
 | [Perf harness: end a stalled round, retry the port check, keep a timed-out join](active/20261027-perf-harness-fixes-todo.md) | [lessons](active/20261027-perf-harness-fixes-lessons.md) |
 | [Record the v0.1.0 NFR-PER results](active/20261027-perf-baseline-results-todo.md) | [lessons](active/20261027-perf-baseline-results-lessons.md) |
+| [Drift audit: the design docs against the code since #184](active/20261023-drift-audit-todo.md) | [lessons](active/20261023-drift-audit-lessons.md) |
 | [Simple collaborative table blocks](active/20261016-table-block-todo.md) | [lessons](active/20261016-table-block-lessons.md) |
 | [Admin and user-location E2E after admin integration](active/20261007-admin-e2e-todo.md) | [lessons](active/20261007-admin-e2e-lessons.md) |
 
