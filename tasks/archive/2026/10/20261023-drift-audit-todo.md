@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-23
 **Issue**: #228
-**Design**: [`.claude/skills/doc-drift-audit/SKILL.md`](../../.claude/skills/doc-drift-audit/SKILL.md) — the procedure; this task is one run of it
+**Design**: [`.claude/skills/doc-drift-audit/SKILL.md`](../../../../.claude/skills/doc-drift-audit/SKILL.md) — the procedure; this task is one run of it
 
 ## Milestones
 
@@ -31,7 +31,7 @@
 ### 2. Audit and verify
 
 - **What**: one read-only auditor sub-agent (Sonnet) per part, then one verifier for every A/F finding.
-- **Done**: `audit/*.json` and `verify-AF.json` in the session scratchpad.
+- **Done**: every A/F finding verified.
 
 ### 3. Triage and approval
 
@@ -48,14 +48,20 @@
 - Vitest (logic / component / server / route): no change expected — documentation only. A stale code comment fixed under F is checked by `pnpm lint` and `pnpm test`.
 - Browser E2E (`e2e/`): no change — documentation only.
 - Container smoke (`.github/workflows/ci.yml`): no change.
-- Commands and observed results (fill in before the PR):
+- Commands and observed results:
+  - `pnpm verify:docs` (all seven checks) and `pnpm comments`: clean after each category commit.
+  - `docker compose config` still parses `docker-compose.yml`, where only comments changed. It stops only at the missing `.env` values, as it does on `main`.
+  - Before/after (`baseline.mjs` over the six parts):
+    - `f81a3f6` reproduces the audit's baseline exactly: 24 files, 336,179 bytes, 4,776 lines.
+    - `main` at `196eca9`, before this PR: 336,942 bytes, 4,783 lines.
+    - This PR: 335,715 bytes, 4,784 lines. That is −1,227 bytes; B added content, and C and D removed some.
 
 ## Acceptance
 
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] Every approved A/B/C/D/F item is applied, or the PR says why not.
-- [ ] `pnpm verify:docs` and `pnpm comments` pass; a review round finds nothing blocking.
-- [ ] The audit task is archived in the audit PR, so merging resets the count.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] Every approved A/B/C/D/F item is applied, or the PR says why not.
+- [x] `pnpm verify:docs` and `pnpm comments` pass; a review round finds nothing blocking.
+- [x] The audit task is archived in the audit PR, so merging resets the count.
 
 ## Cross-cutting
 
@@ -63,4 +69,6 @@ Closes #228. Code bugs the audit finds are filed as issues, not fixed here. Requ
 
 ## Review
 
-Filled in at the end.
+- `ujin999` ran steps 1–5 on 2026-10-23; `TaeTaeJin` ran steps 6–8 on 2026-10-27 in one session, with no editor sub-agents.
+- Applied: 11 A items and 33 B/C/D items (presence-a-04 and shell-files-history-04 were one edit), plus "the future 블록 링크 블록" found while applying. Not applied: three ADR edits (api-09, editing-a-02, editing-a-06); workflow-03/04/05, which #184 kept; editing-b-02, made untrue by #242. Each item was re-read against `main` (five commits past the base) before it was applied.
+- Three review rounds (nothing lost, edits true, rest of the diff), then `/code-review low` and `/simplify`; their fixes are in the last commit before the archive. No E or F findings.

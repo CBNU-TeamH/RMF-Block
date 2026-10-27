@@ -4,10 +4,9 @@
 - **Owns**: `lib/blocks/`, `lib/documents/`, `app/(workspace)/documents/`, `app/api/documents/`,
   `app/(workspace)/document-list.tsx`, `app/(workspace)/document-actions.tsx`,
   `app/(workspace)/document-row-menu.tsx` (the sidebar's document tree and its row actions).
-  Two files under the third path are more specifically owned elsewhere, and those file-level
-  claims win over this directory-level one: its use-focus-presence hook, by
-  [`docs/design/presence-and-focus.md`](presence-and-focus.md), and a block's ··· menu
-  (`block-menu.tsx`), by [`docs/design/chat.md`](chat.md).
+  A file under the third path that another doc names at file level is owned there, and that claim
+  wins over this directory-level one: [`presence-and-focus.md`](presence-and-focus.md),
+  [`chat.md`](chat.md) and [`version-history.md`](version-history.md) each claim some.
 - **Related**: [`docs/design/architecture.md`](architecture.md) §3(a), §5; [`docs/SRS-ko.md`](../SRS-ko.md) §4.1
 
 ## Scope
@@ -24,8 +23,8 @@ Block = { id: string (uuid), type: string, content: <type-specific, see below> }
 
 - `root.blocks` is a **Yorkie Array**, not an Object keyed by id. Yorkie's Array is RGA-backed, so concurrent inserts at the same position already converge deterministically — block order is the array position itself, not a stored field.
 - Reordering (FR-022-04) uses the array's native `moveAfter`/`moveFront` — no custom merge logic, per ADR-001.
-- `id` stays on every block regardless of position, since presence (`activeBlockId`) and the future 블록 링크 블록 need a stable reference independent of array order.
-- Block/text color and styling is intentionally not part of any block's `content` below; the question was tracked in [issue #6](https://github.com/CBNU-TeamH/RMF-Block/issues/6) (closed).
+- `id` stays on every block regardless of position, since presence (`activeBlockId`) and the 블록 링크 block need a stable reference independent of array order.
+- Block/text color and styling is intentionally not part of any block's `content` below.
 
 ## Every text-bearing block wraps its text
 
@@ -479,6 +478,17 @@ A split or merge is patched through **the same handler a remote edit uses**, del
 what keeps the block's diff baseline in step; writing `el.value` from outside would fix the display
 and leave the next keystroke diffing against the wrong string.
 
+## The sidebar document tree
+
+`document-list.tsx` draws the catalogue as a tree in the sidebar (FR-020-06, the document half).
+The rows come from `treeRows` in `lib/documents/tree.ts`, which leaves a collapsed node's
+descendants out rather than marking them, and draws a `parentId` naming a missing document as a
+root. Collapsing is per viewer and not saved. A search query skips the tree: matching documents
+are listed flat, with no expand toggle. Each row's menu (`document-row-menu.tsx`) offers
+하위 문서 추가, 이름 변경, 이동 and 삭제. The last three share one dialog in
+`document-actions.tsx` (FR-023-01~06); the endpoints are in [`api.md`](api.md), "The document
+endpoints".
+
 ## Rules the editor component holds to
 
 **Every mutation reads text and `checked` live, never from `blocks` state.** That state's `text` is
@@ -700,9 +710,10 @@ does the same, because `Math.trunc` of one is `NaN` and `counters.length = NaN` 
 `readBlocks` alone closes that path, since every rendered block comes through it; the other two are
 there so the value is never stored in the first place.
 
-**Tab is intercepted only on a list block.** Everywhere else it keeps its default and moves focus.
-Trapping Tab inside every textarea would leave a keyboard user unable to get out of the editor, and
-that trade — one key on one block type — is cheaper than an editor nobody can leave.
+**Tab is intercepted only on a list block and inside a table cell**, where it moves between
+cells. Everywhere else it keeps its default and moves focus. Trapping Tab inside every textarea
+would leave a keyboard user unable to get out of the editor; taking it only where it has a job is
+cheaper than an editor nobody can leave.
 
 Checklist blocks do not nest. SRS §4.1 gives nesting to 목록 only, and `TypeFields` carries `depth`
 only on `list`; extending it is a model change and an SRS question, not an oversight.
@@ -722,9 +733,8 @@ Neither caller can name the depth itself — the `/` menu's items are static and
 carries none — so `preservingDepth` (`lib/blocks/indent.ts`) carries it from the block being
 converted, at both call sites.
 
-`level`, `style` are not protected the way `depth` now is — the same silent-flatten shape applies
-to either of them the moment two block types share one, and nothing today would catch it before a
-user does.
+Only `depth` is preserved; `level` and `style` would be flattened the same way if two block types
+ever shared one.
 
 ### Three places a drag can land
 

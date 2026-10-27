@@ -151,8 +151,8 @@ unreachable either. Measured paging contract for `listRevisions`:
 - a page shorter than `pageSize` means the oldest revision has been reached
 - past the end it returns nothing
 
-So the sidebar pages on demand and says when it has reached the first version. An artificial
-ceiling was considered and rejected: it would hide history that is still there, silently.
+So the sidebar pages on demand and says when it has reached the first version. There is no
+ceiling on the list: truncating it would hide history that is still reachable.
 
 The pile does grow — one full snapshot per 500 changes, in Yorkie's MongoDB rather than the host's
 `.data/`. Squashing it the way `git rebase` would is not possible without a delete API. The levers

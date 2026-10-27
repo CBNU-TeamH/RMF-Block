@@ -16,16 +16,17 @@ messages carry. Grouped by type, previewed, downloaded, and followed back to whe
 
 ## The page
 
-A dedicated page, `/files`, opened from **파일** under 새 문서 in the sidebar (and after it on the
-collapsed rail), shown to everyone. It is not a tab: the document tab bar holds document ids only, and nothing here needed
+A dedicated page, `/files`, opened from **파일** in the sidebar ([`app-shell.md`](app-shell.md)).
+It is not a tab: the document tab bar holds document ids only, and nothing here needed
 it to hold anything else. On it:
 
 - **Type tabs** — 이미지, PDF, 기타 — each with its count (FR-050-01). The classification is the
   chat file list's (`kindOf` in `lib/chat/attachments.ts`), so a file sits under the same tab in
   both places; here the third is named 기타, since "문서" would read as the file's source.
 - **A table**, newest first: name, source, size, uploaded by, date (FR-050-02).
-- **Per row**: 미리보기 (FR-050-03, below) for the types the preview route serves inline — images
-  and PDFs; 기타 is download-only until UC-080's viewers exist. 원본 위치 (E3-3) and 내려받기
+- **Per row**: 미리보기 (FR-050-03, below) for the types the preview route serves inline
+  ([`api.md`](api.md#files)); 기타 is download-only until UC-080's viewers exist. `kindOf` files any
+  `image/*` under 이미지, so a chat SVG sits there but is download-only. 원본 위치 (E3-3) and 내려받기
   (FR-050-04).
 
 The list is fetched when the page opens. Nothing asks for it to update live.
@@ -37,22 +38,21 @@ browser's own viewer — with 내려받기 and 닫기; Esc and a click on the di
 is a `<dialog>` opened with `showModal()` (`file-preview-dialog.tsx`), and the chat file list
 (UC-061) and a PDF block's 전체 화면 (`pdf-block.tsx`) open the same one.
 
-It was a floating view at first. Trying the page, the maintainer found a floating view in the way
-for looking through files — small, left where it was dropped, back after a reload — and chose this
-over a panel on the right half (2026-10-18). Floating views remain for blocks and for a chat
-message's own 플로팅 뷰로 열기 (UC-070).
+It is a page rather than a floating view, because a floating view is small, stays where it was
+dropped and comes back after a reload, which gets in the way when looking through files. Floating
+views remain for blocks and for a chat message's own 플로팅 뷰로 열기 (UC-070).
 
 ## Chat files are listed too
 
 UC-050 is worded for files embedded in documents; chat attachments are UC-061's, in the chat
 window. Both are listed here because someone looking for a file rarely knows which of the two it
-went through — the maintainer's call when this was designed. The source column tells them apart
-(the document's name, or 채팅). The SRS is unchanged: this adds to UC-050 without contradicting it,
+went through. The source column tells them apart (the document's name, or 채팅). The SRS is unchanged: this adds to UC-050 without contradicting it,
 and UC-061 still stands on its own.
 
 ## Which block holds a file
 
-The file store records the upload — and, since some point, the document — but not the block.
+The file store records the upload and, when the upload recorded one, the document, but not the
+block.
 Rather than record it at upload, `GET /api/files` reads it from the documents on every request:
 
 - One Yorkie Admin `GetDocuments` call returns every catalogue document's root (`include_root`).
@@ -81,10 +81,11 @@ server logs why.
 - **A document file** opens its document at the block and highlights it (step 4). This is the
   jump to a person (UC-040) without the person: `goToBlock` in `focus-follow-provider.tsx` sets the
   same scroll target, marked `highlight`, and the editor flashes the block when it lands
-  (`flash` in `ui.tsx`). Like that jump, it asks before leaving a follow.
-- **A chat file** opens the chat window at its message and highlights it. The window now wraps the
-  workspace shell so anything in it can call `useOpenChatAt`; the panel scrolls once the message
-  is in its history, which may arrive with the backfill.
+  (`flash` in `ui.tsx`). Like that jump, it pauses a follow it is in (재개 undoes that; see
+  [`presence-and-focus.md`](presence-and-focus.md), "Pausing a follow").
+- **A chat file** opens the chat window at its message and highlights it (see
+  [`app-shell.md`](app-shell.md) for why the window wraps the shell); the panel scrolls once the
+  message is in its history, which may arrive with the backfill.
 
 ## Not built
 

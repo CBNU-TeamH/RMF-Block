@@ -178,8 +178,7 @@ without needing to render the client component around it.
 ## What the two focus effects may depend on
 
 The presenter effect and the follower effect sit next to each other and have **opposite**
-dependency rules. Both were arrived at by measurement, and both look like mistakes until the
-reason is written down.
+dependency rules, and both look like mistakes until the reason is written down.
 
 **The presenter effect must not depend on `blocks`.** It depends on `blocksLoaded`, a boolean that
 flips once. The scroll container does not exist while `blocks` is still `null`, so the effect
@@ -268,7 +267,7 @@ pull every browser that once followed them back in with no 참여하기 pressed.
 
 A follower is never locked. Editing needs no lock for the document's sake — Yorkie's CRDT resolves
 concurrent edits, the reason block occupancy is not an edit lock either (FR-022-06) — so what
-FR-030-06 asks for instead, since #220, is that a follower who moves on their own is **paused**
+FR-030-06 asks for instead is that a follower who moves on their own is **paused**
 rather than pulled back to the presenter on the presenter's next move.
 
 Paused is local state in `FocusFollowProvider`, beside who is followed: `followingId` is the
@@ -315,8 +314,7 @@ only when it has a button.
   paused follower as well, and not for one who left with 종료. The name shown is the one kept when
   the follow began: a presenter who disconnected is no longer in the roster to look up.
 
-The header control alone was enough when a room sat together (the first slice's call), but a
-member working in another document misses a control changing in the corner. That is the gap
+A member working in another document misses a control changing in the corner. That is the gap
 UC-030's step 3 names.
 
 ## `FocusShare`'s states
@@ -380,17 +378,14 @@ metrics — rejected in #95 with that reasoning, not forgotten.
 
 ### Why x is measured against the block, not the container
 
-The scroll container carries `-ml-4 pl-4` — load-bearing for the drag handle, which is why it
-cannot simply be dropped. That padding puts a block's `offsetLeft` at 16 while an absolutely
-positioned overlay's `left: 0` sits at the padding box edge, and `clientWidth` and
-`getBoundingClientRect().width` disagree by a scrollbar. Measuring `x` as a fraction of the
-block's **own** box sidesteps all three: `offsetLeft`/`offsetWidth` are in exactly the space
-`offsetTop`/`offsetHeight` already are, so the two axes compose by construction rather than by
-arithmetic that has to be kept in step.
+The blocks sit in a centred, padded column inside the scroll container, so a block's left edge
+moves with the window width, and `clientWidth` and `getBoundingClientRect().width` disagree by a
+scrollbar. Measuring `x` as a fraction of the block's **own** box sidesteps both:
+`offsetLeft`/`offsetWidth` are in the same `offsetParent` space as `offsetTop`/`offsetHeight`, so
+the two axes compose by construction rather than by arithmetic that has to be kept in step.
 
-That is what `readBoxes` widened for. `InkBox` is `BlockBox` plus the horizontal half, and
-`Array<InkBox>` satisfies every `Array<BlockBox>` parameter, so the scroll-anchor callers did not
-change at all.
+`InkBox` is `BlockBox` plus the horizontal half, so `Array<InkBox>` satisfies every
+`Array<BlockBox>` parameter.
 
 ### Two quantizations, for two different reasons
 
@@ -446,7 +441,7 @@ Three caps follow, each with a stated basis rather than a round number:
   isn't a physical distance comparable across blocks). The figure follows the precedent issue #95
   already cites, Yorkie's own cursors example, which thins at the same 2px.
 - **`MAX_POINTS_PER_MARK = 600`** — `MARK_CAP` bounds how many marks a member may hold, but never
-  looked inside one, and a mark is no longer the fixed ~110-byte shape it was sized against. 600
+  looked inside one, so a cap on points per mark is needed as well. 600
   points is ~1,200px of accepted travel at the 2px floor, enough for one horizontal pass across a
   laptop-width pane. Past the cap, extending a mark is a no-op: the stroke freezes rather than
   losing its start, which would be more code and would move where the stroke appears to begin.
@@ -472,7 +467,7 @@ publish mid-drag. `PUBLISH_MS` — the scroll anchor's own trailing-edge throttl
 exported from `use-focus-presence.ts` and reused here rather than defined a second time at the
 same value: one throttle idiom, one source of truth for its cadence.
 
-Publishing is explicit calls at the four moments that need different rules, not an effect on the
+Publishing is explicit calls at the moments that need different rules, not an effect on the
 presenter's own `mine` state, which would fire on every change while a stroke is drawn:
 
 - **starting a stroke** publishes immediately — once up front, not only on the next move, the same
@@ -485,6 +480,10 @@ presenter's own `mine` state, which would fire on every change while a stroke is
   tick that, since the drag just ended, may never come.
 - **지우기 and ending the share** were never on the throttle path to begin with — a direct call and
   a small effect, respectively, both unconditional.
+- **deselecting the pointer tool** (without ending the share) publishes `pointer: null`, so the
+  last position does not stay on followers' screens.
+- **a cancelled stroke** cancels any pending timer and publishes the committed marks, so the partial
+  stroke already published mid-drag does not stand.
 
 A follower who attaches mid-stroke needs no special case: presence carries full current state on
 every write (no delta, again), so whatever the presenter's last publish sent — in-progress points
@@ -548,16 +547,11 @@ caret. Something has to be on top to take the drag instead. With no tool selecte
 ### The pointer needed no capture mechanism of its own
 
 FR-030-12's other half: a dot that shows where the presenter is pointing, fading a couple seconds
-after it stops moving — for gesturing while talking, not for leaving a mark. The natural worry is
-that it needs its own input-handling architecture, since underline/highlight need the SVG to
-*capture* pointer events (a bare `<textarea>` would otherwise take the caret on the first click of a
-drag). A pointer has no drag to protect.
+after it stops moving — for gesturing while talking, not for leaving a mark.
 
-That worry turns out to be moot once one product decision is made: **while the pointer tool is
-selected, clicking into the document is blocked** — exactly like the two drawing tools already are.
-Once that's true, the SVG's existing capture (`z-20 touch-none` while *any* tool is selected,
-unchanged since underline/highlight) already blocks the click underneath for free — the pointer tool
-doesn't need a reason of its own to be `z-20`, it inherits one. So the pointer is a third branch on
+**While the pointer tool is selected, clicking into the document is blocked**, as it is for the two
+drawing tools, so the SVG's existing capture (`z-20 touch-none` while *any* tool is selected) covers
+it. The pointer is a third branch on
 the handlers that already exist, not a parallel architecture: `onPointerDown` gains one line (the
 pointer tool never starts a mark), and `onPointerMove` gains a branch that publishes a position
 instead of extending a stroke. `onPointerUp`/`onPointerCancel` need no changes at all — both already
@@ -582,6 +576,9 @@ that clears `shouldAcceptPoint`'s thinning floor overwrites `pointerRef.current`
 single current point, throttled by the same `schedulePublish`/`PUBLISH_MS` marks already use. The
 payload is therefore constant-size regardless of how long or how fast the presenter has been moving,
 which is the one thing that would have made a fading trail expensive to publish.
+
+Marks are drawn in the presenter's `colorTag`; the pointer and its trail are a fixed `danger` red,
+so a pointer never shares a colour with someone in the roster.
 
 The trail a follower sees is built entirely on their own side: each arriving point is stamped with
 `Date.now()` *at arrival* and appended to a local buffer, aged out past `TRAIL_MS` (1,500ms —

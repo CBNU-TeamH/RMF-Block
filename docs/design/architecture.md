@@ -60,12 +60,12 @@ MongoDB is Yorkie's internal store — the App/WS Server never connects to it, a
 
 The wire protocol is Yorkie's own client SDK — not ours to design. What we do own is the **shape of data placed inside it**:
 
-- **Document schema** (CRDT document content — persisted, shared): every block has a common envelope `{ id, type }`; `type` is one of the twelve block types in SRS §4.1 (텍스트, 제목, 목록, 체크리스트, 인용문, 코드, 구분선, 파일, 이미지, PDF, 문서 링크, 블록 링크). Each type owns its own `content` payload shape. Block order is the Yorkie Array position itself, not a stored field — there is no `order` field. Field-level detail is settled in [`document-editing.md`](document-editing.md), which covers all twelve types.
+- **Document schema** (CRDT document content — persisted, shared): every block has a common envelope `{ id, type }`; `type` is one of the block types in SRS §4.1, listed in [`document-editing.md`](document-editing.md). Each type owns its own `content` payload shape. Block order is the Yorkie Array position itself, not a stored field — there is no `order` field. Field-level detail is settled in the same doc.
 - **Presence schema** (ephemeral, per-connected-client — not persisted): the fields are in `lib/presence/types.ts` and `lib/presence/occupancy.ts`, explained in [`presence-and-focus.md`](presence-and-focus.md). `activeBlockId` is the block-occupancy signal (SIR003 — display-only, never a lock, per FR-022-06).
 
 ### (b) Client ↔ App/WS Server (API groups)
 
-Transport is REST + WebSocket. Grouped by concern; full request/response schemas are written when each group's module is built. Both WebSocket upgrade paths (chat and workspace) require a live session or the host secret to complete at all — the upgrade refusal is specified in [`api.md`](api.md#4-websocket--client--rmf-block-server).
+Transport is REST + WebSocket. Grouped by concern; full request/response schemas are written when each group's module is built. Both WebSocket upgrade paths are gated: [`api.md`](api.md#4-websocket--client--rmf-block-server).
 
 <!-- declare: websocket-paths
 const: server/index.mts CHAT_WS_PATH = "/api/chat/ws"
@@ -97,7 +97,7 @@ A revision outlives the document it belongs to, but only by id, so deleting a do
 
 ### (d) App/WS Server ↔ `.data/` JSON files
 
-App-owned state is whole JSON files on the host filesystem under `.data/` — chat history, members, workspace metadata, the document catalogue and its trash, and file metadata. Sessions stay in memory on purpose (a session id on disk would be a permanent bearer token). The repository pattern (sync writes, atomic rename) is in [`chat.md`](chat.md), "Storage"; why the document catalogue exists beside Yorkie is in [`document-editing.md`](document-editing.md#why-a-catalogue-beside-yorkie).
+App-owned state is whole JSON files on the host filesystem under `.data/` — chat history, members, workspace metadata, the document catalogue and its trash, and file metadata. Sessions stay in memory on purpose ([`api.md`](api.md#authentication-model)). The repository pattern (sync writes, atomic rename) is in [`chat.md`](chat.md), "Storage"; why the document catalogue exists beside Yorkie is in [`document-editing.md`](document-editing.md#why-a-catalogue-beside-yorkie).
 
 The catalogue is a **tree**, not a list: a document carries a `parentId`, `null` at the root (UC-021 E1a). A catalogue written before sub-documents existed has no such field, and a missing one reads as `null` — that is the whole migration, no rewrite and no version marker. Name uniqueness is per-parent, which is what FR-021-03's "동일 위치 내" asks for.
 
@@ -124,7 +124,7 @@ production a failure there is fatal. Why it exits rather than throws, and the de
 | Presence and focus ride the client-to-Yorkie channel; no server-side present/follow state ([`presence-and-focus.md`](presence-and-focus.md)) | |
 | App/WS Server runs as one process — a Next.js custom server handling REST + WebSocket together, not split across services | |
 | Reconnect grace period = 30s (UC-022 비고) | |
-| Block schema field-level detail per type (`document-editing.md`, all 12 types agreed) | |
+| Block schema field-level detail per type (`document-editing.md`, every type agreed) | |
 | Document key = plain id (no prefix); revoke-all = container restart — see the auth model in [`api.md`](api.md#authentication-model) | |
 | FR-022 numbering gap (05/07/08/10/11) confirmed intentional | |
 

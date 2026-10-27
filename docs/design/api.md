@@ -53,7 +53,7 @@ webhook could verify with no table at all.
 
 ### The pieces around it
 
-Three files carry parts of this model that no endpoint row shows.
+These files carry parts of this model that no endpoint row shows.
 
 `lib/workspace-config.ts` holds the workspace name and access password (FR-010-01/02,
 FR-020-02). They are state, in `.data/workspace.json`: the host sets them on the admin page's setup
@@ -73,6 +73,10 @@ startup prints that setup is unfinished.
 `lib/yorkie-admin.ts` registers this server's auth webhook with Yorkie at startup
 (NFR-SEC-002/005). It is what makes §2's webhook actually get called — a Yorkie that was never
 told to ask would accept any client that can reach port 8080.
+
+`app/admin/page.tsx` is the host's page (UC-010/UC-011); anyone else is sent to `/`. It is the
+setup screen until the workspace is open, then the password change, the connected guests with a
+kick, and the trash with a restore — the Workspace rows in §1.
 
 `app/session-watch.tsx` is the client half of FR-020-08's one-device rule: when a nickname is
 claimed on another device, the displaced session is revoked server-side and this component is
@@ -147,9 +151,8 @@ ceiling a guest who knows the password could spend the process's memory one join
 through a session and still bounds the damage.
 
 **A failed write rolls back only for a new member.** The two cases are not the same failure. A
-returning member is already on disk, so a failed write costs only a fresher `lastJoinedAt` — the
-state this app ran in before members persisted at all. A brand-new member was never durable, and
-every mutation belongs to that one call (they cannot have displaced anyone, so there is nothing to
+returning member is already on disk, so a failed write costs only a fresher `lastJoinedAt`. A
+brand-new member was never durable, and every mutation belongs to that one call (they cannot have displaced anyone, so there is nothing to
 put back); leaving those in place would strand a session nobody holds, and the nickname would read
 as taken until the process restarted.
 
@@ -291,9 +294,8 @@ is what the error message says. The request carrying it is larger: `content-leng
 `multipart/form-data` body — boundary lines, each part's headers, the CRLFs. So the declared length
 is measured against its own slightly higher ceiling, and only the parsed `file.size` is measured
 against 25 MB. The first check exists to bound what `formData()` will buffer, not to decide the
-verdict; collapsing them onto one constant is what made a file of exactly 25 MB fail
-([#57](https://github.com/CBNU-TeamH/RMF-Block/issues/57)), and raising that one constant instead
-would have admitted a genuinely oversized file.
+verdict: one constant for both would reject a file of exactly 25 MB
+([#57](https://github.com/CBNU-TeamH/RMF-Block/issues/57)) or, raised, admit an oversized one.
 
 File responses are `Cache-Control: private`. They cross a LAN that may have caches of its own in front of them, and a file belongs to one workspace — `private` keeps a shared cache from holding one and serving it on.
 
@@ -356,14 +358,14 @@ Chat has two candidate implementations (§5). These REST endpoints belong to **v
 | `POST` | `/api/chat` | Send and persist a message | guest | FR-060-01~03/05 | — |
 | `POST` | `/api/chat/files` | Upload a file to attach to a message | guest | FR-060-02 | ✅ |
 
-`POST /api/chat/files` is not in the original draft but is unavoidable: chat attachments are bytes, and bytes cannot go through Yorkie, so both chat versions need this REST path even when version B carries the messages themselves over CRDT.
+`POST /api/chat/files` is unavoidable: chat attachments are bytes, and bytes cannot go through Yorkie, so both chat versions need this REST path even when version B carries the messages themselves over CRDT.
 
 ## 2. RPC — rmf-block-server ↔ Yorkie
 
 | Direction | Call | Purpose | Traceability |
 | --- | --- | --- | --- |
 | Yorkie → server | `POST /api/internal/yorkie/auth` (auth webhook) | Yorkie asks us to authorize each client operation: validate the token and that its session is still live (workspace-membership and per-document access checks are not built) | Execution arm of the FR-010/FR-020 auth chain, NFR-SEC-002/005 |
-| Server → Yorkie | Admin API, read-only — document summaries and active editors | Supplementary source for who is editing what | FR-040 (support), FR-022-06 (support) |
+| Server → Yorkie | Admin API — `LogIn`, `ChangePassword`, `UpdateProject` at startup (webhook registration, below); `GetProject`, `GetDocuments` for the file manager's document roots ([`file-manager.md`](file-manager.md)) | Wire the auth webhook; list the documents files belong to | FR-020 (support), FR-050 (support) |
 
 **Implemented.** Yorkie's port is still published, but reaching it no longer gets anyone in:
 without a token this server issued, a client is refused at `ActivateClient`, before it touches a
@@ -373,8 +375,8 @@ shared screen under UC-030, never see it), the browser passes that through the S
 `authTokenInjector`, and this webhook answers. The host has no workspace session, so the
 `role` cookie is exchanged under the `host:<secret>` prefix (`HOST_SESSION_PREFIX`) and the
 webhook allows such a token without a session lookup; revoking the host is the restart, which
-clears the secret and the token registry together. Startup writes the webhook onto Yorkie's project
-itself, over the Admin API (below).
+clears the token registry and the secret ([unless `HOST_SECRET` is pinned](#authentication-model)).
+Startup writes the webhook onto Yorkie's project itself, over the Admin API (below).
 
 The webhook asks two questions, not one. A token can be valid while the session behind it is
 gone — a device displaced by another (FR-020-08) keeps its token — so tokens point at sessions and
