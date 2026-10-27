@@ -190,16 +190,21 @@ const jsonl = (rows: Array<object>) => rows.map((row) => JSON.stringify(row)).jo
 
 /** The round's stack, taken down here rather than in the round's `finally`: a Playwright timeout
  *  skips that `finally` but still runs `afterEach` (#218). */
-let leftover: Stack | null = null;
+let leftover: { stack: Stack; observed: Attached | null } | null = null;
 test.afterEach(async () => {
-  const stack = leftover;
+  const left = leftover;
   leftover = null;
-  if (stack) await stackDown(stack);
+  if (!left) return;
+  // A connected Prometheus keeps `compose down` from removing the network. The `finally`
+  // detaches it, unless a timeout skipped the `finally`.
+  if (left.observed) await detach(left.observed, []).catch(() => {});
+  await stackDown(left.stack);
 });
 
 for (let round = 1; round <= ROUNDS; round++) {
   test(`round ${round}`, async ({ users, browser }) => {
-    test.setTimeout((STALL_MINUTES + 5) * 60_000); // after the stall timer, with room for the cleanup
+    // The stall timer starts after `stackUp` (up to 5 min), and the cleanup after it needs time too.
+    test.setTimeout((STALL_MINUTES + 10) * 60_000);
     const dir = path.join(RUN_DIR, `round-${String(round).padStart(2, "0")}`);
     await mkdir(dir, { recursive: true });
     const write = (name: string, data: string) => writeFile(path.join(dir, name), data);
@@ -242,7 +247,8 @@ for (let round = 1; round <= ROUNDS; round++) {
       await write("signals.jsonl", jsonl(r.notes));
       throw error;
     });
-    leftover = stack;
+    const left = { stack, observed: null as Attached | null };
+    leftover = left;
     const stats = sampleDockerStats(stack);
     // Diagnostics (#192): a failure here is noted in meta, never a signal that fails 001.
     const marks: Array<Mark> = [];
@@ -254,6 +260,7 @@ for (let round = 1; round <= ROUNDS; round++) {
           return error.attached ?? null;
         })
       : null;
+    left.observed = observed;
     const stall = setTimeout(() => {
       r.notes.push({ at: now(), who: "harness", phase: r.phase, kind: "stalled" });
       // Rejects whatever call hangs, so the catch and finally below still run: H's browser closes
@@ -378,7 +385,6 @@ for (let round = 1; round <= ROUNDS; round++) {
           if (memory) await Promise.allSettled([memory.H.stop(), memory.G.stop()]);
           for (const b of browsers) await b.close().catch(() => {});
         } finally {
-          // Before `afterEach`'s `stackDown`: a connected Prometheus keeps `compose down` from removing the network.
           if (observed) {
             await detach(observed, marks).catch(async (error) => {
               // Kept apart from the signals: an observer cleanup failure says nothing about NFR-PER.
@@ -386,6 +392,7 @@ for (let round = 1; round <= ROUNDS; round++) {
               console.warn(`Round ${round}: detach failed: ${error}`);
               await write("meta.json", JSON.stringify(meta));
             });
+            left.observed = null;
           }
         }
       }

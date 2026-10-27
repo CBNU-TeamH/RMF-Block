@@ -29,7 +29,8 @@ export type Stack = StackOptions & { file: string; containers: Array<string> };
 export async function free(host: string, port: number, waitMs = 0) {
   const deadline = Date.now() + waitMs;
   for (;;) {
-    const server = net.createServer();
+    // A client that connects during the probe would hold `close()` open.
+    const server = net.createServer((socket) => socket.destroy());
     try {
       await new Promise<void>((resolve, reject) => {
         server.once("error", reject);
