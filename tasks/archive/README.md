@@ -8,6 +8,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Release build: fail fast on a QEMU hang, and pin binfmt](2026/10/20261028-release-qemu-hang-todo.md) | [lessons](2026/10/20261028-release-qemu-hang-lessons.md) |
 | [Perf harness: end a stalled round, retry the port check, keep a timed-out join](2026/10/20261027-perf-harness-fixes-todo.md) | [lessons](2026/10/20261027-perf-harness-fixes-lessons.md) |
 | [Record the v0.1.0 NFR-PER results](2026/10/20261027-perf-baseline-results-todo.md) | [lessons](2026/10/20261027-perf-baseline-results-lessons.md) |
 | [Drift audit: the design docs against the code since #184](2026/10/20261023-drift-audit-todo.md) | [lessons](2026/10/20261023-drift-audit-lessons.md) |

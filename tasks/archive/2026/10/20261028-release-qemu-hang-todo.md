@@ -19,7 +19,7 @@ Not here: building arm64 on a native `ubuntu-24.04-arm` runner and merging the d
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior. For each relevant layer, name existing tests
 that cover it, required updates/new cases, or a concrete reason no change is needed.
 
@@ -30,7 +30,7 @@ that cover it, required updates/new cases, or a concrete reason no change is nee
 
 - [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
 - [x] `release.yml` sets `timeout-minutes: 30` on the release job and pins binfmt on `setup-qemu-action`.
-- [ ] After the merge, the `v0.2.0-rc.1` run succeeds within the timeout, and its log shows the pinned binfmt image.
+- [x] After the merge, the `v0.2.0-rc.1` run succeeds within the timeout, and its log shows the pinned binfmt image. Run 40575409759 took 4 minutes and pulled `tonistiigi/binfmt:qemu-v7.0.0`. `v0.2.0` (run 40644153192) took 5 minutes and moved `latest`.
 
 ## Cross-cutting
 
