@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Time out the Yorkie admin requests at startup](active/20261116-yorkie-admin-timeout-todo.md) | [lessons](active/20261116-yorkie-admin-timeout-lessons.md) |
 | [Simple collaborative table blocks](active/20261016-table-block-todo.md) | [lessons](active/20261016-table-block-lessons.md) |
 
 ## Archive
