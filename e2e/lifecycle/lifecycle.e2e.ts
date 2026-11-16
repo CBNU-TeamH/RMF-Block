@@ -125,7 +125,7 @@ test("when the app cannot register with Yorkie it refuses to start and prints wh
   test.setTimeout(120_000);
   // A one-off app container, not the running one: it has the wrong Yorkie admin password and no
   // published port, so it cannot disturb the stack. A password Yorkie rejects fails at once; an
-  // unreachable Yorkie does not (the call has no timeout), which is why this is not "stop Yorkie".
+  // unanswered Yorkie takes the request limit and the retries (minutes), which is why this is not "pause Yorkie".
   const { ok, output } = await composeOutcome("run", "--rm", "-T", "--no-deps", "-e", "YORKIE_ADMIN_PASSWORD=not-the-admin-password", "app");
   expect(ok, "the app should have exited with a failure").toBe(false);
   expect(output).toContain("Could not register the Yorkie auth webhook");

@@ -34,6 +34,36 @@ function fakeYorkie(stored: string) {
   return { calls, stored: () => stored };
 }
 
+describe("an unanswered Yorkie", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("is refused with the address and the limit instead of waiting for ever", async () => {
+    vi.stubEnv("YORKIE_ADMIN_PASSWORD", CONFIGURED);
+    // Real timers cannot be sped up for `AbortSignal.timeout`, so the signal arrives already expired.
+    const timeout = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockImplementation(() => AbortSignal.abort(new DOMException("timed out", "TimeoutError")));
+    // A fetch that honours its signal and otherwise never answers, as a Yorkie that accepts the connection does.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            if (init.signal?.aborted) reject(init.signal.reason);
+            else init.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          }),
+      ),
+    );
+
+    await assert.rejects(registerAuthWebhook(ADDR, WEBHOOK, ONCE), /LogIn got no answer from http:\/\/yorkie:8080 within 10 s/);
+    assert.equal(timeout.mock.calls[0]?.[0], 10_000);
+  });
+});
+
 describe("registerAuthWebhook", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

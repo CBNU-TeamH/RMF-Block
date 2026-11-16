@@ -44,25 +44,38 @@ export class YorkieAdminError extends Error {
  *  missing prefix. */
 const bearer = (token: string) => `Bearer ${token}`;
 
-async function call(rpcAddr: string, method: string, body: unknown, authorization?: string) {
-  const response = await fetch(`${rpcAddr}/yorkie.v1.AdminService/${method}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(authorization ? { Authorization: authorization } : {}),
-    },
-    body: JSON.stringify(body),
-  });
+/** Per request. An unanswered Yorkie would otherwise leave startup waiting for
+ *  ever, with nothing printed (#258); the retry in `registerAuthWebhook` still
+ *  applies, so a Yorkie that never answers is refused after about five minutes. */
+const REQUEST_TIMEOUT_MS = 10_000;
 
-  if (!response.ok) {
-    const error = new YorkieAdminError(
-      `${method} failed (${response.status}): ${await response.text()}`,
-    );
-    error.status = response.status;
+async function call(rpcAddr: string, method: string, body: unknown, authorization?: string) {
+  try {
+    const response = await fetch(`${rpcAddr}/yorkie.v1.AdminService/${method}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(authorization ? { Authorization: authorization } : {}),
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      const error = new YorkieAdminError(
+        `${method} failed (${response.status}): ${await response.text()}`,
+      );
+      error.status = response.status;
+      throw error;
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new YorkieAdminError(`${method} got no answer from ${rpcAddr} within ${REQUEST_TIMEOUT_MS / 1000} s`);
+    }
     throw error;
   }
-
-  return response.json();
 }
 
 /** Yorkie serves its Admin API on the port browsers reach, so in production the
