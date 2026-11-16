@@ -213,7 +213,7 @@ a browser run costs seconds per test against milliseconds.
   cover guest/host admission, takeover cancel/confirm and third-party isolation, tab deduplication,
   arrival/departure, bidirectional/late/reloaded reads, concurrent same-position insertion and
   disjoint-range edits, split/merge ordering, local undo/redo preserving remote input, eight-user
-  block/shared-text convergence, live tree create/rename/move/delete, document tabs and the sidebar rail, host restore of a deleted document from `/admin`, chat sender attribution and
+  block/shared-text convergence, live tree create/rename/move/delete, document tabs and the sidebar rail, host restore of a deleted document from `/admin`, `/admin` and its APIs refusing a guest or visitor, a password change that keeps a connected guest and admits only the new password, kick cancel/confirm with the kicked guest's notice and rejoin, a jump from a tree dot to a colleague's block and back, chat sender attribution and
   remote attachment preview. Recovery holds an activated client offline for 20 seconds while both
   sides edit, then checks convergence and chat backfill/deduplication.
 - **Anchors and timing.** Capture block IDs and address `[data-block-id="<id>"] textarea`; inspect
@@ -244,8 +244,8 @@ a browser run costs seconds per test against milliseconds.
 - **CI.** Expanded tests run after the existing smoke test on its container, with E2E's
   `continue-on-error` policy preserved. CI masks the bootstrap secret and uploads failure traces,
   the HTML report and redacted server logs.
-- **Follow-up.** Admin setup/access/password/kick/restart plus integrated user-location navigation
-  are tracked in [the admin E2E task](../tasks/active/20261007-admin-e2e-todo.md). Long-running load, 1-second propagation, 500MB client memory and real LAN
+- **Follow-up.** Unseeded admin setup and restart persistence need a stack started without
+  `WORKSPACE_PASSWORD` and an app restart mid-test; they are tracked in [the admin E2E task](../tasks/active/20261007-admin-e2e-todo.md). Long-running load, 1-second propagation, 500MB client memory and real LAN
   devices are the performance harness's (`e2e/perf/`, #189): `pnpm perf` on the measurement rig, outside `pnpm e2e`
   and CI, run by hand from [the runbook](perf/runbook-ko.md); its arithmetic (`e2e/perf/stats.mts`, the result charts' curve included), NFR-PER-003's join attempt and the port check have Vitest tests.
   The observation stack (`pnpm perf:observe`, #192) is diagnostics only and is checked by hand with an observed round.

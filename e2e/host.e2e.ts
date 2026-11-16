@@ -1,22 +1,9 @@
-import type { Page } from "@playwright/test";
-
 import { expect, test } from "./fixtures";
-import { createDocument, online } from "./helpers";
+import { bootstrapHost, createDocument, online } from "./helpers";
 
 // Bootstrap URLs and the resulting role cookie contain the host secret.
 // Disable traces for both directions rather than recording and redacting archives.
 test.use({ trace: "off" });
-
-async function bootstrapHost(page: Page): Promise<void> {
-  const secret = process.env.E2E_HOST_SECRET;
-  if (!secret) throw new Error("Set E2E_HOST_SECRET from this stack's startup banner, or use pnpm e2e:isolated.");
-  await page.goto("/join");
-  // Browser-side navigation keeps the credential out of Playwright step titles.
-  await page.evaluate((credential) => {
-    window.location.assign(`/api/auth/host?secret=${encodeURIComponent(credential)}`);
-  }, secret);
-  await expect(page.getByRole("complementary").getByRole("textbox", { name: "문서 제목 검색" })).toBeVisible();
-}
 
 test("a valid bootstrap grants host and strips the secret from the address", async ({ page, context }) => {
   await bootstrapHost(page);
