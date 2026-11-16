@@ -31,7 +31,7 @@ For a four-person capstone on a fixed schedule, **the amount of infrastructure w
 Two consequences of the choice are already visible in the repo:
 
 - The browser talks to Yorkie **directly**, over Connect / gRPC-Web on ordinary HTTP (`WatchDocument` is a server-streaming response, not a socket). Our server is not on the realtime path at all — see [issue #36](https://github.com/CBNU-TeamH/RMF-Block/issues/36), where SOIR001's "WebSocket 기반" wording turned out not to describe what actually happens.
-- Yorkie is a younger ecosystem than Yjs, and that was **weighed and accepted, not discovered afterwards**: a project this size will have to follow releases and take version bumps that a settled library would not ask for. The upside was judged larger, and it still is. What the cost looks like in practice: `package.json` pins `@yorkie-js/sdk@0.7.23` and carries **a patch**, because the SDK ships an ESM build while declaring only the UMD one — without the patched `exports` map the bundler loads two copies of every ProseMirror class. `next.config.ts` records that incident, and the patch comes out as soon as upstream declares its own `exports`; ten releases on it still does not, so every version bump re-creates the patch under the new version's name.
+- Yorkie is a younger ecosystem than Yjs, and that was **weighed and accepted, not discovered afterwards**: a project this size will have to follow releases and take version bumps that a settled library would not ask for. The upside was judged larger, and it still is. What the cost looks like in practice: `package.json` pins `@yorkie-js/sdk@0.7.23` and carries **a patch**, because the SDK ships an ESM build while declaring only the UMD one — without the patched `exports` map the bundler loads two copies of every ProseMirror class. `next.config.ts` records that incident. The patch has a second job: the SDK's sync loop pushed every attached document at once, and one client holding two documents (the app always does: `workspace` and the open one) had Yorkie refuse the second push, after which the loop stopped for good ([#257](https://github.com/CBNU-TeamH/RMF-Block/issues/257)); the patch awaits them one at a time. The `exports` half comes out as soon as upstream declares its own, and ten releases on it still does not; the loop half stays until upstream serializes it, and `scripts/verify-yorkie-invariants.mjs` case ⑥ is what tells an upgrade lost it. Every version bump re-creates the patch under the new version's name.
 
 **Alternatives considered** — weighed at the time, before the SRS fixed the answer.
 
@@ -77,7 +77,7 @@ Chosen on pnpm's general merits rather than for any one feature of this project:
 - **A content-addressed store with hard links.** One copy of a package version on the machine, linked into each project, instead of a full copy per `node_modules`. On a laptop already hosting Docker, MongoDB and Yorkie, that is disk worth having back — and installs are faster for the same reason.
 - **Strict resolution.** npm's flat `node_modules` lets a file import a package the project never declared, because a transitive dependency happened to hoist it there. pnpm's layout makes that fail, so `package.json` is the truth about what this project depends on rather than an approximation of it.
 
-One thing turned that choice load-bearing after the fact: `package.json` carries `patchedDependencies` for both Yorkie packages (decision 1), and `pnpm patch` keeps those as checked-in, reviewable diffs instead of a `postinstall` script rewriting `node_modules` in place. That was not why pnpm was picked, but it is why leaving it now would cost something.
+One thing turned that choice load-bearing after the fact: `package.json` carries `patchedDependencies` for the Yorkie SDK (decision 1), and `pnpm patch` keeps those as checked-in, reviewable diffs instead of a `postinstall` script rewriting `node_modules` in place. That was not why pnpm was picked, but it is why leaving it now would cost something.
 
 ### 4. `node --test`, no test framework
 
@@ -111,7 +111,7 @@ Three smaller reasons point the same way: the design tokens already exist once, 
 
 - **Our server is not on the realtime path**, and every design conversation should start there. Features that feel like they need a socket usually need a Yorkie document instead.
 - **`lib/` stays framework-free.** This is the property that keeps decision 2 reversible, and it is worth defending in review.
-- **We are pinned to a patched SDK.** The patches should be dropped the moment upstream declares its `exports` map; until then, an SDK upgrade is not a version bump alone.
+- **We are pinned to a patched SDK.** Each half of the patch goes when upstream fixes it; until then, an SDK upgrade is not a version bump alone, and the invariants script must pass on the new version.
 - **A test needs no setup**, so there is no excuse for logic arriving without one.
 
 ## What this ADR does not claim
