@@ -9,7 +9,11 @@ import { setTimeout as delay } from "node:timers/promises";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const project = `rmf-e2e-${randomUUID().slice(0, 8)}`;
-const password = `e2e-${randomUUID()}`;
+// `--lifecycle`: a stack nobody has set up, for the specs that open the workspace, restart it
+// or kill it (`e2e/lifecycle/`). Those specs run against this stack alone, never the shared one.
+const lifecycle = process.argv.includes("--lifecycle");
+const playwrightArgs = process.argv.slice(2).filter((argument) => argument !== "--lifecycle");
+const password = lifecycle ? "" : `e2e-${randomUUID()}`;
 // Within Yorkie's 30-character limit for an admin password.
 const adminPassword = `e2e-${randomUUID().slice(0, 18)}`;
 const artifacts = path.join(root, "e2e-artifacts", project);
@@ -149,9 +153,10 @@ try {
     await delay(500);
   }
   if (!ready || interrupted) throw new Error("No ready host bootstrap banner (or interrupted).");
-  await command("pnpm", ["e2e", ...process.argv.slice(2)], {
+  await command("pnpm", ["e2e", ...playwrightArgs], {
     env: {
       ...process.env,
+      ...(lifecycle ? { E2E_LIFECYCLE: "1", E2E_COMPOSE_PROJECT: project, E2E_COMPOSE_FILE: composeFile } : {}),
       E2E_BASE_URL: "http://127.0.0.1:3100",
       E2E_WORKSPACE_PASSWORD: password,
       E2E_HOST_SECRET: secret,
