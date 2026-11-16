@@ -16,7 +16,7 @@ import {
   createText,
   createTable,
 } from "@/lib/blocks/create";
-import { deleteTableAxis, insertTableAxis } from "@/lib/blocks/table";
+import { cellKey, deleteTableAxis, fillTable, insertTableAxis } from "@/lib/blocks/table";
 import { BLOCK_KINDS, continuationBlock, isTextBearing } from "@/lib/blocks/registry";
 import type { SlashAction } from "@/lib/blocks/slash-menu";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot, type StoredBlock } from "@/lib/blocks/document";
@@ -30,6 +30,7 @@ import {
   moveBlockAfter,
   removeBlock,
   type BlockArray,
+  type TypeFields,
 } from "@/lib/blocks/operations";
 import { indentedDepth, preservingDepth } from "@/lib/blocks/indent";
 import { parsePaste, type PastedLine } from "@/lib/blocks/paste";
@@ -87,6 +88,13 @@ function UnsupportedBlock({ type }: { type: BlockType }) {
       아직 편집할 수 없는 블록입니다 ({type}).
     </p>
   );
+}
+
+type PastedTextLine = PastedLine & { fields: Extract<PastedLine["fields"], TypeFields> };
+
+/** A pasted block with text of its own — not a divider, and not a table, whose text is in its cells. */
+function holdsText(line: PastedLine): line is PastedTextLine {
+  return BLOCK_KINDS[line.fields.type].surface === "text";
 }
 
 function variantOf(block: Extract<Block, { text: string }>): BlockVariant {
@@ -559,7 +567,7 @@ export function DocumentEditor({
       case "heading":
         return createHeading(fields.level);
       case "list":
-        return createList(fields.style);
+        return createList(fields.style, fields.depth);
       case "checklist":
         // `createChecklist` is always unchecked — "a task that is already done
         // is not a task anyone adds" — which holds for a new one and not for a
@@ -569,17 +577,34 @@ export function DocumentEditor({
         return createQuote();
       case "code":
         return createCode();
+      case "divider":
+        return createDivider();
+      case "table": {
+        const table = createTable(fields.cells.length, fields.cells[0]!.length);
+        fields.cells.forEach((row, r) =>
+          row.forEach((text, c) => (table.cells[cellKey(table.rows[r]!, table.columns[c]!)] = text)),
+        );
+        return table;
+      }
       case "text":
         return createText();
     }
   };
 
-  /**
-   * A paste carrying newlines (FR-022-01). The first line replaces the pasted-into
-   * block's text and takes its type; the rest become blocks after it. Why a
-   * single-line paste never reaches here: `docs/design/document-editing.md`,
-   * "Pasting more than one line".
-   */
+  /** Puts one pasted block after `afterId` with its text, and returns its id. */
+  const insertPasted = (array: BlockArray, afterId: BlockId | null, line: PastedLine): BlockId => {
+    const block = blockFor(line.fields);
+    insertBlockAfter(array, afterId, toStoredBlock(block));
+    if (block.type === "table") {
+      fillTable(array, block);
+    } else if (line.text) {
+      editBlockText(array, block.id, 0, 0, line.text);
+    }
+    return block.id;
+  };
+
+  /** A paste carrying newlines (FR-022-01): `docs/design/document-editing.md`,
+   *  "Pasting more than one line". */
   const handlePaste = (blockId: BlockId, text: string) => {
     if (!blocks) return;
 
@@ -593,30 +618,41 @@ export function DocumentEditor({
       return;
     }
 
-    const lines = parsePaste(text);
-    const first = lines[0];
-    if (!first) return;
+    // A pasted list nests under the list item it is pasted into.
+    const current = blockOf(blockId);
+    const baseDepth = current?.type === "list" ? current.depth : 0;
+    const lines = parsePaste(text).map((line): PastedLine =>
+      line.fields.type === "list" ? { ...line, fields: { ...line.fields, depth: baseDepth + line.fields.depth } } : line,
+    );
+    const first = lines.find(holdsText);
+    const index = first ? lines.indexOf(first) : lines.length;
 
-    let lastId: BlockId = blockId;
+    // Where the caret goes: the end of the last pasted block with text.
+    const caret = { id: blockId, at: first?.text.length ?? 0 };
     // What the document did to the pasted-into block, so the same can be done to
     // its textarea afterwards — the shape `handleSplit` uses for the same reason.
     let replaced: TextPatch | null = null;
 
     const applied = applyEdit((root, array) => {
-      // The first line lands in the block that already has the caret. Its whole
-      // text is replaced rather than inserted into: a multi-line paste is a
-      // structural edit, and splitting a word into a heading is not what anyone
-      // means by one.
+      let above = idBeforeInOrder(order, blockId);
+      for (const line of lines.slice(0, index)) above = insertPasted(array, above, line);
+      if (!first) return;
+
+      // Its whole text is replaced rather than inserted into: a multi-line paste
+      // is a structural edit, and splitting a word into a heading is not what
+      // anyone means by one.
       const liveText = liveTextOf(root, blockId);
-      changeBlockType(array, blockId, preservingDepth(first.fields, blockOf(blockId)));
+      changeBlockType(array, blockId, first.fields);
       editBlockText(array, blockId, 0, liveText.length, first.text);
       replaced = { from: 0, to: liveText.length, value: { content: first.text } };
 
-      for (const line of lines.slice(1)) {
-        const block = toStoredBlock(blockFor(line.fields));
-        insertBlockAfter(array, lastId, block);
-        if (line.text) editBlockText(array, block.id, 0, 0, line.text);
-        lastId = block.id;
+      let lastId = blockId;
+      for (const line of lines.slice(index + 1)) {
+        lastId = insertPasted(array, lastId, line);
+        if (holdsText(line)) {
+          caret.id = lastId;
+          caret.at = line.text.length;
+        }
       }
     });
 
@@ -625,7 +661,7 @@ export function DocumentEditor({
     // Same reason as a split: the textarea is uncontrolled and read its text
     // once, so the document's change has to be shown to it by hand (#59).
     if (replaced) patchBlockText(blockId, replaced);
-    focusBlock(lastId, lines[lines.length - 1]!.text.length);
+    if (first) focusBlock(caret.id, caret.at);
   };
 
   /** Backspace at offset 0 (FR-022-03): append to the previous block, remove this

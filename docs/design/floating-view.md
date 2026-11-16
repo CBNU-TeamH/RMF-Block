@@ -58,6 +58,9 @@ no longer there turns the window into "원본 블록이 삭제되었습니다." 
 stays until closed, because an alert the person never saw vanish is an alert they miss. If the
 block comes back (an undo), the window picks it up again.
 
+A text block's inline Markdown is drawn the way an unfocused block in the editor draws it
+([Inline formatting](document-editing.md#inline-formatting)); a code block stays as typed.
+
 The title bar shows the source document's name. `document-editing.md` §11 rules out *caching*
 a title, and nothing is cached here: the provider reads the catalogue once
 (`GET /api/documents`) and follows the workspace socket's `document:created`, `document:changed`
