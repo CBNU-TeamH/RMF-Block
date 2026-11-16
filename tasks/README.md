@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Select whole blocks and copy them as Markdown](active/20261116-block-selection-copy-todo.md) | [lessons](active/20261116-block-selection-copy-lessons.md) |
 | [Simple collaborative table blocks](active/20261016-table-block-todo.md) | [lessons](active/20261016-table-block-lessons.md) |
 
 ## Archive
