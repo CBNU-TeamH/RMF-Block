@@ -16,4 +16,6 @@ that the next person does not rediscover this.
 
 ## Worth extracting
 
+Things that should become a convention, a helper, or a line in `AGENTS.md`.
+
 - ...
