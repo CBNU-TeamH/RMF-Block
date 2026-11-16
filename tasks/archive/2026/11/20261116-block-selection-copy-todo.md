@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-16
 **Issue**: none — requested directly ("드래그해서 블록을 복사하는게 잘 안돼")
-**Design**: [document-editing.md, "Selecting and copying blocks"](../../docs/design/document-editing.md#selecting-and-copying-blocks)
+**Design**: [document-editing.md, "Selecting and copying blocks"](../../../../docs/design/document-editing.md#selecting-and-copying-blocks)
 
 ## Milestones
 

@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-16
 **Issue**: none — requested directly (Markdown import, "새 문서로")
-**Design**: [app-shell.md, "Importing Markdown"](../../docs/design/app-shell.md#importing-markdown)
+**Design**: [app-shell.md, "Importing Markdown"](../../../../docs/design/app-shell.md#importing-markdown)
 
 ## Milestones
 

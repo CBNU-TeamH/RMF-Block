@@ -8,9 +8,14 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Serialize the Yorkie sync loop's per-document pushes](2026/11/20261116-yorkie-sync-serialize-todo.md) | [lessons](2026/11/20261116-yorkie-sync-serialize-lessons.md) |
+| [Time out the Yorkie admin requests at startup](2026/11/20261116-yorkie-admin-timeout-todo.md) | [lessons](2026/11/20261116-yorkie-admin-timeout-lessons.md) |
 | [Security, safety and reliability E2E](2026/11/20261116-security-safety-e2e-todo.md) | [lessons](2026/11/20261116-security-safety-e2e-lessons.md) |
+| [Paste Markdown structure, and draw inline formatting](2026/11/20261116-markdown-paste-inline-todo.md) | [lessons](2026/11/20261116-markdown-paste-inline-lessons.md) |
+| [Import a Markdown file as a new document](2026/11/20261116-markdown-import-todo.md) | [lessons](2026/11/20261116-markdown-import-lessons.md) |
 | [Lifecycle E2E: workspace opening, restart, kill, startup refusal](2026/11/20261116-lifecycle-e2e-todo.md) | [lessons](2026/11/20261116-lifecycle-e2e-lessons.md) |
 | [Firefox and WebKit E2E runs](2026/11/20261116-browser-matrix-e2e-todo.md) | [lessons](2026/11/20261116-browser-matrix-e2e-lessons.md) |
+| [Select whole blocks and copy them as Markdown](2026/11/20261116-block-selection-copy-todo.md) | [lessons](2026/11/20261116-block-selection-copy-lessons.md) |
 
 ## 2026-10
 

@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-16
 **Issue**: none — requested directly ("맨 앞의 마크다운만 적용되고 그 뒤의 볼드 처리 같은 것들은 잘 적용이 안돼")
-**Design**: [document-editing.md, "Inline formatting" and "Pasting more than one line"](../../docs/design/document-editing.md#inline-formatting)
+**Design**: [document-editing.md, "Inline formatting" and "Pasting more than one line"](../../../../docs/design/document-editing.md#inline-formatting)
 
 ## Milestones
 

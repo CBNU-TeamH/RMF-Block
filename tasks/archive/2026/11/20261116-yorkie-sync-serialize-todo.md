@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-16
 **Issue**: #257
-**Design**: none to extend; the SDK patch is the mechanism (`package.json` `patchedDependencies`, [ADR-003](../../docs/adr/003-stack-choices.md) §3). The two-documents-per-client layout is in [`docs/design/presence-and-focus.md`](../../docs/design/presence-and-focus.md) and [`docs/design/document-editing.md`](../../docs/design/document-editing.md).
+**Design**: none to extend; the SDK patch is the mechanism (`package.json` `patchedDependencies`, [ADR-003](../../../../docs/adr/003-stack-choices.md) §3). The two-documents-per-client layout is in [`docs/design/presence-and-focus.md`](../../../../docs/design/presence-and-focus.md) and [`docs/design/document-editing.md`](../../../../docs/design/document-editing.md).
 
 One browser holds one Yorkie client with the `workspace` document and the open document attached. The SDK's sync loop
 (`runSyncLoop`, `@yorkie-js/sdk` 0.7.23) pushes every attached document at once with `Promise.all`. When both have a change in
@@ -49,7 +49,7 @@ the traces, not from Yorkie's server code: the reproduction (a 400 in every run 
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior.
 
 - Vitest (logic / component / server / route): no change; the patched code is vendored SDK, not ours.
@@ -65,10 +65,10 @@ building and revisit it for the final behavior.
 
 - [x] The milestone 1 reproduction: the reader converges every run.
 - [x] `collaboration.e2e.ts` `--repeat-each=40` on an isolated stack: 0 failures.
-- [ ] The PR's CI E2E step passes on three pushes or reruns.
+- [ ] The PR's CI E2E step passes on three pushes or reruns. Not met as written: merged on the team's decision after one inspected PR run (smoke test green) and the run on main (44 E2E passed, `collaboration.e2e.ts` included).
 - [x] The invariants case passes with the patch and fails without it.
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm verify:docs` and the comment budget pass.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded (case ⑥; the UMD hunk is unguarded).
+- [x] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm verify:docs` and the comment budget pass (the pre-push hook and CI on #261, then CI on main).
 
 ## Cross-cutting
 
@@ -76,4 +76,4 @@ SRS: NFR-SAF-001 (changes survive), FR-022-09 (concurrent edits converge). No AP
 
 ## Review
 
-Filled in at the end.
+Merged as #261 (`5dc70d7`). The loop awaits each document's sync in both builds, tries every document and rethrows the first error, and `Client.sync()` still returns its results; case ⑥ of the invariants script counts `PushPullChanges` in flight. Measured on isolated stacks: the reproduction went from a 400 in 2 of 3 runs to 0 of 12 (0 of 6 after the review fixes), `collaboration.e2e.ts` ran 200 times without a failure, and main's E2E passed 44. Known gap: `detachDocument` with `keepalive` skips the SDK's task queue. #37 (recovery after a loop stops for another reason) is untouched.

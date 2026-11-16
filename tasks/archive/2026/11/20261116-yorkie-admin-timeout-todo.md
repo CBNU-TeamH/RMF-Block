@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-16
 **Issue**: #258
-**Design**: [`docs/design/api.md`](../../docs/design/api.md) §2 (the startup webhook registration and why a failure must be loud).
+**Design**: [`docs/design/api.md`](../../../../docs/design/api.md) §2 (the startup webhook registration and why a failure must be loud).
 
 If Yorkie does not answer at all while the app starts, the app prints nothing and never listens: `call()` in
 `lib/yorkie-admin.ts` is a bare `fetch`, so an unanswered connection never reaches the `catch` in `instrumentation.ts`
@@ -26,7 +26,7 @@ that prints "Could not register the Yorkie auth webhook" and exits. A rejected r
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior.
 
 - Vitest (logic / component / server / route): a case for the timeout in the admin client's test file (`lib/yorkie-admin.test.mts`).
@@ -38,7 +38,7 @@ building and revisit it for the final behavior.
 
 - [x] An unanswered admin request fails with a clear error within the limit, in a unit test.
 - [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm verify:docs` and the comment budget pass. (Merged with the pre-push hook skipped; CI runs on main.)
+- [x] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm verify:docs` and the comment budget pass (CI on main; the pre-push hook was skipped, and locally only `tsc`, `eslint` on the touched files and the admin test ran).
 
 ## Cross-cutting
 
@@ -46,4 +46,4 @@ SRS: FR-010-06 (a startup failure shows its reason). No API, type or storage cha
 
 ## Review
 
-Filled in at the end.
+Merged as #262 (`907676c`), with an admin bypass. Each Admin request is cut off after 10 s with an error naming the method, the address and the limit; the retry is unchanged, so a Yorkie that never answers is refused after about five minutes. The limit and the retry were open choices, settled alone by the simplest option. The hung-Yorkie path was never run against a paused container, and `/code-review low` was not run on the code.
