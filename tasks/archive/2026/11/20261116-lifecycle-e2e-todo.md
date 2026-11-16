@@ -1,7 +1,7 @@
 # Lifecycle E2E: workspace opening, restart, kill, startup refusal
 
 **Created**: 2026-11-16
-**Design**: [API authentication model](../../docs/design/api.md) (§2 startup, workspace state in `.data/`), [testing strategy](../../docs/testing.md).
+**Design**: [API authentication model](../../../../docs/design/api.md) (§2 startup, workspace state in `.data/`), [testing strategy](../../../../docs/testing.md).
 
 Closes the open acceptance of [the admin E2E task](20261007-admin-e2e-todo.md): "setup/restart run in separate
 disposable stacks without contaminating ordinary E2E sessions". The ordinary stack is seeded from `WORKSPACE_PASSWORD`
@@ -30,7 +30,7 @@ and shared by every spec, so these cases cannot run on it.
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior.
 
 - Vitest (logic / component / server / route): unchanged. No product code changes.
@@ -42,7 +42,7 @@ building and revisit it for the final behavior.
 
 - [x] `pnpm e2e:isolated --lifecycle` passes three runs in a row on independent stacks.
 - [x] `pnpm e2e:isolated` (ordinary) still passes the whole suite and does not collect `e2e/lifecycle/`.
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
 - [x] `pnpm lint`-equivalent eslint run, `tsc --noEmit`, `verify:docs` and the comment budget pass.
 
 ## Cross-cutting

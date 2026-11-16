@@ -1,7 +1,7 @@
 # Security, safety and reliability E2E
 
 **Created**: 2026-11-16
-**Design**: [testing strategy](../../docs/testing.md), [chat links](../../docs/design/chat.md) ("Links": only `http(s)` becomes a link), [API](../../docs/design/api.md) (file serving).
+**Design**: [testing strategy](../../../../docs/testing.md), [chat links](../../../../docs/design/chat.md) ("Links": only `http(s)` becomes a link), [API](../../../../docs/design/api.md) (file serving).
 
 The D07 system-test report counts only system-level evidence (browser E2E, container smoke, real-device perf). Three
 non-functional requirements have no browser-level check yet: NFR-SEC-003, NFR-REL-003 and the cancel branch of
@@ -38,7 +38,7 @@ NFR-SAF-002 for files.
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior.
 
 - Vitest (logic / component / server / route): unchanged. The rules under test (`lib/chat/links.ts`, `lib/files/serving.ts`) already have unit tests; this task proves them in a browser against the running stack.
