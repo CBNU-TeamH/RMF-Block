@@ -46,7 +46,7 @@ export function toggleMarker(
   to: number,
   { open, close }: { open: string; close: string },
 ): { text: string; from: number; to: number } {
-  if (text.slice(from - open.length, from) === open && text.slice(to, to + close.length) === close) {
+  if (isWrapped(text, from, to, open, close)) {
     return {
       text: text.slice(0, from - open.length) + text.slice(from, to) + text.slice(to + close.length),
       from: from - open.length,
@@ -58,6 +58,18 @@ export function toggleMarker(
     from: from + open.length,
     to: to + open.length,
   };
+}
+
+/** Whether `[from, to)` already carries `open`/`close`. `*` is one run shared by italic and bold, so
+ *  `**x**` is bold, not italic-to-unwrap: italic needs an odd run, bold two or more. */
+function isWrapped(text: string, from: number, to: number, open: string, close: string): boolean {
+  if (open[0] !== "*") return text.slice(from - open.length, from) === open && text.slice(to, to + close.length) === close;
+  let left = 0;
+  while (text[from - 1 - left] === "*") left += 1;
+  let right = 0;
+  while (text[to + right] === "*") right += 1;
+  const run = Math.min(left, right);
+  return open === "*" ? run % 2 === 1 : run >= 2;
 }
 
 function push(segments: Array<InlineSegment>, text: string, marks: Array<InlineMark>, href: string | undefined) {

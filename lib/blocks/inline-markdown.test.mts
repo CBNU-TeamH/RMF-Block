@@ -56,6 +56,16 @@ describe("toggleMarker", () => {
     assert.deepEqual(toggleMarker("ab **cd**", 5, 7, SHORTCUT_MARKERS.b), { text: "ab cd", from: 3, to: 5 });
   });
 
+  it("adds italic to bold, and bold to italic, rather than unwrapping the shared `*`", () => {
+    assert.deepEqual(toggleMarker("**x**", 2, 3, SHORTCUT_MARKERS.i), { text: "***x***", from: 3, to: 4 });
+    assert.deepEqual(toggleMarker("*x*", 1, 2, SHORTCUT_MARKERS.b), { text: "***x***", from: 3, to: 4 });
+  });
+
+  it("removes only the mark asked for from bold italic", () => {
+    assert.deepEqual(toggleMarker("***x***", 3, 4, SHORTCUT_MARKERS.i), { text: "**x**", from: 2, to: 3 });
+    assert.deepEqual(toggleMarker("***x***", 3, 4, SHORTCUT_MARKERS.b), { text: "*x*", from: 1, to: 2 });
+  });
+
   it("wraps an empty selection, leaving the caret between the markers", () => {
     assert.deepEqual(toggleMarker("ab", 2, 2, SHORTCUT_MARKERS.i), { text: "ab**", from: 3, to: 3 });
   });
