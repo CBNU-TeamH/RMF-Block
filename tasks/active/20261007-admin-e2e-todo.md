@@ -19,6 +19,14 @@
 - **Reuse**: real UI and merged auth/location contracts; restore changed passwords in teardown.
 - **Done**: setup/restart run in separate disposable stacks without contaminating ordinary E2E sessions.
 
+### 3. What this branch covers (2026-11-16, `test/admin-e2e`)
+
+- **What**: the sprint 14/15 behaviour on the ordinary seeded stack — guest/visitor refused by `/admin` and its two APIs; a password change that keeps a connected guest and admits only the new password (restored in `finally`); kick cancel/confirm, the kicked guest's notice and 401, the remaining guest's roster, and rejoining; a jump from a tree dot to a colleague's block, 돌아가기, and the dot gone once they leave.
+- **Files**: `e2e/admin.e2e.ts`, `e2e/location.e2e.ts`; `bootstrapHost` moved from `e2e/host.e2e.ts` to `e2e/helpers.ts` so both host specs share it; `docs/testing.md`.
+- **Reuse**: `users` fixture, `joinForm`, `online`, `openDocument`, `insertAt`.
+- **Done**: the three specs pass on `pnpm e2e:isolated`.
+- **Not here**: unseeded setup and restart persistence need a stack started without `WORKSPACE_PASSWORD` and an app restart mid-test — still open below.
+
 ## Acceptance
 
 - [x] Admin is merged before implementation starts (PR #170).
@@ -32,3 +40,5 @@ FR-010-01~05, FR-011-01~07, FR-040-01~04, NFR-REL-002. No product API/type/stora
 ## Review
 
 Admin merged in PR #170. The first-phase suite was revalidated against `2608675`; admin-specific scenarios and integrated user-location navigation still belong to this separate task. Performance/LAN/multibrowser checks remain separate.
+
+2026-11-16, milestone 3 on `f64c68f` (macOS arm64, `pnpm e2e:isolated`): `admin`, `location` and `host` specs passed 7/7 in three separate isolated stacks, and again after the `/simplify` cleanups. The full suite passed 33/35: `ime-replay` failed once and passed alone; `tabs.e2e.ts:4` failed twice here (the tab title missed a rename made after `page.reload()`), while both pass in main's CI run for `f64c68f`. Lint, typecheck, 908 unit tests, `verify:docs` and the comment budget passed. Acceptance stays open for unseeded setup and restart persistence.

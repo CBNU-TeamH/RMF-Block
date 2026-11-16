@@ -54,6 +54,19 @@ export async function joinForm(page: Page, name: string, accessPassword: string)
   await page.getByRole("button", { name: "입장", exact: true }).click();
 }
 
+/** Signs `page` in as the host. A spec that calls it sets `test.use({ trace: "off" })`:
+ *  the bootstrap URL and the role cookie both carry the host secret. */
+export async function bootstrapHost(page: Page): Promise<void> {
+  const secret = process.env.E2E_HOST_SECRET;
+  if (!secret) throw new Error("Set E2E_HOST_SECRET from this stack's startup banner, or use pnpm e2e:isolated.");
+  await page.goto("/join");
+  // Browser-side navigation keeps the credential out of Playwright step titles.
+  await page.evaluate((credential) => {
+    window.location.assign(`/api/auth/host?secret=${encodeURIComponent(credential)}`);
+  }, secret);
+  await expect(page.getByRole("complementary").getByRole("textbox", { name: "문서 제목 검색" })).toBeVisible();
+}
+
 export function online(page: Page, count: number) {
   return expect(page.getByRole("banner").getByText(`${count}명 접속 중`, { exact: true })).toHaveCount(1);
 }
