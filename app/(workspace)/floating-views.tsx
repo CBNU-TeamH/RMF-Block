@@ -41,6 +41,7 @@ import {
   type ViewRef,
 } from "@/lib/floating/views";
 
+import { InlineText } from "./documents/[id]/inline-text";
 import { CODE_SURFACE } from "./documents/[id]/text-block";
 import { FloatingFrame } from "./floating-frame";
 import { useWorkspacePresence } from "./presence-provider";
@@ -382,7 +383,7 @@ function MirrorBody({ block, onImage }: { block: Block; onImage: (img: HTMLImage
   return (
     <p className={`whitespace-pre-wrap leading-relaxed ${typeClass}`}>
       {block.type === "checklist" ? (block.checked ? "☑ " : "☐ ") : null}
-      {block.text}
+      {block.type === "code" ? block.text : <InlineText text={block.text} />}
     </p>
   );
 }

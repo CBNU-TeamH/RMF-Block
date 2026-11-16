@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import yorkie, { type Document } from "@yorkie-js/sdk";
 
 import type { BlockDocumentRoot, StoredBlock } from "@/lib/blocks/document";
@@ -21,6 +21,7 @@ function renderBlock(
 ) {
   const onSplit = vi.fn();
   const onPasteBlocks = vi.fn();
+  const onSelectAllBlocks = vi.fn();
   let handler: (patch: TextPatch) => void = () => {};
   render(
     <TextBlockView
@@ -43,12 +44,13 @@ function renderBlock(
       onFocusBlock={vi.fn()}
       onIndent={vi.fn()}
       onPasteBlocks={onPasteBlocks}
+      onSelectAllBlocks={onSelectAllBlocks}
       onHistory={vi.fn()}
     />,
   );
 
   const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
-  return { textarea, onSplit, onPasteBlocks, remote: (patch: TextPatch) => handler(patch) };
+  return { textarea, onSplit, onPasteBlocks, onSelectAllBlocks, remote: (patch: TextPatch) => handler(patch) };
 }
 
 function menuLabels(): Array<string> {
@@ -222,5 +224,67 @@ describe("pasting a block address", () => {
     const { textarea, onPasteBlocks } = renderBlock();
     paste(textarea, "http://192.168.0.2:3000/documents/d1");
     assert.equal(onPasteBlocks.mock.calls.length, 0);
+  });
+});
+
+describe("inline formatting", () => {
+  const strong = () => document.querySelector("strong")?.textContent ?? null;
+
+  it("draws inline Markdown while the block is not being edited, and shows the markers while it is", () => {
+    const { textarea } = renderBlock({ type: "text" }, null, "**a** b");
+    assert.equal(strong(), "a");
+    assert.equal(textarea.style.color, "transparent");
+
+    fireEvent.focus(textarea);
+    assert.equal(strong(), null);
+    assert.equal(textarea.style.color, "");
+
+    fireEvent.blur(textarea);
+    assert.equal(strong(), "a");
+  });
+
+  it("redraws after a peer's edit", () => {
+    const { remote } = renderBlock({ type: "text" }, null, "plain");
+    assert.equal(document.querySelector("em"), null);
+    act(() => remote({ from: 0, to: 0, value: { content: "*x* " } }));
+    assert.equal(document.querySelector("em")?.textContent, "x");
+  });
+
+  it("leaves a code block as typed", () => {
+    renderBlock({ type: "code" }, null, "**a**");
+    assert.equal(strong(), null);
+  });
+
+  it("wraps the selection on Ctrl/Cmd+B, I and U, and unwraps it on a second press", () => {
+    const { textarea } = renderBlock({ type: "text" }, null, "ab cd");
+    textarea.setSelectionRange(3, 5);
+    assert.equal(fireEvent.keyDown(textarea, { key: "b", ctrlKey: true }), false);
+    assert.equal(textarea.value, "ab **cd**");
+    assert.deepEqual([textarea.selectionStart, textarea.selectionEnd], [5, 7]);
+
+    fireEvent.keyDown(textarea, { key: "b", metaKey: true });
+    assert.equal(textarea.value, "ab cd");
+
+    fireEvent.keyDown(textarea, { key: "u", ctrlKey: true });
+    assert.equal(textarea.value, "ab <u>cd</u>");
+  });
+});
+
+describe("Ctrl/Cmd+A", () => {
+  it("selects the block's own text first, and every block once that is all selected", () => {
+    const { textarea, onSelectAllBlocks } = renderBlock({ type: "text" }, null, "abc");
+    textarea.setSelectionRange(0, 1);
+    assert.equal(fireEvent.keyDown(textarea, { key: "a", ctrlKey: true }), true);
+    assert.equal(onSelectAllBlocks.mock.calls.length, 0);
+
+    textarea.setSelectionRange(0, 3);
+    assert.equal(fireEvent.keyDown(textarea, { key: "a", metaKey: true }), false);
+    assert.equal(onSelectAllBlocks.mock.calls.length, 1);
+  });
+
+  it("selects every block at once from an empty block", () => {
+    const { textarea, onSelectAllBlocks } = renderBlock();
+    fireEvent.keyDown(textarea, { key: "a", ctrlKey: true });
+    assert.equal(onSelectAllBlocks.mock.calls.length, 1);
   });
 });

@@ -18,6 +18,10 @@ Listing a document's past versions, previewing one read-only, naming one, and re
 document to one. Undo/redo is a different mechanism entirely and lives in
 [`document-editing.md`](document-editing.md) — it tracks local changes in memory, not revisions.
 
+The preview draws a text block's inline Markdown (`**bold**`) the way the editor does while the block is
+not focused — [Inline formatting](document-editing.md#inline-formatting). The snapshot holds the same plain
+text as before, so reading and restoring it are unchanged.
+
 ## What Yorkie provides, and what the app adds
 
 Version history is built on Yorkie's revision API (ADR-002). Three of its four calls are used

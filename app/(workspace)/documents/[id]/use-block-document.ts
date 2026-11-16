@@ -123,9 +123,11 @@ export function useBlockDocument(
       });
       // Strings only after their empty CRDT nodes are in, as `replaceBlocks` does.
       const texts = seed.flatMap((block) => ("text" in block && block.text ? [{ id: block.id, text: block.text }] : []));
-      if (texts.length > 0 && doc.getRoot().blocks[0]?.id === seed[0]!.id) {
+      const tables = seed.flatMap((block) => (block.type === "table" ? [block] : []));
+      if ((texts.length > 0 || tables.length > 0) && doc.getRoot().blocks[0]?.id === seed[0]!.id) {
         doc.update((root: BlockDocumentRoot) => {
           for (const { id, text } of texts) editBlockText(root.blocks as BlockArray, id, 0, 0, text);
+          for (const table of tables) fillTable(root.blocks as BlockArray, table);
         });
       }
 

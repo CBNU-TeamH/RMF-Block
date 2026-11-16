@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
 import { blocksFromMarkdown } from "./markdown-import.ts";
+import { cellKey } from "./table.ts";
 
 const shape = (text: string) => blocksFromMarkdown(text).map((block) => [block.type, "text" in block ? block.text : null]);
 
@@ -20,6 +21,17 @@ describe("blocksFromMarkdown", () => {
     assert.deepEqual(shape("- \n"), [["list", ""]]);
     assert.deepEqual(shape("\n \n\n"), []);
     assert.deepEqual(shape(""), []);
+  });
+
+  it("keeps a divider and a table, the table's text in its cells", () => {
+    const [divider, table] = blocksFromMarkdown("---\n\n| a | b |\n| - | - |\n| c | d |\n");
+    assert.equal(divider?.type, "divider");
+    assert.equal(table?.type, "table");
+    if (table?.type !== "table") return;
+    assert.deepEqual(
+      table.rows.map((row) => table.columns.map((column) => table.cells[cellKey(row, column)] ?? "")),
+      [["a", "b"], ["c", "d"]],
+    );
   });
 
   it("gives every block its own id", () => {
