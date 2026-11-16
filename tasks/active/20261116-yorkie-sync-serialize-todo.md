@@ -25,13 +25,14 @@ the traces, not from Yorkie's server code: the reproduction (a 400 in every run 
 
 ### 2. A guard that fails when the patch is lost
 
-- **What**: a case in `scripts/verify-yorkie-invariants.mjs`: one client, two documents, both updated every few milliseconds with a peer
-  doing the same, then a fresh reader sees the last edit. It fails on an SDK that sends the two pushes concurrently, which is what
-  an upgrade that drops the patch would do. The failure is silent (the loop just stops), so the case asserts the loop is still alive:
-  a later edit still reaches the reader. It resolves the package's `import` condition, so it guards the ES build only; the UMD patch is not guarded.
-- **Files**: `scripts/verify-yorkie-invariants.mjs` (the case, a comment on why it exists, and its header if that lists the cases).
-- **Reuse**: the script's reporter and its admin helpers; CI already runs it against a bare Yorkie.
-- **Done**: green with the patch; red on an unpatched `node_modules` (checked once by hand and recorded under Test selection).
+- **What**: case ⑥ in `scripts/verify-yorkie-invariants.mjs`: one client, two documents updated back to back so both have a change at every
+  tick. It counts the `PushPullChanges` requests in flight (the SDK calls the global `fetch`) and expects never more than one, then
+  checks a fresh reader sees both documents' last edit. The count is the guard: whether Yorkie refuses the second push is a race
+  (the reader check alone passed on an unpatched SDK in half the runs), so the case asserts what the client sends. It resolves the
+  package's `import` condition, so it guards the ES build only; the UMD patch is not guarded.
+- **Files**: `scripts/verify-yorkie-invariants.mjs` (the case and a comment on why it exists; the header lists no cases).
+- **Reuse**: the script's reporter, `client()` and `settle()`; CI already runs it against a bare Yorkie.
+- **Done**: green with the patch, red on the SDK without it, on a Compose stack, 4 runs each (see Test selection).
 
 ### 3. Say why the patch exists
 
@@ -52,13 +53,17 @@ building and revisit it for the final behavior.
 - Vitest (logic / component / server / route): no change; the patched code is vendored SDK, not ours.
 - Browser E2E (`e2e/`): no new spec. `collaboration.e2e.ts` "edits go both ways" is the symptom; the repeat run is in Acceptance (before: 1 failure locally, 3 of 6 CI runs).
 - Container smoke (`.github/workflows/ci.yml`): the invariants step gains the case from milestone 2; its E2E step is the CI evidence.
-- Commands and observed results (fill in before the PR):
+- Commands and observed results:
+  - Reproduction (one client, two documents, a peer, 600 rounds, isolated Compose stack): shipped patch 2 of 3 runs hit a 400 and one reader stopped at 532 of 600; this patch 0 of 12, every reader at 600.
+  - Case ⑥ against that stack, 4 runs each: shipped patch red 4 of 4 (2 pushes in flight; the reader check red in 3 of 4); this patch green 4 of 4.
+  - `collaboration.e2e.ts` `--repeat-each=40` on an isolated stack built from this branch: 200 passed, 0 failed (27 min).
 
 ## Acceptance
 
-- [ ] The milestone 1 reproduction: the reader converges every run.
-- [ ] `collaboration.e2e.ts` `--repeat-each=40` on an isolated stack: 0 failures; and the PR's CI E2E step passes on three pushes or reruns.
-- [ ] The invariants case passes with the patch and fails without it.
+- [x] The milestone 1 reproduction: the reader converges every run.
+- [x] `collaboration.e2e.ts` `--repeat-each=40` on an isolated stack: 0 failures.
+- [ ] The PR's CI E2E step passes on three pushes or reruns.
+- [x] The invariants case passes with the patch and fails without it.
 - [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm verify:docs` and the comment budget pass.
 

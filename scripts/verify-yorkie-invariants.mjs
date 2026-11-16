@@ -267,6 +267,53 @@ console.log("\n⑤ undo 가 로컬 변경을 되돌린다");
   report("redo 가 다시 적용한다", 2, doc.getRoot().blocks.length);
 }
 
+console.log("\n⑥ 한 클라이언트에 붙은 두 문서는 한 번에 하나씩 밀린다 (#257)");
+{
+  // The app keeps the `workspace` document and the open one on a single client. The SDK's loop pushed
+  // both with `Promise.all`, so a tick with a change in each sent two PushPulls at once; Yorkie may
+  // refuse the second ("clientSeq must increase by one"), and the loop then stops for good, without
+  // throwing. `patches/@yorkie-js__sdk@0.7.23.patch` awaits them one at a time. Whether the server
+  // refuses is a race, so the first check counts what the client sends instead; the second is what a
+  // refusal would cost. This resolves the package's `import` condition, so it guards the ES build only.
+  const key = `inv-loop-${Date.now()}`;
+  const LAST = 120;
+
+  // The SDK calls the global `fetch` for each request.
+  const realFetch = globalThis.fetch;
+  let inFlight = 0;
+  let mostInFlight = 0;
+  globalThis.fetch = async (input, init) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!url.includes("/PushPullChanges")) return realFetch(input, init);
+    mostInFlight = Math.max(mostInFlight, ++inFlight);
+    try {
+      return await realFetch(input, init);
+    } finally {
+      inFlight -= 1;
+    }
+  };
+
+  const a = await client();
+  const docs = [new yorkie.Document(`${key}-x`), new yorkie.Document(`${key}-y`)];
+  for (const doc of docs) await a.attach(doc);
+  for (let n = 1; n <= LAST; n += 1) {
+    // Back to back: both documents have a change by the time the loop next ticks.
+    for (const doc of docs) doc.update((root) => (root.n = n));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  await settle();
+  globalThis.fetch = realFetch;
+
+  report("PushPullChanges 가 동시에 둘 이상 나가지 않는다", 1, mostInFlight);
+
+  const reader = await client();
+  const [rx, ry] = [new yorkie.Document(`${key}-x`), new yorkie.Document(`${key}-y`)];
+  await reader.attach(rx);
+  await reader.attach(ry);
+  await settle();
+  report("두 문서의 마지막 편집이 새 클라이언트에 도착한다", `${LAST},${LAST}`, `${rx.getRoot().n},${ry.getRoot().n}`);
+}
+
 for (const created of clients) {
   await created.deactivate().catch(() => undefined);
 }

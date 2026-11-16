@@ -1,5 +1,111 @@
+diff --git a/dist/yorkie-js-sdk.es.js b/dist/yorkie-js-sdk.es.js
+index 12a35c6..5cdf5f1 100755
+--- a/dist/yorkie-js-sdk.es.js
++++ b/dist/yorkie-js-sdk.es.js
+@@ -25341,22 +25341,17 @@ class Client {
+       });
+     }
+     return this.enqueueTask(async () => {
+-      const promises = [];
+-      for (const [, attachment] of this.attachmentMap) {
+-        if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
+-          promises.push(
+-            this.syncInternal(
+-              attachment,
+-              attachment.syncMode
+-            )
+-          );
++      try {
++        for (const [, attachment] of this.attachmentMap) {
++          if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
++            await this.syncInternal(attachment, attachment.syncMode);
++          }
+         }
+-      }
+-      return Promise.all(promises).catch(async (err) => {
++      } catch (err) {
+         logger.error(`[SY] c:"${this.getKey()}" err :`, err);
+         await this.handleConnectError(err);
+         throw err;
+-      });
++      }
+     });
+   }
+   /**
+@@ -25924,7 +25919,6 @@ class Client {
+       }
+       try {
+         await this.enqueueTask(async () => {
+-          const syncs = [];
+           for (const [, attachment] of this.attachmentMap) {
+             if (this.deactivating) {
+               break;
+@@ -25969,9 +25963,8 @@ class Client {
+               attachment.clearSyncPromise();
+             });
+             attachment.setSyncPromise(syncPromise);
+-            syncs.push(syncPromise);
++            await syncPromise;
+           }
+-          await Promise.all(syncs);
+           setTimeout(doLoop, this.syncLoopDuration);
+         });
+       } catch (err) {
+diff --git a/dist/yorkie-js-sdk.js b/dist/yorkie-js-sdk.js
+index 199ac7a..082f43f 100755
+--- a/dist/yorkie-js-sdk.js
++++ b/dist/yorkie-js-sdk.js
+@@ -25345,22 +25345,17 @@
+         });
+       }
+       return this.enqueueTask(async () => {
+-        const promises = [];
+-        for (const [, attachment] of this.attachmentMap) {
+-          if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
+-            promises.push(
+-              this.syncInternal(
+-                attachment,
+-                attachment.syncMode
+-              )
+-            );
++        try {
++          for (const [, attachment] of this.attachmentMap) {
++            if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
++              await this.syncInternal(attachment, attachment.syncMode);
++            }
+           }
+-        }
+-        return Promise.all(promises).catch(async (err) => {
++        } catch (err) {
+           logger.error(`[SY] c:"${this.getKey()}" err :`, err);
+           await this.handleConnectError(err);
+           throw err;
+-        });
++        }
+       });
+     }
+     /**
+@@ -25928,7 +25923,6 @@
+         }
+         try {
+           await this.enqueueTask(async () => {
+-            const syncs = [];
+             for (const [, attachment] of this.attachmentMap) {
+               if (this.deactivating) {
+                 break;
+@@ -25973,9 +25967,8 @@
+                 attachment.clearSyncPromise();
+               });
+               attachment.setSyncPromise(syncPromise);
+-              syncs.push(syncPromise);
++              await syncPromise;
+             }
+-            await Promise.all(syncs);
+             setTimeout(doLoop, this.syncLoopDuration);
+           });
+         } catch (err) {
 diff --git a/package.json b/package.json
-index 3feaf4b50224707e8e65beeee281d6c578377682..3c62f9cfdab16c64e0cfec4dac8f6c65e9278608 100755
+index 3feaf4b..e44e232 100755
 --- a/package.json
 +++ b/package.json
 @@ -3,6 +3,16 @@
