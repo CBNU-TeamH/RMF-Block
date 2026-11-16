@@ -213,7 +213,7 @@ a browser run costs seconds per test against milliseconds.
   cover guest/host admission, takeover cancel/confirm and third-party isolation, tab deduplication,
   arrival/departure, bidirectional/late/reloaded reads, concurrent same-position insertion and
   disjoint-range edits, split/merge ordering, local undo/redo preserving remote input, eight-user
-  block/shared-text convergence, live tree create/rename/move/delete, document tabs and the sidebar rail, host restore of a deleted document from `/admin`, `/admin` and its APIs refusing a guest or visitor, a password change that keeps a connected guest and admits only the new password, kick cancel/confirm with the kicked guest's notice and rejoin, a jump from a tree dot to a colleague's block and back, chat sender attribution and
+  block/shared-text convergence, live tree create/rename/move/delete, document tabs and the sidebar rail, host restore of a deleted document from `/admin`, `/admin` and its APIs refusing a guest or visitor, a password change that keeps a connected guest and admits only the new password, kick cancel/confirm with the kicked guest's notice and rejoin, a jump from a tree dot to a colleague's block and back, markup and script-shaped text staying inert for another user, a document or chat file downloading byte for byte, cancelling a file block's deletion, chat sender attribution and
   remote attachment preview. Recovery holds an activated client offline for 20 seconds while both
   sides edit, then checks convergence and chat backfill/deduplication.
 - **Anchors and timing.** Capture block IDs and address `[data-block-id="<id>"] textarea`; inspect
