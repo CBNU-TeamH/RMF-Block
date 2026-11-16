@@ -1,4 +1,15 @@
-import type { HeadingLevel, ListStyle } from "./types.ts";
+import {
+  createChecklist,
+  createCode,
+  createDivider,
+  createHeading,
+  createList,
+  createQuote,
+  createTable,
+  createText,
+} from "./create.ts";
+import { cellKey } from "./table.ts";
+import type { Block, HeadingLevel, ListStyle } from "./types.ts";
 
 /** One pasted block: the type it asks for, and its text. A table's text is in its cells. */
 export type PastedLine = {
@@ -130,4 +141,35 @@ function cellsOf(row: string): Array<string> {
   }
   if (cell.trim() !== "" || !trimmed.endsWith("|")) cells.push(cell);
   return cells.map((text) => text.trim().replace(/<br\s*\/?>/gi, "\n"));
+}
+
+/** The block a pasted line becomes, its text included (a table's, in its cells).
+ *  `create.ts` is the one place a block of each type is built. */
+export function pastedBlock({ fields, text }: PastedLine): Block {
+  switch (fields.type) {
+    case "heading":
+      return { ...createHeading(fields.level), text };
+    case "list":
+      return { ...createList(fields.style, fields.depth), text };
+    case "checklist":
+      // `createChecklist` is always unchecked — "a task that is already done
+      // is not a task anyone adds" — which holds for a new one and not for a
+      // pasted one, where `[x]` is the whole point of writing it.
+      return { ...createChecklist(), checked: fields.checked, text };
+    case "quote":
+      return { ...createQuote(), text };
+    case "code":
+      return { ...createCode(), text };
+    case "divider":
+      return createDivider();
+    case "table": {
+      const table = createTable(fields.cells.length, fields.cells[0]!.length);
+      fields.cells.forEach((row, r) =>
+        row.forEach((cell, c) => (table.cells[cellKey(table.rows[r]!, table.columns[c]!)] = cell)),
+      );
+      return table;
+    }
+    case "text":
+      return { ...createText(), text };
+  }
 }
