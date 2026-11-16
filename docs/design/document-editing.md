@@ -131,7 +131,7 @@ content = {
 
 The wrapper looks redundant with one field in it and is not — see [Every text-bearing block wraps its text](#every-text-bearing-block-wraps-its-text).
 
-Plain text, no inline marks. SRS has no inline-formatting requirement for block content; the presenter highlight/underline tools (FR-030-12~14) are a separate, ephemeral overlay unrelated to stored block content.
+Plain text, no inline marks in storage. Inline Markdown typed or pasted into the text (`**bold**`) is stored as typed and drawn formatted while the block is not being edited — see [Inline formatting](#inline-formatting). SRS has no inline-formatting requirement for block content; the presenter highlight/underline tools (FR-030-12~14) are a separate, ephemeral overlay unrelated to stored block content.
 
 ### 2. Heading block (`type: "heading"`)
 
@@ -325,6 +325,25 @@ obvious first thing to reach for.
 No rich-text framework: binding one to Yorkie makes the document a `yorkie.Tree`, which has no move,
 and block reordering is a requirement. We take on IME handling ourselves in exchange; see
 [ADR-008](../adr/008-textarea-editing-surface.md).
+
+### Inline formatting
+
+A textarea cannot show bold, so **inline Markdown stays in the text as typed and is drawn over the
+textarea while nobody is editing that block** (`inline-text.tsx`, read by
+`lib/blocks/inline-markdown.ts`). Focusing the block hides the drawing and shows the markers again,
+the way Obsidian's live preview does, so editing, IME composition, remote patches and undo all
+work on the same plain text as before; nothing about storage or sync changes.
+
+- Read: `**bold**`/`__bold__`, `*italic*`/`_italic_`, `***both***`, `<u>underline</u>` (Markdown
+  has no underline of its own; GitHub and Obsidian both render the tag), `~~strike~~`, `` `code` ``,
+  links `[text](https://example.com)`, and `\` escapes. `_` does not open inside a word, so `snake_case` stays as typed;
+  a delimiter that never closes stays as typed. Code blocks and table cells are not drawn.
+- Drawn: an `aria-hidden` sibling absolutely placed over the textarea, which keeps its text
+  (transparent) for the caret and screen readers and takes the drawing's height while it shows.
+  Links are shown, not followed — the drawing ignores the pointer so a click still lands in the
+  textarea. The revision preview and floating view draw the same marks.
+- Ctrl/Cmd+B, I and U wrap the selection in `**`, `*` or `<u>…</u>` (or unwrap it when it is
+  already wrapped) as an ordinary text edit.
 
 ### Behaviour of the textarea surface
 
@@ -665,20 +684,54 @@ replace it would move focus for no reason. Its whole text is replaced, not splic
 a multi-line paste is a structural edit, and splitting a word in half to make the front of it a
 heading is not what anyone means by one.
 
-Each line is parsed on its own by `lib/blocks/paste.ts`, and a markdown marker at the start of a
-line converts that line's block. This needs its own parser: `detectMarkdownShortcut` matches a
-marker as a block's **entire** text (`"# "` triggers, `"# hello"` does not), which is right for
-typing — the conversion has to fire as the marker completes — and useless for a paste, where the
-marker always arrives with its line. The marker table is still the one authority; `paste.ts` hands
-it the marker alone and keeps the rest as text.
+`lib/blocks/paste.ts` reads the paste as CommonMark/GFM block structure, a superset of the typing
+shortcuts: `detectMarkdownShortcut` matches a marker as a block's **entire** text (`"# "` triggers,
+`"# hello"` does not), which is right for typing and useless for a paste, where the marker arrives
+with its line and with things nobody types — indentation, fences, tables.
 
-`[x] ` is the one marker only a paste can carry. Nobody types it — you type `[] ` and click — so
-`detectMarkdownShortcut` does not know it, correctly, and `paste.ts` reads the checked state
-itself.
+- Headings `#`–`######`; deeper than `###` becomes a level-3 heading (SRS has three levels).
+- Lists `-`, `*`, `+`, `1.`, `1)`, nested by indentation: a line indented further than the item
+  above opens a level, and pasting into a list item nests the pasted list under it.
+- Checklists `[ ] `/`[x] ` and GFM `- [ ] `/`- [x] `. `[x] ` is a marker only a paste can carry —
+  nobody types it — so `paste.ts` reads the checked state itself.
+- Quotes `>`; dividers `---`, `***`, `___` (read before lists, so `- - -` is a divider).
+- A fenced code block (```` ``` ```` or `~~~`) is **one** code block, blank lines and markers
+  inside it included; an unclosed fence runs to the end of the paste, as CommonMark reads it.
+- A GFM table (a row with `|` followed by a delimiter row with `|`) is one table block, its first
+  row the header, short rows padded; `\|` is a pipe and `<br>` a line break inside a cell.
+- Inline Markdown stays in the text (see [Inline formatting](#inline-formatting)).
+
+A divider or table has no text for the pasted-into block to take, so one that comes before the
+first line with text goes above that block, the way a pasted block address does.
 
 One trailing newline is dropped, because that is how a copied paragraph ends rather than a request
 for an empty block after it. Blank lines *between* lines are kept: those are the person's own
 spacing.
+
+### Selecting and copying blocks
+
+Each block is its own textarea, so the browser cannot select across two of them. Whole-block
+selection (`use-block-selection.ts`) is the editor's own state, an anchor and a focus block, and
+there are three ways in: a mouse drag that leaves the block it started in, Shift+click with the
+caret in another block, and Ctrl/Cmd+A once the block's text is already all selected (so the
+first press still selects text, the second takes every block; an empty block goes straight to
+every block). A table cell keeps Ctrl/Cmd+A as its own. Selected rows are marked
+`data-selected` and shaded.
+
+**The copy goes through a hidden read-only textarea**, focused while the selection lasts, with
+a short label as its text, selected. Ctrl/Cmd+C is then the browser's ordinary copy, which works
+on a plain-HTTP LAN address where `navigator.clipboard` does not exist, and its `copy` handler
+writes the Markdown, read from the live document at that moment.
+Escape returns the caret to the block the selection ended on; a plain click anywhere, or focus
+moving to another control, ends it. Selection is local: nothing is published to other people.
+
+`lib/blocks/markdown.ts` writes one block per line, the shape the paste above reads (it does not
+yet read back GFM checklists or indented items), and text as stored, without escaping: whatever Markdown a person typed or pasted is copied as such.
+Lists are numbered and nested by `depth` (four spaces a level, opened at the left margin when the
+selection starts inside a nested list), checklists are GFM `- [ ]`/`- [x]`, code is fenced with
+more backticks than it contains, a table is a GFM table whose first row is the header, an image
+or file is a link to `/api/files/<id>/preview` or `/download` at this workspace's address, and a
+document or block link is its address.
 
 ### Indenting a list item
 

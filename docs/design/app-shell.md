@@ -4,7 +4,7 @@
 - **Owns**: `app/layout.tsx`, `app/(workspace)/layout.tsx`, `app/(workspace)/page.tsx`,
   `app/(workspace)/breadcrumb.tsx`, `app/(workspace)/read-documents.ts`, `app/(workspace)/ui.tsx`,
   `app/(workspace)/document-tabs.tsx`, `app/(workspace)/sidebar.tsx`, `app/(workspace)/new-document.tsx`,
-  `lib/tabs.ts`.
+  `app/(workspace)/pending-import.ts`, `lib/tabs.ts`.
 - **Related**: [`docs/ui/redesign/HANDOFF.md`](../ui/redesign/HANDOFF.md) (tokens, per-component
   visuals — not restated here); [`docs/ui/redesign/source.md`](../ui/redesign/source.md);
   [`api.md`](api.md) (the auth model behind the shell's gate); [`document-editing.md`](document-editing.md)
@@ -82,6 +82,21 @@ container smoke reads the shell's HTML from `/`. Only an empty workspace stays t
 **One 새 문서 dialog.** The tree, the collapsed rail, the tab strip's `+` and the empty landing all open it, so it lives
 in the layout as `NewDocumentProvider` (`new-document.tsx`), a context exposing one `open`, the
 shape `FloatingViewProvider` already has.
+
+### Importing Markdown
+
+The 새 문서 dialog takes an optional Markdown file (`.md`, `.markdown`); picking one fills an empty
+name with the file's name. **만들기** reads the file in the browser, creates the document as always,
+and hands the text to its first attach through `pending-import.ts`, an in-memory map keyed by the
+new document's id — the hand-off is one client-side navigation, so nothing is uploaded or stored.
+
+The text replaces the seed rather than being edited in after it: where `use-block-document.ts`
+would put one empty text block into a document with none, it puts the file's blocks
+(`lib/blocks/markdown-import.ts` — read the way a multi-line paste is, rules in
+[`document-editing.md`](document-editing.md), "Pasting more than one line", without the blank lines
+a file puts between paragraphs). So the import is part of creating the document: it is below the
+undo floor, and a document someone else seeded first keeps what it has. After a reload the hand-off
+is gone and the document is simply empty.
 
 ## Tabs, then one bar for the document, then the document
 

@@ -1,9 +1,10 @@
 "use client";
 
 import type { Document } from "@yorkie-js/sdk";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { cellKey, editTableCell, type CellAddress, type CellChange } from "@/lib/blocks/table";
+import { hasMarks, parseInline, SHORTCUT_MARKERS, toggleMarker } from "@/lib/blocks/inline-markdown";
 import { detectMarkdownShortcut, type MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
 import {
   detectSlashQuery,
@@ -17,6 +18,8 @@ import { diffRange, shiftCaret, type TextPatch } from "@/lib/blocks/text-surface
 import { BlockNotFoundError, editBlockText, type BlockArray } from "@/lib/blocks/operations";
 import type { BlockDocumentRoot } from "@/lib/blocks/document";
 import type { BlockId, HeadingLevel } from "@/lib/blocks/types";
+
+import { InlineText } from "./inline-text";
 
 /** Font weight/size by level — the only visual difference a heading has from
  * plain text (`types.ts`: styling for every other type comes from `type`
@@ -63,6 +66,16 @@ const SLASH_SURFACE = "absolute top-full left-6 z-20 mt-0.5 w-[300px] rounded-ca
 /** The keys the `/` menu takes for itself while it shows. */
 const SLASH_KEYS = new Set(["ArrowDown", "ArrowUp", "Enter", "Escape"]);
 
+/** The textarea's padding, which the inline drawing over it has to match. */
+const TEXT_INSET = "px-0.5 py-0.5";
+
+function autoGrow(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  // `scrollHeight` leaves out the border that `border-box` counts in
+  // `height` — without adding it back a code block clips its last line.
+  el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+}
+
 function textareaClass(variant: BlockVariant): string {
   // Colours live here, not on the textarea's base classes: two utilities for
   // one property resolve by stylesheet order, not class order, so a base
@@ -100,6 +113,7 @@ export function TextBlockView({
   onFocusBlock,
   onIndent,
   onPasteBlocks,
+  onSelectAllBlocks,
   onHistory,
 }: {
   blockId: BlockId;
@@ -146,6 +160,9 @@ export function TextBlockView({
    *  left to the textarea's own default (`docs/design/document-editing.md`,
    *  "Pasting more than one line"). */
   onPasteBlocks: (blockId: BlockId, text: string) => void;
+  /** Ctrl/Cmd+A with this block's text all selected (`document-editing.md`,
+   *  "Selecting and copying blocks"). Absent in a table cell. */
+  onSelectAllBlocks?: () => void;
   /** Ctrl/Cmd+Z and its shifted form. The document owns the history, not this
    *  block — an undo can be of an edit made in a different one. */
   onHistory: (direction: "undo" | "redo") => void;
@@ -242,12 +259,35 @@ export function TextBlockView({
   // shows as if it were new (measured: "안안녕녕하세요").
   const lastSyncedRef = useRef(initialText);
 
-  const autoGrow = (el: HTMLTextAreaElement) => {
-    el.style.height = "auto";
-    // `scrollHeight` leaves out the border that `border-box` counts in
-    // `height` — without adding it back a code block clips its last line.
-    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
-  };
+  // `document-editing.md`, "Inline formatting". `shown` is the text drawn while
+  // the block is not focused; it is not kept in step while it is.
+  const drawsInline = !cellBinding && variant.type !== "code";
+  const [focused, setFocused] = useState(false);
+  const [shown, setShown] = useState(initialText);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const marked = useMemo(() => hasMarks(parseInline(shown)), [shown]);
+  const formatted = drawsInline && !focused && marked;
+
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    const overlay = overlayRef.current;
+    if (!formatted || !el || !overlay) return;
+    const place = () => {
+      overlay.style.left = `${el.offsetLeft}px`;
+      overlay.style.top = `${el.offsetTop}px`;
+      overlay.style.width = `${el.offsetWidth}px`;
+      el.style.height = `${overlay.offsetHeight}px`;
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(el.parentElement ?? el);
+    observer.observe(overlay);
+    return () => {
+      observer.disconnect();
+      autoGrow(el);
+    };
+  }, [formatted]);
+
 
   /** Outside a composition the textarea and Yorkie hold the same text, so a
    *  patch lands at its own offsets. */
@@ -258,6 +298,7 @@ export function TextBlockView({
 
     el.value = el.value.slice(0, from) + value.content + el.value.slice(to);
     lastSyncedRef.current = el.value;
+    if (el !== document.activeElement) setShown(el.value);
 
     const insertedLength = value.content.length;
     const newStart = shiftCaret(selStart, { from, to, insertedLength });
@@ -269,7 +310,8 @@ export function TextBlockView({
     // An edit overlapping the caret leaves the browser's own post-mutation
     // caret in place rather than guessing — see `shiftCaret`.
 
-    autoGrow(el);
+    // While drawn, the textarea takes the drawing's height instead.
+    if (!overlayRef.current) autoGrow(el);
   };
 
   useEffect(() => {
@@ -418,6 +460,32 @@ export function TextBlockView({
           return;
         }
 
+        const marker = SHORTCUT_MARKERS[event.key.toLowerCase() as keyof typeof SHORTCUT_MARKERS];
+        if (marker && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && drawsInline && !composing) {
+          event.preventDefault();
+          const el = event.currentTarget;
+          const next = toggleMarker(el.value, el.selectionStart, el.selectionEnd, marker);
+          el.value = next.text;
+          el.setSelectionRange(next.from, next.to);
+          autoGrow(el);
+          commitLocal(el.value);
+          onTextCommitted();
+          return;
+        }
+
+        if (
+          onSelectAllBlocks &&
+          !composing &&
+          (event.metaKey || event.ctrlKey) &&
+          event.key.toLowerCase() === "a" &&
+          event.currentTarget.selectionStart === 0 &&
+          event.currentTarget.selectionEnd === event.currentTarget.value.length
+        ) {
+          event.preventDefault();
+          onSelectAllBlocks();
+          return;
+        }
+
         if (cellBinding) {
           if (event.key === "Tab" && !composing) {
             event.preventDefault();
@@ -542,20 +610,38 @@ export function TextBlockView({
         commitLocal(event.currentTarget.value);
         onTextCommitted();
       }}
-      onFocus={() => onFocusBlock(blockId)}
-      onBlur={() => {
+      onFocus={() => {
+        setFocused(true);
+        onFocusBlock(blockId);
+      }}
+      onBlur={(event) => {
         // Nothing to type into once focus leaves, so neither the menu nor its
         // 결과 없음 row should outlive it next to a block nobody is in.
         setSlash(null);
+        setFocused(false);
+        setShown(event.currentTarget.value);
         onFocusBlock(null);
       }}
+      style={formatted ? { color: "transparent" } : undefined}
       // Plain paragraphs only: every other variant's own styling already says
       // what it is, and a hint on each of them at once is noise. `focus:` so
       // it marks the one block being typed in rather than every empty one —
       // the `/` menu shipped in #63 with nothing in the UI naming it.
       placeholder={!cellBinding && variant.type === "text" ? "'/'를 입력해 명령어 사용" : undefined}
-      className={`${cellBinding ? "w-full" : ""} min-w-0 flex-1 resize-none overflow-hidden px-0.5 py-0.5 outline-none placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
+      className={`${cellBinding ? "w-full" : ""} min-w-0 flex-1 resize-none overflow-hidden ${TEXT_INSET} outline-none placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
       />
+
+      {formatted ? (
+        <div
+          ref={overlayRef}
+          aria-hidden
+          // Placed at the textarea's own offset, so a heading's top margin is not added twice.
+          style={{ margin: 0 }}
+          className={`pointer-events-none absolute ${TEXT_INSET} break-words whitespace-pre-wrap ${textareaClass(variant)}`}
+        >
+          <InlineText text={shown} />
+        </div>
+      ) : null}
 
       {/* Absolutely positioned against the block row, which is already
        * `relative`. That is what keeps this component's contract intact: the

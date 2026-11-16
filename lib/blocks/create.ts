@@ -125,11 +125,11 @@ export function createFile(file: {
   return { id: newBlockId(), type: "file", ...file };
 }
 
-export function createTable(): TableBlock {
+export function createTable(rows = 3, columns = 3): TableBlock {
   return {
     id: newBlockId(), type: "table",
-    rows: Array.from({ length: 3 }, newBlockId),
-    columns: Array.from({ length: 3 }, newBlockId),
+    rows: Array.from({ length: rows }, newBlockId),
+    columns: Array.from({ length: columns }, newBlockId),
     cells: {},
   };
 }
