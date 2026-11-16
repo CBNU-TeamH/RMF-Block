@@ -29,7 +29,19 @@ export default defineConfig({
   },
   // The lifecycle specs restart and kill the stack they run against, so they get a stack of their
   // own (`pnpm e2e:isolated --lifecycle`) and are not a project of an ordinary run.
+  //
+  // Firefox and WebKit (NFR-USA-005) are opt-in — `E2E_BROWSERS=all`, then `--project=firefox` or
+  // `--project=webkit` — so CI and a plain `pnpm e2e` stay Chromium-only. WebKit is Playwright's build of
+  // the engine Safari uses, not Safari; Edge shares Chromium's engine and is not run.
   projects: process.env.E2E_LIFECYCLE
     ? [{ name: "lifecycle", testMatch: "**/lifecycle/*.e2e.ts", use: { ...devices["Desktop Chrome"] } }]
-    : [{ name: "chromium", testIgnore: "**/lifecycle/**", use: { ...devices["Desktop Chrome"] } }],
+    : [
+        { name: "chromium", testIgnore: "**/lifecycle/**", use: { ...devices["Desktop Chrome"] } },
+        ...(process.env.E2E_BROWSERS === "all"
+          ? [
+              { name: "firefox", testIgnore: "**/lifecycle/**", use: { ...devices["Desktop Firefox"] } },
+              { name: "webkit", testIgnore: "**/lifecycle/**", use: { ...devices["Desktop Safari"] } },
+            ]
+          : []),
+      ],
 });

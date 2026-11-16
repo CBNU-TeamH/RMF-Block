@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { createDocument, firstBlock, openDocument } from "./helpers";
-import { yorkieCut } from "./network";
+import { yorkieCut, chromiumOnly } from "./network";
 
 const table = (page: Page) => page.locator("[data-table-block]");
 const cell = (page: Page, row = 1, column = 1) => table(page).getByRole("textbox", { name: `${row}행 ${column}열`, exact: true });
@@ -53,6 +53,7 @@ test("table commands, navigation, axis edits and reload preserve text", async ({
 });
 
 test("same-cell edits, separate-cell edits, undo/redo and IME converge", async ({ users }) => {
+  chromiumOnly();
   const a = (await users.join(0)).page;
   const b = (await users.join(1)).page;
   const probes = [await yorkieCut(a), await yorkieCut(b)];
@@ -106,6 +107,7 @@ test("same-cell edits, separate-cell edits, undo/redo and IME converge", async (
 });
 
 test("concurrent row/column creation, first intersection edits and deletion/input races converge", async ({ users }) => {
+  chromiumOnly();
   const a = (await users.join(0)).page;
   const b = (await users.join(1)).page;
   const probes = [await yorkieCut(a), await yorkieCut(b)];

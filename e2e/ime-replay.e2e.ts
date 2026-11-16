@@ -1,6 +1,6 @@
 import { expect, test } from "./fixtures";
-
 import { block, createDocument, firstBlockId, openDocument } from "./helpers";
+import { chromiumOnly } from "./network";
 
 /**
  * #52: a peer's edit that lands while a Hangul composition is open. A composes
@@ -11,6 +11,7 @@ import { block, createDocument, firstBlockId, openDocument } from "./helpers";
 test("a remote edit during an IME composition leaves both screens agreeing", async ({
   users,
 }) => {
+  chromiumOnly();
   const a = (await users.join(0)).page;
   const b = (await users.join(1)).page;
   const watcher = (await users.join(2)).page;

@@ -1,4 +1,10 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+/** First line of a test that needs a CDP session — `yorkieCut`, `networkProbe` and the IME specs use
+ *  one, and only Chromium has them. The other projects (`E2E_BROWSERS=all`) skip it, visibly. */
+export function chromiumOnly(): void {
+  test.skip(test.info().project.name !== "chromium", "needs a CDP session, which only Chromium has");
+}
 
 export const YORKIE_SERVICE = "/yorkie.v1.YorkieService/";
 

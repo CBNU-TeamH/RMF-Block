@@ -2,9 +2,10 @@ import { setTimeout as holdOutage } from "node:timers/promises";
 
 import { expect, test } from "./fixtures";
 import { block, blockValues, chatRow, createDocument, firstBlockId, insertAt, online, openChat, openDocument, sendChat } from "./helpers";
-import { YORKIE_SERVICE, networkProbe } from "./network";
+import { YORKIE_SERVICE, networkProbe, chromiumOnly } from "./network";
 
 test("activated clients retain both sides' edits and backfill chat once after a 20-second outage", { tag: "@slow" }, async ({ users }) => {
+  chromiumOnly();
   test.setTimeout(120_000);
   const a = (await users.join(0)).page;
   const b = (await users.join(1)).page;
@@ -56,6 +57,7 @@ test("activated clients retain both sides' edits and backfill chat once after a 
 const knownDefect = { annotation: { type: "issue", description: "https://github.com/CBNU-TeamH/RMF-Block/issues/37" } };
 
 test.fail("diagnostic: initial Yorkie failure recovers without reloading", knownDefect, async ({ users }) => {
+  chromiumOnly();
   test.setTimeout(120_000);
   const page = (await users.join(0)).page;
   const yorkie = (url: URL) => url.pathname.includes(YORKIE_SERVICE);
@@ -67,6 +69,7 @@ test.fail("diagnostic: initial Yorkie failure recovers without reloading", known
 });
 
 test.fail("diagnostic: the session notification socket reconnects and delivers takeover", knownDefect, async ({ users }) => {
+  chromiumOnly();
   test.setTimeout(120_000);
   const a = await users.join(0);
   const c = await users.join(2);
