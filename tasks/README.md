@@ -25,6 +25,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 | Task | Lessons |
 | :--- | :--- |
 | [Security, safety and reliability E2E](active/20261116-security-safety-e2e-todo.md) | [lessons](active/20261116-security-safety-e2e-lessons.md) |
+| [Lifecycle E2E: workspace opening, restart, kill, startup refusal](active/20261116-lifecycle-e2e-todo.md) | [lessons](active/20261116-lifecycle-e2e-lessons.md) |
 | [Simple collaborative table blocks](active/20261016-table-block-todo.md) | [lessons](active/20261016-table-block-lessons.md) |
 | [Admin and user-location E2E after admin integration](active/20261007-admin-e2e-todo.md) | [lessons](active/20261007-admin-e2e-lessons.md) |
 

@@ -187,6 +187,12 @@ a browser run costs seconds per test against milliseconds.
   Run it three times to check repeatability on independent stacks. Arguments pass through to
   Playwright, e.g. `pnpm e2e:isolated --grep diagnostic`, or `--grep-invert @slow` to skip the
   20-second outage while iterating.
+- **Lifecycle stack.** `pnpm e2e:isolated --lifecycle` starts a stack with no `WORKSPACE_PASSWORD` and runs
+  only `e2e/lifecycle/`, which opens the workspace from the setup screen, restarts the app, kills the app and Yorkie and
+  stops Yorkie while the app starts. They run in order on that one stack and use `docker compose`
+  through `e2e/stack.ts`, which refuses to run without the runner's `E2E_COMPOSE_PROJECT`, so they are not part
+  of `pnpm e2e` or CI and cannot touch a real stack. FR-010-03 and FR-010-06 are the startup banner and the
+  refusal printed to container stdout, which is the host's screen, so they assert on the app's log.
 - **Existing stacks.** `E2E_WORKSPACE_PASSWORD=<password> E2E_HOST_SECRET=<startup-secret> pnpm e2e`
   targets an already running container (`pnpm docker:up`). `E2E_BASE_URL` defaults to
   `http://localhost:3000`. Use a disposable stack nobody else is connected to: tests assert exact

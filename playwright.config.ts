@@ -27,5 +27,9 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // The lifecycle specs restart and kill the stack they run against, so they get a stack of their
+  // own (`pnpm e2e:isolated --lifecycle`) and are not a project of an ordinary run.
+  projects: process.env.E2E_LIFECYCLE
+    ? [{ name: "lifecycle", testMatch: "**/lifecycle/*.e2e.ts", use: { ...devices["Desktop Chrome"] } }]
+    : [{ name: "chromium", testIgnore: "**/lifecycle/**", use: { ...devices["Desktop Chrome"] } }],
 });
