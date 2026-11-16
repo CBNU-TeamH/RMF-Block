@@ -275,6 +275,9 @@ console.log("\n⑥ 한 클라이언트에 붙은 두 문서는 한 번에 하나
   const names = [`${key}-x`, `${key}-y`];
   const LAST = 120;
 
+  // Earlier cases leave their clients active; stop them so only this case's pushes are counted.
+  for (const earlier of clients.splice(0)) await earlier.deactivate().catch(() => undefined);
+
   // The SDK calls the global `fetch` for each request.
   const realFetch = globalThis.fetch;
   let inFlight = 0;

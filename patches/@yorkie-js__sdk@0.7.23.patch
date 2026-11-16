@@ -1,8 +1,8 @@
 diff --git a/dist/yorkie-js-sdk.es.js b/dist/yorkie-js-sdk.es.js
-index 12a35c6..5cdf5f1 100755
+index 12a35c6..4c08f0d 100755
 --- a/dist/yorkie-js-sdk.es.js
 +++ b/dist/yorkie-js-sdk.es.js
-@@ -25341,22 +25341,17 @@ class Client {
+@@ -25341,22 +25341,19 @@ class Client {
        });
      }
      return this.enqueueTask(async () => {
@@ -15,14 +15,16 @@ index 12a35c6..5cdf5f1 100755
 -              attachment.syncMode
 -            )
 -          );
++      const results = [];
 +      try {
 +        for (const [, attachment] of this.attachmentMap) {
 +          if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
-+            await this.syncInternal(attachment, attachment.syncMode);
++            results.push(await this.syncInternal(attachment, attachment.syncMode));
 +          }
          }
 -      }
 -      return Promise.all(promises).catch(async (err) => {
++        return results;
 +      } catch (err) {
          logger.error(`[SY] c:"${this.getKey()}" err :`, err);
          await this.handleConnectError(err);
@@ -32,30 +34,36 @@ index 12a35c6..5cdf5f1 100755
      });
    }
    /**
-@@ -25924,7 +25919,6 @@ class Client {
+@@ -25924,7 +25921,7 @@ class Client {
        }
        try {
          await this.enqueueTask(async () => {
 -          const syncs = [];
++          let syncError;
            for (const [, attachment] of this.attachmentMap) {
              if (this.deactivating) {
                break;
-@@ -25969,9 +25963,8 @@ class Client {
+@@ -25969,9 +25966,13 @@ class Client {
                attachment.clearSyncPromise();
              });
              attachment.setSyncPromise(syncPromise);
 -            syncs.push(syncPromise);
-+            await syncPromise;
++            try {
++              await syncPromise;
++            } catch (err) {
++              syncError = syncError ?? err;
++            }
            }
 -          await Promise.all(syncs);
++          if (syncError !== void 0) throw syncError;
            setTimeout(doLoop, this.syncLoopDuration);
          });
        } catch (err) {
 diff --git a/dist/yorkie-js-sdk.js b/dist/yorkie-js-sdk.js
-index 199ac7a..082f43f 100755
+index 199ac7a..8867443 100755
 --- a/dist/yorkie-js-sdk.js
 +++ b/dist/yorkie-js-sdk.js
-@@ -25345,22 +25345,17 @@
+@@ -25345,22 +25345,19 @@
          });
        }
        return this.enqueueTask(async () => {
@@ -68,14 +76,16 @@ index 199ac7a..082f43f 100755
 -                attachment.syncMode
 -              )
 -            );
++        const results = [];
 +        try {
 +          for (const [, attachment] of this.attachmentMap) {
 +            if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
-+              await this.syncInternal(attachment, attachment.syncMode);
++              results.push(await this.syncInternal(attachment, attachment.syncMode));
 +            }
            }
 -        }
 -        return Promise.all(promises).catch(async (err) => {
++          return results;
 +        } catch (err) {
            logger.error(`[SY] c:"${this.getKey()}" err :`, err);
            await this.handleConnectError(err);
@@ -85,22 +95,28 @@ index 199ac7a..082f43f 100755
        });
      }
      /**
-@@ -25928,7 +25923,6 @@
+@@ -25928,7 +25925,7 @@
          }
          try {
            await this.enqueueTask(async () => {
 -            const syncs = [];
++            let syncError;
              for (const [, attachment] of this.attachmentMap) {
                if (this.deactivating) {
                  break;
-@@ -25973,9 +25967,8 @@
+@@ -25973,9 +25970,13 @@
                  attachment.clearSyncPromise();
                });
                attachment.setSyncPromise(syncPromise);
 -              syncs.push(syncPromise);
-+              await syncPromise;
++              try {
++                await syncPromise;
++              } catch (err) {
++                syncError = syncError ?? err;
++              }
              }
 -            await Promise.all(syncs);
++            if (syncError !== void 0) throw syncError;
              setTimeout(doLoop, this.syncLoopDuration);
            });
          } catch (err) {

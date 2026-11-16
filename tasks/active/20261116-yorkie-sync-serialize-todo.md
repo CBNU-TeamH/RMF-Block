@@ -20,7 +20,8 @@ the traces, not from Yorkie's server code: the reproduction (a 400 in every run 
 - **Files**: `patches/@yorkie-js__sdk@0.7.23.patch` (regenerated with `pnpm patch` / `pnpm patch-commit`; both `dist/yorkie-js-sdk.es.js`
   and `dist/yorkie-js-sdk.js`, the two builds the package exports).
 - **Reuse**: the existing patch of the SDK's `package.json`; no app code moves. Keep the loop's `setSyncPromise`/`clearSyncPromise` and the per-attachment
-  AuthError / epoch-mismatch `.catch`; the change is one `await` per attachment. A document that rejects early now skips the later ones for that tick.
+  AuthError / epoch-mismatch `.catch`; the change is one `await` per attachment. A rejection no longer stops the tick: the loop tries every
+  document, then rethrows the first error, as `Promise.all` effectively did. `Client.sync()` still resolves to the results.
 - **Done**: the reproduction (two documents on one client plus a peer, 600 rounds) shows no 400 in 12 runs; unpatched it showed one every run.
 
 ### 2. A guard that fails when the patch is lost
@@ -57,6 +58,7 @@ building and revisit it for the final behavior.
 - Commands and observed results:
   - Reproduction (one client, two documents, a peer, 600 rounds, isolated Compose stack): shipped patch 2 of 3 runs hit a 400 and one reader stopped at 532 of 600; this patch 0 of 12, every reader at 600.
   - Case ⑥ against that stack, 2 runs each of the final version: shipped patch red 2 of 2 (2 pushes in flight; the reader check red in 1 of 2); this patch green 2 of 2. The first version (4 runs each) was red 4 of 4 and green 4 of 4.
+  - After CodeRabbit's review (the loop tries every document and rethrows the first error; `Client.sync()` returns its results; case ⑥ stops earlier clients first): reproduction 0 of 6 runs with a 400, every reader at 600 (shipped patch: a 400 and a reader at 529); case ⑥ shipped patch red 2 of 2, this patch green 2 of 2. The 40-run browser repeat below predates that change; CI's E2E step covers it.
   - `collaboration.e2e.ts` `--repeat-each=40` on an isolated stack built from this branch: 200 passed, 0 failed (27 min).
 
 ## Acceptance
