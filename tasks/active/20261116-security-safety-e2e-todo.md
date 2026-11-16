@@ -44,14 +44,14 @@ building and revisit it for the final behavior.
 - Vitest (logic / component / server / route): unchanged. The rules under test (`lib/chat/links.ts`, `lib/files/serving.ts`) already have unit tests; this task proves them in a browser against the running stack.
 - Browser E2E (`e2e/`): new `e2e/safety.e2e.ts`; `docs/testing.md`'s E2E list gains the three behaviours.
 - Container smoke (`.github/workflows/ci.yml`): no change; `scripts/verify-chat-files.mjs` already probes the wire headers.
-- Commands and observed results (main `475fa10`, WSL2 + Docker Desktop, `pnpm e2e:isolated` flow): `e2e/safety.e2e.ts --repeat-each=3` 9/9; the whole suite 38/38 (two `diagnostic:` expected failures, #37). `pnpm exec eslint e2e/safety.e2e.ts`, `tsc --noEmit`, `verify:docs` and the comment budget clean. Vitest untouched (no product code).
+- Commands and observed results (main `475fa10`, WSL2 + Docker Desktop, `pnpm e2e:isolated` flow): `e2e/safety.e2e.ts --repeat-each=3` 9/9 (after the CodeRabbit round: `<script>` payload, `e2e-` nickname, download after cancel, `--repeat-each=2` 6/6); the whole suite 38/38 (two `diagnostic:` expected failures, #37). `pnpm exec eslint e2e/safety.e2e.ts`, `tsc --noEmit`, `verify:docs` and the comment budget clean. Vitest untouched (no product code).
 
 ## Acceptance
 
 - [x] `pnpm e2e:isolated` passes the new specs three times in a row, then the whole suite once.
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm verify:docs` and the comment budget pass.
-- [ ] The specs leave no state a later spec could trip on (names and files carry the `e2e-` prefix the cleanup rules match).
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm verify:docs` and the comment budget pass.
+- [x] The specs leave no state a later spec could trip on (names and files carry the `e2e-` prefix the cleanup rules match).
 
 ## Cross-cutting
 

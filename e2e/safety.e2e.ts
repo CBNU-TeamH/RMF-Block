@@ -23,8 +23,11 @@ async function downloaded(page: Page, click: () => Promise<void>): Promise<Buffe
  * so a run that executes one fails on the flag instead of on a dialog nobody dismissed.
  */
 test("markup and script-shaped text stays inert on another user's screen (NFR-SEC-003)", async ({ users }) => {
-  const payload = "<img src=x onerror=x() data-xss>";
-  const nickname = "<b data-xss=1>";
+  const image = "<img src=x onerror=x() data-xss>";
+  // Kept literal on screen: a renderer that strips the element instead would show nothing.
+  const payload = `${image}<script data-xss>x()</script>`;
+  // The `e2e-` prefix is what the cleanup rules in `docs/testing.md` match members and chat lines by.
+  const nickname = "e2e-<b data-xss=1>";
   const script = "javascript:x()";
 
   const dialogs: string[] = [];
@@ -49,7 +52,7 @@ test("markup and script-shaped text stays inert on another user's screen (NFR-SE
   });
   expect(join.ok(), await join.text()).toBe(true);
 
-  const documentName = `e2e xss ${payload} ${Date.now()}`;
+  const documentName = `e2e xss ${image} ${Date.now()}`;
   const document = await createDocument(author.page, documentName);
   await openDocument(author.page, document);
   const id = await firstBlockId(author.page);
@@ -116,13 +119,14 @@ test("cancelling a file block's deletion keeps the file (NFR-SAF-002)", async ({
   const page = (await users.join(0)).page;
   const stamp = Date.now();
   const name = `e2e-keep-${stamp}.bin`;
+  const kept = BYTES.subarray(0, 1024);
   const document = await createDocument(page, `e2e keep ${stamp}`);
   await openDocument(page, document);
   await page
     .locator("label")
     .filter({ hasText: "파일 추가" })
     .locator('input[type="file"]')
-    .setInputFiles({ name, mimeType: "application/octet-stream", buffer: BYTES.subarray(0, 1024) });
+    .setInputFiles({ name, mimeType: "application/octet-stream", buffer: kept });
   const row = page.locator("[data-block-id]").filter({ hasText: name });
   await expect(row).toBeVisible();
 
@@ -139,5 +143,8 @@ test("cancelling a file block's deletion keeps the file (NFR-SAF-002)", async ({
     })
     .toBe(true);
   await page.reload();
-  await expect(page.locator("[data-block-id]").filter({ hasText: name })).toBeVisible();
+  const reloaded = page.locator("[data-block-id]").filter({ hasText: name });
+  await expect(reloaded).toBeVisible();
+  // The block and the listing are metadata: the bytes must still be there.
+  expect(sha256(await downloaded(page, () => reloaded.getByRole("link").click()))).toBe(sha256(kept));
 });
