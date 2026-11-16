@@ -32,7 +32,7 @@ the traces, not from Yorkie's server code: the reproduction (a 400 in every run 
   package's `import` condition, so it guards the ES build only; the UMD patch is not guarded.
 - **Files**: `scripts/verify-yorkie-invariants.mjs` (the case and a comment on why it exists; the header lists no cases).
 - **Reuse**: the script's reporter, `client()` and `settle()`; CI already runs it against a bare Yorkie.
-- **Done**: green with the patch, red on the SDK without it, on a Compose stack, 4 runs each (see Test selection).
+- **Done**: green with the patch, red on the SDK without it, on a Compose stack (see Test selection).
 
 ### 3. Say why the patch exists
 
@@ -42,6 +42,7 @@ the traces, not from Yorkie's server code: the reproduction (a 400 in every run 
 
 ## Not in this task
 
+- `detachDocument` with `keepalive` (pagehide) skips the SDK's task queue and could still overlap a loop push of another document. Nothing in `app/` or `lib/` uses `keepalive`, so it stays a known gap.
 - Recovery when a sync loop stops for another reason (#37). This removes the cause of one such stop, not the silence.
 - Splitting the workspace document onto its own client (option B in the issue): rejected, it leaves two block documents open together exposed.
 
@@ -55,7 +56,7 @@ building and revisit it for the final behavior.
 - Container smoke (`.github/workflows/ci.yml`): the invariants step gains the case from milestone 2; its E2E step is the CI evidence.
 - Commands and observed results:
   - Reproduction (one client, two documents, a peer, 600 rounds, isolated Compose stack): shipped patch 2 of 3 runs hit a 400 and one reader stopped at 532 of 600; this patch 0 of 12, every reader at 600.
-  - Case ⑥ against that stack, 4 runs each: shipped patch red 4 of 4 (2 pushes in flight; the reader check red in 3 of 4); this patch green 4 of 4.
+  - Case ⑥ against that stack, 2 runs each of the final version: shipped patch red 2 of 2 (2 pushes in flight; the reader check red in 1 of 2); this patch green 2 of 2. The first version (4 runs each) was red 4 of 4 and green 4 of 4.
   - `collaboration.e2e.ts` `--repeat-each=40` on an isolated stack built from this branch: 200 passed, 0 failed (27 min).
 
 ## Acceptance

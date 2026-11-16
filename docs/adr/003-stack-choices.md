@@ -111,7 +111,7 @@ Three smaller reasons point the same way: the design tokens already exist once, 
 
 - **Our server is not on the realtime path**, and every design conversation should start there. Features that feel like they need a socket usually need a Yorkie document instead.
 - **`lib/` stays framework-free.** This is the property that keeps decision 2 reversible, and it is worth defending in review.
-- **We are pinned to a patched SDK.** The `exports` half of the patch should be dropped the moment upstream declares its own map, the sync-loop half once upstream stops pushing a client's documents concurrently; until then, an SDK upgrade is not a version bump alone, and the invariants script must pass on the new version.
+- **We are pinned to a patched SDK.** Each half of the patch goes when upstream fixes it; until then, an SDK upgrade is not a version bump alone, and the invariants script must pass on the new version.
 - **A test needs no setup**, so there is no excuse for logic arriving without one.
 
 ## What this ADR does not claim

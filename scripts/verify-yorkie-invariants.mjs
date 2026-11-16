@@ -269,22 +269,20 @@ console.log("\n⑤ undo 가 로컬 변경을 되돌린다");
 
 console.log("\n⑥ 한 클라이언트에 붙은 두 문서는 한 번에 하나씩 밀린다 (#257)");
 {
-  // The app keeps the `workspace` document and the open one on a single client. The SDK's loop pushed
-  // both with `Promise.all`, so a tick with a change in each sent two PushPulls at once; Yorkie may
-  // refuse the second ("clientSeq must increase by one"), and the loop then stops for good, without
-  // throwing. `patches/@yorkie-js__sdk@0.7.23.patch` awaits them one at a time. Whether the server
-  // refuses is a race, so the first check counts what the client sends instead; the second is what a
-  // refusal would cost. This resolves the package's `import` condition, so it guards the ES build only.
+  // Counts the PushPullChanges a client has in flight (Yorkie refusing the second is a race, so count
+  // what is sent), then checks a fresh reader. Guards the ES build only: that is what `import` resolves.
   const key = `inv-loop-${Date.now()}`;
+  const names = [`${key}-x`, `${key}-y`];
   const LAST = 120;
 
   // The SDK calls the global `fetch` for each request.
   const realFetch = globalThis.fetch;
   let inFlight = 0;
   let mostInFlight = 0;
+  let sent = 0;
   globalThis.fetch = async (input, init) => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (!url.includes("/PushPullChanges")) return realFetch(input, init);
+    if (!String(input?.url ?? input).includes("/PushPullChanges")) return realFetch(input, init);
+    sent += 1;
     mostInFlight = Math.max(mostInFlight, ++inFlight);
     try {
       return await realFetch(input, init);
@@ -293,25 +291,29 @@ console.log("\n⑥ 한 클라이언트에 붙은 두 문서는 한 번에 하나
     }
   };
 
-  const a = await client();
-  const docs = [new yorkie.Document(`${key}-x`), new yorkie.Document(`${key}-y`)];
-  for (const doc of docs) await a.attach(doc);
-  for (let n = 1; n <= LAST; n += 1) {
-    // Back to back: both documents have a change by the time the loop next ticks.
-    for (const doc of docs) doc.update((root) => (root.n = n));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+  try {
+    const a = await client();
+    const docs = names.map((name) => new yorkie.Document(name));
+    for (const doc of docs) await a.attach(doc);
+    for (let n = 1; n <= LAST; n += 1) {
+      // Back to back: both documents have a change by the time the loop next ticks.
+      for (const doc of docs) doc.update((root) => (root.n = n));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    await settle();
+  } finally {
+    globalThis.fetch = realFetch;
   }
-  await settle();
-  globalThis.fetch = realFetch;
 
+  // Nothing sent would also read as "never two at once": prove the count saw the traffic.
+  report("PushPullChanges 가 관측된다", true, sent > 0);
   report("PushPullChanges 가 동시에 둘 이상 나가지 않는다", 1, mostInFlight);
 
   const reader = await client();
-  const [rx, ry] = [new yorkie.Document(`${key}-x`), new yorkie.Document(`${key}-y`)];
-  await reader.attach(rx);
-  await reader.attach(ry);
+  const reads = names.map((name) => new yorkie.Document(name));
+  for (const doc of reads) await reader.attach(doc);
   await settle();
-  report("두 문서의 마지막 편집이 새 클라이언트에 도착한다", `${LAST},${LAST}`, `${rx.getRoot().n},${ry.getRoot().n}`);
+  report("두 문서의 마지막 편집이 새 클라이언트에 도착한다", `${LAST},${LAST}`, reads.map((doc) => doc.getRoot().n).join());
 }
 
 for (const created of clients) {
