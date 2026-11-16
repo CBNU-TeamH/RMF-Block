@@ -13,42 +13,36 @@ that prints "Could not register the Yorkie auth webhook" and exits. A rejected r
 ### 1. A timeout on every admin request
 
 - **What**: `call()` aborts after a bounded time, so the existing catch prints its reason and the production process exits.
-- **Files**: `lib/yorkie-admin.ts`; its unit test next to it.
-- **Reuse**: the error path that already exists for a non-2xx answer (`YorkieAdminError`), extended with a message that says the request timed out and which address.
-- **Done**: a unit test against a server that accepts the connection and never answers gets the timeout error within the limit; no change for a normal answer.
-- **Open choice** (the limit): 10 s, enough for a slow Yorkie boot behind Compose's `service_healthy` and short enough that the host sees the refusal. `registerAuthWebhook` is the only caller of `call()`, so nothing else changes.
-
-### 2. The lifecycle spec covers the unreachable case
-
-- **What**: add to `e2e/lifecycle/lifecycle.e2e.ts` a case that starts a second app container while Yorkie is stopped and expects the same refusal, restoring Yorkie afterwards.
-- **Files**: `e2e/lifecycle/lifecycle.e2e.ts`, `docs/testing.md` (the lifecycle bullet), and the comment in the existing refusal test that points at this issue.
-- **Reuse**: `composeOutcome` and the one-off container pattern the rejected-password case uses.
-- **Done**: `pnpm e2e:isolated --lifecycle` three runs green on independent stacks.
+- **Files**: `lib/yorkie-admin.ts`; its unit test next to it; the comment in the existing refusal test in `e2e/lifecycle/lifecycle.e2e.ts` that says the call has no timeout.
+- **Reuse**: the error path that already exists for a non-2xx answer (`YorkieAdminError`), with a message that says the request timed out and which address.
+- **Done**: a unit test where the request times out gets the error naming the method, the address and the limit (a `fetch` stub that honours `init.signal`, with `AbortSignal.timeout` made to expire at once); no change for a normal answer.
+- **Decided** (the team did not weigh in, so these are the simplest choices and easy to change):
+  - The limit: 10 s per request, enough for a slow Yorkie boot behind Compose's `service_healthy`. `call()` also serves `readDocumentRoots`; a `GetDocuments` read slower than that fails with the same message.
+  - The retry: unchanged. `registerAuthWebhook` retries any non-401 error up to 30 times, 1 s apart, so a timed-out request is retried and a Yorkie that never answers is refused after about 30 x (10 + 1) s, roughly 5.5 minutes, instead of never. A slow boot still gets its retries; a timeout-specific shortcut would be a special case on the retry.
 
 ## Not in this task
 
-- Retrying the registration: Compose already waits for Yorkie to be healthy, and a retry would hide the failure the refusal exists to show.
+- A lifecycle case for the hung Yorkie. `docker compose stop yorkie` would not exercise the timeout: the service name stops resolving, `fetch` fails at once and the existing retry refuses after about 30 s, with or without this fix. Only `docker compose pause yorkie` leaves the connection unanswered, and then the refusal takes the worst case above, far past the lifecycle tests' 120 s. The unit test covers the timeout; add the case only if the attempts and the limit become configurable.
 
 ## Test selection
 
 Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior.
 
-- Vitest (logic / component / server / route): a case for the timeout in the admin client's test file.
-- Browser E2E (`e2e/`): the lifecycle project (not in CI): the new case; the ordinary suite is untouched.
+- Vitest (logic / component / server / route): a case for the timeout in the admin client's test file (`lib/yorkie-admin.test.mts`).
+- Browser E2E (`e2e/`): no change beyond the comment above; the lifecycle refusal test still covers the wrong-password refusal.
 - Container smoke (`.github/workflows/ci.yml`): no change.
-- Commands and observed results (fill in before the PR):
+- Commands and observed results: `vitest run lib/yorkie-admin.test.mts` 11 passed; `tsc --noEmit` clean. The hung-Yorkie path itself was not run against a paused container (about five minutes).
 
 ## Acceptance
 
-- [ ] An unanswered admin request fails with a clear error within the limit, in a unit test.
-- [ ] `pnpm e2e:isolated --lifecycle` passes three runs in a row with the new case.
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm verify:docs` and the comment budget pass.
+- [x] An unanswered admin request fails with a clear error within the limit, in a unit test.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm verify:docs` and the comment budget pass. (Merged with the pre-push hook skipped; CI runs on main.)
 
 ## Cross-cutting
 
-SRS: FR-010-06 (a startup failure shows its reason). No API, type or storage change. Closes #258.
+SRS: FR-010-06 (a startup failure shows its reason). No API, type or storage change.
 
 ## Review
 
