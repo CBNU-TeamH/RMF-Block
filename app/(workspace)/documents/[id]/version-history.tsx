@@ -20,6 +20,7 @@ import {
 import type { RevisionEntry } from "@/lib/documents/revisions";
 
 import { DIALOG, DIALOG_TITLE } from "../../ui";
+import { InlineText } from "./inline-text";
 import { CODE_SURFACE, HEADING_CLASS } from "./text-block";
 
 /** What a document used to say, and putting it back (SOIR003). The mechanism —
@@ -503,15 +504,15 @@ function PreviewBlock({ block, number }: { block: Block; number: number }) {
     case "table":
       return <TablePreview block={block} />;
     case "heading":
-      return <p className={`text-ink ${HEADING_CLASS[block.level]}`}>{block.text}</p>;
+      return <p className={`text-ink ${HEADING_CLASS[block.level]}`}><InlineText text={block.text} /></p>;
 
     case "text":
-      return <p className="text-[15px] leading-[1.7] whitespace-pre-wrap text-ink">{block.text}</p>;
+      return <p className="text-[15px] leading-[1.7] whitespace-pre-wrap text-ink"><InlineText text={block.text} /></p>;
 
     case "quote":
       return (
         <p className="border-l-[3px] border-line-strong pl-3.5 text-[15px] leading-[1.7] whitespace-pre-wrap text-ink-soft">
-          {block.text}
+          <InlineText text={block.text} />
         </p>
       );
 
@@ -529,7 +530,7 @@ function PreviewBlock({ block, number }: { block: Block; number: number }) {
           style={{ paddingLeft: block.depth * 18 }}
         >
           {block.style === "ordered" ? `${number}. ` : "• "}
-          {block.text}
+          <InlineText text={block.text} />
         </p>
       );
 
@@ -537,7 +538,7 @@ function PreviewBlock({ block, number }: { block: Block; number: number }) {
       return (
         <p className="text-[13px] whitespace-pre-wrap text-ink">
           {block.checked ? "☑ " : "☐ "}
-          {block.text}
+          <InlineText text={block.text} />
         </p>
       );
 

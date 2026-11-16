@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Paste Markdown structure, and draw inline formatting](active/20261116-markdown-paste-inline-todo.md) | [lessons](active/20261116-markdown-paste-inline-lessons.md) |
 | [Simple collaborative table blocks](active/20261016-table-block-todo.md) | [lessons](active/20261016-table-block-lessons.md) |
 
 ## Archive
