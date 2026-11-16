@@ -1,7 +1,7 @@
 # Firefox and WebKit E2E runs
 
 **Created**: 2026-11-16
-**Design**: [testing strategy](../../docs/testing.md).
+**Design**: [testing strategy](../../../../docs/testing.md).
 
 NFR-USA-005 asks for Chrome, Edge, Firefox and Safari. The E2E layer runs Chromium only, so three of the four are unverified.
 This task makes the suite runnable on Firefox and WebKit and records what it finds; it does not put them in CI.
@@ -34,7 +34,7 @@ This task makes the suite runnable on Firefox and WebKit and records what it fin
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior.
 
 - Vitest (logic / component / server / route): unchanged. No product code changes.

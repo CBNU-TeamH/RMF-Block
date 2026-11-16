@@ -17,4 +17,4 @@ that the next person does not rediscover this.
 
 ## Worth extracting
 
-- ...
+- Nothing beyond what `docs/testing.md` now says ("Other browsers"). The seven WebKit failures are #253, not a convention.

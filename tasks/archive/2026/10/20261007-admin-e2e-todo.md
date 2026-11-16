@@ -1,7 +1,7 @@
 # Admin and user-location E2E after admin integration
 
 **Created**: 2026-10-07
-**Design**: [API authentication model](../../docs/design/api.md), [testing strategy](../../docs/testing.md).
+**Design**: [API authentication model](../../../../docs/design/api.md), [testing strategy](../../../../docs/testing.md).
 
 ## Milestones
 
@@ -30,14 +30,16 @@
 ## Acceptance
 
 - [x] Admin is merged before implementation starts (PR #170).
-- [ ] All scenarios run against the actual merge and report observed results.
-- [ ] Lint, unit tests, build, docs and three independent E2E runs are recorded.
+- [x] All scenarios run against the actual merge and report observed results.
+- [x] Lint, unit tests, build, docs and three independent E2E runs are recorded.
 
 ## Cross-cutting
 
 FR-010-01~05, FR-011-01~07, FR-040-01~04, NFR-REL-002. No product API/type/storage changes in this test task.
 
 ## Review
+
+Milestone 2 (unseeded setup, restart, kill recovery) landed as the lifecycle task, PR #255 (`20261116-lifecycle-e2e`); the admin specs landed in #252.
 
 Admin merged in PR #170. The first-phase suite was revalidated against `2608675`; admin-specific scenarios and integrated user-location navigation still belong to this separate task. Performance/LAN/multibrowser checks remain separate.
 

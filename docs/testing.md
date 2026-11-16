@@ -219,6 +219,10 @@ a browser run costs seconds per test against milliseconds.
   that run. Repeated runs on a shared stack still accumulate members. A second tab shares its user's context. API
   joining/document creation prepare data; password admission, takeover, tree actions, chat send
   and attachment upload under test use the UI.
+- **Writing a spec.** Run a new one with `--repeat-each=3` on one stack before trusting it: members and chat
+  history are shared, so a second run finds the first one's rows, and anything sent to chat carries `Date.now()`.
+  A spec that changes workspace state every later spec relies on (the access password) restores it in
+  `test.afterEach`, not a `finally` — after a timeout the body keeps running while the fixtures close.
 - **Coverage.** Existing sync, Hangul IME and image-preview regressions remain. Tests additionally
   cover guest/host admission, takeover cancel/confirm and third-party isolation, tab deduplication,
   arrival/departure, bidirectional/late/reloaded reads, concurrent same-position insertion and
@@ -255,7 +259,7 @@ a browser run costs seconds per test against milliseconds.
   `continue-on-error` policy preserved. CI masks the bootstrap secret and uploads failure traces,
   the HTML report and redacted server logs.
 - **Follow-up.** Unseeded admin setup and restart persistence need a stack started without
-  `WORKSPACE_PASSWORD` and an app restart mid-test; they are tracked in [the admin E2E task](../tasks/active/20261007-admin-e2e-todo.md). Long-running load, 1-second propagation, 500MB client memory and real LAN
+  `WORKSPACE_PASSWORD` and an app restart mid-test; they are tracked in [the admin E2E task](../tasks/archive/2026/10/20261007-admin-e2e-todo.md). Long-running load, 1-second propagation, 500MB client memory and real LAN
   devices are the performance harness's (`e2e/perf/`, #189): `pnpm perf` on the measurement rig, outside `pnpm e2e`
   and CI, run by hand from [the runbook](perf/runbook-ko.md); its arithmetic (`e2e/perf/stats.mts`, the result charts' curve included), NFR-PER-003's join attempt and the port check have Vitest tests.
   The observation stack (`pnpm perf:observe`, #192) is diagnostics only and is checked by hand with an observed round.
