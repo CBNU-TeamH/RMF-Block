@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   '@yorkie-js/sdk@0.7.23':
-    hash: b36442852949d2dc78a30c9781089c67df1bada6cce50aa96870b4c336d678bd
+    hash: 777049a2d5873754673d92e218f64bd3dc516513eb70749b1bb59e7621dfa5ba
     path: patches/@yorkie-js__sdk@0.7.23.patch
 
 importers:
@@ -15,7 +15,7 @@ importers:
     dependencies:
       '@yorkie-js/sdk':
         specifier: 0.7.23
-        version: 0.7.23(patch_hash=b36442852949d2dc78a30c9781089c67df1bada6cce50aa96870b4c336d678bd)
+        version: 0.7.23(patch_hash=777049a2d5873754673d92e218f64bd3dc516513eb70749b1bb59e7621dfa5ba)
       next:
         specifier: 16.2.12
         version: 16.2.12(@babel/core@7.29.7)(@playwright/test@1.61.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -3626,7 +3626,7 @@ snapshots:
 
   '@yorkie-js/schema@0.7.23': {}
 
-  '@yorkie-js/sdk@0.7.23(patch_hash=b36442852949d2dc78a30c9781089c67df1bada6cce50aa96870b4c336d678bd)':
+  '@yorkie-js/sdk@0.7.23(patch_hash=777049a2d5873754673d92e218f64bd3dc516513eb70749b1bb59e7621dfa5ba)':
     dependencies:
       '@bufbuild/protobuf': 2.13.0
       '@connectrpc/connect': 2.1.2(@bufbuild/protobuf@2.13.0)

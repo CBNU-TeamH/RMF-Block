@@ -113,6 +113,7 @@ export function TextBlockView({
   onFocusBlock,
   onIndent,
   onPasteBlocks,
+  onSelectAllBlocks,
   onHistory,
 }: {
   blockId: BlockId;
@@ -159,6 +160,9 @@ export function TextBlockView({
    *  left to the textarea's own default (`docs/design/document-editing.md`,
    *  "Pasting more than one line"). */
   onPasteBlocks: (blockId: BlockId, text: string) => void;
+  /** Ctrl/Cmd+A with this block's text all selected (`document-editing.md`,
+   *  "Selecting and copying blocks"). Absent in a table cell. */
+  onSelectAllBlocks?: () => void;
   /** Ctrl/Cmd+Z and its shifted form. The document owns the history, not this
    *  block — an undo can be of an edit made in a different one. */
   onHistory: (direction: "undo" | "redo") => void;
@@ -466,6 +470,19 @@ export function TextBlockView({
           autoGrow(el);
           commitLocal(el.value);
           onTextCommitted();
+          return;
+        }
+
+        if (
+          onSelectAllBlocks &&
+          !composing &&
+          (event.metaKey || event.ctrlKey) &&
+          event.key.toLowerCase() === "a" &&
+          event.currentTarget.selectionStart === 0 &&
+          event.currentTarget.selectionEnd === event.currentTarget.value.length
+        ) {
+          event.preventDefault();
+          onSelectAllBlocks();
           return;
         }
 

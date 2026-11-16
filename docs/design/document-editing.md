@@ -708,6 +708,31 @@ One trailing newline is dropped, because that is how a copied paragraph ends rat
 for an empty block after it. Blank lines *between* lines are kept: those are the person's own
 spacing.
 
+### Selecting and copying blocks
+
+Each block is its own textarea, so the browser cannot select across two of them. Whole-block
+selection (`use-block-selection.ts`) is the editor's own state, an anchor and a focus block, and
+there are three ways in: a mouse drag that leaves the block it started in, Shift+click with the
+caret in another block, and Ctrl/Cmd+A once the block's text is already all selected (so the
+first press still selects text, the second takes every block; an empty block goes straight to
+every block). A table cell keeps Ctrl/Cmd+A as its own. Selected rows are marked
+`data-selected` and shaded.
+
+**The copy goes through a hidden read-only textarea**, focused while the selection lasts, with
+a short label as its text, selected. Ctrl/Cmd+C is then the browser's ordinary copy, which works
+on a plain-HTTP LAN address where `navigator.clipboard` does not exist, and its `copy` handler
+writes the Markdown, read from the live document at that moment.
+Escape returns the caret to the block the selection ended on; a plain click anywhere, or focus
+moving to another control, ends it. Selection is local: nothing is published to other people.
+
+`lib/blocks/markdown.ts` writes one block per line, the shape the paste above reads (it does not
+yet read back GFM checklists or indented items), and text as stored, without escaping: whatever Markdown a person typed or pasted is copied as such.
+Lists are numbered and nested by `depth` (four spaces a level, opened at the left margin when the
+selection starts inside a nested list), checklists are GFM `- [ ]`/`- [x]`, code is fenced with
+more backticks than it contains, a table is a GFM table whose first row is the header, an image
+or file is a link to `/api/files/<id>/preview` or `/download` at this workspace's address, and a
+document or block link is its address.
+
 ### Indenting a list item
 
 SRS §4.1 gives 목록 블록 nesting — "항목을 들여쓰기하여 중첩(하위 목록)할 수 있다" — and `depth`
