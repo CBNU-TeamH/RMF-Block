@@ -34,6 +34,7 @@ import {
 import { indentedDepth, preservingDepth } from "@/lib/blocks/indent";
 import { parsePaste, type PastedLine } from "@/lib/blocks/paste";
 import { orderedListNumbers } from "@/lib/blocks/list-numbering";
+import { blocksToMarkdown } from "@/lib/blocks/markdown";
 import {
   dropDestination,
   dropsBeforeTarget,
@@ -61,6 +62,7 @@ import { PdfBlockView } from "./pdf-block";
 import { TableBlockView } from "./table-block";
 import { TextBlockView, type BlockVariant } from "./text-block";
 import { useBlockDocument } from "./use-block-document";
+import { useBlockSelection } from "./use-block-selection";
 import { VersionHistory } from "./version-history";
 import { useFocusPresence } from "./use-focus-presence";
 import { useFileUpload } from "./use-file-upload";
@@ -211,6 +213,14 @@ export function DocumentEditor({
   const focusBlock = (blockId: BlockId, caret: number) => {
     pendingFocusRef.current = { blockId, caret };
   };
+  /** `false` if the block has no textarea in the DOM right now. */
+  function focusAtEnd(blockId: BlockId): boolean {
+    const el = elementsRef.current.get(blockId);
+    if (!el) return false;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+    return true;
+  }
 
   useEffect(() => {
     const pending = pendingFocusRef.current;
@@ -247,6 +257,17 @@ export function DocumentEditor({
     scrollTarget,
     clearScrollTarget,
     pauseFollow: pause,
+  });
+
+  const { selected: selectedBlocks, selectAll: selectAllBlocks, proxyProps } = useBlockSelection({
+    order,
+    listRef: scrollContainerRef,
+    markdownOf: (ids) => {
+      const doc = docRef.current;
+      if (!doc) return "";
+      return blocksToMarkdown(readBlocks(doc.getRoot().blocks), window.location.origin, ids);
+    },
+    focusText: focusAtEnd,
   });
 
   /** Read live, never from `blocks` state, and by iteration rather than `.find`
@@ -308,15 +329,7 @@ export function DocumentEditor({
    *  trailing block first if the document ends in one that cannot hold it. */
   const focusEndOfDocument = () => {
     const last = blocks?.[blocks.length - 1];
-
-    if (last && isTextBearing(last)) {
-      const el = elementsRef.current.get(last.id);
-      if (el) {
-        el.focus();
-        el.setSelectionRange(el.value.length, el.value.length);
-        return;
-      }
-    }
+    if (last && isTextBearing(last) && focusAtEnd(last.id)) return;
 
     // The new block does not exist in the DOM yet, so this goes through the
     // pending-focus request the split/merge handlers use: the `setBlocks`
@@ -831,6 +844,7 @@ export function DocumentEditor({
             }}
             onIndent={handleIndent}
             onPasteBlocks={handlePaste}
+            onSelectAllBlocks={selectAllBlocks}
             onHistory={history}
           />
         </div>
@@ -959,6 +973,7 @@ export function DocumentEditor({
         : null}
       <div className={COLUMN}>
       <div className={TITLE_ROW}>{title}</div>
+      <textarea {...proxyProps} />
       <div className="flex flex-col gap-1.5">
       {blocks.map((block, index) => {
         const occupant = occupantByBlock.get(block.id);
@@ -983,9 +998,10 @@ export function DocumentEditor({
           // (`use-block-document.ts`, `replaceBlocks`).
           key={`${block.id}:${restoreCount}`}
           data-block-id={block.id}
+          data-selected={selectedBlocks?.has(block.id) || undefined}
           className={`group relative ${
             block.id === draggedId ? "rounded-control bg-sky-soft opacity-50" : ""
-          } ${
+          } data-selected:rounded-control data-selected:bg-sky-soft ${
             dropIndicator?.targetId === block.id
               ? dropIndicator.before
                 ? "border-t-2 border-sky-deep"

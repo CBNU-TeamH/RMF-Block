@@ -21,6 +21,7 @@ function renderBlock(
 ) {
   const onSplit = vi.fn();
   const onPasteBlocks = vi.fn();
+  const onSelectAllBlocks = vi.fn();
   let handler: (patch: TextPatch) => void = () => {};
   render(
     <TextBlockView
@@ -43,12 +44,13 @@ function renderBlock(
       onFocusBlock={vi.fn()}
       onIndent={vi.fn()}
       onPasteBlocks={onPasteBlocks}
+      onSelectAllBlocks={onSelectAllBlocks}
       onHistory={vi.fn()}
     />,
   );
 
   const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
-  return { textarea, onSplit, onPasteBlocks, remote: (patch: TextPatch) => handler(patch) };
+  return { textarea, onSplit, onPasteBlocks, onSelectAllBlocks, remote: (patch: TextPatch) => handler(patch) };
 }
 
 function menuLabels(): Array<string> {
@@ -222,5 +224,24 @@ describe("pasting a block address", () => {
     const { textarea, onPasteBlocks } = renderBlock();
     paste(textarea, "http://192.168.0.2:3000/documents/d1");
     assert.equal(onPasteBlocks.mock.calls.length, 0);
+  });
+});
+
+describe("Ctrl/Cmd+A", () => {
+  it("selects the block's own text first, and every block once that is all selected", () => {
+    const { textarea, onSelectAllBlocks } = renderBlock({ type: "text" }, null, "abc");
+    textarea.setSelectionRange(0, 1);
+    assert.equal(fireEvent.keyDown(textarea, { key: "a", ctrlKey: true }), true);
+    assert.equal(onSelectAllBlocks.mock.calls.length, 0);
+
+    textarea.setSelectionRange(0, 3);
+    assert.equal(fireEvent.keyDown(textarea, { key: "a", metaKey: true }), false);
+    assert.equal(onSelectAllBlocks.mock.calls.length, 1);
+  });
+
+  it("selects every block at once from an empty block", () => {
+    const { textarea, onSelectAllBlocks } = renderBlock();
+    fireEvent.keyDown(textarea, { key: "a", ctrlKey: true });
+    assert.equal(onSelectAllBlocks.mock.calls.length, 1);
   });
 });
