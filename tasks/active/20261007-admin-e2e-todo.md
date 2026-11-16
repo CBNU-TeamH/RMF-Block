@@ -21,7 +21,7 @@
 
 ### 3. What this branch covers (2026-11-16, `test/admin-e2e`)
 
-- **What**: the sprint 14/15 behaviour on the ordinary seeded stack — guest/visitor refused by `/admin` and its two APIs; a password change that keeps a connected guest and admits only the new password (restored in `finally`); kick cancel/confirm, the kicked guest's notice and 401, the remaining guest's roster, and rejoining; a jump from a tree dot to a colleague's block, 돌아가기, and the dot gone once they leave.
+- **What**: the sprint 14/15 behaviour on the ordinary seeded stack — guest/visitor refused by `/admin` and its two APIs; a password change that keeps a connected guest and admits only the new password (restored in a `test.afterEach`); kick cancel/confirm, the kicked guest's notice and 401, the remaining guest's roster, and rejoining; a jump from a tree dot to a colleague's block far down a long document (asserted in the viewport), 돌아가기, and the dot gone once they leave.
 - **Files**: `e2e/admin.e2e.ts`, `e2e/location.e2e.ts`; `bootstrapHost` moved from `e2e/host.e2e.ts` to `e2e/helpers.ts` so both host specs share it; `docs/testing.md`.
 - **Reuse**: `users` fixture, `joinForm`, `online`, `openDocument`, `insertAt`.
 - **Done**: the three specs pass on `pnpm e2e:isolated`.

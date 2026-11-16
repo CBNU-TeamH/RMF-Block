@@ -15,4 +15,4 @@
 
 ## Worth extracting
 
-- A spec that changes the workspace password must restore it: every later spec joins with the stack's password, and workers are 1, so a leak fails the rest of the run. This branch uses `finally`; a host fixture whose teardown restores the password (and turns traces off) would also survive a test timeout — not done here because it reshapes `host.e2e.ts` too.
+- A spec that changes the workspace password must restore it: every later spec joins with the stack's password, and workers are 1, so a leak fails the rest of the run. A `finally` is not enough: after a test timeout the body keeps running while fixtures close, so this branch restores in a `test.afterEach` (the `page` fixture is still open there); that narrows the window rather than closing it. A host fixture whose teardown restores the password (and turns traces off) would close it — not done here because it reshapes `host.e2e.ts` too.

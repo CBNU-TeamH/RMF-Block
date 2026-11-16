@@ -18,16 +18,27 @@ test("a guest or a visitor is turned away from the admin page and its APIs (FR-0
   }
 });
 
-test("a password change keeps connected guests and admits only the new password (FR-011-04~06)", async ({ page, users }) => {
-  const connected = await users.join(0);
-  await connected.page.goto("/");
-  await online(connected.page, 1);
+test.describe("a password change", () => {
+  let changed = false;
 
-  await bootstrapHost(page);
-  await page.goto("/admin");
-  const next = `e2e-pw-${Date.now()}`;
-  try {
+  // Every later spec joins with the stack's password. A hook, not a `finally`: after a timeout the
+  // test body keeps running while the fixtures close, but a hook still has `page` open.
+  test.afterEach(async ({ page }) => {
+    if (!changed) return;
+    changed = false;
+    expect((await page.request.patch("/api/workspace/password", { data: { password } })).status()).toBe(204);
+  });
+
+  test("keeps connected guests and admits only the new password (FR-011-04~06)", async ({ page, users }) => {
+    const connected = await users.join(0);
+    await connected.page.goto("/");
+    await online(connected.page, 1);
+
+    await bootstrapHost(page);
+    await page.goto("/admin");
+    const next = `e2e-pw-${Date.now()}`;
     await page.getByLabel("새 비밀번호").fill(next);
+    changed = true;
     await page.getByRole("button", { name: "비밀번호 변경" }).click();
     await expect(page.getByRole("status")).toContainText("비밀번호를 바꿨습니다.");
 
@@ -39,10 +50,7 @@ test("a password change keeps connected guests and admits only the new password 
     await expect(late.page.locator("form").getByRole("alert")).toHaveText("비밀번호가 틀렸습니다.");
     await joinForm(late.page, late.name, next);
     await expect(late.page).toHaveURL(/\/(documents\/[^/]+)?$/);
-  } finally {
-    // Every later spec joins with the stack's password.
-    expect((await page.request.patch("/api/workspace/password", { data: { password } })).status()).toBe(204);
-  }
+  });
 });
 
 test("the host kicks a guest after confirming; only that guest leaves, is told why, and may rejoin (FR-011-01~03)", async ({ page, users }) => {
