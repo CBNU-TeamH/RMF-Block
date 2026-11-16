@@ -1,6 +1,6 @@
 import { expect, test, type Users } from "./fixtures";
 import { block, blockValues, createDocument, firstBlock, firstBlockId, insertAt, online, openDocument, selectRange } from "./helpers";
-import { yorkieCut } from "./network";
+import { yorkieCut, chromiumOnly } from "./network";
 
 type Probe = Awaited<ReturnType<typeof yorkieCut>>;
 
@@ -42,6 +42,7 @@ test("edits go both ways and late/reloaded readers see the final content", async
 });
 
 test("concurrent inserts and independent range changes converge without duplicate input", async ({ users }) => {
+  chromiumOnly();
   const { a, b, id, probes } = await pair(users, true);
   await insertAt(a, id, 0, "left middle right");
   await expect(block(b, id)).toHaveValue("left middle right");
@@ -104,6 +105,7 @@ test("one user's undo and redo preserve another user's input", async ({ users })
 });
 
 test("eight users preserve edits in separate blocks and single concurrent inserts in one block", async ({ users }) => {
+  chromiumOnly();
   test.setTimeout(120_000);
   const first = (await users.join(0)).page;
   const probes = [await yorkieCut(first)];
