@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useRef, useState } from "react";
 
-import { CANCEL, DIALOG, DIALOG_TITLE, FIELD_LABEL, Spinner, confirmClass, inputClass } from "./ui";
+import { holdImport } from "./pending-import";
+import { CANCEL, DIALOG, DIALOG_TITLE, FIELD_LABEL, FileIcon, Spinner, confirmClass, inputClass } from "./ui";
 
 /** The document a new one goes inside, or `null` for the root (UC-021 E1a). Its
  *  name comes from the caller — the tree's socket-fresh list — for the title. */
@@ -26,6 +27,9 @@ export function NewDocumentProvider({ children }: { children: React.ReactNode })
   const dialogRef = useRef<HTMLDialogElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
+  // A Markdown file to fill the new document with (`docs/design/app-shell.md`,
+  // "Importing Markdown").
+  const [markdown, setMarkdown] = useState<File | null>(null);
   // Held in state rather than passed to `create()` because the dialog sits
   // between the click and the request.
   const [parent, setParent] = useState<Parent>(null);
@@ -36,6 +40,7 @@ export function NewDocumentProvider({ children }: { children: React.ReactNode })
   const open = useCallback((under: Parent) => {
     setParent(under);
     setName("");
+    setMarkdown(null);
     setError(null);
     dialogRef.current?.showModal();
     // showModal() moves focus to the dialog itself; the name field is what a
@@ -48,6 +53,8 @@ export function NewDocumentProvider({ children }: { children: React.ReactNode })
     setError(null);
 
     try {
+      // Read before the document exists, so a file that cannot be read leaves nothing behind.
+      const text = await markdown?.text();
       const response = await fetch("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -61,6 +68,7 @@ export function NewDocumentProvider({ children }: { children: React.ReactNode })
         return;
       }
 
+      if (text !== undefined) holdImport(body.document.id, text);
       dialogRef.current?.close();
       // The layout is a server component reading `readDocuments()` fresh per
       // request; refresh() re-seeds the tree without a full reload.
@@ -105,6 +113,34 @@ export function NewDocumentProvider({ children }: { children: React.ReactNode })
               className={inputClass(error !== null)}
             />
           </label>
+
+          <div className="-mt-1 flex min-w-0 items-center gap-1 text-[13px] text-ink-soft">
+            <FileIcon size={14} />
+            {markdown ? (
+              <>
+                <span className="min-w-0 flex-1 truncate">{markdown.name}</span>
+                <button type="button" disabled={creating} onClick={() => setMarkdown(null)} className={CANCEL}>
+                  빼기
+                </button>
+              </>
+            ) : (
+              <label className={`${CANCEL} -ml-2 flex cursor-pointer items-center`}>
+                마크다운 파일에서 가져오기
+                <input
+                  type="file"
+                  accept=".md,.markdown,text/markdown"
+                  disabled={creating}
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    setMarkdown(file);
+                    setName((current) => (current.trim() ? current : file.name.replace(/\.(md|markdown)$/i, "")));
+                  }}
+                />
+              </label>
+            )}
+          </div>
 
           {error ? (
             <p role="alert" className="-mt-2 text-[13px] text-danger">

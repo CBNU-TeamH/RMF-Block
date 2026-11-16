@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cellKey, fillTable, readTable, tableCellPatches, type CellChange } from "@/lib/blocks/table";
 import { createText } from "@/lib/blocks/create";
+import { blocksFromMarkdown } from "@/lib/blocks/markdown-import";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot } from "@/lib/blocks/document";
 import { editBlockText, type BlockArray } from "@/lib/blocks/operations";
 import {
@@ -22,6 +23,8 @@ import {
   OCCUPANCY_TICK_MS,
   type Occupant,
 } from "@/lib/presence/occupancy";
+
+import { takeImport } from "../../pending-import";
 
 const TABLE_CELL_TEXT = /\.content\.table\.cells\.\d+\.text$/;
 
@@ -109,12 +112,22 @@ export function useBlockDocument(
       doc.update((_root, presence) => presence.set({ colorTag, nickname }));
 
       // Two peers can both seed an empty document — a known `#42`-material race
-      // (`docs/design/document-editing.md`).
+      // (`docs/design/document-editing.md`). One made from a Markdown file is
+      // seeded with its blocks (`docs/design/app-shell.md`, "Importing Markdown").
+      const seed = blocksFromMarkdown(takeImport(documentId) ?? "");
+      if (seed.length === 0) seed.push(createText());
       doc.update((root: BlockDocumentRoot) => {
         if (!root.blocks || root.blocks.length === 0) {
-          root.blocks = [toStoredBlock(createText())];
+          root.blocks = seed.map(toStoredBlock);
         }
       });
+      // Strings only after their empty CRDT nodes are in, as `replaceBlocks` does.
+      const texts = seed.flatMap((block) => ("text" in block && block.text ? [{ id: block.id, text: block.text }] : []));
+      if (texts.length > 0 && doc.getRoot().blocks[0]?.id === seed[0]!.id) {
+        doc.update((root: BlockDocumentRoot) => {
+          for (const { id, text } of texts) editBlockText(root.blocks as BlockArray, id, 0, 0, text);
+        });
+      }
 
       docRef.current = doc;
       // Nothing before this point may be undone. The seed above is a

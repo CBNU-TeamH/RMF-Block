@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Import a Markdown file as a new document](active/20261116-markdown-import-todo.md) | [lessons](active/20261116-markdown-import-lessons.md) |
 | [Simple collaborative table blocks](active/20261016-table-block-todo.md) | [lessons](active/20261016-table-block-lessons.md) |
 
 ## Archive

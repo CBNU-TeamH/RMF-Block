@@ -4,18 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import {
-  createChecklist,
-  createCode,
-  createDivider,
-  createBlockLink,
-  createDocLink,
-  createHeading,
-  createList,
-  createQuote,
-  createText,
-  createTable,
-} from "@/lib/blocks/create";
+import { createDivider, createBlockLink, createDocLink, createText, createTable } from "@/lib/blocks/create";
 import { deleteTableAxis, insertTableAxis } from "@/lib/blocks/table";
 import { BLOCK_KINDS, continuationBlock, isTextBearing } from "@/lib/blocks/registry";
 import type { SlashAction } from "@/lib/blocks/slash-menu";
@@ -32,7 +21,7 @@ import {
   type BlockArray,
 } from "@/lib/blocks/operations";
 import { indentedDepth, preservingDepth } from "@/lib/blocks/indent";
-import { parsePaste, type PastedLine } from "@/lib/blocks/paste";
+import { parsePaste, pastedBlock } from "@/lib/blocks/paste";
 import { orderedListNumbers } from "@/lib/blocks/list-numbering";
 import {
   dropDestination,
@@ -539,28 +528,6 @@ export function DocumentEditor({
     focusBlock(newBlockId ?? blockId, 0);
   };
 
-  /** The empty block a pasted line becomes, before its text is written into it.
-   *  `create.ts` is the one place a block of each type is built. */
-  const blockFor = (fields: PastedLine["fields"]): Block => {
-    switch (fields.type) {
-      case "heading":
-        return createHeading(fields.level);
-      case "list":
-        return createList(fields.style);
-      case "checklist":
-        // `createChecklist` is always unchecked — "a task that is already done
-        // is not a task anyone adds" — which holds for a new one and not for a
-        // pasted one, where `[x]` is the whole point of writing it.
-        return { ...createChecklist(), checked: fields.checked };
-      case "quote":
-        return createQuote();
-      case "code":
-        return createCode();
-      case "text":
-        return createText();
-    }
-  };
-
   /**
    * A paste carrying newlines (FR-022-01). The first line replaces the pasted-into
    * block's text and takes its type; the rest become blocks after it. Why a
@@ -600,7 +567,7 @@ export function DocumentEditor({
       replaced = { from: 0, to: liveText.length, value: { content: first.text } };
 
       for (const line of lines.slice(1)) {
-        const block = toStoredBlock(blockFor(line.fields));
+        const block = toStoredBlock(pastedBlock(line));
         insertBlockAfter(array, lastId, block);
         if (line.text) editBlockText(array, block.id, 0, 0, line.text);
         lastId = block.id;

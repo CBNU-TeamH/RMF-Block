@@ -1,5 +1,6 @@
+import { createChecklist, createCode, createHeading, createList, createQuote, createText } from "./create.ts";
 import { detectMarkdownShortcut } from "./markdown-shortcuts.ts";
-import type { HeadingLevel, ListStyle } from "./types.ts";
+import type { Block, HeadingLevel, ListStyle } from "./types.ts";
 
 /** One pasted line: the type it asks for, and the text after the marker. */
 export type PastedLine = {
@@ -50,4 +51,26 @@ function lineToBlock(line: string): PastedLine {
   if (!shortcut || shortcut.type === "checklist") return { fields: { type: "text" }, text: line };
 
   return { fields: shortcut, text: rest };
+}
+
+/** The block a pasted line becomes, its text included. `create.ts` is the one
+ *  place a block of each type is built. */
+export function pastedBlock({ fields, text }: PastedLine): Block {
+  switch (fields.type) {
+    case "heading":
+      return { ...createHeading(fields.level), text };
+    case "list":
+      return { ...createList(fields.style), text };
+    case "checklist":
+      // `createChecklist` is always unchecked — "a task that is already done
+      // is not a task anyone adds" — which holds for a new one and not for a
+      // pasted one, where `[x]` is the whole point of writing it.
+      return { ...createChecklist(), checked: fields.checked, text };
+    case "quote":
+      return { ...createQuote(), text };
+    case "code":
+      return { ...createCode(), text };
+    case "text":
+      return { ...createText(), text };
+  }
 }
