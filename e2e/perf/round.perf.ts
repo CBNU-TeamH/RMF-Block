@@ -124,8 +124,10 @@ async function present(r: Round, lead: Actor, follow: Actor, blocks: Array<strin
     await delay(3000);
   }
   await lead.page.getByRole("button", { name: "공유 종료", exact: true }).click();
+  // Ending the share releases the follower on its own, so the button can vanish between a check and a click.
   const following = follow.page.getByRole("button", { name: /따라가는 중/ });
-  if (await following.isVisible()) await following.click();
+  await following.click({ timeout: 2_000 }).catch(() => undefined);
+  await expect(following).toBeHidden();
 }
 
 /** #193's outage protocol on G: cut, keep working on both sides, restore, resend. */
