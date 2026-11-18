@@ -72,4 +72,8 @@ building and revisit it for the final behavior.
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+Shipped (#270, `f81929e`): the cleanup at the end of `present()` is a click bounded to 2 s followed by `expect(...).toBeHidden()`, so a follower released by the app no longer costs a 60 s stall. Evidence: 1 of 40 single-machine cycles stalled on the old code and 0 of 40 on the new; a one-machine round passed; `judge5` ran 20 rounds on the fixed harness and rounds 13 and 15, the ones `judge4` lost, passed (pooled with one top-up round into `judge5-all`: 20 rounds, 0 failed).
+
+Cut: no GitHub issue was filed for the two voided `judge4` rounds, and the harness's other 60 s `actionTimeout` exposures were left alone, as planned.
+
+Moved: the D07 draft (outside the repo) was updated to the `judge5-all` evidence after the merge. The "Worth extracting" line (no check-then-act on UI other clients can change) is not promoted: it is ordinary Playwright practice and the only code it touches is this harness. `/simplify` and `/code-review low` were not run before the PR was opened.
