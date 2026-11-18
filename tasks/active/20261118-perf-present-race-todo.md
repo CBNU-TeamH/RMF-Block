@@ -51,15 +51,19 @@ building and revisit it for the final behavior.
 - Browser E2E (`e2e/`): no change. The app is untouched, and `e2e/follow.e2e.ts` already covers a share ending while someone follows.
 - Container smoke (`.github/workflows/ci.yml`): no change, the harness is not in CI (`docs/testing.md`, performance harness).
 - By hand on the rig (the harness's only check, per `docs/testing.md`): a throwaway script (not committed) that starts and ends a share 40 times on a single machine against the container, once with the old two lines and once with the new ones, counting click timeouts. Localhost propagation is a few ms, so the release is far more likely to beat the click than over Wi-Fi. Then `PERF_SINGLE_MACHINE=1 PERF_USERS=2 PERF_MINUTES=1 pnpm perf` for a full round.
-- Commands and observed results (fill in before the PR):
+- Commands and observed results (2026-11-18, the rig clone at `806d991`, one machine, image `0.3.0@sha256:c90ba6b1`):
+  - `pnpm typecheck` and ESLint on `e2e/perf/round.perf.ts`: clean.
+  - Old vs new, 40 cycles each, interleaved, on one machine (a throwaway Playwright test, not committed: two users, the lead shares, the follower joins, the lead ends, then the old or the new cleanup runs; 3 s between cycles; the old click was capped at 5 s so a stall costs 5 s here, not the suite's 60 s). Old: `isVisible()` was true in 40 of 40 cycles and 1 click stalled (cycle 1, `locator.click: Timeout 5000ms exceeded`). New: 0 failures; in 2 of 40 cycles (6 and 11) the bounded click used its 2 s limit because the release won, and `toBeHidden` then passed. So the race is real but rare on localhost (1 in 40), and the new path handles it as designed. A first attempt without the 3 s pause failed at join in later cycles (the follower's `참여하기` click landed while presence was still settling); the pause is a property of the throwaway test, not of the harness, which has minutes between shares.
+  - `PERF_SINGLE_MACHINE=1 PERF_USERS=2 PERF_MINUTES=1 pnpm perf`: `1 passed (3.9m)`, `signals.jsonl` empty, 40 `005` plan entries (both `present()` calls, 20 targets each).
+  - The real two-device cell on this fix: `judge5`, 20 rounds, 0 failure signals (`judge4` 13 and 15 aborted on this race; `judge5` 13 and 15 passed). Round 06 was voided on U 13.5 ms, not on this race, and replaced by `judge5-b`; pooled in `perf-results/judge5-all`: 20 rounds, 0 failed.
 
 ## Acceptance
 
-- [ ] `present()` cannot wait on a detached element for longer than the 2 s click limit.
-- [ ] A follower that is still following 15 s after the share ended fails the round instead of being swallowed.
-- [ ] Old vs new over 40 single-machine cycles recorded (old: timeouts, new: none), or an honest note if the old code did not reproduce.
-- [ ] A one-machine 2-user 1-minute round passes through both `present()` calls.
-- [ ] `pnpm lint` and `pnpm typecheck` pass; required test changes are included, and gaps are recorded above.
+- [x] `present()` cannot wait on a detached element for longer than the 2 s click limit. (Seen: two new-path cycles spent exactly the 2 s limit.)
+- [x] A follower that is still following 15 s after the share ended fails the round instead of being swallowed. (By construction, `expect(...).toBeHidden()` at the suite's 15 s; not exercised, there is no way to make the app keep a follower after the share ends.)
+- [x] Old vs new over 40 single-machine cycles recorded: old 1 stall in 40, new none (see above).
+- [x] A one-machine 2-user 1-minute round passes through both `present()` calls.
+- [x] `pnpm lint` and `pnpm typecheck` pass; required test changes are included, and gaps are recorded above. (CI runs the full set.)
 
 ## Cross-cutting
 

@@ -8,6 +8,7 @@ that the next person does not rediscover this.
 ## What surprised us
 
 - The cleanup click was almost never needed: the app already releases a follower when the share ends. The failure was in the harness's own `isVisible()` then `click()`, not in the product.
+- On one machine the old cleanup stalled in 1 of 40 cycles and the new one used its 2 s limit in 2 of 40, so the release usually wins by a hair and the race is rare, which is why `judge4` lost only 2 of 20 rounds.
 - The suite's `actionTimeout` is 60 s, so one click on a vanished element costs a full minute and a whole 13-minute round.
 
 ## What we would do differently
