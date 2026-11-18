@@ -25,6 +25,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 | Task | Lessons |
 | :--- | :--- |
 | [Perf harness: don't race the follower's release at share end](active/20261118-perf-present-race-todo.md) | [lessons](active/20261118-perf-present-race-lessons.md) |
+| [Delete a whole-block selection](active/20261118-block-selection-delete-todo.md) | [lessons](active/20261118-block-selection-delete-lessons.md) |
 | [Simple collaborative table blocks](active/20261016-table-block-todo.md) | [lessons](active/20261016-table-block-lessons.md) |
 
 ## Archive

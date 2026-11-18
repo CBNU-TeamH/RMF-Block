@@ -4,20 +4,22 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { createDivider, createBlockLink, createDocLink, createText, createTable } from "@/lib/blocks/create";
+import { createDivider, createBlockLink, createDocLink, createTable } from "@/lib/blocks/create";
 import { deleteTableAxis, fillTable, insertTableAxis } from "@/lib/blocks/table";
 import { BLOCK_KINDS, continuationBlock, isTextBearing } from "@/lib/blocks/registry";
 import type { SlashAction } from "@/lib/blocks/slash-menu";
 import { readBlocks, toStoredBlock, type BlockDocumentRoot, type StoredBlock } from "@/lib/blocks/document";
 import type { MarkdownShortcut } from "@/lib/blocks/markdown-shortcuts";
 import {
-  appendBlock,
   BlockNotFoundError,
   changeBlockType,
   editBlockText,
   insertBlockAfter,
+  keepTrailingText,
   moveBlockAfter,
   removeBlock,
+  removeBlocks,
+  trailingTextId,
   type BlockArray,
   type TypeFields,
 } from "@/lib/blocks/operations";
@@ -265,6 +267,7 @@ export function DocumentEditor({
       return blocksToMarkdown(readBlocks(doc.getRoot().blocks), window.location.origin, ids);
     },
     focusText: focusAtEnd,
+    deleteBlocks: handleDeleteBlocks,
   });
 
   /** Read live, never from `blocks` state, and by iteration rather than `.find`
@@ -310,16 +313,14 @@ export function DocumentEditor({
     const doc = docRef.current;
     if (!doc) return null;
 
-    const root = doc.getRoot();
-    const last = root.blocks[root.blocks.length - 1];
-    const lastIsEmptyText = last?.type === "text" && (last.content?.text?.toString() ?? "") === "";
-    if (lastIsEmptyText) return last.id;
+    const existing = trailingTextId(doc.getRoot().blocks);
+    if (existing) return existing;
 
     // Returns the block it guarantees — the one that was already there, or the
     // one it just made. Callers that only want the invariant can ignore it;
     // `focusEndOfDocument` needs to know where to put the caret.
-    const block = toStoredBlock(createText());
-    return applyEdit((_root, blocks) => appendBlock(blocks, block)) ? block.id : null;
+    let id: BlockId | null = null;
+    return applyEdit((_root, blocks) => { id = keepTrailingText(blocks); }) ? id : null;
   };
 
   /** A click on the empty space below lands the caret at the end — making a
@@ -705,10 +706,27 @@ export function DocumentEditor({
    *  calls, having no caret to Backspace in. `BlockNotFoundError` means a peer
    *  got there first, which is the outcome this asked for. */
   const handleDeleteBlock = (blockId: BlockId) => {
-    if (!applyEdit((_root, blocks) => removeBlock(blocks, blockId))) return;
-
-    ensureTrailingEmptyBlock();
+    // With the trailing block in the same update, one undo takes back both.
+    applyEdit((_root, blocks) => {
+      removeBlock(blocks, blockId);
+      keepTrailingText(blocks);
+    });
   };
+
+  /** Backspace/Delete on a whole-block selection (`docs/design/document-editing.md`,
+   *  "Selecting and copying blocks"). */
+  function handleDeleteBlocks(ids: Set<BlockId>) {
+    const start = order.findIndex((id) => ids.has(id));
+    if (!blocks || start < 0) return;
+    let caretId = blocks.slice(start).find((block) => !ids.has(block.id) && isTextBearing(block))?.id;
+
+    const applied = applyEdit((_root, array) => {
+      removeBlocks(array, ids);
+      const trailing = keepTrailingText(array);
+      caretId ??= trailing;
+    });
+    if (applied && caretId) focusBlock(caretId, 0);
+  }
 
   /** Read synchronously — a `DataTransfer` is only valid for the duration of the
    *  event, so the `File`s must come out before the first `await`. */
