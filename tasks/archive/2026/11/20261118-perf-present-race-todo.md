@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-18
 **Issue**: none yet. The two voided rounds (`judge4` 13 and 15) are listed as unregistered in the D07 draft's §7.6. Open one if the team wants it tracked.
-**Design**: none, this is a harness-only change. The app behaviour it relies on is in [Presence and focus](../../docs/design/presence-and-focus.md) (FR-030-11: a share that ends releases its followers).
+**Design**: none, this is a harness-only change. The app behaviour it relies on is in [Presence and focus](../../../../docs/design/presence-and-focus.md) (FR-030-11: a share that ends releases its followers).
 
 ## What went wrong
 
@@ -44,7 +44,7 @@ Not in scope: the other 60 s `actionTimeout` exposure in the harness, the observ
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior.
 
 - Vitest (logic / component / server / route): no change. `present()` needs two live browsers; the harness's own Vitest tests cover `stats.mts`, the join attempt and the port check, none of which this touches.
