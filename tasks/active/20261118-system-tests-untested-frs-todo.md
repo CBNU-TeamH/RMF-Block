@@ -114,7 +114,8 @@ Each case was checked against the E2E on `main` (`upstream/main` f81929e), the r
 
 ### Findings so far
 
-- **STC-022-016's expected result is stricter than the design.** D07 says a disguised upload is rejected. The document upload route stores a file under the type its bytes show and falls back to `application/octet-stream` (`app/api/documents/[id]/files/route.ts`), and the preview route then answers 404 for it. The SRS (FR-022-13/14) does not ask for rejection. The test will assert what the design does (413 over 25 MB, 400 empty, a disguised file stored opaque and never previewable). D07's expected-result text for the case needs the team's decision: align the text, or open an issue to reject.
+- **STC-022-016's expected result is stricter than the design.** D07 says a disguised upload is rejected. The document upload route stores a file under the type its bytes show and falls back to `application/octet-stream` (`app/api/documents/[id]/files/route.ts`), and the preview route then answers 404 for it. The SRS (FR-022-13/14) does not ask for rejection. The test will assert what the design does (413 over 25 MB, 400 empty, a disguised file stored opaque and never previewable). **Decision (2026-11-18, the user): align D07 with the design**, not reject. The D07 expected result becomes "정상 저장, 경계 초과 거부, 위장 형식은 불투명 형식으로 저장되어 미리보기 불가"; the edit is made with the D07 update at the end of this task, and no issue is opened.
+- **Confirmed (2026-11-18, the user): four cases live on the lifecycle stack and are not in CI** (010-003, 011-005's 409, 020-008, 050-007); their results are recorded from a local `--lifecycle` run.
 - **STC-020-009 has no CI home.** `verify-auth.mjs` is run by hand; the task records one run and does not wire it into CI.
 
 ## Plan and trade-offs
