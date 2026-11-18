@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import type { APIRequestContext } from "@playwright/test";
+
 import { expect, test, type Users } from "../fixtures";
 import { block, createDocument, firstBlockId, insertAt, openDocument } from "../helpers";
 import { appLog, appReady, compose, composeOutcome } from "../stack";
@@ -27,6 +29,35 @@ async function join(visitor: Visitor) {
   });
   expect(response.ok(), await response.text()).toBe(true);
 }
+
+test("before setup a too-short password and a password change are refused, and the workspace stays closed (FR-010-02, FR-011-04)", async ({ page, users }) => {
+  const secret = process.env.E2E_HOST_SECRET;
+  if (!secret) throw new Error("Run lifecycle specs with `pnpm e2e:isolated --lifecycle`.");
+  await page.goto("/join");
+  await page.evaluate((credential) => {
+    window.location.assign(`/api/auth/host?secret=${encodeURIComponent(credential)}`);
+  }, secret);
+  await expect(page.getByRole("heading", { name: "워크스페이스 열기" })).toBeVisible();
+
+  const short = await page.request.post("/api/workspace", { data: { name: workspace, password: "abc" } });
+  expect(short.status(), await short.text()).toBe(400);
+  expect(await short.json()).toEqual({ error: "비밀번호는 4자 이상이어야 합니다." });
+  const shortChange = await page.request.patch("/api/workspace/password", { data: { password: "abc" } });
+  expect(shortChange.status()).toBe(400);
+  // A password change must not stand in for the setup screen: there is no workspace to change yet.
+  const early = await page.request.patch("/api/workspace/password", { data: { password: accessPassword } });
+  expect(early.status()).toBe(409);
+  expect(await early.json()).toEqual({ error: "워크스페이스가 아직 열리지 않았습니다." });
+
+  // None of it opened the workspace: the setup screen is still there, and guests are still turned away.
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "워크스페이스 열기" })).toBeVisible();
+  const guest = await users.visitor(0);
+  const refused = await guest.context.request.post("/api/workspace/join", {
+    data: { nickname: guest.name, password: accessPassword },
+  });
+  expect(refused.status()).toBe(503);
+});
 
 test("an unopened workspace turns guests away, and the host's setup opens it (FR-010-01~04)", async ({ page, users }) => {
   // FR-010-03: the host's screen is the startup banner — the join address, and that setup is unfinished.
@@ -132,4 +163,53 @@ test("when the app cannot register with Yorkie it refuses to start and prints wh
   expect(output).toContain("Refusing to start");
   // The reason names what failed, not only that something did.
   expect(output).toMatch(/\(401\)|failed/);
+});
+
+/**
+ * NFR-SEC-002: 64 members and no more. The cap counts members the workspace has stored, not the ones
+ * online, so filling it leaves the stack closed to every new nickname for good. That is why these
+ * run last, on the stack this spec file owns.
+ */
+const joinNamed = (request: APIRequestContext, nickname: string) =>
+  request.post("/api/workspace/join", { data: { nickname, password: accessPassword, force: true } });
+
+test("a full workspace turns a new nickname away and still admits a member who is already in (NFR-SEC-002)", async ({ request }) => {
+  test.setTimeout(150_000);
+  const names = Array.from({ length: 70 }, (_, index) => `e2e-cap-${index}`);
+
+  let admitted = 0;
+  let refused = false;
+  for (const nickname of names) {
+    if ((await joinNamed(request, nickname)).ok()) {
+      admitted += 1;
+    } else {
+      refused = true;
+      break;
+    }
+  }
+  expect(refused, "70 new nicknames should have run into the cap").toBe(true);
+  // The earlier tests stored a handful of members; the rest of the 64 was this loop.
+  expect(admitted).toBeGreaterThan(40);
+  expect(admitted).toBeLessThan(64);
+
+  // Full is not locked: a nickname the workspace already knows gets back in, and a stranger does not.
+  expect((await joinNamed(request, names[0]!)).status()).toBe(200);
+  expect((await joinNamed(request, "e2e-cap-stranger")).ok()).toBe(false);
+});
+
+// Expected failures until #273: the route's `instanceof` checks never match the errors the registry
+// throws, so each refusal below comes back as a 500.
+const knownDefect = { annotation: { type: "issue", description: "https://github.com/CBNU-TeamH/RMF-Block/issues/273" } };
+
+test.fail("a full workspace says so: 503 and the cap in the message (NFR-SEC-002)", knownDefect, async ({ request }) => {
+  const refused = await joinNamed(request, "e2e-cap-stranger");
+  expect(refused.status()).toBe(503);
+  expect(await refused.json()).toEqual({ error: "이 워크스페이스는 64명까지만 참여할 수 있습니다." });
+});
+
+test.fail("a blank or over-long nickname is a 400 with the reason (FR-020-02)", knownDefect, async ({ request }) => {
+  for (const nickname of ["", "x".repeat(21)]) {
+    const refused = await joinNamed(request, nickname);
+    expect(refused.status(), JSON.stringify(nickname)).toBe(400);
+  }
 });

@@ -114,6 +114,8 @@ Each case was checked against the E2E on `main` (`upstream/main` f81929e), the r
 
 ### Findings so far
 
+- **The join route answers 500 where it means 400 and 503 (STC-020-008, found by the new cap test).** A blank nickname, a 21-character nickname and a new nickname at the 64-member cap all return 500 ("입장하지 못했습니다") in the container; the route maps them to 400, 400 and 503. The new nickname is still refused, so D07's expected result ("새 닉네임 거부") holds, but not the status or the message. Issue [#273](https://github.com/CBNU-TeamH/RMF-Block/issues/273), the likely cause is the registry's error classes coming from a second copy of `lib/auth/types.ts` (the server loads it as native ESM, the route bundle has its own). The two `test.fail` tests in `lifecycle.e2e.ts` pin the intended codes. STC-020-008 is recorded PASS for "refuse a new nickname, admit a returning one" with this defect noted.
+
 - **STC-022-016's expected result is stricter than the design.** D07 says a disguised upload is rejected. The document upload route stores a file under the type its bytes show and falls back to `application/octet-stream` (`app/api/documents/[id]/files/route.ts`), and the preview route then answers 404 for it. The SRS (FR-022-13/14) does not ask for rejection. The test will assert what the design does (413 over 25 MB, 400 empty, a disguised file stored opaque and never previewable). **Decision (2026-11-18, the user): align D07 with the design**, not reject. The D07 expected result becomes "정상 저장, 경계 초과 거부, 위장 형식은 불투명 형식으로 저장되어 미리보기 불가"; the edit is made with the D07 update at the end of this task, and no issue is opened.
 - **Confirmed (2026-11-18, the user): four cases live on the lifecycle stack and are not in CI** (010-003, 011-005's 409, 020-008, 050-007); their results are recorded from a local `--lifecycle` run.
 - **STC-020-009 has no CI home.** `verify-auth.mjs` is run by hand; the task records one run and does not wire it into CI.
@@ -186,6 +188,16 @@ building and revisit it for the final behavior.
 - Browser E2E (`e2e/`): this is the task. New spec files per milestone as above, reusing `fixtures.ts`. Each new test is shown once to fail when the behaviour is broken (a one-line local mutation, reverted) so it is not a test that cannot fail.
 - Container smoke (`.github/workflows/ci.yml`): no change. The E2E step already runs on that stack. If suite time grows past what CI tolerates, say so here and split the slow cases with `@slow`.
 - Commands and observed results (fill in before the PR):
+
+  **Milestone 1** (2026-11-18, base `upstream/main` f81929e, isolated stacks via `pnpm e2e:isolated`):
+
+  - Baseline: `e2e/auth.e2e.ts` 3/3 pass on this machine (WSL, Docker Desktop, Playwright 1228).
+  - `e2e/documents.e2e.ts` (5 tests: 021-002, 021-003, 021-004, 023-002, 023-005) and `e2e/workspace-limits.e2e.ts` (3 tests: 010-004 + 011-005's 400 half, 020-004, 020-007): **8/8 pass** (about 11 s of test time).
+  - `e2e/lifecycle/lifecycle.e2e.ts`, `pnpm e2e:isolated --lifecycle`: new tests for 010-003 + 011-005's 400/409 half (before setup) and 020-008 (cap) added; full file **8 tests: 6 pass, 2 expected failures** (the two `test.fail`, below). Test time about 47 s.
+  - **Mutation check** (each break reverted afterwards, `git diff app lib` is empty): all 8 ordinary tests failed on the one-line break they guard, for the intended reason (parent check removed: 201 instead of 400; unique-name suffix removed; `trim()` removed; rename clash check removed; delete limited to the root; second setup accepted: 204 instead of 409; `/join` redirect removed; `name="password"` on the field: `/join?password=…` in the address). The lifecycle tests failed on a password-change 409 turned off (204 instead of 409), on the minimum length lowered to 1 (204 instead of 400), and on `MAX_MEMBERS` raised to 1000 ("70 new nicknames should have run into the cap").
+  - STC-020-009: `scripts/verify-auth.mjs` run against a fresh isolated stack, **all 9 cases agree** (direct attach and invented token refused; join without or with a wrong password, token without a session and with a forged cookie 401; correct join 200, token issued, attach with it works). Not in CI.
+  - **One flake, not caused by this change**: in the first full lifecycle run, the existing "after the app and Yorkie are killed" test (NFR-SAF-003) failed at its last `openDocument` (28 s, no block within 15 s); the same file passed on the immediate rerun (14.7 s for that test). No code of that test or of the product was touched. Recorded, not investigated.
+  - `pnpm exec tsc --noEmit -p tsconfig.typecheck.json` is clean. The image build runs `pnpm build`, which type-checks `e2e/`; a duplicate `join` name in the lifecycle file broke a build once and was fixed.
 
 ## Acceptance
 
