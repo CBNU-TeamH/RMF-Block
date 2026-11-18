@@ -197,19 +197,18 @@ test("a full workspace turns a new nickname away and still admits a member who i
   expect((await joinNamed(request, "e2e-cap-stranger")).ok()).toBe(false);
 });
 
-// Expected failures until #273: the route's `instanceof` checks never match the errors the registry
-// throws, so each refusal below comes back as a 500.
-const knownDefect = { annotation: { type: "issue", description: "https://github.com/CBNU-TeamH/RMF-Block/issues/273" } };
-
-test.fail("a full workspace says so: 503 and the cap in the message (NFR-SEC-002)", knownDefect, async ({ request }) => {
+// #273: these two answered 500 in the container, because the route's `instanceof` checks never matched
+// the errors the shared registry throws.
+test("a full workspace says so: 503 and the cap in the message (NFR-SEC-002)", async ({ request }) => {
   const refused = await joinNamed(request, "e2e-cap-stranger");
   expect(refused.status()).toBe(503);
   expect(await refused.json()).toEqual({ error: "이 워크스페이스는 64명까지만 참여할 수 있습니다." });
 });
 
-test.fail("a blank or over-long nickname is a 400 with the reason (FR-020-02)", knownDefect, async ({ request }) => {
+test("a blank or over-long nickname is a 400 with the reason (FR-020-02)", async ({ request }) => {
   for (const nickname of ["", "x".repeat(21)]) {
     const refused = await joinNamed(request, nickname);
     expect(refused.status(), JSON.stringify(nickname)).toBe(400);
+    expect(await refused.json()).toHaveProperty("error");
   }
 });
