@@ -36,7 +36,6 @@ import {
 import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
 import { excerptOf, parseDocumentLink } from "@/lib/chat/links";
-import type { ViewRef } from "@/lib/floating/views";
 import { HOST_PRESENCE } from "@/lib/presence/types";
 
 import { CANCEL, DIALOG_TITLE, DOCUMENT_ACTIONS_ID, FIELD_LABEL, Spinner, confirmClass, inputClass } from "../../ui";
@@ -271,18 +270,13 @@ export function DocumentEditor({
     deleteBlocks: handleDeleteBlocks,
   });
 
-  /** Whether `blockId` is one of several selected blocks. */
-  const inSelection = (blockId: BlockId) => (selectedBlocks?.size ?? 0) > 1 && selectedBlocks!.has(blockId);
-
-  /** What a block's float button opens: the block, or — when it is one of several
-   *  selected — every selected block a view can show, in one window
-   *  (`docs/design/floating-view.md`, "Several blocks in one window"). */
-  const floatingRef = (blockId: BlockId): ViewRef => {
-    const ids = inSelection(blockId)
-      ? (blocks ?? []).filter((block) => selectedBlocks!.has(block.id) && canFloat(block)).map((block) => block.id)
-      : [];
-    return ids.length > 1 ? { documentId, blockIds: ids } : { documentId, blockId };
-  };
+  // The selected blocks a floating view can show, in order — what a selected
+  // row's float button opens as one window when there are several
+  // (`docs/design/floating-view.md`, "Several blocks in one window").
+  const floatableSelection = useMemo(
+    () => (blocks ?? []).filter((block) => selectedBlocks?.has(block.id) && canFloat(block)).map((block) => block.id),
+    [blocks, selectedBlocks],
+  );
 
   /** Read live, never from `blocks` state, and by iteration rather than `.find`
    *  — why both: `docs/design/document-editing.md`. */
@@ -1003,6 +997,8 @@ export function DocumentEditor({
       <div className="flex flex-col gap-1.5">
       {blocks.map((block, index) => {
         const occupant = occupantByBlock.get(block.id);
+        const floatsGroup = floatableSelection.length > 1 && !!selectedBlocks?.has(block.id);
+        const floatLabel = floatsGroup ? "선택한 블록을 플로팅 뷰로 열기" : "플로팅 뷰로 열기";
         // The drop indicator wins outright while dragging over this block's
         // border — an occupant's box outline and the before/after line would
         // otherwise fight over the same border sides. The gutter avatar below
@@ -1096,10 +1092,13 @@ export function DocumentEditor({
           {canFloat(block) ? (
             <button
               type="button"
-              data-selection-action
-              onClick={() => openFloating(floatingRef(block.id))}
-              aria-label={inSelection(block.id) ? "선택한 블록을 플로팅 뷰로 열기" : "플로팅 뷰로 열기"}
-              title={inSelection(block.id) ? "선택한 블록을 플로팅 뷰로 열기" : "플로팅 뷰로 열기"}
+              // Marked only when it opens the selection, which its press must then keep.
+              data-selection-action={floatsGroup || undefined}
+              onClick={() =>
+                openFloating(floatsGroup ? { documentId, blockIds: floatableSelection } : { documentId, blockId: block.id })
+              }
+              aria-label={floatLabel}
+              title={floatLabel}
               className="absolute top-[3px] -left-[50px] flex size-6 items-center justify-center rounded text-ink-faint opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-hover hover:text-ink-soft focus:opacity-100"
             >
               <svg aria-hidden width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round">

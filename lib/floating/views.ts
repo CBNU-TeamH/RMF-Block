@@ -24,16 +24,18 @@ export type ViewRef = BlockRef | BlocksRef | FileRef;
 
 export const isFileRef = (ref: ViewRef): ref is FileRef => "fileId" in ref;
 
+export const isBlocksRef = (ref: ViewRef): ref is BlocksRef => "blockIds" in ref;
+
 /** The blocks a window mirrors, in order; empty for a file. */
 export const blockIdsOf = (ref: ViewRef): Array<string> =>
-  isFileRef(ref) ? [] : "blockIds" in ref ? ref.blockIds : [ref.blockId];
+  isFileRef(ref) ? [] : isBlocksRef(ref) ? ref.blockIds : [ref.blockId];
 
 /** One string per source. Every kind is prefixed, so no two collide whatever
  *  their ids read. */
 export const refKey = (ref: ViewRef) =>
   isFileRef(ref)
     ? `file:${ref.fileId}`
-    : "blockIds" in ref
+    : isBlocksRef(ref)
       ? `blocks:${ref.documentId}:${ref.blockIds.join(",")}`
       : `block:${ref.documentId}:${ref.blockId}`;
 
@@ -67,17 +69,12 @@ const sameRef = (a: ViewRef, b: ViewRef) => refKey(a) === refKey(b);
 
 /** The source fields of a saved entry, or `null` when it names neither kind. */
 function toRef(entry: Record<string, unknown>): ViewRef | null {
-  if (typeof entry.documentId === "string" && typeof entry.blockId === "string") {
-    return { documentId: entry.documentId, blockId: entry.blockId };
-  }
-  const { blockIds } = entry;
-  if (
-    typeof entry.documentId === "string" &&
-    Array.isArray(blockIds) &&
-    blockIds.length > 1 &&
-    blockIds.every((id) => typeof id === "string")
-  ) {
-    return { documentId: entry.documentId, blockIds: blockIds as Array<string> };
+  const { documentId, blockId, blockIds } = entry;
+  if (typeof documentId === "string") {
+    if (typeof blockId === "string") return { documentId, blockId };
+    if (Array.isArray(blockIds) && blockIds.length > 1 && blockIds.every((id) => typeof id === "string")) {
+      return { documentId, blockIds };
+    }
   }
   const { fileId, fileName, fileType, size } = entry;
   if (

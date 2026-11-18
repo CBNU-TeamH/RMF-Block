@@ -291,22 +291,26 @@ function useMirroredBlocks(
         if (cancelled) return;
 
         // Converts only these blocks; the scan is still O(n) — fine at 8 users.
-        // An edit elsewhere in the document leaves them unchanged, and then
-        // nothing re-renders.
-        let last = "";
+        // A block that did not change keeps its object, so an edit elsewhere
+        // re-renders nothing and an edit to one block re-renders that one.
+        const wanted = new Set(ids);
+        let last: Array<Block | null> = [];
+        let lastKeys: Array<string> = [];
         const read = () => {
           const stored = new Map<string, StoredBlock>();
           for (const block of doc.getRoot().blocks ?? []) {
-            if (block && ids.includes(block.id)) stored.set(block.id, block);
+            if (block && wanted.has(block.id)) stored.set(block.id, block);
+            if (stored.size === wanted.size) break;
           }
           const blocks = ids.map((id) => {
             const found = stored.get(id);
             return found ? (readBlocks([found])[0] ?? null) : null;
           });
-          const key = JSON.stringify(blocks);
-          if (key === last) return;
-          last = key;
-          setMirror({ status: "ready", blocks });
+          const keys = blocks.map((block) => (block ? JSON.stringify(block) : ""));
+          if (keys.length === lastKeys.length && keys.every((key, i) => key === lastKeys[i])) return;
+          last = blocks.map((block, i) => (keys[i] === lastKeys[i] ? last[i]! : block));
+          lastKeys = keys;
+          setMirror({ status: "ready", blocks: last });
         };
         read();
         // Content changes only, local ones included: the editor's own edits
@@ -357,24 +361,27 @@ function fileAsBlock({ fileId, fileName, fileType, size }: FileRef): Block {
 const MEASURE_MAX = 360;
 const PAD = 24;
 const PDF_BASE: Size = { width: MEASURE_MAX + PAD, height: 480 + PAD };
-const PDF_HEIGHT = "h-[480px]";
 
-/** Several blocks are laid out `MEASURE_MAX` wide. Text alone is measured, up to
- *  a PDF's height; an image or PDF among them takes the PDF's box, since an
- *  image's height is unknown until it loads. Taller content scrolls. */
-function groupBase(blocks: Array<Block>, content: HTMLElement): Size {
-  if (blocks.some((block) => block.type === "image" || block.type === "pdf")) return PDF_BASE;
-  return { width: PDF_BASE.width, height: Math.min(content.offsetHeight, PDF_BASE.height) };
+/** The content's size at scale 1, or `null` for a lone image, fitted once its
+ *  bytes arrive (`onImage`). Several blocks are laid out `MEASURE_MAX` wide; text
+ *  alone is measured up to a PDF's height, and an image or PDF among them takes
+ *  the PDF's box, an image's height being unknown until it loads. */
+function baseOf(blocks: Array<Block>, group: boolean, content: HTMLElement): Size | null {
+  const media = blocks.some((block) => block.type === "image" || block.type === "pdf");
+  if (!group && blocks[0]?.type === "image") return null;
+  if (media) return PDF_BASE;
+  return group
+    ? { width: PDF_BASE.width, height: Math.min(content.offsetHeight, PDF_BASE.height) }
+    : { width: content.offsetWidth, height: content.offsetHeight };
 }
 
-function MirrorBody({
+/** Memoised: a run's blocks keep their objects until they change. */
+const MirrorBody = memo(function MirrorBody({
   block,
   onImage,
-  inGroup,
 }: {
   block: Block;
   onImage: (img: HTMLImageElement) => void;
-  inGroup: boolean;
 }) {
   if (block.type === "image") {
     return (
@@ -392,7 +399,7 @@ function MirrorBody({
       <iframe
         src={`/api/files/${block.fileId}/preview`}
         title={block.fileName}
-        className={`${inGroup ? PDF_HEIGHT : "h-full"} w-full`}
+        className="h-[480px] w-full"
       />
     );
   }
@@ -411,7 +418,7 @@ function MirrorBody({
       {block.type === "code" ? block.text : <InlineText text={block.text} />}
     </p>
   );
-}
+});
 
 /** Memoised: its props are stable unless this view itself changed, so opening
  *  or moving one window leaves the others alone. */
@@ -482,19 +489,10 @@ const FloatingWindow = memo(function FloatingWindow({
   const live = useMemo(() => shown?.filter((block): block is Block => block !== null) ?? [], [shown]);
   const [block] = live;
   useLayoutEffect(() => {
-    if (base || !block || !content.current) return;
-    if (group) {
-      onFit(view, groupBase(live, content.current));
-      return;
-    }
-    if (block.type === "image") return;
-    if (block.type === "pdf") {
-      onFit(view, PDF_BASE);
-      return;
-    }
-    const { offsetWidth, offsetHeight } = content.current;
-    onFit(view, { width: offsetWidth, height: offsetHeight });
-  }, [base, block, group, live, view, onFit]);
+    if (base || live.length === 0 || !content.current) return;
+    const measured = baseOf(live, group, content.current);
+    if (measured) onFit(view, measured);
+  }, [base, group, live, view, onFit]);
   const onImage = useCallback(
     (img: HTMLImageElement) => {
       if (base || group) return;
@@ -533,14 +531,10 @@ const FloatingWindow = memo(function FloatingWindow({
           // rather than resizing the window under the reader.
           <div
             ref={content}
-            className={group ? "space-y-2 p-3" : "p-3"}
+            className="space-y-2 p-3"
             style={
               base
-                ? {
-                    zoom: frame.width / base.width,
-                    width: base.width,
-                    height: !group && block.type === "pdf" ? base.height : undefined,
-                  }
+                ? { zoom: frame.width / base.width, width: base.width }
                 : group
                   ? { width: PDF_BASE.width }
                   : { width: "max-content", maxWidth: MEASURE_MAX + PAD }
@@ -548,7 +542,7 @@ const FloatingWindow = memo(function FloatingWindow({
           >
             {shown!.map((item, index) =>
               item ? (
-                <MirrorBody key={item.id} block={item} onImage={onImage} inGroup={group} />
+                <MirrorBody key={item.id} block={item} onImage={onImage} />
               ) : (
                 <p key={ids[index]} className="text-[13px] text-ink-faint">
                   원본 블록이 삭제되었습니다.

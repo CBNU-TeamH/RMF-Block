@@ -25,17 +25,19 @@
 - Vitest (logic / component / server / route): `lib/floating/views.test.mts` gains a run as the source (open beside a block view and once, `blockIdsOf`, read back and drop malformed). The window itself needs a Yorkie document; `floating-views.test.tsx` runs with no client, so its mirror is covered by E2E.
 - Browser E2E (`e2e/`): `e2e/floating-windows.e2e.ts` gains the grouped window, including a deleted block's place.
 - Container smoke (`.github/workflows/ci.yml`): no change — runs the E2E layer.
-- Commands and observed results (fill in before the PR): `pnpm test` 87 files / 956 tests passed; lint, typecheck, `verify:docs`, comment budget clean. `pnpm e2e:isolated e2e/floating-windows.e2e.ts e2e/selection.e2e.ts` (macOS arm64): 8/8.
+- Commands and observed results (fill in before the PR): `pnpm test` 87 files / 956 tests passed; lint, typecheck, `verify:docs`, comment budget clean. `pnpm e2e:isolated e2e/floating-windows.e2e.ts e2e/selection.e2e.ts e2e/chat-files.e2e.ts` (macOS arm64) after the `/simplify` changes: 9/9.
 
 ## Acceptance
 
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] With several blocks selected, a selected row's float button opens them in one window, in document order.
-- [ ] A block deleted from the run shows "원본 블록이 삭제되었습니다." in its place; the rest stay.
-- [ ] A run is saved and restored like a single block's view, and counts once against the cap.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] With several blocks selected, a selected row's float button opens them in one window, in document order.
+- [x] A block deleted from the run shows "원본 블록이 삭제되었습니다." in its place; the rest stay.
+- [x] A run is saved and restored like a single block's view, and counts once against the cap.
 
 ## Cross-cutting
 
 UC-070, FR-070-01/04/05. No SRS change: a view of several blocks is still a view of blocks. Stacked on #272 (the block selection); retarget to `main` once that merges.
 
 ## Review
+
+Shipped as planned. `/simplify` tightened the mirror (a `Set`, unchanged blocks keep their objects, memoised body), merged the fit rules into `baseOf`, and limited `data-selection-action` to a button that opens the selection.

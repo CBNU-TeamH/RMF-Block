@@ -120,10 +120,8 @@ block) are left out, and fewer than two left is an ordinary block view.
 - **The fit.** The blocks are laid out 360px wide. Text alone is measured, up to 480px tall; an
   image or a PDF among them gives the window a PDF's 360×480 box, since an image's height is
   unknown until it loads. Taller content scrolls.
-- **The button keeps the selection.** The selection ends on any press and whenever focus leaves
-  its hidden textarea. The button is marked `data-selection-action`, and a press on one while
-  blocks are selected has its default (the focus move) prevented, so the click still lands and
-  the selection is still there to read.
+- **The button keeps the selection.** When it opens the selection it is marked
+  `data-selection-action`, which the selection hook lets a press through on.
 
 ## Fitted, then scaled
 
