@@ -145,6 +145,12 @@ export function useBlockSelection({
         event.preventDefault();
         setRange(null);
         deleteBlocks(selected);
+      } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "x" && selected) {
+        // Cut is `onCopy` below and then the delete — only once the copy landed.
+        event.preventDefault();
+        if (!document.execCommand("copy")) return;
+        setRange(null);
+        deleteBlocks(selected);
       } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
         event.preventDefault();
         selectAll();

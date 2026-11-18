@@ -12,14 +12,14 @@ async function paste(page: Page, id: string, text: string): Promise<void> {
   }, text);
 }
 
-/** What the next copy put on the clipboard, read after the editor's own handler. */
-async function copied(page: Page): Promise<string> {
+/** What the next copy (or cut, `x`) put on the clipboard, read after the editor's own handler. */
+async function copied(page: Page, key: "c" | "x" = "c"): Promise<string> {
   await page.evaluate(() => {
     window.addEventListener("copy", (event) => {
       (window as unknown as { copied?: string }).copied = event.clipboardData?.getData("text/plain");
     }, { once: true });
   });
-  await page.keyboard.press("ControlOrMeta+c");
+  await page.keyboard.press(`ControlOrMeta+${key}`);
   return page.evaluate(() => (window as unknown as { copied?: string }).copied ?? "");
 }
 
@@ -121,4 +121,16 @@ test("Delete on every block leaves one empty block with the caret in it", async 
   // One edit: the first undo does not strand the document without a block.
   await page.keyboard.press("ControlOrMeta+z");
   await expectPasted(page);
+});
+
+test("Ctrl/Cmd+X copies the selection as Markdown and deletes it", async ({ users }) => {
+  const { page } = await users.join(0);
+  const [heading, item, body] = await threeBlocks(page);
+
+  await drag(page, heading!, item!);
+  await expect(selectedRows(page)).toHaveCount(2);
+  expect(await copied(page, "x")).toBe("# 제목\n- **항목**");
+
+  await expect.poll(() => blockTexts(page)).toEqual(["본문", ""]);
+  await expect(block(page, body!)).toBeFocused();
 });
