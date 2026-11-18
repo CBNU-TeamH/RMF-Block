@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [System tests for the requirements the D07 test report left unexercised](active/20261118-system-tests-untested-frs-todo.md) | [lessons](active/20261118-system-tests-untested-frs-lessons.md) |
 | [Several selected blocks in one floating view](active/20261118-floating-block-group-todo.md) | [lessons](active/20261118-floating-block-group-lessons.md) |
 | [Delete and cut a whole-block selection](active/20261118-block-selection-delete-todo.md) | [lessons](active/20261118-block-selection-delete-lessons.md) |
 | [Upgrade Yorkie and the JS SDK 0.7.23 → 0.7.28](active/20261117-yorkie-0728-todo.md) | [lessons](active/20261117-yorkie-0728-lessons.md) |
