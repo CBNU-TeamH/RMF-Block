@@ -66,6 +66,12 @@ export function useBlockSelection({
   useEffect(() => {
     const onMouseDown = (event: MouseEvent) => {
       if (event.button !== 0) return;
+      // A control that acts on the selection (the float button) keeps it, and
+      // keeps focus here so the blur below does not end it either.
+      if (rangeRef.current && event.target instanceof Element && event.target.closest("[data-selection-action]")) {
+        event.preventDefault();
+        return;
+      }
       const id = blockAt(event.target);
       if (id && event.shiftKey) {
         const anchor = rangeRef.current?.anchor ?? blockAt(document.activeElement);

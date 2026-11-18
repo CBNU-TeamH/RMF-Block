@@ -36,6 +36,7 @@ import {
 import type { TextPatch } from "@/lib/blocks/text-surface";
 import type { Block, BlockId, BlockType } from "@/lib/blocks/types";
 import { excerptOf, parseDocumentLink } from "@/lib/chat/links";
+import type { ViewRef } from "@/lib/floating/views";
 import { HOST_PRESENCE } from "@/lib/presence/types";
 
 import { CANCEL, DIALOG_TITLE, DOCUMENT_ACTIONS_ID, FIELD_LABEL, Spinner, confirmClass, inputClass } from "../../ui";
@@ -269,6 +270,19 @@ export function DocumentEditor({
     focusText: focusAtEnd,
     deleteBlocks: handleDeleteBlocks,
   });
+
+  /** Whether `blockId` is one of several selected blocks. */
+  const inSelection = (blockId: BlockId) => (selectedBlocks?.size ?? 0) > 1 && selectedBlocks!.has(blockId);
+
+  /** What a block's float button opens: the block, or — when it is one of several
+   *  selected — every selected block a view can show, in one window
+   *  (`docs/design/floating-view.md`, "Several blocks in one window"). */
+  const floatingRef = (blockId: BlockId): ViewRef => {
+    const ids = inSelection(blockId)
+      ? (blocks ?? []).filter((block) => selectedBlocks!.has(block.id) && canFloat(block)).map((block) => block.id)
+      : [];
+    return ids.length > 1 ? { documentId, blockIds: ids } : { documentId, blockId };
+  };
 
   /** Read live, never from `blocks` state, and by iteration rather than `.find`
    *  — why both: `docs/design/document-editing.md`. */
@@ -1082,9 +1096,10 @@ export function DocumentEditor({
           {canFloat(block) ? (
             <button
               type="button"
-              onClick={() => openFloating({ documentId, blockId: block.id })}
-              aria-label="플로팅 뷰로 열기"
-              title="플로팅 뷰로 열기"
+              data-selection-action
+              onClick={() => openFloating(floatingRef(block.id))}
+              aria-label={inSelection(block.id) ? "선택한 블록을 플로팅 뷰로 열기" : "플로팅 뷰로 열기"}
+              title={inSelection(block.id) ? "선택한 블록을 플로팅 뷰로 열기" : "플로팅 뷰로 열기"}
               className="absolute top-[3px] -left-[50px] flex size-6 items-center justify-center rounded text-ink-faint opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-hover hover:text-ink-soft focus:opacity-100"
             >
               <svg aria-hidden width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round">

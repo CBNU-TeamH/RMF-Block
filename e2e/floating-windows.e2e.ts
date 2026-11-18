@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { blockValues, createDocument, firstBlock, openChat, openDocument } from "./helpers";
+import { blockValues, createDocument, firstBlock, openChat, openDocument, selectRange } from "./helpers";
 
 /**
  * #144 and #224 (UC-070, FR-070-06): floating views open in the main area's
@@ -64,4 +64,38 @@ test("floating windows open top-left, the pressed one comes to the front, Escape
   await expect(view("line 0")).toHaveCount(0);
   await expect(views).toHaveCount(4);
   await expect(chat).toBeVisible();
+});
+
+test("selected blocks float together in one window, and a deleted one leaves its place marked", async ({ users }) => {
+  const page = (await users.join(0)).page;
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  const name = `e2e group ${Date.now()}`;
+  await openDocument(page, await createDocument(page, name));
+  await firstBlock(page).focus();
+  for (let index = 0; index < 3; index++) {
+    if (index > 0) await page.keyboard.press("Enter");
+    await page.keyboard.insertText(`line ${index}`);
+  }
+  const rows = await blockValues(page);
+  const idOf = (text: string) => rows.find((entry) => entry.text === text)!.id;
+  const row = (text: string) => page.locator(`[data-block-id="${idOf(text)}"]`);
+
+  await row("line 0").locator("textarea").click();
+  await row("line 1").locator("textarea").click({ modifiers: ["Shift"] });
+  await expect(page.locator("[data-block-id][data-selected]")).toHaveCount(2);
+  await row("line 1").hover();
+  await row("line 1").getByRole("button", { name: "선택한 블록을 플로팅 뷰로 열기" }).click();
+
+  const view = page.getByRole("region", { name: `플로팅 뷰: ${name}` });
+  await expect(view).toHaveCount(1);
+  await expect(view).toContainText("line 0");
+  await expect(view).toContainText("line 1");
+  await expect(view).not.toContainText("line 2");
+
+  // Backspace at the start of "line 1" merges it into "line 0", removing its block.
+  await page.keyboard.press("Escape");
+  await selectRange(page, idOf("line 1"), 0);
+  await page.keyboard.press("Backspace");
+  await expect(view).toContainText("line 0line 1");
+  await expect(view).toContainText("원본 블록이 삭제되었습니다.");
 });

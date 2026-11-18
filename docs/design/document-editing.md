@@ -724,6 +724,8 @@ on a plain-HTTP LAN address where `navigator.clipboard` does not exist, and its 
 writes the Markdown, read from the live document at that moment.
 Escape returns the caret to the block the selection ended on; a plain click anywhere, or focus
 moving to another control, ends it. Selection is local: nothing is published to other people.
+A selected row's float button opens the selection in one floating view and keeps it
+([floating-view.md](floating-view.md#several-blocks-in-one-window)).
 
 **Backspace or Delete removes the selected blocks** (`removeBlocks`) and re-makes the empty trailing
 text block if that went with them (`keepTrailingText`), both in one `doc.update`; a block's own

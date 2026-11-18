@@ -2,7 +2,8 @@
 
 - **Status**: Agreed 2026-09-24. Built for text-bearing, image and PDF blocks, and for image
   and PDF chat attachments (#143). Bring to front, Escape and a cap of five views: #144.
-  Opening at the top left: #224.
+  Opening at the top left: #224. Several selected blocks in one window: task
+  `20261118-floating-block-group`.
 - **Owns**: `lib/floating/`, `app/(workspace)/floating-views.tsx`,
   `app/(workspace)/floating-frame.tsx`, `app/(workspace)/use-frame-gesture.ts`,
   `app/(workspace)/window-stack.tsx`.
@@ -20,7 +21,9 @@ reading it while working elsewhere. Four decisions bound it:
   its own IME handling, undo and occupancy. The window never writes to the document.
 - **One entry point per source**: for a block, a 24px window-glyph button left of a block row's
   drag handle, shown the way the handle is. It sits next to the handle, not on the right edge,
-  so it is easy to hit. For a chat attachment, "플로팅 뷰로 열기" under the message. The file
+  so it is easy to hit. With several blocks selected, a selected row's button opens them all
+  in one window ("Several blocks in one window" below). For a chat attachment, "플로팅 뷰로
+  열기" under the message. The file
   lists' 미리보기 is a modal instead ([`file-manager.md`](file-manager.md), "Previewing a file").
 - **Restored after a reload**, from `localStorage` (`rmf-floating-views`). Which blocks one
   person pinned, and where, is worth nothing to anyone else, the same reasoning as the chat
@@ -100,6 +103,28 @@ the same for both.
   `lib/files/serving.ts`. Any other type would open a window the server refuses to fill.
 - **The title bar shows the file's name**, where a block's window shows its document's.
 
+## Several blocks in one window
+
+With several blocks selected ([document-editing.md](document-editing.md#selecting-and-copying-blocks)),
+a selected row's float button, labelled "선택한 블록을 플로팅 뷰로 열기", opens one window with every
+selected block a view can show, in document order. The rest (a table, divider, file or link
+block) are left out, and fewer than two left is an ordinary block view.
+
+- **One document.** A selection never leaves its document, so the window keeps one attachment
+  and one title.
+- **Keyed by the run**, `blocks:<documentId>:<id>,<id>…`. It opens beside a view of one of its
+  blocks, opening the same run again does nothing, and it is one view against the cap.
+- **The order is the selection's.** A block moved later keeps its place in the window. A block
+  deleted later leaves "원본 블록이 삭제되었습니다." in its place and the rest stay; all of them
+  deleted is the single-block case.
+- **The fit.** The blocks are laid out 360px wide. Text alone is measured, up to 480px tall; an
+  image or a PDF among them gives the window a PDF's 360×480 box, since an image's height is
+  unknown until it loads. Taller content scrolls.
+- **The button keeps the selection.** The selection ends on any press and whenever focus leaves
+  its hidden textarea. The button is marked `data-selection-action`, and a press on one while
+  blocks are selected has its default (the focus move) prevented, so the click still lands and
+  the selection is still there to read.
+
 ## Fitted, then scaled
 
 A new window fits its content, then resizes like picture-in-picture: from its corner, with its
@@ -154,7 +179,8 @@ Which window is in front is "In front, and Escape" below.
 The saved list is re-fitted to the current viewport on load and on every viewport resize
 (`fitFloating`), so a window saved on a larger screen is never left off-screen. There is one
 window per block or file: opening one that already has a window does nothing, and a saved entry that is
-malformed or a duplicate is dropped on load (`parseViews`).
+malformed or a duplicate is dropped on load (`parseViews`). A run of blocks counts as one
+source: the same run twice is a duplicate, a run and one of its blocks are not.
 
 ## In front, and Escape
 
