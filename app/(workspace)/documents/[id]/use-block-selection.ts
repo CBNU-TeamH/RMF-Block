@@ -10,13 +10,14 @@ const sameRange = (a: Range | null, b: Range | null) => a?.anchor === b?.anchor 
 /** A state update that keeps the current range when nothing changed, so a drag re-renders only on a new block. */
 const keep = (next: Range | null) => (current: Range | null) => (sameRange(current, next) ? current : next);
 
-/** Whole-block selection and its copy: `docs/design/document-editing.md`,
+/** Whole-block selection, its copy and its delete: `docs/design/document-editing.md`,
  *  "Selecting and copying blocks". */
 export function useBlockSelection({
   order,
   listRef,
   markdownOf,
   focusText,
+  deleteBlocks,
 }: {
   order: Array<BlockId>;
   /** Holds the block rows: elements with `data-block-id`. */
@@ -24,6 +25,7 @@ export function useBlockSelection({
   /** Read at copy time, so the text is what the document holds then. */
   markdownOf: (ids: Set<BlockId>) => string;
   focusText: (blockId: BlockId) => void;
+  deleteBlocks: (ids: Set<BlockId>) => void;
 }) {
   const [range, setRange] = useState<Range | null>(null);
   // The window listeners below are attached once and read these.
@@ -139,6 +141,16 @@ export function useBlockSelection({
         event.stopPropagation();
         setRange(null);
         if (range) focusText(range.focus);
+      } else if ((event.key === "Backspace" || event.key === "Delete") && selected) {
+        event.preventDefault();
+        setRange(null);
+        deleteBlocks(selected);
+      } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "x" && selected) {
+        // Cut is `onCopy` below and then the delete — only once the copy landed.
+        event.preventDefault();
+        if (!document.execCommand("copy")) return;
+        setRange(null);
+        deleteBlocks(selected);
       } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
         event.preventDefault();
         selectAll();

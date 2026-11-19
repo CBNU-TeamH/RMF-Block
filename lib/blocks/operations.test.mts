@@ -12,8 +12,11 @@ import {
   changeBlockType,
   editBlockText,
   insertBlockAfter,
+  keepTrailingText,
   moveBlockAfter,
   removeBlock,
+  removeBlocks,
+  trailingTextId,
   type BlockArray,
 } from "./operations.ts";
 
@@ -138,6 +141,68 @@ describe("removeBlock", () => {
       () => doc.update((root) => removeBlock(blocks(root), "nope")),
       BlockNotFoundError,
     );
+  });
+});
+
+describe("removeBlocks", () => {
+  it("removes every named block and leaves the rest in order", () => {
+    const doc = newDoc();
+    seed(doc, ["a", "b", "c", "d"]);
+
+    doc.update((root) => removeBlocks(blocks(root), new Set(["b", "c"])));
+
+    assert.deepEqual(idsOf(doc), ["a", "d"]);
+  });
+
+  it("skips a block a peer removed first instead of failing the rest", () => {
+    const doc = newDoc();
+    seed(doc, ["a", "b"]);
+
+    doc.update((root) => removeBlocks(blocks(root), new Set(["a", "gone"])));
+
+    assert.deepEqual(idsOf(doc), ["b"]);
+  });
+});
+
+describe("keepTrailingText", () => {
+  it("keeps an empty text block that is already last", () => {
+    const doc = newDoc();
+    seed(doc, ["a"]);
+    doc.update((root) => blocks(root).push(storedBlock("t")));
+
+    let kept = "";
+    doc.update((root) => { kept = keepTrailingText(blocks(root)); });
+
+    assert.equal(kept, "t");
+    assert.deepEqual(idsOf(doc), ["a", "t"]);
+  });
+
+  it("appends one after a block that has text", () => {
+    const doc = newDoc();
+    seed(doc, ["a"]);
+
+    let kept = "";
+    doc.update((root) => { kept = keepTrailingText(blocks(root)); });
+
+    assert.deepEqual(idsOf(doc), ["a", kept]);
+    assert.equal(trailingTextId(doc.getRoot().blocks), kept);
+  });
+
+  it("refills a document emptied in the same update, which one undo takes back", () => {
+    // `[-1]` on an empty Yorkie array throws "out of index", which would roll
+    // the whole update back.
+    const doc = newDoc();
+    seed(doc, ["a", "b"]);
+
+    let kept = "";
+    doc.update((root) => {
+      removeBlocks(blocks(root), new Set(["a", "b"]));
+      kept = keepTrailingText(blocks(root));
+    });
+    assert.deepEqual(idsOf(doc), [kept]);
+
+    doc.history.undo();
+    assert.deepEqual(idsOf(doc), ["a", "b"]);
   });
 });
 

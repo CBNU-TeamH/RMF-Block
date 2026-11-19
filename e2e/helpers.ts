@@ -34,6 +34,10 @@ export async function blockValues(page: Page): Promise<Array<{ id: string; text:
   })));
 }
 
+export async function blockTexts(page: Page): Promise<Array<string>> {
+  return (await blockValues(page)).map((row) => row.text);
+}
+
 export async function selectRange(page: Page, id: string, start: number, end = start): Promise<void> {
   const target = block(page, id);
   await target.focus();

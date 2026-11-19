@@ -1,6 +1,7 @@
 import type { JSONArray, Text } from "@yorkie-js/sdk";
 
-import { listDepth, type StoredBlock, type StoredContent } from "./document.ts";
+import { createText } from "./create.ts";
+import { listDepth, toStoredBlock, type StoredBlock, type StoredContent } from "./document.ts";
 import type { BlockId, HeadingLevel, ListStyle } from "./types.ts";
 
 /** Every change the editor can make to a document's blocks (FR-022-01~04).
@@ -19,8 +20,9 @@ export class BlockNotFoundError extends Error {
 }
 
 /** Yorkie addresses elements by `TimeTicket` and we address them by `id`; this
- *  is the only place the two meet. The scan stays linear on purpose — an
- *  id→ticket index would be a second thing to keep true on every remote change. */
+ *  and `removeBlocks` are the only places the two meet. The scan stays linear on
+ *  purpose — an id→ticket index would be a second thing to keep true on every
+ *  remote change. */
 function elementOf(blocks: BlockArray, blockId: BlockId) {
   for (const element of blocks.elements()) {
     // The wrapped block: readable as one, and carrying the `getID()` Yorkie needs.
@@ -70,6 +72,32 @@ export function appendBlock(blocks: BlockArray, block: StoredBlock): void {
 
 export function removeBlock(blocks: BlockArray, blockId: BlockId): void {
   blocks.deleteByID(elementOf(blocks, blockId).getID());
+}
+
+/** Removes every block in `ids` in one pass — a whole-block selection's delete.
+ *  An id that is not there is skipped: a peer removed it first. */
+export function removeBlocks(blocks: BlockArray, ids: ReadonlySet<BlockId>): void {
+  const doomed = Array.from(blocks.elements()).filter((element) =>
+    ids.has((element as unknown as StoredBlock).id),
+  );
+  for (const element of doomed) blocks.deleteByID(element.getID());
+}
+
+/** The last block's id when it is the empty text block kept at the end
+ *  (`docs/design/document-editing.md`), else `null`. Reads only. */
+export function trailingTextId(blocks: ReadonlyArray<StoredBlock>): BlockId | null {
+  // Yorkie's array throws "out of index" on `[-1]` rather than giving `undefined`.
+  const last = blocks.length > 0 ? blocks[blocks.length - 1] : undefined;
+  return last?.type === "text" && (last.content?.text?.toString() ?? "") === "" ? last.id : null;
+}
+
+/** That block, appended first if the document does not end in one. */
+export function keepTrailingText(blocks: BlockArray): BlockId {
+  const existing = trailingTextId(blocks);
+  if (existing) return existing;
+  const block = toStoredBlock(createText());
+  blocks.push(block);
+  return block.id;
 }
 
 /** Moves a block after `afterId`, or to the front when that is `null`. The block
