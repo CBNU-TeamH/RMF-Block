@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Several selected blocks in one floating view](active/20261118-floating-block-group-todo.md) | [lessons](active/20261118-floating-block-group-lessons.md) |
 | [Delete and cut a whole-block selection](active/20261118-block-selection-delete-todo.md) | [lessons](active/20261118-block-selection-delete-lessons.md) |
 | [Simple collaborative table blocks](active/20261016-table-block-todo.md) | [lessons](active/20261016-table-block-lessons.md) |
 

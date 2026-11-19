@@ -8,6 +8,7 @@ import {
   MIN_CONTENT_WIDTH,
   MIN_FIT_WIDTH,
   applyFloatingGesture,
+  blockIdsOf,
   closeView,
   fitFloating,
   fitView,
@@ -178,6 +179,33 @@ describe("a file as the source (#143)", () => {
       { ...a, frame },
       { ...file, frame },
     ]);
+  });
+});
+
+describe("several blocks of one document as the source", () => {
+  const run = { documentId: "doc-1", blockIds: ["b-1", "b-2"] };
+
+  it("opens beside a view of one of its blocks, and only once", () => {
+    const views = openView(openView([], a, viewport, main), run, viewport, main);
+    assert.equal(views.length, 2);
+    assert.equal(openView(views, { ...run, blockIds: ["b-1", "b-2"] }, viewport, main), views);
+    assert.notEqual(refKey(run), refKey(a));
+  });
+
+  it("names its blocks in order, as a block's view names its one and a file's none", () => {
+    assert.deepEqual(blockIdsOf(run), ["b-1", "b-2"]);
+    assert.deepEqual(blockIdsOf(a), ["b-1"]);
+    assert.deepEqual(blockIdsOf({ fileId: "f", fileName: "f.png", fileType: "image/png", size: 1 }), []);
+  });
+
+  it("reads back from storage, dropping a run of fewer than two or with a non-string id", () => {
+    const raw = JSON.stringify([
+      { ...run, frame },
+      { documentId: "doc-1", blockIds: ["b-3"], frame },
+      { documentId: "doc-1", blockIds: ["b-3", 4], frame },
+      { ...run, frame: { ...frame, x: 99 } },
+    ]);
+    assert.deepEqual(parseViews(raw), [{ ...run, frame }]);
   });
 });
 

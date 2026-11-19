@@ -12,18 +12,32 @@ export const MAX_VIEWS = 5;
 
 export type BlockRef = { documentId: string; blockId: string };
 
+/** Several blocks of one document in one window, in the order they were
+ *  selected — always two or more; one is a `BlockRef`. */
+export type BlocksRef = { documentId: string; blockIds: Array<string> };
+
 /** A stored file shown on its own — a chat attachment (#143). Its four fields are
  *  the attachment's, so the window needs no lookup to draw it. */
 export type FileRef = { fileId: string; fileName: string; fileType: string; size: number };
 
-export type ViewRef = BlockRef | FileRef;
+export type ViewRef = BlockRef | BlocksRef | FileRef;
 
 export const isFileRef = (ref: ViewRef): ref is FileRef => "fileId" in ref;
 
-/** One string per source. Both kinds are prefixed, so a block and a file never
- *  collide whatever their ids read. */
+export const isBlocksRef = (ref: ViewRef): ref is BlocksRef => "blockIds" in ref;
+
+/** The blocks a window mirrors, in order; empty for a file. */
+export const blockIdsOf = (ref: ViewRef): Array<string> =>
+  isFileRef(ref) ? [] : isBlocksRef(ref) ? ref.blockIds : [ref.blockId];
+
+/** One string per source. Every kind is prefixed, so no two collide whatever
+ *  their ids read. */
 export const refKey = (ref: ViewRef) =>
-  isFileRef(ref) ? `file:${ref.fileId}` : `block:${ref.documentId}:${ref.blockId}`;
+  isFileRef(ref)
+    ? `file:${ref.fileId}`
+    : isBlocksRef(ref)
+      ? `blocks:${ref.documentId}:${ref.blockIds.join(",")}`
+      : `block:${ref.documentId}:${ref.blockId}`;
 
 export type Size = { width: number; height: number };
 
@@ -55,8 +69,12 @@ const sameRef = (a: ViewRef, b: ViewRef) => refKey(a) === refKey(b);
 
 /** The source fields of a saved entry, or `null` when it names neither kind. */
 function toRef(entry: Record<string, unknown>): ViewRef | null {
-  if (typeof entry.documentId === "string" && typeof entry.blockId === "string") {
-    return { documentId: entry.documentId, blockId: entry.blockId };
+  const { documentId, blockId, blockIds } = entry;
+  if (typeof documentId === "string") {
+    if (typeof blockId === "string") return { documentId, blockId };
+    if (Array.isArray(blockIds) && blockIds.length > 1 && blockIds.every((id) => typeof id === "string")) {
+      return { documentId, blockIds };
+    }
   }
   const { fileId, fileName, fileType, size } = entry;
   if (

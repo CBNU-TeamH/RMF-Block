@@ -13,7 +13,7 @@ import {
   useState,
 } from "react";
 
-import { readBlocks } from "@/lib/blocks/document";
+import { readBlocks, type StoredBlock } from "@/lib/blocks/document";
 import { isTextBearing } from "@/lib/blocks/registry";
 import type { Block } from "@/lib/blocks/types";
 import type { Frame } from "@/lib/chat/window-frame";
@@ -23,6 +23,7 @@ import {
   MAX_VIEWS,
   STORAGE_KEY,
   applyFloatingGesture,
+  blockIdsOf,
   closeView,
   fitFloating,
   fitView,
@@ -32,7 +33,6 @@ import {
   openView,
   parseViews,
   refKey,
-  type BlockRef,
   type FileRef,
   type FloatingGesture,
   type FloatingView,
@@ -258,26 +258,28 @@ function useDocumentNames(): Map<string, string | null> {
 
 type Mirror =
   | { status: "loading" }
-  | { status: "ready"; block: Block }
-  | { status: "deleted" }
+  /** In the view's order, `null` where a block is no longer there. */
+  | { status: "ready"; blocks: Array<Block | null> }
   | { status: "failed" };
 
-/** One block, live. Never writes — no seed, no presence beyond `activeBlockId:
- *  null`, which occupancy already ignores, so the viewer shows up nowhere.
- *  `null` for a file's window, which has nothing to mirror. */
-function useMirroredBlock(
+/** A view's blocks, live. Never writes — no seed, no presence beyond
+ *  `activeBlockId: null`, which occupancy already ignores, so the viewer shows
+ *  up nowhere. A file's window passes no document and has nothing to mirror. */
+function useMirroredBlocks(
   client: Client | null,
-  ref: BlockRef | null,
+  documentId: string | undefined,
+  blockIds: Array<string>,
   colorTag: string,
   nickname: string,
 ): Mirror {
   const [mirror, setMirror] = useState<Mirror>({ status: "loading" });
-  const documentId = ref?.documentId;
-  const blockId = ref?.blockId;
+  // One string, so a new array naming the same blocks does not re-attach.
+  const idsKey = blockIds.join(",");
 
   useEffect(() => {
-    if (!client || !documentId || !blockId) return undefined;
+    if (!client || !documentId || !idsKey) return undefined;
 
+    const ids = idsKey.split(",");
     let cancelled = false;
     let held = false;
     let unsubscribe: (() => void) | undefined;
@@ -288,17 +290,27 @@ function useMirroredBlock(
         held = true;
         if (cancelled) return;
 
-        // Converts only this block; the find is still O(n) — fine at 8 users.
-        // An edit elsewhere in the document leaves it unchanged, and then
-        // nothing re-renders.
-        let last = "";
+        // Converts only these blocks; the scan is still O(n) — fine at 8 users.
+        // A block that did not change keeps its object, so an edit elsewhere
+        // re-renders nothing and an edit to one block re-renders that one.
+        const wanted = new Set(ids);
+        let last: Array<Block | null> = [];
+        let lastKeys: Array<string> = [];
         const read = () => {
-          const stored = (doc.getRoot().blocks ?? []).find((b) => b?.id === blockId);
-          const [block] = stored ? readBlocks([stored]) : [];
-          const key = block ? JSON.stringify(block) : "deleted";
-          if (key === last) return;
-          last = key;
-          setMirror(block ? { status: "ready", block } : { status: "deleted" });
+          const stored = new Map<string, StoredBlock>();
+          for (const block of doc.getRoot().blocks ?? []) {
+            if (block && wanted.has(block.id)) stored.set(block.id, block);
+            if (stored.size === wanted.size) break;
+          }
+          const blocks = ids.map((id) => {
+            const found = stored.get(id);
+            return found ? (readBlocks([found])[0] ?? null) : null;
+          });
+          const keys = blocks.map((block) => (block ? JSON.stringify(block) : ""));
+          if (keys.length === lastKeys.length && keys.every((key, i) => key === lastKeys[i])) return;
+          last = blocks.map((block, i) => (keys[i] === lastKeys[i] ? last[i]! : block));
+          lastKeys = keys;
+          setMirror({ status: "ready", blocks: last });
         };
         read();
         // Content changes only, local ones included: the editor's own edits
@@ -326,7 +338,7 @@ function useMirroredBlock(
         if (held) releaseBlockDocument(client, documentId);
       });
     };
-  }, [client, documentId, blockId, colorTag, nickname]);
+  }, [client, documentId, idsKey, colorTag, nickname]);
 
   return mirror;
 }
@@ -350,7 +362,27 @@ const MEASURE_MAX = 360;
 const PAD = 24;
 const PDF_BASE: Size = { width: MEASURE_MAX + PAD, height: 480 + PAD };
 
-function MirrorBody({ block, onImage }: { block: Block; onImage: (img: HTMLImageElement) => void }) {
+/** The content's size at scale 1, or `null` for a lone image, fitted once its
+ *  bytes arrive (`onImage`). Several blocks are laid out `MEASURE_MAX` wide; text
+ *  alone is measured up to a PDF's height, and an image or PDF among them takes
+ *  the PDF's box, an image's height being unknown until it loads. */
+function baseOf(blocks: Array<Block>, group: boolean, content: HTMLElement): Size | null {
+  const media = blocks.some((block) => block.type === "image" || block.type === "pdf");
+  if (!group && blocks[0]?.type === "image") return null;
+  if (media) return PDF_BASE;
+  return group
+    ? { width: PDF_BASE.width, height: Math.min(content.offsetHeight, PDF_BASE.height) }
+    : { width: content.offsetWidth, height: content.offsetHeight };
+}
+
+/** Memoised: a run's blocks keep their objects until they change. */
+const MirrorBody = memo(function MirrorBody({
+  block,
+  onImage,
+}: {
+  block: Block;
+  onImage: (img: HTMLImageElement) => void;
+}) {
   if (block.type === "image") {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- same reason as `image-block.tsx`
@@ -367,7 +399,7 @@ function MirrorBody({ block, onImage }: { block: Block; onImage: (img: HTMLImage
       <iframe
         src={`/api/files/${block.fileId}/preview`}
         title={block.fileName}
-        className="h-full w-full"
+        className="h-[480px] w-full"
       />
     );
   }
@@ -386,7 +418,7 @@ function MirrorBody({ block, onImage }: { block: Block; onImage: (img: HTMLImage
       {block.type === "code" ? block.text : <InlineText text={block.text} />}
     </p>
   );
-}
+});
 
 /** Memoised: its props are stable unless this view itself changed, so opening
  *  or moving one window leaves the others alone. */
@@ -413,7 +445,15 @@ const FloatingWindow = memo(function FloatingWindow({
 }) {
   const { base } = view;
   const file = isFileRef(view) ? view : null;
-  const mirror = useMirroredBlock(client, isFileRef(view) ? null : view, colorTag, nickname);
+  const ids = blockIdsOf(view);
+  const group = ids.length > 1;
+  const mirror = useMirroredBlocks(
+    client,
+    isFileRef(view) ? undefined : view.documentId,
+    ids,
+    colorTag,
+    nickname,
+  );
 
   // Only while a gesture runs; otherwise the saved frame is the frame. The saved
   // list is written once per drag, not per pointer move.
@@ -441,26 +481,28 @@ const FloatingWindow = memo(function FloatingWindow({
   const content = useRef<HTMLDivElement>(null);
   // `file` is `view` itself, so this changes only when the window does.
   const fileBlock = useMemo(() => (file ? fileAsBlock(file) : null), [file]);
-  const block = fileBlock ?? (mirror.status === "ready" ? mirror.block : null);
+  // What the window draws, in order: `null` where a block was deleted.
+  const shown = useMemo(
+    () => (fileBlock ? [fileBlock] : mirror.status === "ready" ? mirror.blocks : null),
+    [fileBlock, mirror],
+  );
+  const live = useMemo(() => shown?.filter((block): block is Block => block !== null) ?? [], [shown]);
+  const [block] = live;
   useLayoutEffect(() => {
-    if (base || !block || block.type === "image" || !content.current) return;
-    if (block.type === "pdf") {
-      onFit(view, PDF_BASE);
-      return;
-    }
-    const { offsetWidth, offsetHeight } = content.current;
-    onFit(view, { width: offsetWidth, height: offsetHeight });
-  }, [base, block, view, onFit]);
+    if (base || live.length === 0 || !content.current) return;
+    const measured = baseOf(live, group, content.current);
+    if (measured) onFit(view, measured);
+  }, [base, group, live, view, onFit]);
   const onImage = useCallback(
     (img: HTMLImageElement) => {
-      if (base) return;
+      if (base || group) return;
       const shrink = Math.min(1, MEASURE_MAX / img.naturalWidth, MEASURE_MAX / img.naturalHeight);
       onFit(view, {
         width: Math.round(img.naturalWidth * shrink) + PAD,
         height: Math.round(img.naturalHeight * shrink) + PAD,
       });
     },
-    [base, view, onFit],
+    [base, group, view, onFit],
   );
 
   const gone = documentName === null;
@@ -489,22 +531,28 @@ const FloatingWindow = memo(function FloatingWindow({
           // rather than resizing the window under the reader.
           <div
             ref={content}
-            className="p-3"
+            className="space-y-2 p-3"
             style={
               base
-                ? {
-                    zoom: frame.width / base.width,
-                    width: base.width,
-                    height: block.type === "pdf" ? base.height : undefined,
-                  }
-                : { width: "max-content", maxWidth: MEASURE_MAX + PAD }
+                ? { zoom: frame.width / base.width, width: base.width }
+                : group
+                  ? { width: PDF_BASE.width }
+                  : { width: "max-content", maxWidth: MEASURE_MAX + PAD }
             }
           >
-            <MirrorBody block={block} onImage={onImage} />
+            {shown!.map((item, index) =>
+              item ? (
+                <MirrorBody key={item.id} block={item} onImage={onImage} />
+              ) : (
+                <p key={ids[index]} className="text-[13px] text-ink-faint">
+                  원본 블록이 삭제되었습니다.
+                </p>
+              ),
+            )}
           </div>
         ) : null}
         {gone ? <Notice>원본 문서가 삭제되었습니다.</Notice> : null}
-        {!gone && mirror.status === "deleted" ? <Notice>원본 블록이 삭제되었습니다.</Notice> : null}
+        {!gone && shown && !block ? <Notice>원본 블록이 삭제되었습니다.</Notice> : null}
         {!gone && mirror.status === "failed" ? <Notice>원본을 열 수 없습니다.</Notice> : null}
       </div>
     </FloatingFrame>
