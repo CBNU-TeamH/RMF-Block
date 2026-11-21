@@ -335,7 +335,9 @@ for (const [build, sdk] of [
   report("두 문서의 마지막 편집이 새 클라이언트에 도착한다", `${LAST},${LAST}`, reads.map((doc) => doc.getRoot().n).join());
 
   // `Client.sync()` is patched apart from the loop, and version history calls it with two documents
-  // attached. Manual documents keep the loop out, so every push counted here is sync()'s own.
+  // attached. Manual documents keep the loop out, and the realtime clients above stop first, so
+  // every push counted here is sync()'s own.
+  for (const earlier of clients.splice(0)) await earlier.deactivate().catch(() => undefined);
   const direct = await countPushPulls(async () => {
     const m = await client(sdk);
     const docs = names.map((name) => new sdk.Document(`${name}-manual`));
