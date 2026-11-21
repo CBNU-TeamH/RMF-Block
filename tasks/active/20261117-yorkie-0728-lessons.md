@@ -1,0 +1,26 @@
+# Upgrade Yorkie and the JS SDK 0.7.23 → 0.7.28 — lessons
+
+**Created**: 2026-11-17
+
+Written while building, not after. Keep entries short and concrete — the point is
+that the next person does not rediscover this.
+
+## What surprised us
+
+- **"Upstream added `exports`, so the patch goes" was half right.** The patch had grown a second job the day before
+  (#261, the sync loop for #257), and the first read of it — on a branch that predated #261 — showed only the
+  `exports` hunk. Read the patch on the base you are branching from, not the one checked out.
+- **A server fix can remove the cause while the client still shows the symptom's shape.** 0.7.28's SDK still syncs
+  documents with `Promise.all`, but the 400 it triggered looks like a server cache race fixed in yorkie#2112. Whether
+  the client workaround is still needed is a measurement, not a reading.
+- **A guard can silently change what it guards.** Case ⑥ "guards the ES build" only because the old patch made Node's
+  `import` resolve to `es.js`; upstream's map sends Node to the CJS build instead, and the comment became false
+  without any code in this repo changing.
+
+## What we would do differently
+
+- ...
+
+## Worth extracting
+
+- ...
