@@ -21,6 +21,14 @@ that the next person does not rediscover this.
 
 - ...
 
+## Build notes
+
+- **Never edit a file under `node_modules/.pnpm` in place to test a revert.** pnpm hard-links it to the global store,
+  so an in-place write changes every project using that version. Move the file aside, copy it back, edit the copy,
+  then move the original back — a new inode, nothing shared touched.
+- The browser build loads in Node by path (`createRequire(import.meta.url).resolve` → its directory → `es.mjs`) and
+  brings its own `Client`/`Document` classes, so case ⑥ runs once per build without either seeing the other.
+
 ## Worth extracting
 
 - ...

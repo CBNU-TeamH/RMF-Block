@@ -26,6 +26,10 @@
  * Every case prints what it expected and what happened, and the process exits
  * non-zero if any of them disagree.
  */
+import { createRequire } from "node:module";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
 import yorkie from "@yorkie-js/sdk";
 
 import { createReporter, requireReachable } from "./lib/verify-report.mjs";
@@ -74,8 +78,8 @@ const { project } = await admin(
 const apiKey = project.publicKey;
 
 const clients = [];
-async function client() {
-  const created = new yorkie.Client({ rpcAddr: RPC, apiKey });
+async function client(sdk = yorkie) {
+  const created = new sdk.Client({ rpcAddr: RPC, apiKey });
   await created.activate();
   clients.push(created);
   return created;
@@ -267,10 +271,22 @@ console.log("\n⑤ undo 가 로컬 변경을 되돌린다");
   report("redo 가 다시 적용한다", 2, doc.getRoot().blocks.length);
 }
 
-console.log("\n⑥ 한 클라이언트에 붙은 두 문서는 한 번에 하나씩 밀린다 (#257)");
-{
+// Case ⑥ runs once per patched build, because the patch edits each separately. Node's `import`
+// resolves to `node.mjs`, a wrapper over the CJS `.js`; browsers get `es.mjs`, loaded here by path.
+const esBuild = (
+  await import(
+    pathToFileURL(path.join(path.dirname(createRequire(import.meta.url).resolve("@yorkie-js/sdk")), "yorkie-js-sdk.es.mjs"))
+      .href
+  )
+).default;
+
+for (const [build, sdk] of [
+  ["CJS .js", yorkie],
+  ["ES .mjs", esBuild],
+]) {
+  console.log(`\n⑥ 한 클라이언트에 붙은 두 문서는 한 번에 하나씩 밀린다 (#257) — ${build}`);
   // Counts the PushPullChanges a client has in flight (Yorkie refusing the second is a race, so count
-  // what is sent), then checks a fresh reader. Guards the ES build only: that is what `import` resolves.
+  // what is sent), then checks a fresh reader.
   const key = `inv-loop-${Date.now()}`;
   const names = [`${key}-x`, `${key}-y`];
   const LAST = 120;
@@ -295,8 +311,8 @@ console.log("\n⑥ 한 클라이언트에 붙은 두 문서는 한 번에 하나
   };
 
   try {
-    const a = await client();
-    const docs = names.map((name) => new yorkie.Document(name));
+    const a = await client(sdk);
+    const docs = names.map((name) => new sdk.Document(name));
     for (const doc of docs) await a.attach(doc);
     for (let n = 1; n <= LAST; n += 1) {
       // Back to back: both documents have a change by the time the loop next ticks.
@@ -312,8 +328,8 @@ console.log("\n⑥ 한 클라이언트에 붙은 두 문서는 한 번에 하나
   report("PushPullChanges 가 관측된다", true, sent > 0);
   report("PushPullChanges 가 동시에 둘 이상 나가지 않는다", 1, mostInFlight);
 
-  const reader = await client();
-  const reads = names.map((name) => new yorkie.Document(name));
+  const reader = await client(sdk);
+  const reads = names.map((name) => new sdk.Document(name));
   for (const doc of reads) await reader.attach(doc);
   await settle();
   report("두 문서의 마지막 편집이 새 클라이언트에 도착한다", `${LAST},${LAST}`, reads.map((doc) => doc.getRoot().n).join());
