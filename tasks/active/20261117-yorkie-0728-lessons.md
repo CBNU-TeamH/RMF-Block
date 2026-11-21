@@ -19,7 +19,11 @@ that the next person does not rediscover this.
 
 ## What we would do differently
 
-- ...
+- **Keep a reproduction script in the repo, not only described in an issue.** #257's was "kept outside the repo", so
+  this bump had to rebuild it from prose and then prove the rebuild reproduces (a throwaway 0.7.23 stack) before a
+  green result on 0.7.28 meant anything.
+- **A version bump re-checks every dated measurement, not only the ones the plan lists.** `version-history.md`'s
+  "a revision outlives its document by id" (0.7.13) turned out false on 0.7.28, and UC-023's 비고 rests on it.
 
 ## Build notes
 
@@ -31,4 +35,4 @@ that the next person does not rediscover this.
 
 ## Worth extracting
 
-- ...
+- A green "the bug no longer reproduces" needs a control run that does reproduce it with the same script.
