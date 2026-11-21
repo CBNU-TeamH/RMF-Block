@@ -1,0 +1,134 @@
+diff --git a/dist/yorkie-js-sdk.es.mjs b/dist/yorkie-js-sdk.es.mjs
+index e3a6977ff4bfef1300fdc6702446d5a92e7fc351..06fdc86a27020853ae5475a1e1ad6f68f69f29b2 100755
+--- a/dist/yorkie-js-sdk.es.mjs
++++ b/dist/yorkie-js-sdk.es.mjs
+@@ -29383,25 +29383,24 @@ class Client {
+     }
+     return this.enqueueTask(async () => {
+       const ownsSession = this.captureSession();
+-      const promises = [];
+-      for (const [, attachment] of this.attachmentMap) {
+-        if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
+-          promises.push(
+-            this.trackSync(
+-              attachment,
+-              this.syncInternal(
++      const results = [];
++      try {
++        for (const [, attachment] of this.attachmentMap) {
++          if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
++            results.push(
++              await this.trackSync(
+                 attachment,
+-                attachment.syncMode
++                this.syncInternal(attachment, attachment.syncMode)
+               )
+-            )
+-          );
++            );
++          }
+         }
+-      }
+-      return Promise.all(promises).catch(async (err) => {
++        return results;
++      } catch (err) {
+         logger.error(`[SY] c:"${this.getKey()}" err :`, err);
+         await this.handleConnectError(err, false, ownsSession);
+         throw err;
+-      });
++      }
+     });
+   }
+   /**
+@@ -30004,7 +30003,7 @@ class Client {
+       try {
+         await this.enqueueTask(async () => {
+           ownsSession = this.captureSession();
+-          const syncs = [];
++          let syncError;
+           for (const [, attachment] of this.attachmentMap) {
+             if (this.deactivating) {
+               break;
+@@ -30060,9 +30059,13 @@ class Client {
+               attachment.clearSyncPromise();
+             });
+             attachment.setSyncPromise(syncPromise);
+-            syncs.push(syncPromise);
++            try {
++              await syncPromise;
++            } catch (err) {
++              syncError = syncError ?? err;
++            }
+           }
+-          await Promise.all(syncs);
++          if (syncError !== void 0) throw syncError;
+           setTimeout(doLoop, this.syncLoopDuration);
+         });
+       } catch (err) {
+diff --git a/dist/yorkie-js-sdk.js b/dist/yorkie-js-sdk.js
+index 2775b66ddff52b7d3d0b5e7cab80f597a21d9eb4..3a46770b003979f78c405ce90aeb4a80a79fa606 100755
+--- a/dist/yorkie-js-sdk.js
++++ b/dist/yorkie-js-sdk.js
+@@ -29387,25 +29387,24 @@
+       }
+       return this.enqueueTask(async () => {
+         const ownsSession = this.captureSession();
+-        const promises = [];
+-        for (const [, attachment] of this.attachmentMap) {
+-          if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
+-            promises.push(
+-              this.trackSync(
+-                attachment,
+-                this.syncInternal(
++        const results = [];
++        try {
++          for (const [, attachment] of this.attachmentMap) {
++            if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
++              results.push(
++                await this.trackSync(
+                   attachment,
+-                  attachment.syncMode
++                  this.syncInternal(attachment, attachment.syncMode)
+                 )
+-              )
+-            );
++              );
++            }
+           }
+-        }
+-        return Promise.all(promises).catch(async (err) => {
++          return results;
++        } catch (err) {
+           logger.error(`[SY] c:"${this.getKey()}" err :`, err);
+           await this.handleConnectError(err, false, ownsSession);
+           throw err;
+-        });
++        }
+       });
+     }
+     /**
+@@ -30008,7 +30007,7 @@
+         try {
+           await this.enqueueTask(async () => {
+             ownsSession = this.captureSession();
+-            const syncs = [];
++            let syncError;
+             for (const [, attachment] of this.attachmentMap) {
+               if (this.deactivating) {
+                 break;
+@@ -30064,9 +30063,13 @@
+                 attachment.clearSyncPromise();
+               });
+               attachment.setSyncPromise(syncPromise);
+-              syncs.push(syncPromise);
++              try {
++                await syncPromise;
++              } catch (err) {
++                syncError = syncError ?? err;
++              }
+             }
+-            await Promise.all(syncs);
++            if (syncError !== void 0) throw syncError;
+             setTimeout(doLoop, this.syncLoopDuration);
+           });
+         } catch (err) {
