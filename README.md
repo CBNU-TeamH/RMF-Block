@@ -177,6 +177,12 @@ if ($LASTEXITCODE -eq 0) { docker compose up -d }
 secrets](#set-the-yorkie-admin-secrets)). The first start moves Yorkie's existing administrator off
 `admin`/`admin` onto `YORKIE_ADMIN_PASSWORD`.
 
+**To a release on Yorkie 0.7.28 or later:** check `YORKIE_ADMIN_TOKEN_SECRET` in `.env` first, however
+you upgrade. Yorkie now refuses to start on one under 32 characters, so replace a shorter value with a
+random string of 32 characters or more; a longer one stays as it is. Changing it only signs out
+Yorkie's admin logins. The same releases write data Yorkie below 0.7.26 does not support, so take the
+volume backup described under **Rolling back** before the first start.
+
 The documents and settings stay when the Compose project name stays the same. The release file
 defaults to `rmf-block`; an older installation may have used its folder name instead.
 
@@ -210,6 +216,8 @@ move data between project names; changing the name selects different volumes. Do
 **Rolling back:** put the previous release's `docker-compose.yml` back in the folder and run the
 same upgrade commands; the volumes stay. A newer version may have changed what it stores, which an
 older one cannot always read, so back up the `app-data` and `mongo-data` volumes before upgrading.
+Once Yorkie 0.7.26 or later has run on `mongo-data`, an older Yorkie is not supported on it: rolling
+back past that means restoring the `mongo-data` backup as well, which loses everything written since.
 
 Each release's file names its own version. To pin the exact image, append the digest from the
 release notes (`…:0.0.1@sha256:…`). Use that one and not a digest from the package page, which pins
