@@ -10,7 +10,7 @@ UC-010's precondition is that the project's Docker image is available to the Hos
 
 There are no git tags, no releases and no published image. `main` is always releasable (AGENTS.md §6), so "the version we demo" is whatever `main` happened to be.
 
-The hosts are team members' laptops: Windows and Linux on x86-64, and Apple Silicon Macs on arm64. Both `yorkieteam/yorkie:0.7.23` and `mongo:8` are published as multi-arch images with `linux/amd64` and `linux/arm64` in their manifest lists. The app image built today is `linux/amd64` only.
+The hosts are team members' laptops: Windows and Linux on x86-64, and Apple Silicon Macs on arm64. Both `yorkieteam/yorkie:0.7.28` and `mongo:8` are published as multi-arch images with `linux/amd64` and `linux/arm64` in their manifest lists. The app image built today is `linux/amd64` only.
 
 ## Decision
 
@@ -26,11 +26,11 @@ The hosts are team members' laptops: Windows and Linux on x86-64, and Apple Sili
    A release therefore never exists without its image, and `latest` follows the latest release, never ahead of it and never back to an older one. A `-rc.N` tag runs the same path as a prerelease and does not move `latest`.
 4. **No release branch.** A release is a tag on `main`. A `release/X.Y` branch is cut from the tag only if an old version ever needs a fix while `main` has moved on.
 5. **Published version tags are immutable; only `latest` moves.** Runs for the same tag share a concurrency group with `cancel-in-progress: false`, so a later run checks for the release after the earlier run finishes. Once the GitHub Release exists, the workflow never builds or pushes that version again. A failed run is retried by re-running it, at any step: it resumes rather than starts over (Decision 3.2), and re-running a finished run changes nothing. A tag re-pushed to another commit stops at the image check. Compose names the image by version tag, because it is readable and is bumped in one place; the notes record the manifest-list digest.
-6. **Recovery and rollback are different problems.** A failed run is recovered by retrying it (Decision 5). A released version found faulty is not deleted or overwritten: hosts return to the previous release's compose file, and the fix ships as a new version. Nothing rolls back automatically; each host chooses its version.
+6. **Recovery and rollback are different problems.** A failed run is recovered by retrying it (Decision 5). A released version found faulty is not deleted or overwritten: hosts return to the previous release's compose file, and the fix ships as a new version. Where the newer release changed what Yorkie stores, the host also restores the `mongo-data` backup taken before upgrading ([README](../../README.md#upgrading), "Rolling back"). Nothing rolls back automatically; each host chooses its version.
 7. **Yorkie and MongoDB stay bundled.** Compose always runs its own pinned Yorkie and MongoDB. Docker already reuses those images when they are present locally. Attaching to a Yorkie or MongoDB server the host already runs is not supported, for three reasons:
    - The browser derives Yorkie's address from the page's host and port 8080 (`lib/yorkie-address.ts`).
    - Startup writes the auth webhook onto the Yorkie project, which would overwrite another deployment's setting.
-   - The client is a patched `@yorkie-js/sdk@0.7.23`, so the server version has to match.
+   - The client is a patched `@yorkie-js/sdk@0.7.28`, so the server version has to match.
 
 ## Alternatives considered
 

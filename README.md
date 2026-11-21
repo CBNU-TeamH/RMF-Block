@@ -107,8 +107,8 @@ own. Nobody types them in — they are for Yorkie and the app.
 - `YORKIE_ADMIN_PASSWORD`: 8 to 30 characters with letters, digits and a symbol such as `-`. Keep
   it once set: Yorkie stores it in its volume, and a different value later stops the app from
   starting.
-- `YORKIE_ADMIN_TOKEN_SECRET`: any long random string. It signs Yorkie's admin logins; changing it
-  later only signs those out.
+- `YORKIE_ADMIN_TOKEN_SECRET`: any random string of 32 characters or more — Yorkie refuses to start
+  on a shorter one. It signs Yorkie's admin logins; changing it later only signs those out.
 
 ```dotenv
 YORKIE_ADMIN_PASSWORD=choose-your-own-1
@@ -160,6 +160,10 @@ rmf-app  |   Guest: http://192.168.0.14:3000
 
 ### Upgrading
 
+**To a release on Yorkie 0.7.28 or later:** before the commands below, however you upgrade, make sure
+`YORKIE_ADMIN_TOKEN_SECRET` meets [the 32-character rule](#set-the-yorkie-admin-secrets), and take the
+backup under **Rolling back**.
+
 Download the new release's `docker-compose.yml` over the old one, keep `.env`, and run:
 
 ```bash
@@ -210,6 +214,10 @@ move data between project names; changing the name selects different volumes. Do
 **Rolling back:** put the previous release's `docker-compose.yml` back in the folder and run the
 same upgrade commands; the volumes stay. A newer version may have changed what it stores, which an
 older one cannot always read, so back up the `app-data` and `mongo-data` volumes before upgrading.
+Once Yorkie 0.7.26 or later has run on `mongo-data`, an older Yorkie is not supported on it, so
+rolling back past that goes in another order: stop the stack with `docker compose down` (never
+`down -v`), restore the `mongo-data` backup, and only then put the previous file back and run the
+upgrade commands. Everything written since the backup is lost.
 
 Each release's file names its own version. To pin the exact image, append the digest from the
 release notes (`…:0.0.1@sha256:…`). Use that one and not a digest from the package page, which pins

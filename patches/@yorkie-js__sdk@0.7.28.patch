@@ -1,25 +1,31 @@
-diff --git a/dist/yorkie-js-sdk.es.js b/dist/yorkie-js-sdk.es.js
-index 12a35c6..4c08f0d 100755
---- a/dist/yorkie-js-sdk.es.js
-+++ b/dist/yorkie-js-sdk.es.js
-@@ -25341,22 +25341,19 @@ class Client {
-       });
+diff --git a/dist/yorkie-js-sdk.es.mjs b/dist/yorkie-js-sdk.es.mjs
+index e3a6977ff4bfef1300fdc6702446d5a92e7fc351..06fdc86a27020853ae5475a1e1ad6f68f69f29b2 100755
+--- a/dist/yorkie-js-sdk.es.mjs
++++ b/dist/yorkie-js-sdk.es.mjs
+@@ -29383,25 +29383,24 @@ class Client {
      }
      return this.enqueueTask(async () => {
+       const ownsSession = this.captureSession();
 -      const promises = [];
 -      for (const [, attachment] of this.attachmentMap) {
 -        if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
 -          promises.push(
--            this.syncInternal(
+-            this.trackSync(
 -              attachment,
--              attachment.syncMode
--            )
--          );
+-              this.syncInternal(
 +      const results = [];
 +      try {
 +        for (const [, attachment] of this.attachmentMap) {
 +          if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
-+            results.push(await this.syncInternal(attachment, attachment.syncMode));
++            results.push(
++              await this.trackSync(
+                 attachment,
+-                attachment.syncMode
++                this.syncInternal(attachment, attachment.syncMode)
+               )
+-            )
+-          );
++            );
 +          }
          }
 -      }
@@ -27,23 +33,23 @@ index 12a35c6..4c08f0d 100755
 +        return results;
 +      } catch (err) {
          logger.error(`[SY] c:"${this.getKey()}" err :`, err);
-         await this.handleConnectError(err);
+         await this.handleConnectError(err, false, ownsSession);
          throw err;
 -      });
 +      }
      });
    }
    /**
-@@ -25924,7 +25921,7 @@ class Client {
-       }
+@@ -30004,7 +30003,7 @@ class Client {
        try {
          await this.enqueueTask(async () => {
+           ownsSession = this.captureSession();
 -          const syncs = [];
 +          let syncError;
            for (const [, attachment] of this.attachmentMap) {
              if (this.deactivating) {
                break;
-@@ -25969,9 +25966,13 @@ class Client {
+@@ -30060,9 +30059,13 @@ class Client {
                attachment.clearSyncPromise();
              });
              attachment.setSyncPromise(syncPromise);
@@ -60,27 +66,33 @@ index 12a35c6..4c08f0d 100755
          });
        } catch (err) {
 diff --git a/dist/yorkie-js-sdk.js b/dist/yorkie-js-sdk.js
-index 199ac7a..8867443 100755
+index 2775b66ddff52b7d3d0b5e7cab80f597a21d9eb4..3a46770b003979f78c405ce90aeb4a80a79fa606 100755
 --- a/dist/yorkie-js-sdk.js
 +++ b/dist/yorkie-js-sdk.js
-@@ -25345,22 +25345,19 @@
-         });
+@@ -29387,25 +29387,24 @@
        }
        return this.enqueueTask(async () => {
+         const ownsSession = this.captureSession();
 -        const promises = [];
 -        for (const [, attachment] of this.attachmentMap) {
 -          if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
 -            promises.push(
--              this.syncInternal(
+-              this.trackSync(
 -                attachment,
--                attachment.syncMode
--              )
--            );
+-                this.syncInternal(
 +        const results = [];
 +        try {
 +          for (const [, attachment] of this.attachmentMap) {
 +            if (attachment.syncMode !== void 0 && attachment.resource instanceof Document) {
-+              results.push(await this.syncInternal(attachment, attachment.syncMode));
++              results.push(
++                await this.trackSync(
+                   attachment,
+-                  attachment.syncMode
++                  this.syncInternal(attachment, attachment.syncMode)
+                 )
+-              )
+-            );
++              );
 +            }
            }
 -        }
@@ -88,23 +100,23 @@ index 199ac7a..8867443 100755
 +          return results;
 +        } catch (err) {
            logger.error(`[SY] c:"${this.getKey()}" err :`, err);
-           await this.handleConnectError(err);
+           await this.handleConnectError(err, false, ownsSession);
            throw err;
 -        });
 +        }
        });
      }
      /**
-@@ -25928,7 +25925,7 @@
-         }
+@@ -30008,7 +30007,7 @@
          try {
            await this.enqueueTask(async () => {
+             ownsSession = this.captureSession();
 -            const syncs = [];
 +            let syncError;
              for (const [, attachment] of this.attachmentMap) {
                if (this.deactivating) {
                  break;
-@@ -25973,9 +25970,13 @@
+@@ -30064,9 +30063,13 @@
                  attachment.clearSyncPromise();
                });
                attachment.setSyncPromise(syncPromise);
@@ -120,24 +132,3 @@ index 199ac7a..8867443 100755
              setTimeout(doLoop, this.syncLoopDuration);
            });
          } catch (err) {
-diff --git a/package.json b/package.json
-index 3feaf4b..e44e232 100755
---- a/package.json
-+++ b/package.json
-@@ -3,6 +3,16 @@
-   "version": "0.7.23",
-   "description": "Yorkie JS SDK",
-   "main": "./dist/yorkie-js-sdk.js",
-+  "module": "./dist/yorkie-js-sdk.es.js",
-+  "exports": {
-+    ".": {
-+      "types": "./dist/yorkie-js-sdk.d.ts",
-+      "import": "./dist/yorkie-js-sdk.es.js",
-+      "require": "./dist/yorkie-js-sdk.js"
-+    },
-+    "./dist/*": "./dist/*",
-+    "./package.json": "./package.json"
-+  },
-   "publishConfig": {
-     "access": "public"
-   },

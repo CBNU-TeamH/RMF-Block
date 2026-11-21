@@ -97,9 +97,10 @@ jobs:
       # Seeds the workspace at startup (lib/workspace-config.ts), so the join
       # assertions below have a password to type in; there is no .env here.
       WORKSPACE_PASSWORD: ci-smoke-test
-      # Compose refuses to start Yorkie without these two (#200).
+      # Compose refuses to start Yorkie without these two (#200), and Yorkie
+      # refuses a secret key under 32 characters.
       YORKIE_ADMIN_PASSWORD: ci-yorkie-admin-1
-      YORKIE_ADMIN_TOKEN_SECRET: ci-yorkie-admin-token-secret
+      YORKIE_ADMIN_TOKEN_SECRET: ci-yorkie-admin-token-secret-32-chars
     # A container that accepts the connection but never answers would otherwise
     # hold a runner for the 6h default.
     timeout-minutes: 35
