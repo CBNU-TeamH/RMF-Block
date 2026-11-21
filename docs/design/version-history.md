@@ -47,36 +47,15 @@ const: lib/yorkie-admin.ts GUARDED_METHODS includes ["CreateRevision", "GetRevis
 
 ## Why the app restores instead of calling `restoreRevision`
 
-`restoreRevision` has the server re-parse the snapshot and rebuild the document. On Yorkie 0.7.23
-that re-parse was unusable for this schema, for two reasons: the `type`-key discriminator below
-crashed it, and `doc.history.undo()` after a `restoreRevision` threw outright. On the pinned 0.7.28
-(re-measured 2026-11-21) the first is fixed and the second is not: the app's block shape restores,
-and the next undo still throws `YorkieError: fail to find`, while the same edits without the restore
-undo cleanly. The earlier measurements are in
-`tasks/archive/2026/09/20260922-yorkie-0723-lessons.md` and
-`tasks/archive/2026/09/20260922-version-history-lessons.md`.
+`restoreRevision` has the server re-parse the snapshot and rebuild the document, and
+`doc.history.undo()` after a `restoreRevision` throws `YorkieError: fail to find` on the pinned 0.7.28,
+while the same edits without the restore undo cleanly. On 0.7.23 the re-parse also crashed on the
+`type` key our stored blocks carry; 0.7.28 fixed that. The measurements are in
+`tasks/archive/2026/09/20260922-yorkie-0723-lessons.md`,
+`tasks/archive/2026/09/20260922-version-history-lessons.md` and
+[the 0.7.28 bump's task](../../tasks/active/20261117-yorkie-0728-todo.md).
 
-**A `type` key inside an array element was read as a CRDT element discriminator.** Our stored block
-is `{ id, type, content }` and the blocks live in an array, so every document in this project hit
-it:
-
-| Snapshot | `restoreRevision` on 0.7.23 | on 0.7.28 |
-| --- | --- | --- |
-| `{"a":[{"c":{"t":Text([{"val":"hi"}])},"id":"b1"}]}` | works | works |
-| `{"a":[{"c":{"t":Text([{"val":"hi"}])},"kind":"text"}]}` | works | works |
-| `{"a":[{"c":{"t":Text([{"val":"hi"}])},"type":"text"}]}` | `unsupported element` | works |
-| `{"a":[{"plain":"hi","type":"text"}]}` — no `Text` anywhere | `unsupported element` | works |
-| `{"a":[{"plain":"hi","type":"Text"}]}` | `parse text: invalid YSON` | works |
-| `{"type":"text","x":Int(1)}` — `type` at the root | works | works |
-
-The last two rows are the mechanism: given `type: "Text"` the server stops calling it unsupported
-and starts trying to parse the object *as* a Text. `type` is the only key that does this — `id`,
-`content`, `text`, `level`, `style`, `depth`, `checked`, `fileId`, `fileName`, `fileType`, `size`,
-`documentId`, `blockId`, `val`, `nodes`, `attrs`, `children`, `value`, `Text`, `Tree` and `Counter`
-all restore cleanly.
-
-Neither renaming the stored discriminator to `kind` (on 0.7.23) nor the server's fix (0.7.28) touches
-the undo failure. So the app does the restore itself: `getRevision` returns a correct snapshot, `revision-snapshot.ts` reads it,
+So the app does the restore itself: `getRevision` returns a correct snapshot, `revision-snapshot.ts` reads it,
 and the blocks are written back with two `doc.update()` calls — the array first with empty
 `yorkie.Text` values (`toStoredBlock` already does exactly this), then each text filled, because a
 `Text` cannot be edited before it is in the tree.
