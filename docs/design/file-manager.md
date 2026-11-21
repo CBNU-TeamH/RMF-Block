@@ -58,7 +58,7 @@ Rather than record it at upload, `GET /api/files` reads it from the documents on
 - One Yorkie Admin `GetDocuments` call returns every catalogue document's root (`include_root`).
   It is a project API, so it is authorized with the default project's secret key (from
   `GetProject`, after logging in with `YORKIE_ADMIN_PASSWORD`) — the way Yorkie's own dashboard
-  does it. With the admin token instead, Yorkie 0.7.23 drops the connection. A key Yorkie holds no
+  does it. With the admin token instead, Yorkie 0.7.28 answers 403 `permission_denied` (0.7.23 dropped the connection). A key Yorkie holds no
   document for — a catalogue entry nobody has opened — is left out of the answer, not an error.
 - The root comes back as plain JSON (a `yorkie.Text` as `[{"val":…}]`), so the file, image and PDF
   blocks and their `content.fileId` are read without the SDK (`lib/files/workspace-files.ts`).

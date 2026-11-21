@@ -107,8 +107,8 @@ clone한 저장소에서는 `pnpm docker:up`이 주소를 찾아 `.env`에 기�
 
 - `YORKIE_ADMIN_PASSWORD`: 8~30자이고 영문, 숫자, `-` 같은 기호가 모두 들어가야 합니다. 한 번 정하면
   바꾸지 마세요. Yorkie가 볼륨에 저장하기 때문에 나중에 다른 값을 넣으면 앱이 실행되지 않습니다.
-- `YORKIE_ADMIN_TOKEN_SECRET`: 길고 무작위인 아무 문자열. Yorkie 관리자 로그인에 서명하는 값이라,
-  나중에 바꾸면 그 로그인들만 풀립니다.
+- `YORKIE_ADMIN_TOKEN_SECRET`: 32자 이상의 무작위 문자열. 이보다 짧으면 Yorkie가 시작을 거부합니다.
+  Yorkie 관리자 로그인에 서명하는 값이라, 나중에 바꾸면 그 로그인들만 풀립니다.
 
 ```dotenv
 YORKIE_ADMIN_PASSWORD=choose-your-own-1

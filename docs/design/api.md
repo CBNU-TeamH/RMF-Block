@@ -423,7 +423,8 @@ default: when the configured password is refused and `admin` is not, startup rot
 `ChangePassword`, whose rule (8–30 characters with letters, digits and a symbol) the password has to
 meet for that reason. A volume on neither password refuses to start. The admin tokens Yorkie issues
 are signed with `--backend-secret-key`, whose default (`yorkie-secret`) is just as public, so Compose
-requires `YORKIE_ADMIN_TOKEN_SECRET` for it the same way; only Yorkie reads it, and since the app
+requires `YORKIE_ADMIN_TOKEN_SECRET` for it the same way, and Yorkie itself (0.7.25 on) refuses one
+under 32 characters; only Yorkie reads it, and since the app
 logs in afresh on every start, changing it costs nothing but open admin sessions. Compose's `:?`
 only rejects an empty value, so Yorkie's entrypoint also refuses to start when `.env` spells out
 either default (`admin`, `yorkie-secret`) — the app would refuse too, but Yorkie runs in its own

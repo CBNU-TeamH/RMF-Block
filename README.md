@@ -107,8 +107,8 @@ own. Nobody types them in — they are for Yorkie and the app.
 - `YORKIE_ADMIN_PASSWORD`: 8 to 30 characters with letters, digits and a symbol such as `-`. Keep
   it once set: Yorkie stores it in its volume, and a different value later stops the app from
   starting.
-- `YORKIE_ADMIN_TOKEN_SECRET`: any long random string. It signs Yorkie's admin logins; changing it
-  later only signs those out.
+- `YORKIE_ADMIN_TOKEN_SECRET`: any random string of 32 characters or more — Yorkie refuses to start
+  on a shorter one. It signs Yorkie's admin logins; changing it later only signs those out.
 
 ```dotenv
 YORKIE_ADMIN_PASSWORD=choose-your-own-1

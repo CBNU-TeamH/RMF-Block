@@ -10,7 +10,7 @@ UC-010's precondition is that the project's Docker image is available to the Hos
 
 There are no git tags, no releases and no published image. `main` is always releasable (AGENTS.md §6), so "the version we demo" is whatever `main` happened to be.
 
-The hosts are team members' laptops: Windows and Linux on x86-64, and Apple Silicon Macs on arm64. Both `yorkieteam/yorkie:0.7.23` and `mongo:8` are published as multi-arch images with `linux/amd64` and `linux/arm64` in their manifest lists. The app image built today is `linux/amd64` only.
+The hosts are team members' laptops: Windows and Linux on x86-64, and Apple Silicon Macs on arm64. Both `yorkieteam/yorkie:0.7.28` and `mongo:8` are published as multi-arch images with `linux/amd64` and `linux/arm64` in their manifest lists. The app image built today is `linux/amd64` only.
 
 ## Decision
 
@@ -30,7 +30,7 @@ The hosts are team members' laptops: Windows and Linux on x86-64, and Apple Sili
 7. **Yorkie and MongoDB stay bundled.** Compose always runs its own pinned Yorkie and MongoDB. Docker already reuses those images when they are present locally. Attaching to a Yorkie or MongoDB server the host already runs is not supported, for three reasons:
    - The browser derives Yorkie's address from the page's host and port 8080 (`lib/yorkie-address.ts`).
    - Startup writes the auth webhook onto the Yorkie project, which would overwrite another deployment's setting.
-   - The client is a patched `@yorkie-js/sdk@0.7.23`, so the server version has to match.
+   - The client is a patched `@yorkie-js/sdk@0.7.28`, so the server version has to match.
 
 ## Alternatives considered
 
