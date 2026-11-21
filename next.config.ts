@@ -2,8 +2,6 @@ import type { NextConfig } from "next";
 
 import { devOrigins } from "./lib/lan-address";
 
-// No `resolveAlias` for `@yorkie-js/sdk`: it declares its own `exports` map since
-// 0.7.26, so the bundler and plain Node load one copy of it each (ADR-003).
 // No `output: "standalone"`: it generates its own `server.js` and cannot
 // coexist with `server/index.mts` (needed for WebSocket upgrades — see
 // `docs/design/chat.md`). The Dockerfile installs full `node_modules` in the

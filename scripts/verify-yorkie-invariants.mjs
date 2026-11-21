@@ -26,10 +26,6 @@
  * Every case prints what it expected and what happened, and the process exits
  * non-zero if any of them disagree.
  */
-import { createRequire } from "node:module";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
-
 import yorkie from "@yorkie-js/sdk";
 
 import { createReporter, requireReachable } from "./lib/verify-report.mjs";
@@ -272,13 +268,11 @@ console.log("\n⑤ undo 가 로컬 변경을 되돌린다");
 }
 
 // Case ⑥ runs once per patched build, because the patch edits each separately. Node's `import`
-// resolves to `node.mjs`, a wrapper over the CJS `.js`; browsers get `es.mjs`, loaded here by path.
-const esBuild = (
-  await import(
-    pathToFileURL(path.join(path.dirname(createRequire(import.meta.url).resolve("@yorkie-js/sdk")), "yorkie-js-sdk.es.mjs"))
-      .href
-  )
-).default;
+// resolves to `node.mjs`, a wrapper over the CJS `.js`; browsers get the package's `import` entry,
+// loaded here from its own `exports` map.
+const sdkPackageUrl = import.meta.resolve("@yorkie-js/sdk/package.json");
+const { default: sdkPackage } = await import(sdkPackageUrl, { with: { type: "json" } });
+const esBuild = (await import(new URL(sdkPackage.exports["."].import.default, sdkPackageUrl))).default;
 
 /** Runs `work` with every PushPullChanges counted (the SDK calls the global `fetch` for each
  *  request) and returns how many were sent and the most in flight at once. Yorkie refusing the
@@ -311,7 +305,6 @@ for (const [build, sdk] of [
   ["ES .mjs", esBuild],
 ]) {
   console.log(`\n⑥ 한 클라이언트에 붙은 두 문서는 한 번에 하나씩 밀린다 (#257) — ${build}`);
-  // The sync loop first, then a fresh reader.
   const key = `inv-loop-${Date.now()}`;
   const names = [`${key}-x`, `${key}-y`];
   const LAST = 120;
