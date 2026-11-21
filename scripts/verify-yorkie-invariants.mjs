@@ -280,21 +280,10 @@ const esBuild = (
   )
 ).default;
 
-for (const [build, sdk] of [
-  ["CJS .js", yorkie],
-  ["ES .mjs", esBuild],
-]) {
-  console.log(`\n⑥ 한 클라이언트에 붙은 두 문서는 한 번에 하나씩 밀린다 (#257) — ${build}`);
-  // Counts the PushPullChanges a client has in flight (Yorkie refusing the second is a race, so count
-  // what is sent), then checks a fresh reader.
-  const key = `inv-loop-${Date.now()}`;
-  const names = [`${key}-x`, `${key}-y`];
-  const LAST = 120;
-
-  // Earlier cases leave their clients active; stop them so only this case's pushes are counted.
-  for (const earlier of clients.splice(0)) await earlier.deactivate().catch(() => undefined);
-
-  // The SDK calls the global `fetch` for each request.
+/** Runs `work` with every PushPullChanges counted (the SDK calls the global `fetch` for each
+ *  request) and returns how many were sent and the most in flight at once. Yorkie refusing the
+ *  second push is a race, so what is sent is counted, not what is refused. */
+async function countPushPulls(work) {
   const realFetch = globalThis.fetch;
   let inFlight = 0;
   let mostInFlight = 0;
@@ -309,8 +298,28 @@ for (const [build, sdk] of [
       inFlight -= 1;
     }
   };
-
   try {
+    await work();
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  return { sent, mostInFlight };
+}
+
+for (const [build, sdk] of [
+  ["CJS .js", yorkie],
+  ["ES .mjs", esBuild],
+]) {
+  console.log(`\n⑥ 한 클라이언트에 붙은 두 문서는 한 번에 하나씩 밀린다 (#257) — ${build}`);
+  // The sync loop first, then a fresh reader.
+  const key = `inv-loop-${Date.now()}`;
+  const names = [`${key}-x`, `${key}-y`];
+  const LAST = 120;
+
+  // Earlier cases leave their clients active; stop them so only this case's pushes are counted.
+  for (const earlier of clients.splice(0)) await earlier.deactivate().catch(() => undefined);
+
+  const loop = await countPushPulls(async () => {
     const a = await client(sdk);
     const docs = names.map((name) => new sdk.Document(name));
     for (const doc of docs) await a.attach(doc);
@@ -320,19 +329,28 @@ for (const [build, sdk] of [
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     await settle();
-  } finally {
-    globalThis.fetch = realFetch;
-  }
+  });
 
   // Nothing sent would also read as "never two at once": prove the count saw the traffic.
-  report("PushPullChanges 가 관측된다", true, sent > 0);
-  report("PushPullChanges 가 동시에 둘 이상 나가지 않는다", 1, mostInFlight);
+  report("PushPullChanges 가 관측된다", true, loop.sent > 0);
+  report("PushPullChanges 가 동시에 둘 이상 나가지 않는다", 1, loop.mostInFlight);
 
   const reader = await client(sdk);
   const reads = names.map((name) => new sdk.Document(name));
   for (const doc of reads) await reader.attach(doc);
   await settle();
   report("두 문서의 마지막 편집이 새 클라이언트에 도착한다", `${LAST},${LAST}`, reads.map((doc) => doc.getRoot().n).join());
+
+  // `Client.sync()` is patched apart from the loop, and version history calls it with two documents
+  // attached. Manual documents keep the loop out, so every push counted here is sync()'s own.
+  const direct = await countPushPulls(async () => {
+    const m = await client(sdk);
+    const docs = names.map((name) => new sdk.Document(`${name}-manual`));
+    for (const doc of docs) await m.attach(doc, { syncMode: sdk.SyncMode.Manual });
+    for (const doc of docs) doc.update((root) => (root.n = 1));
+    await m.sync();
+  });
+  report("sync() 가 두 문서를 밀고, 동시에 하나씩만 보낸다", "2,1", `${direct.sent},${direct.mostInFlight}`);
 }
 
 for (const created of clients) {
