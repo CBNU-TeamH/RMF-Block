@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-22
 **Issue**: #280
-**Design**: [`docs/design/file-manager.md`](../../docs/design/file-manager.md) ("Per row", "Previewing a file") and [`docs/design/chat.md`](../../docs/design/chat.md) (the chat file list) own the surfaces. This task adds a sentence to each, so no new design doc.
+**Design**: [`docs/design/file-manager.md`](../../../../docs/design/file-manager.md) ("Per row", "Previewing a file") and [`docs/design/chat.md`](../../../../docs/design/chat.md) (the chat file list) own the surfaces. This task adds a sentence to each, so no new design doc.
 
 ## What this is
 
@@ -67,4 +67,6 @@ Word, PowerPoint and Excel previews (UC-080's "Notes") stay out of scope. `file-
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+- **Shipped** (#283, squash 17f8fd7): a muted `미리보기 불가` where the 미리보기 button would be, in the file manager row and the chat's file list; `size · 미리보기 불가 · 내려받기` on the chat message card and the document's file block. One constant, `PREVIEW_UNAVAILABLE`. Four component tests (two new files) and three E2E assertions in `viewer`, each failing with the wording emptied. The two design docs say what such a file shows.
+- **Cut:** a shared `PreviewUnavailable` component for the two list spans, which differ in classes, and a shared builder for two test files. Both came up in `/simplify` as optional.
+- **Moved on:** D07's STC-080-003, FR-080-05 and UC-080 were updated outside the repository after the merge.
