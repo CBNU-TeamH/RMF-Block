@@ -58,3 +58,8 @@ export function blockIndexFromEditPath(path: string): number | null {
 export function touchesBlockList(path: string): boolean {
   return path === "$.blocks" || path.startsWith("$.blocks.");
 }
+
+/** Whether a remote operation put a whole new block list in place, whose rows must remount (#276). */
+export function replacesBlockList(op: { type: string; path: string; key?: string }): boolean {
+  return op.type === "set" && op.path === "$" && op.key === "blocks";
+}

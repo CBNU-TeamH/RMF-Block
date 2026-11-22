@@ -1,11 +1,5 @@
 import { expect, test } from "./fixtures";
-import { online, openChat } from "./helpers";
-
-/** A 1×1 PNG — the smallest image the preview route serves inline. */
-const PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
-  "base64",
-);
+import { online, openChat, PNG } from "./helpers";
 
 /**
  * #146: an image sent in chat shows up in the chat file list, whose preview

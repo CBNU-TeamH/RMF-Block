@@ -1,11 +1,5 @@
 import { expect, test } from "./fixtures";
-import { createDocument, openChat, openDocument } from "./helpers";
-
-/** A 1×1 PNG — the smallest image the preview route serves inline. */
-const PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
-  "base64",
-);
+import { createDocument, openChat, openDocument, PNG } from "./helpers";
 
 /**
  * UC-050: an image put into a document is listed under its document, 원본 위치

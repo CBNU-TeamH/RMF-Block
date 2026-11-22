@@ -195,8 +195,9 @@ a browser run costs seconds per test against milliseconds.
   refusal printed to container stdout, which is the host's screen, so they assert on the app's log.
 - **Other browsers.** CI and a plain run use Chromium only. `E2E_BROWSERS=all pnpm e2e:isolated --project=firefox --project=webkit`
   (after `pnpm exec playwright install firefox webkit`; WebKit also needs the system libraries from `playwright install-deps webkit`)
-  runs the suite on Firefox and Playwright's WebKit build. Edge shares Chromium's engine and Safari is approximated by WebKit, so neither is
-  run as such. Specs that need a CDP session call `chromiumOnly()` and show as skipped elsewhere.
+  runs the suite on Firefox and Playwright's WebKit build; `--project=msedge` runs it on the installed Edge (`pnpm exec playwright install msedge`,
+  which asks for `sudo`). Safari is approximated by WebKit and not run as such. Specs that need a CDP session call `chromiumOnly()` and show
+  as skipped outside the `chromium` project.
 - **Existing stacks.** `E2E_WORKSPACE_PASSWORD=<password> E2E_HOST_SECRET=<startup-secret> pnpm e2e`
   targets an already running container (`pnpm docker:up`). `E2E_BASE_URL` defaults to
   `http://localhost:3000`. Use a disposable stack nobody else is connected to: tests assert exact

@@ -24,14 +24,25 @@ export type JoinResult = {
   revokedSessionId: string | null;
 };
 
+/** An error recognised by its explicit `name`, not its class: two copies of this module meet in one
+ *  process (#273). */
+function namedError(name: string) {
+  return class extends Error {
+    override readonly name = name;
+    static [Symbol.hasInstance](value: unknown): boolean {
+      return value instanceof Error && value.name === name;
+    }
+  };
+}
+
 /** Thrown for input the guest controls — the route maps this to a 400, not a 500. */
-export class JoinValidationError extends Error {}
+export class JoinValidationError extends namedError("JoinValidationError") {}
 
 /** A first-time join that could not reach disk. The registry has already rolled
  *  back, so the nickname is free to retry — which is why this is raised rather
  *  than swallowed. A returning member never hits it. */
-export class MemberStoreError extends Error {}
+export class MemberStoreError extends namedError("MemberStoreError") {}
 
 /** The workspace is full. Separate from `JoinValidationError` because the
  *  request was fine and the room is not: 503, not 400. */
-export class WorkspaceFullError extends Error {}
+export class WorkspaceFullError extends namedError("WorkspaceFullError") {}
