@@ -10,7 +10,7 @@ The D07 software system test report counts 144 cases. 57 were not run at system 
 
 **55 cases are in scope**: the 46, plus STC-020-009, 022-017, 022-018, 030-011, 070-006, 090-007, 090-008, NFR-028 and NFR-030. The first draft of this doc listed only 070-006, 028 and 030 of the 11 and counted 070-006 inside the 46; the audit below corrects that.
 
-Out of scope: fixing defects it finds by default (each gets its own issue, and a known one is marked `test.fail` as #37 is; the one exception, #273, is below), promoting the E2E step to a required check, and the two cases that need human evaluators (STC-NFR-022 accessibility evaluation, STC-NFR-024 error-message review). Those two stay "not run" in D07 with that reason.
+Out of scope: fixing defects it finds by default (each gets its own issue, and a known one is marked `test.fail` as #37 is; the exceptions, #273 and #276, are below), promoting the E2E step to a required check, and the two cases that need human evaluators (STC-NFR-022 accessibility evaluation, STC-NFR-024 error-message review). Those two stay "not run" in D07 with that reason.
 
 ## Cases and audit (milestone 0)
 
@@ -59,8 +59,8 @@ Each case was checked against the E2E on `main` (`upstream/main` f81929e), the r
 | STC-090-001 | FR-090-02 | new + lower | `table.e2e.ts` and `tabs.e2e.ts` open the panel. Order, date grouping and the end marker show with a few saved versions. Paging needs more than `REVISION_PAGE_SIZE` (50) versions: lower | `e2e/history.e2e.ts` |
 | STC-090-002 | FR-090-07 | new | The save dialog shows `reservedLabelReason`; no spec types a reserved name | `history.e2e.ts` |
 | STC-090-004 | FR-090-05 | new + lower | `table.e2e.ts` previews a real snapshot of a table. Text blocks in order are new. A damaged, duplicate or field-less entry cannot be produced through the UI: lower | `history.e2e.ts` |
-| STC-090-005 | FR-090-08 | new | The restore button is disabled for a version with no blocks (`version-history.tsx`). Whether a version with zero blocks can be made through the editor is checked in milestone 3; if not, lower with that reason | `history.e2e.ts` |
-| STC-090-006 | FR-090-03/04 | new + lower | A named version and the 복원 전 version a restore writes are reachable. Yorkie's own automatic label depends on its auto-revision setting: lower unless the stack produces one | `history.e2e.ts` |
+| STC-090-005 | FR-090-08 | lower | The restore button is disabled for a version with no blocks (`version-history.tsx`). Milestone 3: a version with zero blocks cannot be made through the editor. Opening a document seeds a block when the list is empty (`use-block-document.ts`), the editor keeps a trailing empty block (`ensureTrailingEmptyBlock`), and the only way to save is from an open editor. Stays with `version-history.test.tsx` | none |
+| STC-090-006 | FR-090-03/04 | new | A named version and the 복원 전 version a restore writes are reachable. Milestone 3: the stack does produce Yorkie's automatic revision (the project's snapshot threshold is 500 changes), so 560 typed characters give one and the automatic kind is tested too | `history.e2e.ts` |
 | STC-090-007 | FR-090-09~11,13 | new | `table.e2e.ts` restores and checks the peer, but does not assert the 복원 전 version or a failed restore (induced by aborting the Yorkie request with `network.ts`) | `history.e2e.ts` |
 | STC-090-008 | FR-090-12 | new | Revisions go through Yorkie; `verify-auth.mjs` shows a client without a session token cannot attach. The test sends a revision call with no token to the Yorkie RPC port (published on `127.0.0.1:8180` by `e2e-isolated.mjs`) and expects a refusal | `history.e2e.ts` (API) |
 
@@ -116,6 +116,7 @@ Each case was checked against the E2E on `main` (`upstream/main` f81929e), the r
 
 - **The join route answers 500 where it means 400 and 503 (STC-020-008, found by the new cap test).** A blank nickname, a 21-character nickname and a new nickname at the 64-member cap all return 500 ("입장하지 못했습니다") in the container; the route maps them to 400, 400 and 503. The new nickname is still refused, so D07's expected result ("새 닉네임 거부") holds, but not the status or the message. Issue [#273](https://github.com/CBNU-TeamH/RMF-Block/issues/273), the likely cause is the registry's error classes coming from a second copy of `lib/auth/types.ts` (the server loads it as native ESM, the route bundle has its own). **Fixed in this task** (the user's call): `lib/auth/types.ts` now recognises the three errors by an explicit `name` through `Symbol.hasInstance`, so an error thrown by the other copy of the module still matches the route's `instanceof`. The route and the registry are unchanged. Unit test `lib/auth/types.test.mts` (fails without the fix: checked), and the two lifecycle tests that were `test.fail` are now ordinary tests (503 with the cap message; 400 for a blank and a 21-character nickname). STC-020-008 is PASS in full.
 
+- **A restore reaches the peer joined to the text it replaced (STC-090-007, found by the new restore test).** After A restores a version, B's block reads e.g. `원래 문장바뀐 문장` until B reloads; the stored document is right. `replaceBlocks` keeps the block ids and only the restoring browser bumps `restoreCount` (part of every row's key), so the peer's rows stay mounted and the text insert that follows is patched onto their old value. Issue [#276](https://github.com/CBNU-TeamH/RMF-Block/issues/276). **Fixed in this task** (the user's call, 2026-11-22). The peer now recognises the replacement (`replacesBlockList`, a `set` of `blocks` at the root), bumps `restoreCount` too, and reads edits from the document until its rows have remounted (`use-block-document.ts`). Unit test in `text-surface.test.mts`. The E2E failed before the fix (checked) and passes after it, and the existing restore and collaboration specs still pass (`table`, `tabs`, `collaboration`, `sync`, `floating-windows`: 15/15).
 - **STC-022-016's expected result is stricter than the design.** D07 says a disguised upload is rejected. The document upload route stores a file under the type its bytes show and falls back to `application/octet-stream` (`app/api/documents/[id]/files/route.ts`), and the preview route then answers 404 for it. The SRS (FR-022-13/14) does not ask for rejection. The test will assert what the design does (413 over 25 MB, 400 empty, a disguised file stored opaque and never previewable). **Decision (2026-11-18, the user): align D07 with the design**, not reject. The D07 expected result becomes "정상 저장, 경계 초과 거부, 위장 형식은 불투명 형식으로 저장되어 미리보기 불가"; the edit is made with the D07 update at the end of this task, and no issue is opened.
 - **Confirmed (2026-11-18, the user): four cases live on the lifecycle stack and are not in CI** (010-003, 011-005's 409, 020-008, 050-007); their results are recorded from a local `--lifecycle` run.
 - **STC-020-009 has no CI home.** `verify-auth.mjs` is run by hand; the task records one run and does not wire it into CI.
@@ -125,7 +126,7 @@ Each case was checked against the E2E on `main` (`upstream/main` f81929e), the r
 - **One task, one PR, six milestones, a commit per milestone.** The user chose one task doc for all of them. The milestones keep the diff reviewable commit by commit.
 - **Playwright `request` for the API-shaped cases, not new `scripts/verify-*.mjs` probes.** The cases are status codes, redirects and headers on the running stack, and `e2e/` already runs on the CI container-smoke stack. A new probe script would need its own wiring and would not appear in the E2E report. Cost: they ride the non-blocking E2E step. The existing probes keep covering what they cover.
 - **Reuse `e2e/fixtures.ts` and `helpers.ts`** (`users`, `joinForm`, `createDocument`, `openDocument`, `online`, `block`, `blockValues`, `openChat`, `sendChat`). A new helper only where two milestones need the same step.
-- **A defect found is not fixed here, unless the user says so.** The test is written against the SRS behaviour. If it fails, it is marked `test.fail` with an issue link (the `recovery.e2e.ts` pattern) and recorded in D07 as a failure, so the report states what the product does. **Exception (2026-11-18, the user): #273, found in milestone 1, is fixed in this task** (commit after 849a849), and its `test.fail` markers are removed. Any later defect is decided the same way, case by case.
+- **A defect found is not fixed here, unless the user says so.** The test is written against the SRS behaviour. If it fails, it is marked `test.fail` with an issue link (the `recovery.e2e.ts` pattern) and recorded in D07 as a failure, so the report states what the product does. **Exceptions, the user's calls: #273** (milestone 1, 2026-11-18; its `test.fail` markers are removed) **and #276** (milestone 3, 2026-11-22) are fixed in this task. Any later defect is decided the same way, case by case.
 - **Not every case becomes a browser test.** A case whose only observable form duplicates an existing E2E is recorded as covered by that test, named, and not copied.
 
 ## Milestones
@@ -199,6 +200,32 @@ building and revisit it for the final behavior.
   - **One flake, not caused by this change**: in the first full lifecycle run, the existing "after the app and Yorkie are killed" test (NFR-SAF-003) failed at its last `openDocument` (28 s, no block within 15 s); the same file passed on the immediate rerun (14.7 s for that test). No code of that test or of the product was touched. Recorded, not investigated.
   - **#273 fix**: `lib/auth/types.test.mts` 2/2 (and 70/70 across `lib/auth` and the join route's tests); it fails on the unfixed `types.ts` (checked). The kill test that flaked once passed in this run too.
   - `pnpm exec tsc --noEmit -p tsconfig.typecheck.json` is clean. The image build runs `pnpm build`, which type-checks `e2e/`; a duplicate `join` name in the lifecycle file broke a build once and was fixed.
+
+  **Rebase** (2026-11-22): the branch now sits on `upstream/main` 94d9d03 (Yorkie and the SDK 0.7.28, the table block, block selection delete and the floating block group). Only the generated `tasks/README.md` conflicted.
+
+  **Milestone 2** (2026-11-22, base 94d9d03): `e2e/blocks.e2e.ts` (022-002, 022-005, 022-012 + 022-018 + NFR-023 in one test, 022-013, 022-017) and `e2e/files-api.e2e.ts` (022-016): **6/6 pass** on an isolated stack. The occupancy test takes about 35 s because it waits out the 30 s heartbeat limit; the mark went after 25–45 s, as the 5 s tick allows.
+
+  **Milestone 3** (2026-11-22): `e2e/history.e2e.ts`, 4 tests: list, reserved names, preview and the named kind (090-001/002/004/006); the automatic kind (090-006, 560 typed characters pass Yorkie's 500-change snapshot); restore and failed restore (090-007, the failure induced by aborting `GetRevision`); revision calls without a token (090-008). **4/4 pass after the #276 fix**; before it, the restore test failed on the peer's text. 090-008 replays the exact `ListRevisions`, `GetRevision` and `CreateRevision` requests a member's browser sent, from outside the browser: without the token and with an invented one Yorkie answers 401, with the token 200. A made-up document id is no use here: Yorkie answers 404 for an unknown document before it checks the token (probed).
+
+  **Mutation check, milestones 2 and 3** (two builds, each break reverted, `git diff app lib` back to the #276 fix only). Build A, all 10 tests failed at the assertion that guards their break:
+  - `> ` no longer converts (the block reads `> 인용`)
+  - drop always lands after (first move)
+  - heartbeat limit 3 s (mark already gone 5 s after leaving)
+  - pasted address not detected (no link block)
+  - PDF not sniffed (no iframe)
+  - empty-file check removed (201 instead of 400)
+  - snapshot name allowed (no alert)
+  - automatic revision not classified (no 자동 저장 entry)
+  - revision taken before the fetch on restore (2 복원 직전 상태 entries after a failed restore)
+  - webhook allows a missing token (`ListRevisions` 200 instead of 401)
+
+  Build B, the four it targeted failed:
+  - occupancy border in a fixed colour (`rgb(0, 0, 0)` instead of the occupant's)
+  - the claimed MIME type trusted (disguised file stored as `image/png`)
+  - list sorted oldest first
+  - 복원 전 kind dropped (no 복원 직전 상태 entry)
+
+  The preview-order break was not reached in build B (the same test failed earlier, on the order), so it rides the milestone 4 build.
 
 ## Acceptance
 
