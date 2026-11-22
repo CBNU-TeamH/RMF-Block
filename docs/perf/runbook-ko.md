@@ -74,7 +74,7 @@ v0.1.0 성능 측정(#163, #174, #191)을 사람이 실기기로, H 쪽은 Claud
   - macOS: Settings → Resources에서 CPU와 메모리 할당량을 확인하고 기록합니다.
 - 이미지를 미리 받아 둡니다. 앱 이미지는 하네스가 고정한 digest 그대로 받습니다.
   ```
-  docker pull ghcr.io/cbnu-teamh/rmf-block:0.3.0@sha256:c90ba6b17a993282e755b3bc18ec8e55773e08bfafa658abdf774118fa1646b6
+  docker pull ghcr.io/cbnu-teamh/rmf-block:0.4.0@sha256:f96526ed04a59fc14efd3b01798e8e1ec13e655ccf552f924a701887757407f3
   docker pull yorkieteam/yorkie:0.7.28
   docker pull mongo:8
   docker pull prom/prometheus:v3.5.0
