@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-18
 **Issue**: none yet. The 55 cases are the D07 draft's "lower-level only" rows (§6) and its no-test rows (§7.7); open one if the team wants it tracked.
-**Design**: none. This adds tests, not behaviour. The behaviours under test are in [`docs/SRS-en.md`](../../docs/SRS-en.md) and the design docs each case's FR points at.
+**Design**: none. This adds tests, not behaviour. The behaviours under test are in [`docs/SRS-en.md`](../../../../docs/SRS-en.md) and the design docs each case's FR points at.
 
 ## What this is
 
@@ -182,7 +182,7 @@ Each case was checked against the E2E on `main` (`upstream/main` f81929e), the r
 
 ## Test selection
 
-Use [the test-selection workflow](../../docs/testing.md#select-tests-for-each-change) before
+Use [the test-selection workflow](../../../../docs/testing.md#select-tests-for-each-change) before
 building and revisit it for the final behavior.
 
 - Vitest (logic / component / server / route): no change. The 46 lower-level cases already pass there (D07 appendix 7.2); the task adds the missing system level above them, and the nine no-test cases get their first test at the system level.
@@ -329,7 +329,7 @@ building and revisit it for the final behavior.
 - [x] STC-NFR-028 has an Edge run result; STC-NFR-029 and 030 have cited inspection notes.
 - [x] `pnpm e2e:isolated` passes locally, with the observed counts recorded (E2E on this repo ran 35 tests in about 3.4 min on `main` 475fa10; now **80 tests in 5.4 min**, plus 9 lifecycle tests in 45.5 s).
 - [x] `pnpm lint` and `pnpm typecheck` pass; required test changes are included, and gaps are recorded above.
-- [ ] D07 draft updated after merge: the 55 rows move from "lower-level only" or "not run" to their new results and the §6 summary counts change.
+- [x] D07 draft updated after merge: the 55 rows move from "lower-level only" or "not run" to their new results and the §6 summary counts change.
 
 ## Cross-cutting
 
@@ -340,4 +340,8 @@ building and revisit it for the final behavior.
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+- **Shipped** (#277, squash bcb73ec): system tests for 53 of the 55 cases, in the new specs `blocks`, `history`, `focus`, `chat-validation`, `viewer`, `documents` and `workspace-limits`, and in extended `files-api`, `floating-windows` and `lifecycle`. CI's E2E went from 35 tests to 80; `--lifecycle` has 9. An opt-in `msedge` project ran on Edge 158. Inspection notes cover NFR-029 and NFR-030 (NFR-MAI-002: pass with a note, the author's call).
+- **Defects found and fixed here:** #273, where the join route answered 500 instead of 400 or 503, and #276, where a peer saw old and new text stuck together after a restore. Two CodeRabbit passes then tightened the #276 fix twice (see "Review round").
+- **Cut, left at the lower level:** STC-090-005, because the editor cannot make a version with no blocks, and STC-030-008, because the ink caps need hundreds of pointer moves. Both have unit tests. NFR-022 and NFR-024 (user evaluation, the error-message sweep) stayed out of scope.
+- **Found, not decided:** FR-080-05 asks for a notice on formats that cannot be previewed, and the app shows none. It only hides 미리보기 and offers 내려받기. Whether that is a defect or the design is the author's call. It is recorded in D07 §7.6, and no issue has been filed yet.
+- **Moved on:** CodeRabbit's last follow-up on #277 (compare whole block lists in the concurrent reorder) arrived after the merge and went to #278. The D07 draft was updated outside the repository, because it is untracked. The NFR-PER re-measurement on two devices against the next release is separate work.
