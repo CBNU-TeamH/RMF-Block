@@ -309,11 +309,11 @@ building and revisit it for the final behavior.
 ## Acceptance
 
 - [x] Milestone 0 tables are complete: all 55 cases have a mark, a basis and a home (2026-11-18).
-- [ ] Each case marked "new test" has a passing system test, or a `test.fail` with an issue link and an entry in D07's failures.
-- [ ] Each new test was shown to fail on a deliberately broken behaviour, recorded below.
-- [ ] STC-NFR-028 has an Edge run result; STC-NFR-029 and 030 have cited inspection notes.
-- [ ] `pnpm e2e:isolated` passes locally, with the observed counts recorded (E2E on this repo ran 35 tests in about 3.4 min on `main` 475fa10; record the new total and time).
-- [ ] `pnpm lint` and `pnpm typecheck` pass; required test changes are included, and gaps are recorded above.
+- [x] Each case marked "new test" has a passing system test, or a `test.fail` with an issue link and an entry in D07's failures. (All pass; the two defects found, #273 and #276, were fixed here, so no `test.fail` remains. 090-005 moved to lower, see milestone 3.)
+- [x] Each new test was shown to fail on a deliberately broken behaviour, recorded below.
+- [x] STC-NFR-028 has an Edge run result; STC-NFR-029 and 030 have cited inspection notes.
+- [x] `pnpm e2e:isolated` passes locally, with the observed counts recorded (E2E on this repo ran 35 tests in about 3.4 min on `main` 475fa10; now **80 tests in 5.4 min**, plus 9 lifecycle tests in 45.5 s).
+- [x] `pnpm lint` and `pnpm typecheck` pass; required test changes are included, and gaps are recorded above.
 - [ ] D07 draft updated after merge: the 55 rows move from "lower-level only" or "not run" to their new results and the §6 summary counts change.
 
 ## Cross-cutting
