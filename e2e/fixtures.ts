@@ -15,9 +15,12 @@ export type Users = {
 };
 
 export const test = base.extend<{ users: Users }>({
-  users: async ({ browser, baseURL }, provide) => {
+  users: async ({ browser, baseURL }, provide, testInfo) => {
     const contexts: BrowserContext[] = [];
-    const name = (slot: number) => `${prefix}-${slot}`;
+    // Per repeat too: a nickname whose earlier session is still live gets the takeover prompt at
+    // /join, so a test that joins through the form would fail every repeat after the first.
+    const repeat = testInfo.repeatEachIndex ? `r${testInfo.repeatEachIndex}` : "";
+    const name = (slot: number) => `${prefix}${repeat}-${slot}`;
     const visitor = async (slot: number): Promise<User> => {
       const context = await browser.newContext({ baseURL });
       contexts.push(context);

@@ -164,9 +164,11 @@ test("a pasted block address becomes a link to that block, and a gone document s
   await expect(page).toHaveURL(new RegExp(`/documents/${targetId}`));
   await expect(row(page, pointed)).toBeInViewport();
 
+  // Off the target first: deleting the open document sends the app elsewhere, racing a navigation.
+  await openDocument(page, holder);
   const removed = await page.request.delete(`/api/documents/${targetId}`);
   expect(removed.ok(), await removed.text()).toBe(true);
-  await openDocument(page, holder);
+  await page.reload();
   await expect(page.getByText("삭제된 문서의 블록입니다.")).toBeVisible();
   await expect(link).toHaveCount(0);
 
