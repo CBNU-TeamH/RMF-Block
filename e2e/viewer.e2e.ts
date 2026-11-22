@@ -38,10 +38,12 @@ test("a file that cannot be shown in place says so and offers its download (FR-0
   const chat = page.getByRole("region", { name: "채팅" });
   await chat.getByRole("button", { name: "파일", exact: true }).click();
   await chat.getByRole("group", { name: "파일 종류" }).getByRole("button", { name: /^문서 / }).click();
-  const listed = chat.locator("li").filter({ hasText: name });
+  // The message that carried the file is a list item too, so the list's row is the one without a message id.
+  const listed = chat.locator("li:not([data-message-id])").filter({ hasText: name });
   await expect(listed.getByRole("link", { name: `${name} 내려받기` })).toBeVisible();
   await expect(listed.getByRole("button", { name: `${name} 미리보기` })).toHaveCount(0);
   await expect(listed).toContainText("미리보기 불가");
+  await expect(chat.locator("li[data-message-id]").filter({ hasText: name })).toContainText("미리보기 불가");
 
   const row = await fileRow(page, "기타", name);
   await expect(row.getByRole("button", { name: `${name} 미리보기` })).toHaveCount(0);
