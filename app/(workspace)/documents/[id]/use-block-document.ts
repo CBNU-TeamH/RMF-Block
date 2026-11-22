@@ -13,6 +13,7 @@ import {
 } from "@/lib/documents/attach-pool";
 import {
   blockIndexFromEditPath,
+  replacesBlockList,
   touchesBlockList,
   type TextPatch,
 } from "@/lib/blocks/text-surface";
@@ -40,8 +41,16 @@ export function useBlockDocument(
   nickname: string,
 ) {
   const [blocks, setBlocks] = useState<Array<Block> | null>(null);
-  /** Bumped by `replaceBlocks`, and part of every row's key — see there. */
+  /** Bumped by `replaceBlocks`, and part of every row's key — see there. A peer's
+   *  restore bumps it too, below. */
   const [restoreCount, setRestoreCount] = useState(0);
+  /** A peer replaced the whole list and the rows have not remounted yet: until
+   *  they do, the textareas on screen are the old ones, so an edit is read from
+   *  the document rather than patched onto them (#276). */
+  const replacingRef = useRef(false);
+  useEffect(() => {
+    replacingRef.current = false;
+  }, [restoreCount]);
   /** How deep the undo stack was once this document was ready — see where it is
    *  set. `canUndo` alone would let a person undo the document out of existence. */
   const undoFloorRef = useRef(0);
@@ -157,6 +166,19 @@ export function useBlockDocument(
         let needsRecompute = false;
 
         for (const op of event.value.operations) {
+          // A restore elsewhere. Its blocks keep their ids, so without a new key
+          // the rows on screen would stay, and the text inserted next would land
+          // on their old value (#276).
+          if (replacesBlockList(op)) {
+            replacingRef.current = true;
+            setRestoreCount((count) => count + 1);
+            needsRecompute = true;
+            continue;
+          }
+          if (op.type === "edit" && replacingRef.current) {
+            needsRecompute = true;
+            continue;
+          }
           if (op.type === "edit") {
             const index = blockIndexFromEditPath(op.path);
             if (index === null) {
@@ -187,8 +209,9 @@ export function useBlockDocument(
           }
         }
 
-        const edits = event.value.operations.filter((op) => op.type === "edit");
-        const touchedTables = event.value.operations.some((op) => op.path.includes(".content.table"));
+        // Cells of rows about to remount read their text when they mount.
+        const edits = replacingRef.current ? [] : event.value.operations.filter((op) => op.type === "edit");
+        const touchedTables = !replacingRef.current && event.value.operations.some((op) => op.path.includes(".content.table"));
         for (const { key, patch } of tableCellPatches(doc.getRoot().blocks, edits)) {
           const handler = cellHandlersRef.current.get(key);
           if (handler) handler(patch);

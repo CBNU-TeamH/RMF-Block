@@ -4,6 +4,7 @@ import { describe, it } from "vitest";
 import {
   blockIndexFromEditPath,
   diffRange,
+  replacesBlockList,
   shiftCaret,
   touchesBlockList,
 } from "./text-surface.ts";
@@ -109,5 +110,18 @@ describe("touchesBlockList", () => {
     for (const path of ["$.blocksOrder", "$.blocksomething", "$.blocks2"]) {
       assert.equal(touchesBlockList(path), false, path);
     }
+  });
+});
+
+describe("replacesBlockList", () => {
+  it("is the set that puts a new list at the root, as a restore does", () => {
+    assert.equal(replacesBlockList({ type: "set", path: "$", key: "blocks" }), true);
+  });
+
+  it("is not a change inside the list, nor a set of another root key", () => {
+    assert.equal(replacesBlockList({ type: "set", path: "$.blocks.0", key: "type" }), false);
+    assert.equal(replacesBlockList({ type: "set", path: "$", key: "title" }), false);
+    assert.equal(replacesBlockList({ type: "add", path: "$.blocks" }), false);
+    assert.equal(replacesBlockList({ type: "edit", path: "$.blocks.0.content.text" }), false);
   });
 });
