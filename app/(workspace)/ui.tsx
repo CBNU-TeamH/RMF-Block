@@ -52,6 +52,9 @@ export const FileIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
+/** FR-080-05: what a file the preview route will not serve shows beside its download. */
+export const PREVIEW_UNAVAILABLE = "미리보기 불가";
+
 /** A bin — the host's trash on `/admin`. */
 export const TrashIcon = ({ size = 15 }: { size?: number }) => (
   <svg aria-hidden width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round">

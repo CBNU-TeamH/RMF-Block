@@ -51,11 +51,14 @@ describe("ChatFiles", () => {
     assert.ok(screen.getAllByRole("listitem").every((row) => row.textContent?.includes("민수")));
   });
 
-  it("offers a preview only for what the preview route serves inline", async () => {
+  it("offers a preview only for what the preview route serves inline, and says so otherwise (FR-080-05)", async () => {
     const user = userEvent.setup();
     render(<ChatFiles messages={messages} names={NAMES} />);
+    const row = (name: string) => screen.getAllByRole("listitem").find((item) => item.textContent?.startsWith(name))!.textContent;
 
     assert.equal(screen.queryByRole("button", { name: "logo.svg 미리보기" }), null);
+    assert.match(row("logo.svg")!, /미리보기 불가/);
+    assert.doesNotMatch(row("photo.png")!, /미리보기 불가/);
     await user.click(screen.getByRole("button", { name: "photo.png 미리보기" }));
     const dialog = screen.getByRole("dialog", { hidden: true }) as HTMLDialogElement;
     assert.equal(dialog.open, true);
@@ -64,6 +67,7 @@ describe("ChatFiles", () => {
 
     await user.click(screen.getByRole("button", { name: "문서 1" }));
     assert.equal(screen.queryByRole("button", { name: "notes.zip 미리보기" }), null);
+    assert.match(row("notes.zip")!, /미리보기 불가/);
   });
 
   it("downloads through the opaque download route (FR-061-04)", async () => {

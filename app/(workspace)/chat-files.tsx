@@ -10,7 +10,7 @@ import { readableSize } from "@/lib/files/size";
 
 import { useOpenLink } from "./chat-message";
 import { FilePreviewDialog, type PreviewFile } from "./file-preview-dialog";
-import { FileIcon } from "./ui";
+import { FileIcon, PREVIEW_UNAVAILABLE } from "./ui";
 
 /** The chat file list (UC-061, FR-061-01..04) — a prototype, like the panel. */
 
@@ -94,7 +94,9 @@ export function ChatFiles({
                   >
                     미리보기
                   </button>
-                ) : null}
+                ) : (
+                  <span className="flex-none px-1.5 py-0.5 text-xs text-ink-faint">{PREVIEW_UNAVAILABLE}</span>
+                )}
                 <a
                   href={`/api/files/${attachment.fileId}/download`}
                   aria-label={`${attachment.fileName} 내려받기`}
