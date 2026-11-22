@@ -50,7 +50,11 @@ test("a join form submitted without scripts puts neither the password nor the ni
   try {
     const page = await context.newPage();
     const addresses: Array<string> = [];
-    page.on("request", (request) => addresses.push(request.url()));
+    // Navigations only: those are what the address bar and the history keep. A subresource may carry
+    // a query of its own — Edge asks for the favicon with a cache-busting one.
+    page.on("request", (request) => {
+      if (request.isNavigationRequest()) addresses.push(request.url());
+    });
     await page.goto("/join");
     const nickname = `e2e-nojs-${Date.now()}`;
     const typed = `e2e-nojs-pw-${Date.now()}`;

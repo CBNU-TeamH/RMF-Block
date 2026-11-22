@@ -266,6 +266,25 @@ building and revisit it for the final behavior.
 
   Build B, the seven it targeted failed: the send button enabled for spaces, `Cache-Control: public`, a preview without a session check, the corner not stopped at the window, restored views shown as deleted before the catalogue answers (070-005 at its "not before" check; 070-004 and 070-006 failed on it too, as expected, and passed build A), plus the two milestone 4 breaks.
 
+  **Milestone 6, Edge** (2026-11-22, Microsoft Edge 158.0.4370.33 on WSL, `E2E_BROWSERS=all pnpm e2e:isolated --project=msedge`; the `msedge` project is new in `playwright.config.ts`, opt-in like Firefox and WebKit): **80 tests, 71 pass, 8 skipped, 1 failed** (4.1 min). The 8 skipped are the specs that need a CDP session (`chromiumOnly()`), as on Firefox. The failure was the test, not the app: the NFR-SEC-001 join-form test required every request of the page to carry no query, and Edge asks for the favicon with a cache-busting one (`?favicon.<hash>.ico`), with no password or nickname in it. The test now looks at navigations only, which are what the address bar and the history keep; `workspace-limits.e2e.ts` passes 3/3 on Chromium and on Edge after that. Milestone 1's break for it (`name="password"` on the field, which navigates to `/join?password=…`) is a navigation, so the narrowed test still catches it. STC-NFR-028: PASS.
+
+  **Milestone 6, inspection** (2026-11-22, on 972eb46; every claim cites the file and line it rests on).
+
+  *STC-NFR-029 (NFR-MAI-003, an extensible structure for new block types).* The rule holds.
+  - One table knows every block type: `BLOCK_KINDS` is typed `{ [K in BlockType]: Kind<K> }` (`lib/blocks/registry.ts:31`), so a type added to the union without an entry does not compile, as `registry.test.mts:22-23` records.
+  - `Kind` ties a text-bearing type to the `text` surface at compile time (`registry.ts:24-29`), and `registry.test.mts:64-75` checks the same at run time.
+  - Renderers branch on the surface, not the type (`editor.tsx:876-878`).
+  - The extension case is the table block, the thirteenth type (PR #208, squashed as 01c1dca). It added one entry (`registry.ts:32`) and one surface (`registry.ts:13`), plus its own `table.ts` and `table-block.tsx`. It touched no module outside the editor and `lib/blocks`: not chat, files, auth, presence or the server.
+  - "Without changing an existing block" is not literally true, and D07 should not claim it. `text-block.tsx` gained an optional `cellBinding` prop (`text-block.tsx:120`), so a cell reuses the text block's IME path. Its new branches run only when that prop is set (`text-block.tsx:230`, `:264`), so the other types take the path they took before. Their unit tests and E2E were not changed by #208 and still pass.
+
+  *STC-NFR-030 (NFR-MAI-001, 002 and 004).*
+  - **001, independent modules: holds.** Editing and sync live in `lib/blocks` and the document hooks over Yorkie; chat, file management and documents each have their own `lib/` module and API group (`docs/design/architecture.md` §1, §3). Imports between `lib/` modules run one way except one pair: `lib/blocks/markdown.ts:1` imports `documentLinkUrl` from `lib/chat/links.ts`, which imports the `Block` type back (`lib/chat/links.ts:1`). That is a type-level cycle through one helper, not shared state. Worth moving `links.ts` out of `chat/` some day; not a failure.
+  - **004, a new collaboration feature touches little: holds.** The table block (above) is the evidence: a new CRDT-backed feature that touched the editor and `lib/blocks` only.
+  - **002, logging major events and errors: partly.**
+    - Errors are logged: every server route's catch-all (`app/api/chat/route.ts:92`, `app/api/documents/route.ts:82`, `app/api/documents/[id]/route.ts:125`, `:142`, `app/api/workspace/join/route.ts:62`, `app/api/files/route.ts:22`), the custom server's request, upgrade and socket errors (`server/index.mts:39`, `:81`, `server/ws-hub.mts:53`), and a damaged settings file (`lib/workspace-config.ts:71`) or members file (`lib/auth/session-registry.ts:118`).
+    - Lifecycle events are logged: startup and the join address (`instrumentation.ts:78-94`, `server/index.mts:87`), the Yorkie auth webhook registration and the refusal to start without it (`instrumentation.ts:33-49`), and the admin password change (`lib/yorkie-admin.ts:177`).
+    - Not logged on success: the workspace being set up, members joining, leaving or being removed, documents created, deleted or restored, and uploads. Whether those count as "major system events" is not settled by the SRS, which does not list them. **Decision (2026-11-22, the user): PASS with a note** — errors and lifecycle events are logged, and the unlogged success events are recorded as the note in D07. No issue.
+
 ## Acceptance
 
 - [x] Milestone 0 tables are complete: all 55 cases have a mark, a basis and a home (2026-11-18).
