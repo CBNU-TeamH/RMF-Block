@@ -8,6 +8,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [System tests for the requirements the D07 test report left unexercised](2026/11/20261118-system-tests-untested-frs-todo.md) | [lessons](2026/11/20261118-system-tests-untested-frs-lessons.md) |
 | [Perf harness: don't race the follower's release at share end](2026/11/20261118-perf-present-race-todo.md) | [lessons](2026/11/20261118-perf-present-race-lessons.md) |
 | [Serialize the Yorkie sync loop's per-document pushes](2026/11/20261116-yorkie-sync-serialize-todo.md) | [lessons](2026/11/20261116-yorkie-sync-serialize-lessons.md) |
 | [Time out the Yorkie admin requests at startup](2026/11/20261116-yorkie-admin-timeout-todo.md) | [lessons](2026/11/20261116-yorkie-admin-timeout-lessons.md) |
