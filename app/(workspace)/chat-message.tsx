@@ -67,7 +67,9 @@ function Attachment({ attachment }: { attachment: ChatAttachment }) {
       <span className="min-w-0">
         <span className="block truncate text-[13.5px] font-medium text-ink">{attachment.fileName}</span>
         <span className="text-xs text-ink-faint">
-          {readableSize(attachment.size)} · {isInlineType(attachment.fileType) ? "" : `${PREVIEW_UNAVAILABLE} · `}내려받기
+          {[readableSize(attachment.size), isInlineType(attachment.fileType) ? null : PREVIEW_UNAVAILABLE, "내려받기"]
+            .filter(Boolean)
+            .join(" · ")}
         </span>
       </span>
     </a>

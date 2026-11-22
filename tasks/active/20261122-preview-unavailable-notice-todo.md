@@ -48,13 +48,16 @@ Word, PowerPoint and Excel previews (UC-080's "Notes") stay out of scope. `file-
 - Vitest (logic / component / server / route): `chat-files.test.tsx` and the file manager's component test get a case each: the label for an unsupported type, none for an allowed one. `file-block` and `chat-message` get the same if they have component tests; if they do not, the E2E check covers them.
 - Browser E2E (`e2e/`): `e2e/viewer.e2e.ts`. The STC-050-005/080-003 test already asserts that no 미리보기 button is shown. It will also assert 미리보기 불가 in the chat list and the file manager.
 - Container smoke (`.github/workflows/ci.yml`): no change. No route or server behaviour changes.
-- Commands and observed results (fill in before the PR):
+- Commands and observed results:
+  - `pnpm exec vitest run` on `chat-files`, `chat-message`, `file-manager`, `file-block` tests: 13 passed. Each of the four new assertions fails with the wording emptied (checked by setting `PREVIEW_UNAVAILABLE` to `""`, then reverted).
+  - `pnpm e2e` `e2e/viewer.e2e.ts` on an isolated stack built from this branch (Chromium): 4 passed. The first run failed on the new assertion because the chat's message card and the list row both matched; the spec now scopes the list row (`li:not([data-message-id])`) and asserts the message card separately.
+  - `pnpm lint`, `pnpm typecheck`, `pnpm verify:docs`, `pnpm comments`: see the PR's checks.
 
 ## Acceptance
 
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] Each surface in the table above shows 미리보기 불가 for a file without a preview, and only for those.
-- [ ] Each new assertion fails when the label is removed (a mutation check, recorded).
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] Each surface in the table above shows 미리보기 불가 for a file without a preview, and only for those.
+- [x] Each new assertion fails when the label is removed (a mutation check, recorded).
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm verify:docs` pass.
 
 ## Cross-cutting
