@@ -25,9 +25,11 @@ it to hold anything else. On it:
   both places; here the third is named 기타, since "문서" would read as the file's source.
 - **A table**, newest first: name, source, size, uploaded by, date (FR-050-02).
 - **Per row**: 미리보기 (FR-050-03, below) for the types the preview route serves inline
-  ([`api.md`](api.md#files)); 기타 is download-only until UC-080's viewers exist. `kindOf` files any
+  ([`api.md`](api.md#files)). Any other row says 미리보기 불가 in its place, as text rather than a
+  button (FR-080-05), so 기타 is download-only until UC-080's viewers exist. `kindOf` files any
   `image/*` under 이미지, so a chat SVG sits there but is download-only. 원본 위치 (E3-3) and 내려받기
-  (FR-050-04).
+  (FR-050-04). The chat's file list, its file cards and a document's file block say 미리보기 불가 the
+  same way (`PREVIEW_UNAVAILABLE` in `app/(workspace)/ui.tsx`).
 
 The list is fetched when the page opens. Nothing asks for it to update live.
 

@@ -201,8 +201,8 @@ and the URLs (`sharedLinks`), each with 열기. That tab is this list's own: the
   what a file is and the preview route decides what opens.
 - **미리보기** opens the file in a window over the dimmed page (FR-061-03), the file manager's
   (`file-preview-dialog.tsx`; [`file-manager.md`](file-manager.md), "Previewing a file"), offered
-  only for the types the preview route serves inline. **내려받기** is the opaque download route
-  (FR-061-04).
+  only for the types the preview route serves inline; any other row says 미리보기 불가 instead
+  (FR-080-05). **내려받기** is the opaque download route (FR-061-04).
 - **The conversation is hidden, not unmounted**, while the list shows, so coming back finds it
   scrolled where it was left.
 - **Not built here**: jumping from a file to the message that carried it. UC-061's overview

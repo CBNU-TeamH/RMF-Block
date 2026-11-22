@@ -10,7 +10,7 @@ import type { WorkspaceFile } from "@/lib/files/workspace-files";
 import { useOpenChatAt } from "../chat-window";
 import { FilePreviewDialog, type PreviewFile } from "../file-preview-dialog";
 import { useFocusFollow } from "../focus-follow-provider";
-import { FileIcon, Spinner } from "../ui";
+import { FileIcon, PREVIEW_UNAVAILABLE, Spinner } from "../ui";
 
 /** UC-050: the workspace's files by type, and where each came from. Why the
  *  page looks like this and lists chat files too: `docs/design/file-manager.md`. */
@@ -162,7 +162,9 @@ export function FileManager() {
                                 >
                                   미리보기
                                 </button>
-                              ) : null}
+                              ) : (
+                                <span className="px-1.5 py-0.5 text-xs text-ink-faint">{PREVIEW_UNAVAILABLE}</span>
+                              )}
                               <button
                                 type="button"
                                 onClick={() =>

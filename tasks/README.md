@@ -24,6 +24,7 @@ the task files, then rerun — never edit an index by hand, the next run overwri
 
 | Task | Lessons |
 | :--- | :--- |
+| [Say 미리보기 불가 where a file cannot be previewed](active/20261122-preview-unavailable-notice-todo.md) | [lessons](active/20261122-preview-unavailable-notice-lessons.md) |
 | [Several selected blocks in one floating view](active/20261118-floating-block-group-todo.md) | [lessons](active/20261118-floating-block-group-lessons.md) |
 | [Delete and cut a whole-block selection](active/20261118-block-selection-delete-todo.md) | [lessons](active/20261118-block-selection-delete-lessons.md) |
 | [Upgrade Yorkie and the JS SDK 0.7.23 → 0.7.28](active/20261117-yorkie-0728-todo.md) | [lessons](active/20261117-yorkie-0728-lessons.md) |

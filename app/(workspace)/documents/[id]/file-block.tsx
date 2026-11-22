@@ -5,7 +5,7 @@ import { useState } from "react";
 import type { FileBlock } from "@/lib/blocks/types";
 import { readableSize } from "@/lib/files/size";
 
-import { FileIcon } from "../../ui";
+import { FileIcon, PREVIEW_UNAVAILABLE } from "../../ui";
 
 /**
  * A file block (FR-022-13), and the fallback for every type FR-022-14 names no
@@ -43,7 +43,7 @@ export function FileBlockView({
           {name}
         </span>
         <span className="block text-[12.5px] text-ink-faint">
-          {readableSize(block.size)} · 내려받기
+          {readableSize(block.size)} · {PREVIEW_UNAVAILABLE} · 내려받기
         </span>
       </a>
 

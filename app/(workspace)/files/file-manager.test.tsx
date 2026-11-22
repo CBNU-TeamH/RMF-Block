@@ -88,11 +88,13 @@ describe("FileManager — the list", () => {
     assert.deepEqual(openChatAt.mock.calls, [["m1"]]);
   });
 
-  it("previews only what opens inline; anything else is a download", async () => {
+  it("previews only what opens inline; anything else says so and is a download (FR-080-05)", async () => {
     serve({ files: FILES, documentsUnavailable: false });
     render(<FileManager />);
+    const row = (name: string) => screen.getAllByRole("row").find((item) => item.textContent?.includes(name))!.textContent;
 
     fireEvent.click(await screen.findByRole("button", { name: "diagram.png 미리보기" }));
+    assert.doesNotMatch(row("diagram.png")!, /미리보기 불가/);
     const dialog = screen.getByRole("dialog", { hidden: true }) as HTMLDialogElement;
     assert.equal(dialog.open, true);
     assert.equal(dialog.getAttribute("aria-label"), "diagram.png 미리보기");
@@ -101,6 +103,7 @@ describe("FileManager — the list", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "기타 1" }));
     assert.equal(screen.queryByRole("button", { name: "budget.xlsx 미리보기" }), null);
+    assert.match(row("budget.xlsx")!, /미리보기 불가/);
     assert.equal(
       screen.getByRole("link", { name: "budget.xlsx 내려받기" }).getAttribute("href"),
       "/api/files/c2/download",

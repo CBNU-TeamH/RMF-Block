@@ -10,7 +10,7 @@ import { readableSize } from "@/lib/files/size";
 
 import { useFloatingViews } from "./floating-views";
 import { useFocusFollow } from "./focus-follow-provider";
-import { FileIcon } from "./ui";
+import { FileIcon, PREVIEW_UNAVAILABLE } from "./ui";
 
 /** One message in the chat panel (FR-060-01/02). **Prototype** — `docs/ui/` has
  *  no chat artboard, so this borrows the shell's vocabulary and is meant to be
@@ -66,7 +66,11 @@ function Attachment({ attachment }: { attachment: ChatAttachment }) {
       </span>
       <span className="min-w-0">
         <span className="block truncate text-[13.5px] font-medium text-ink">{attachment.fileName}</span>
-        <span className="text-xs text-ink-faint">{readableSize(attachment.size)} · 내려받기</span>
+        <span className="text-xs text-ink-faint">
+          {[readableSize(attachment.size), isInlineType(attachment.fileType) ? null : PREVIEW_UNAVAILABLE, "내려받기"]
+            .filter(Boolean)
+            .join(" · ")}
+        </span>
       </span>
     </a>
   );
