@@ -24,10 +24,10 @@ test("the chat file list shows each file's name, kind, sender and time (FR-061-0
 });
 
 /**
- * STC-050-005 and STC-080-003: a file the browser cannot show in place gets no 미리보기, in the chat's
- * list and in the file manager, and its 내려받기 hands over the file itself.
+ * STC-050-005 and STC-080-003: a file the browser cannot show in place gets no 미리보기 but says 미리보기
+ * 불가, in the chat's list and in the file manager, and its 내려받기 hands over the file itself.
  */
-test("a file that cannot be shown in place offers only its download (FR-050-03, FR-050-04, FR-080-05)", async ({ users }) => {
+test("a file that cannot be shown in place says so and offers its download (FR-050-03, FR-050-04, FR-080-05)", async ({ users }) => {
   const { context, page } = await users.join(0);
   const name = `e2e-opaque-${Date.now()}.bin`;
   const bytes = Buffer.from([0, 1, 2, 3, 250, 251, 252, 253]);
@@ -41,9 +41,11 @@ test("a file that cannot be shown in place offers only its download (FR-050-03, 
   const listed = chat.locator("li").filter({ hasText: name });
   await expect(listed.getByRole("link", { name: `${name} 내려받기` })).toBeVisible();
   await expect(listed.getByRole("button", { name: `${name} 미리보기` })).toHaveCount(0);
+  await expect(listed).toContainText("미리보기 불가");
 
   const row = await fileRow(page, "기타", name);
   await expect(row.getByRole("button", { name: `${name} 미리보기` })).toHaveCount(0);
+  await expect(row).toContainText("미리보기 불가");
   const [download] = await Promise.all([
     page.waitForEvent("download"),
     row.getByRole("link", { name: `${name} 내려받기` }).click(),
