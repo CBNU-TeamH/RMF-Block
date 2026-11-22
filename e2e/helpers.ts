@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 export async function createDocument(page: Page, name: string): Promise<string> {
   const response = await page.request.post("/api/documents", { data: { name } });
@@ -89,4 +89,17 @@ export async function sendChat(page: Page, text: string): Promise<void> {
 export function chatRow(page: Page, text: string) {
   const chat = page.getByRole("region", { name: "채팅" });
   return chat.locator("li").filter({ has: page.getByText(text, { exact: true }) });
+}
+
+/** Sends a chat message carrying a file, through the two requests the chat panel makes. */
+export async function sendChatFile(
+  api: APIRequestContext,
+  file: { name: string; mimeType: string; buffer: Buffer },
+): Promise<{ fileId: string; messageId: string }> {
+  const uploaded = await api.post("/api/chat/files", { multipart: { file } });
+  expect(uploaded.status(), await uploaded.text()).toBe(201);
+  const { id: fileId } = (await uploaded.json()) as { id: string };
+  const sent = await api.post("/api/chat", { data: { fileId } });
+  expect(sent.status(), await sent.text()).toBe(201);
+  return { fileId, messageId: ((await sent.json()) as { id: string }).id };
 }

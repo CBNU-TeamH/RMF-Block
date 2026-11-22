@@ -239,6 +239,33 @@ building and revisit it for the final behavior.
   - the version preview reversed (the break carried over from milestone 3): `첫째 둘째 셋째` not in order
   - the follower keeping the last marks it received (`setReceived` only for a non-null value): marks still on the follower after the share ended in 2 of 4 runs. In the other two the presenter's `marks: null` publish (`ink-overlay.tsx:283-285`) cleared them first; the two paths are by design, and the break removes one.
 
+  **Milestone 5** (2026-11-22): 
+  - `e2e/chat-validation.e2e.ts`: a blank message and one past 2000 characters refused, by the API (400 with the reason; exactly 2000 is accepted) and the send button; over the limit the message stays on screen with 전송 실패 · 다시 보내기 (060-002). A link to a deleted document keeps its sent name, dimmed and disabled, with 삭제된 문서 (060-007).
+  - `e2e/files-api.e2e.ts`, two more: how a file is served (050-004) — a PNG inline as `image/png` with `filename*` carrying the Korean name, SVG and HTML 404 on preview, every download `application/octet-stream` as an attachment, `nosniff` and `private, max-age=3600` on both. And 401 `no workspace session` for the list, a preview and a download without a session (050-006).
+  - `e2e/viewer.e2e.ts`: the chat file list's kind, size, sender and time (061-002); a file that cannot be shown in place gets no 미리보기 in the chat list or the file manager, and its 내려받기 hands over the same bytes (050-005, 080-003); 미리보기 for PNG, JPEG, GIF, WebP and PDF and not SVG or HTML, and a page claimed as a PNG served as `image/png` with `nosniff` and drawn as a broken image with no script run (080-002); the viewer closed by 닫기, the backdrop and Esc (080-004).
+  - `e2e/floating-windows.e2e.ts`, four more: the corner keeps the ratio, stops at the 120 px floor and the window, and a smaller window pulls the view back inside (070-003); a damaged saved list restores only its whole entries, one each, and a list that is not JSON opens nothing (070-004); a restored view of a deleted document says so only once the catalogue answers — with `GET /api/documents` held it does not (070-005); a view survives its document moving and shows another user's edit live (070-006).
+  - `e2e/lifecycle/lifecycle.e2e.ts`, one more: with Yorkie paused (`compose pause yorkie`) the file manager still lists the chat's files, says why the rest are missing, and recovers on 다시 시도 once Yorkie is back (050-007). The full lifecycle file, `pnpm e2e:isolated --lifecycle`: **9/9 pass** (49.5 s).
+  - **All 12 shared-stack tests pass**, and with milestone 4's 2 and the existing tests of the same files, **51/51 over three repeats** (`--repeat-each=3`, one worker as configured). A first repeat with two workers failed five tests on 401s and documents that never opened: the fixture's nicknames are per run, not per worker, so parallel tests kicked each other's session. Not a product or test fault; `workers: 1` is the config.
+  - A file name carrying CR/LF never reaches a header: it breaks the multipart part and the upload is refused (400). Stripping one from a stored name is `serving.ts`'s, which its unit test covers; 050-004 asserts the 400.
+  - **STC-080-002 is aligned with the design, as 022-016 was.** A chat upload keeps the type its sender claimed (`app/api/chat/files/route.ts`), so a page claimed as a PNG is offered 미리보기. The defence is `nosniff` with the claimed image type, so the browser draws a broken image and never runs it (`docs/design/api.md`, "Files" → "Why preview and download are two endpoints": "an HTML file can be uploaded *as* `image/png` … shows a broken image instead of a page"). The D07 expected result ("허용 형식만 미리보기, 위장 파일은 표시되지 않음") is read as that; the D07 edit says so.
+
+  **Mutation check, milestone 5** (three builds with milestone 4's, each break reverted, `git diff app lib` empty afterwards). Build A, all 14 targeted tests failed at their assertion (the lifecycle test in a `--lifecycle` run of the same build):
+  - the 2000-character limit raised to 3000 (201 instead of 400)
+  - the deleted link card enabled
+  - `nosniff` dropped
+  - the file list without a session check (200 instead of 401)
+  - the sender dropped from the chat file row
+  - 미리보기 offered for every chat file
+  - SVG added to the inline types (offered for the SVG)
+  - the backdrop click not closing the viewer
+  - the corner floor lowered to 60 px
+  - a saved list's duplicate entries kept (two windows)
+  - a moved document read as deleted
+  - the file manager's unavailable notice never shown (050-007)
+  - plus the three milestone 4 breaks in this build
+
+  Build B, the seven it targeted failed: the send button enabled for spaces, `Cache-Control: public`, a preview without a session check, the corner not stopped at the window, restored views shown as deleted before the catalogue answers (070-005 at its "not before" check; 070-004 and 070-006 failed on it too, as expected, and passed build A), plus the two milestone 4 breaks.
+
 ## Acceptance
 
 - [x] Milestone 0 tables are complete: all 55 cases have a mark, a basis and a home (2026-11-18).

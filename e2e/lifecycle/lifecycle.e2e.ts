@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { APIRequestContext } from "@playwright/test";
 
 import { expect, test, type Users } from "../fixtures";
-import { block, createDocument, firstBlockId, insertAt, openDocument } from "../helpers";
+import { block, createDocument, firstBlockId, insertAt, openDocument, sendChatFile } from "../helpers";
 import { appLog, appReady, compose, composeOutcome } from "../stack";
 
 /**
@@ -150,6 +150,34 @@ test("after the app and Yorkie are killed, the last persisted document comes bac
   await join(back);
   await openDocument(back.page, documentId);
   await expect(block(back.page, blockId)).toHaveValue(`${text}${kept}`);
+});
+
+/**
+ * STC-050-007: with Yorkie not answering, the file manager cannot read which files the documents hold.
+ * It still lists the chat's files, says why the rest are missing, and offers a retry that works once
+ * Yorkie is back. Paused, not stopped: a request to it hangs until the app's own limit, as on a stalled LAN.
+ */
+test("with Yorkie unreachable the file manager keeps the chat files, says why, and recovers on retry (FR-050-02)", async ({ users }) => {
+  test.setTimeout(150_000);
+  const visitor = await users.visitor(7);
+  await join(visitor);
+  const name = `e2e-lifecycle-${Date.now()}.bin`;
+  await sendChatFile(visitor.context.request, { name, mimeType: "application/octet-stream", buffer: Buffer.from("chat file") });
+  const notice = visitor.page.getByRole("status").filter({ hasText: "문서에 들어 있는 파일을 불러오지 못해 채팅 파일만 보입니다." });
+
+  await compose("pause", "yorkie");
+  try {
+    await visitor.page.goto("/files");
+    await expect(notice).toBeVisible({ timeout: 60_000 });
+    await visitor.page.getByRole("group", { name: "파일 종류" }).getByRole("button", { name: /^기타 / }).click();
+    await expect(visitor.page.getByRole("row").filter({ hasText: name })).toHaveCount(1);
+  } finally {
+    await compose("unpause", "yorkie");
+  }
+
+  await notice.getByRole("button", { name: "다시 시도" }).click();
+  await expect(notice).toHaveCount(0, { timeout: 30_000 });
+  await expect(visitor.page.getByRole("row").filter({ hasText: name })).toHaveCount(1);
 });
 
 test("when the app cannot register with Yorkie it refuses to start and prints why (FR-010-06)", async () => {

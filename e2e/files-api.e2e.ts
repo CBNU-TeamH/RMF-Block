@@ -1,7 +1,7 @@
 import type { APIRequestContext } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { createDocument } from "./helpers";
+import { createDocument, sendChatFile } from "./helpers";
 
 /** 25 MB, `MAX_UPLOAD_BYTES` in `lib/files/upload.ts`. */
 const LIMIT = 25 * 1024 * 1024;
@@ -53,4 +53,59 @@ test("a document upload is stored up to 25 MB, refused past it or empty, and typ
   const stored = (await disguised.json()) as Stored;
   expect(stored.type).toBe("application/octet-stream");
   expect((await api.get(`/api/files/${stored.id}/preview`)).status()).toBe(404);
+});
+
+/**
+ * STC-050-004: how a stored file is served. Only the allowed types are shown inline, under their own
+ * type; a download is always an opaque attachment; both forbid sniffing and shared caches; a Korean
+ * name survives in `filename*`. A name carrying a line break never gets as far as a header: it breaks
+ * the multipart part it rides in, and the upload is refused. Stripping one from a stored name is
+ * `serving.ts`'s, pinned by its unit test.
+ */
+test("files are served inline only for allowed types, downloads are always attachments, and a name cannot reach a header (FR-050-03, FR-050-04)", async ({ users }) => {
+  const api = (await users.join(0)).context.request;
+  const stamp = Date.now();
+  const sent = async (name: string, mimeType: string, buffer: Buffer) => (await sendChatFile(api, { name, mimeType, buffer })).fileId;
+  const image = await sent(`사진 ${stamp}.png`, "image/png", png(64));
+  const svg = await sent(`e2e-${stamp}.svg`, "image/svg+xml", Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'));
+  const html = await sent(`e2e-${stamp}.html`, "text/html", Buffer.from("<script>alert(1)</script>"));
+  const injected = await api.post("/api/chat/files", {
+    multipart: { file: { name: `e2e-${stamp}\r\nX-Injected: 1.png`, mimeType: "image/png", buffer: png(64) } },
+  });
+  expect(injected.status()).toBe(400);
+
+  const preview = await api.get(`/api/files/${image}/preview`);
+  expect(preview.status()).toBe(200);
+  expect(preview.headers()["content-type"]).toBe("image/png");
+  expect(preview.headers()["content-disposition"]).toBe(`inline; filename*=UTF-8''${encodeURIComponent(`사진 ${stamp}.png`)}`);
+  expect(preview.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(preview.headers()["cache-control"]).toBe("private, max-age=3600");
+
+  for (const id of [svg, html]) expect((await api.get(`/api/files/${id}/preview`)).status()).toBe(404);
+
+  for (const id of [image, svg, html]) {
+    const download = await api.get(`/api/files/${id}/download`);
+    expect(download.status()).toBe(200);
+    expect(download.headers()["content-type"]).toBe("application/octet-stream");
+    expect(download.headers()["content-disposition"]).toMatch(/^attachment; filename\*=UTF-8''/);
+    expect(download.headers()["x-content-type-options"]).toBe("nosniff");
+    expect(download.headers()["cache-control"]).toBe("private, max-age=3600");
+  }
+});
+
+/** STC-050-006: the file list, a preview and a download all need a workspace session. Whether the
+ *  refusal comes before Yorkie is asked is not observable from outside and is not claimed here. */
+test("the file list, previews and downloads refuse a request without a session (NFR-SEC-002)", async ({ users, playwright }) => {
+  const api = (await users.join(0)).context.request;
+  const { fileId } = await sendChatFile(api, { name: `e2e-${Date.now()}.png`, mimeType: "image/png", buffer: png(64) });
+  const stranger = await playwright.request.newContext({ baseURL: test.info().project.use.baseURL });
+  try {
+    for (const path of ["/api/files", `/api/files/${fileId}/preview`, `/api/files/${fileId}/download`]) {
+      const refused = await stranger.get(path);
+      expect(refused.status(), path).toBe(401);
+      expect(await refused.json()).toEqual({ error: "no workspace session" });
+    }
+  } finally {
+    await stranger.dispose();
+  }
 });
