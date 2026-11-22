@@ -88,10 +88,13 @@ test("a block dragged by its handle moves for everyone, and two moves at once co
   // At once: a takes 넷 to the top while b takes 하나 to just before 넷. Both moves survive the
   // merge and both screens agree on it. b places 하나 from its own view: after 둘 if a's move has
   // not reached it yet, at the very top if it has.
+  // Whole lists of ids, so a duplicated or lost block, or a difference past these four, fails too.
+  const rest = (await blockValues(a)).slice(4).map((entry) => entry.id);
   await Promise.all([dragBefore(a, ids["넷"]!, ids["셋"]!), dragBefore(b, ids["하나"]!, ids["넷"]!)]);
-  const merged = [["넷", "셋", "둘", "하나"], ["하나", "넷", "셋", "둘"]].map(String);
+  const merged = [["넷", "셋", "둘", "하나"], ["하나", "넷", "셋", "둘"]].map((texts) => String([...texts.map((text) => ids[text]), ...rest]));
+  const everyId = async (page: Page) => String((await blockValues(page)).map((entry) => entry.id));
   await expect
-    .poll(async () => `${await order(a, 4)} / ${await order(b, 4)}`, { timeout: 15_000 })
+    .poll(async () => `${await everyId(a)} / ${await everyId(b)}`, { timeout: 15_000 })
     .toMatch(new RegExp(`^(${merged.join("|")}) / \\1$`));
 });
 
