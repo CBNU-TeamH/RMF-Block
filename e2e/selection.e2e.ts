@@ -1,16 +1,19 @@
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { block, blockTexts, blockValues, createDocument, firstBlockId, openDocument, paste } from "./helpers";
+import { block, blockTexts, browserName, blockValues, createDocument, firstBlockId, openDocument, paste } from "./helpers";
 
-/** What the next copy (or cut, `x`) put on the clipboard, read after the editor's own handler. */
+/** What the next copy (or cut, `x`) put on the clipboard, read after the editor's own handler.
+ *  Playwright's Linux WebKit maps Ctrl+C to copy only in an editable field, so on a selection the
+ *  browser would copy it fires nothing; there the copy is the editing command the shortcut stands for. */
 async function copied(page: Page, key: "c" | "x" = "c"): Promise<string> {
   await page.evaluate(() => {
     window.addEventListener("copy", (event) => {
       (window as unknown as { copied?: string }).copied = event.clipboardData?.getData("text/plain");
     }, { once: true });
   });
-  await page.keyboard.press(`ControlOrMeta+${key}`);
+  if (key === "c" && browserName(page) === "webkit") await page.evaluate(() => document.execCommand("copy"));
+  else await page.keyboard.press(`ControlOrMeta+${key}`);
   return page.evaluate(() => (window as unknown as { copied?: string }).copied ?? "");
 }
 

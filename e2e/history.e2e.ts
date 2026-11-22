@@ -45,7 +45,8 @@ async function documentWith(page: Page, name: string, text: string): Promise<{ i
   await openDocument(page, id);
   const blockId = await firstBlockId(page);
   await block(page, blockId).focus();
-  await page.keyboard.insertText(text);
+  // Firefox's driver rejects an empty insert.
+  if (text) await page.keyboard.insertText(text);
   return { id, blockId };
 }
 

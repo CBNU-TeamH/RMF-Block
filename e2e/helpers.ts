@@ -7,9 +7,15 @@ export async function createDocument(page: Page, name: string): Promise<string> 
 }
 
 /** Opens a document and waits for its first block — never for `networkidle`:
- *  the workspace socket and Yorkie's watch stream stay open for good. */
+ *  the workspace socket and Yorkie's watch stream stay open for good. Firefox and WebKit call the
+ *  goto aborted when a client-side navigation of the page being left lands at the same moment;
+ *  that one is tried again, any other failure is not. */
 export async function openDocument(page: Page, id: string): Promise<void> {
-  await page.goto(`/documents/${id}`);
+  const path = `/documents/${id}`;
+  await page.goto(path).catch((error: unknown) => {
+    if (!/NS_BINDING_ABORTED|interrupted by another navigation/.test(String(error))) throw error;
+    return page.goto(path);
+  });
   await expect(firstBlock(page)).toBeVisible();
 }
 
@@ -27,8 +33,29 @@ export function block(page: Page, id: string) {
   return page.locator(`[data-block-id="${id}"] textarea`);
 }
 
+export function browserName(page: Page): string | undefined {
+  return page.context().browser()?.browserType().name();
+}
+
+/** Firefox empties the data of a paste event a page builds itself, so there the text goes through
+ *  a real copy and paste instead. */
+async function pasteThroughClipboard(page: Page, id: string, text: string): Promise<void> {
+  await page.evaluate((value) => {
+    const source = document.createElement("textarea");
+    source.id = "e2e-paste-source";
+    source.value = value;
+    document.body.append(source);
+    source.select();
+  }, text);
+  await page.keyboard.press("ControlOrMeta+C");
+  await page.evaluate(() => document.getElementById("e2e-paste-source")?.remove());
+  await block(page, id).focus();
+  await page.keyboard.press("ControlOrMeta+V");
+}
+
 /** A paste event as the browser fires one, so the editor's multi-line paste lays the blocks out. */
 export async function paste(page: Page, id: string, text: string): Promise<void> {
+  if (browserName(page) === "firefox") return pasteThroughClipboard(page, id, text);
   await block(page, id).evaluate((el, value) => {
     const data = new DataTransfer();
     data.setData("text/plain", value);
