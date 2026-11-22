@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page, type Request, type Route } from "@playwright/test";
 
 /** First line of a test that needs a CDP session — `yorkieCut`, `networkProbe` and the IME specs use
  *  one, and only Chromium has them. The other projects (`E2E_BROWSERS=all`) skip it, visibly. */
@@ -58,17 +58,31 @@ export async function yorkieCut(page: Page) {
 }
 
 /**
- * Holds `page`'s Yorkie pushes and pulls until the returned release is called. Its Watch streams stay
- * open, so to the others it stays in the room — no drop and return — while it sees none of their
- * changes and sends none of its own.
+ * Watches `page`'s Yorkie pushes and pulls from now on. The returned `hold` holds every later one until
+ * its release is called, and returns once none sent before it is still pending: one already on its
+ * way could bring back what the hold is meant to keep out. Its Watch streams stay open, so to the
+ * others it stays in the room — no drop and return — while it sees none of their changes and sends
+ * none of its own.
  */
-export async function holdSync(page: Page): Promise<() => Promise<void>> {
-  let held: Array<Route> | null = [];
-  await page.route(`**${YORKIE_SERVICE}PushPullChanges`, (route) => (held ? held.push(route) : route.continue()));
+export function watchSync(page: Page): () => Promise<() => Promise<void>> {
+  const sync = `**${YORKIE_SERVICE}PushPullChanges`;
+  const pending = new Set<Request>();
+  page.on("request", (request) => {
+    if (request.url().endsWith(`${YORKIE_SERVICE}PushPullChanges`)) pending.add(request);
+  });
+  const settled = (request: Request) => pending.delete(request);
+  page.on("requestfinished", settled);
+  page.on("requestfailed", settled);
+
   return async () => {
-    const routes = held ?? [];
-    held = null;
-    for (const route of routes) await route.continue();
+    const held: Array<Route> = [];
+    let holding = true;
+    await page.route(sync, (route) => (holding ? held.push(route) : route.continue()));
+    await expect.poll(() => [...pending].filter((request) => !held.some((route) => route.request() === request)).length).toBe(0);
+    return async () => {
+      holding = false;
+      for (const route of held) await route.continue();
+    };
   };
 }
 

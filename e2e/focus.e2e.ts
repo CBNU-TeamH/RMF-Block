@@ -1,8 +1,8 @@
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { createDocument, dotColour, firstBlock, online, openDocument } from "./helpers";
-import { holdSync } from "./network";
+import { block, blockValues, createDocument, dotColour, firstBlock, online, openDocument } from "./helpers";
+import { watchSync } from "./network";
 
 function share(page: Page) {
   return page.getByRole("button", { name: "공유하기", exact: true });
@@ -41,6 +41,13 @@ function inkIn(page: Page, colour: string): Promise<number> {
   );
 }
 
+/** The sidebar dot that shows `who` in document `name` on `page` — how the test knows a move reached it. */
+function dotIn(page: Page, name: string, who: string) {
+  return page.getByRole("listitem")
+    .filter({ has: page.getByRole("link", { name, exact: true }) })
+    .getByRole("button", { name: `${who}에게 이동`, exact: true });
+}
+
 /** Drags a highlight across the first block, as a presenter with the 형광펜 tool does. */
 async function highlightFirstBlock(page: Page): Promise<void> {
   await page.getByRole("button", { name: "형광펜", exact: true }).click();
@@ -59,13 +66,16 @@ async function highlightFirstBlock(page: Page): Promise<void> {
  */
 test("the follower follows the presenter to another document, pauses on its own move, and leaves quietly (FR-030-07, FR-030-09)", async ({ users }) => {
   test.setTimeout(90_000);
-  const lead = (await users.join(0)).page;
+  const presenter = await users.join(0);
+  const lead = presenter.page;
   const follower = (await users.join(1)).page;
   const stamp = Date.now();
   const first = `e2e focus first ${stamp}`;
   const second = `e2e focus second ${stamp}`;
+  const third = `e2e focus third ${stamp}`;
   const firstId = await documentOfLines(lead, first);
   const secondId = await createDocument(lead, second);
+  await createDocument(lead, third);
   await openDocument(lead, firstId);
   await openDocument(follower, firstId);
   await online(lead, 2);
@@ -83,14 +93,19 @@ test("the follower follows the presenter to another document, pauses on its own 
   await expect(follower).toHaveURL(new RegExp(`/documents/${firstId}$`));
   await expect(paused(follower)).toBeVisible();
   // Paused, so the presenter's next move does not pull the follower back.
+  await openFromSidebar(lead, third);
+  await expect(dotIn(follower, third, presenter.name)).toBeVisible();
   await expect(follower).toHaveURL(new RegExp(`/documents/${firstId}$`));
+  await expect(paused(follower)).toBeVisible();
 
   await follower.getByRole("button", { name: "종료", exact: true }).click();
   await expect(paused(follower)).toHaveCount(0);
   await expect(following(follower)).toHaveCount(0);
   // The share goes on: the presenter still shares, the follower may join again, and nobody told
-  // the follower it ended. Nothing to wait for, so the wait is a fixed span past one publish.
-  await follower.waitForTimeout(1_500);
+  // the follower it ended. The presenter moves once more so the follower has heard from it since.
+  await openFromSidebar(lead, second);
+  await expect(dotIn(follower, second, presenter.name)).toBeVisible();
+  await expect(follower).toHaveURL(new RegExp(`/documents/${firstId}$`));
   await expect(follower.getByRole("button", { name: /님이 공유 중 · 참여하기/ })).toBeVisible();
   await expect(follower.getByRole("status").filter({ hasText: "공유가 종료되었습니다" })).toHaveCount(0);
   await expect(lead.getByRole("button", { name: "공유 종료", exact: true })).toBeVisible();
@@ -109,6 +124,7 @@ test("공유하기 shows only while nobody shares, a follower sees only its pres
   const other = await users.join(1);
   const watcher = await users.join(2);
   const [a, b, c] = [lead.page, other.page, watcher.page];
+  const holdSync = watchSync(b);
   const id = await documentOfLines(a, `e2e ink ${Date.now()}`);
   await openDocument(b, id);
   await openDocument(c, id);
@@ -120,7 +136,7 @@ test("공유하기 shows only while nobody shares, a follower sees only its pres
   await expect(share(c)).toBeVisible();
 
   // One shares: not offered, and the share is announced.
-  const release = await holdSync(b);
+  const release = await holdSync();
   await share(a).click();
   await expect(c.getByRole("button", { name: `${lead.name}님의 공유에 참여하기` })).toBeVisible();
   await expect(share(c)).toHaveCount(0);
@@ -138,14 +154,19 @@ test("공유하기 shows only while nobody shares, a follower sees only its pres
   await expect(following(c)).toBeVisible();
   const followsLead = (await following(c).innerText()).includes(lead.name);
   const [followed, ignored] = followsLead ? [a, b] : [b, a];
+  const ignoredName = followsLead ? other.name : lead.name;
   const [followedColour, ignoredColour] = followsLead ? [aColour, bColour] : [bColour, aColour];
 
   // Both draw; c draws the marks of the one it follows and not the other's.
+  // The ignored presenter's marks reach c without showing, so it then takes a block, which does
+  // show: a later write from the same presence, so once c shows it, c holds the marks too.
   await highlightFirstBlock(followed);
   await highlightFirstBlock(ignored);
-  await expect.poll(() => inkIn(c, followedColour)).toBeGreaterThan(0);
-  await c.waitForTimeout(1_500);
+  const taken = (await blockValues(ignored))[2]!.id;
+  await block(ignored, taken).focus();
+  await expect(c.locator(`[data-block-id="${taken}"]`).getByText(ignoredName, { exact: true })).toHaveCount(1);
   expect(await inkIn(c, ignoredColour)).toBe(0);
+  await expect.poll(() => inkIn(c, followedColour)).toBeGreaterThan(0);
 
   // The followed presenter ends the share: its marks leave c's screen, and its own.
   await followed.getByRole("button", { name: "공유 종료", exact: true }).click();

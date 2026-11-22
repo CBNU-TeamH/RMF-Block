@@ -308,6 +308,16 @@ building and revisit it for the final behavior.
 
   **After the PR opened** (2026-11-22, found while mapping D07's traceability table): the restore test named FR-090-11 in its title but did not assert it. It now checks that the named version and the 복원 직전 상태 entry both show `· <nickname>`. Passes; with the description dropped from the list (`version-history.tsx`, `entry.description` short-circuited) it fails at that line. Reverted.
 
+  **CodeRabbit on PR #277** (2026-11-22, review of 8bfa251, 6 inline + 1 nitpick). All seven taken:
+  - `use-block-document.ts`: an edit landing after the replacing rows rendered but before the mark cleared was read into `blocks` and never reached the mounted row (`TextBlockView` reads `initialText` on mount). Such an edit now bumps `restoreCount` again, so the rows remount with it. The window is between a commit and its passive effects; not reproducible on purpose, so no test, and `history` stays green.
+  - `blocks`: the concurrent reorder now accepts both converged orders — b resolves its drop target from its own view, so 하나 lands after 둘 or at the very top — and still needs both pages to agree.
+  - `floating-windows`: the two fixed waits are gone. The deleted-view test checks once the catalogue has been asked (a pending route counts calls); the move test waits for the sidebar's new-parent chevron, which comes from the same socket message the floating views read.
+  - `focus`: after pausing, the presenter now moves to a third document; the follower's sidebar dot shows the move arrived, and the follower stays put. After leaving, the presenter moves again for the same reason instead of a 1.5 s wait. The ignored presenter's ink is checked after that presenter takes a block, a later write from the same presence, so c must hold the marks by then.
+  - `network.ts`: `holdSync` became `watchSync(page)`, which tracks PushPullChanges from when the page joins; its `hold()` returns only once no unheld request is pending.
+  - `lifecycle`: the cap test reads the stored member count from the container and needs exactly `64 - stored` admissions.
+  - Mutation checks, each reverted: inverted ink filter → fails at the ignored-ink line; a paused follower that still follows later moves → fails at the new URL check; floating names cleared on restore → fails at the no-notice line; `document:changed` read as deletion → fails after the sidebar wait; `MAX_MEMBERS = 63` → `Expected: 56, Received: 55`.
+  - Runs: the four changed specs `--repeat-each=3` 51/51 (5.5 min); `--lifecycle` 9/9 (54.4 s).
+
 ## Acceptance
 
 - [x] Milestone 0 tables are complete: all 55 cases have a mark, a basis and a home (2026-11-18).

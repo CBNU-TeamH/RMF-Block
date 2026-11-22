@@ -86,11 +86,13 @@ test("a block dragged by its handle moves for everyone, and two moves at once co
   await expect.poll(() => order(b, 4)).toEqual(moved);
 
   // At once: a takes 넷 to the top while b takes 하나 to just before 넷. Both moves survive the
-  // merge — 넷 first, 하나 after 둘 — and both screens agree on it.
+  // merge and both screens agree on it. b places 하나 from its own view: after 둘 if a's move has
+  // not reached it yet, at the very top if it has.
   await Promise.all([dragBefore(a, ids["넷"]!, ids["셋"]!), dragBefore(b, ids["하나"]!, ids["넷"]!)]);
-  const merged = ["넷", "셋", "둘", "하나"];
-  await expect.poll(() => order(a, 4), { timeout: 15_000 }).toEqual(merged);
-  await expect.poll(() => order(b, 4), { timeout: 15_000 }).toEqual(merged);
+  const merged = [["넷", "셋", "둘", "하나"], ["하나", "넷", "셋", "둘"]].map(String);
+  await expect
+    .poll(async () => `${await order(a, 4)} / ${await order(b, 4)}`, { timeout: 15_000 })
+    .toMatch(new RegExp(`^(${merged.join("|")}) / \\1$`));
 });
 
 /**

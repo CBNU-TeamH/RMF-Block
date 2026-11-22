@@ -171,7 +171,9 @@ export function useBlockDocument(
             needsRecompute = true;
             continue;
           }
+          // The new rows may already have mounted from an older list: remount them again.
           if (op.type === "edit" && replacingRef.current) {
+            setRestoreCount((count) => count + 1);
             needsRecompute = true;
             continue;
           }

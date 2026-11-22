@@ -202,12 +202,11 @@ test("a full workspace turns a new nickname away and still admits a member who i
   test.setTimeout(150_000);
   const names = Array.from({ length: 70 }, (_, index) => `e2e-cap-${index}`);
 
+  // The earlier tests stored some members: exactly the rest of the 64 get in, and the next does not.
+  const stored = Number(await compose("exec", "-T", "app", "node", "-p", "require('./.data/members.json').length"));
   let admitted = 0;
   while (admitted < names.length && (await joinNamed(request, names[admitted]!)).ok()) admitted += 1;
-  expect(admitted, "70 new nicknames should have run into the cap").toBeLessThan(names.length);
-  // The earlier tests stored a handful of members; the rest of the 64 was this loop.
-  expect(admitted).toBeGreaterThan(40);
-  expect(admitted).toBeLessThan(64);
+  expect(admitted).toBe(64 - stored);
 
   // Full is not locked: a nickname the workspace already knows gets back in, and a stranger does not.
   expect((await joinNamed(request, names[0]!)).status()).toBe(200);

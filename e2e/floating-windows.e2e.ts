@@ -226,12 +226,13 @@ test("a restored view of a deleted document says so once the catalogue answers, 
   expect(removed.ok(), await removed.text()).toBe(true);
   const deleted = page.getByText("원본 문서가 삭제되었습니다.");
 
-  // The catalogue never answers: the view cannot know, so it does not say.
-  await page.route("**/api/documents", () => undefined);
+  // The catalogue never answers: the view cannot know, so it does not say — checked once it has asked.
+  let asked = 0;
+  await page.route("**/api/documents", () => void (asked += 1));
   await page.reload();
   const view = page.getByRole("region", { name: /^플로팅 뷰: / });
   await expect(view).toHaveCount(1);
-  await page.waitForTimeout(1_500);
+  await expect.poll(() => asked).toBeGreaterThan(0);
   await expect(deleted).toHaveCount(0);
   await expect(page.getByRole("region", { name: "플로팅 뷰: 삭제된 문서" })).toHaveCount(0);
 
@@ -254,10 +255,13 @@ test("a floating view survives its document moving and shows edits to the origin
   await page.goto("/");
   await expect(view).toContainText("원래 내용");
 
-  const parent = await createDocument(page, `e2e new parent ${stamp}`);
+  const parentName = `e2e new parent ${stamp}`;
+  const parent = await createDocument(page, parentName);
   const moved = await page.request.patch(`/api/documents/${documentId}`, { data: { parentId: parent } });
   expect(moved.ok(), await moved.text()).toBe(true);
-  await page.waitForTimeout(1_000);
+  // The sidebar hears of the move from the same socket message the floating views do.
+  const parentRow = page.getByRole("listitem").filter({ has: page.getByRole("link", { name: parentName, exact: true }) });
+  await expect(parentRow.getByRole("button", { name: /^(접기|펼치기)$/ })).toBeVisible();
   await expect(view).toHaveCount(1);
   await expect(view).toContainText("원래 내용");
 
