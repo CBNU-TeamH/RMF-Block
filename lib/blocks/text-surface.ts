@@ -59,10 +59,7 @@ export function touchesBlockList(path: string): boolean {
   return path === "$.blocks" || path.startsWith("$.blocks.");
 }
 
-/** Whether a remote operation put a whole new block list in place — a restore,
- *  or two peers seeding one empty document. Its blocks may keep the ids of the
- *  rows already on screen, so the rows have to remount rather than be patched
- *  (#276). */
+/** Whether a remote operation put a whole new block list in place, whose rows must remount (#276). */
 export function replacesBlockList(op: { type: string; path: string; key?: string }): boolean {
   return op.type === "set" && op.path === "$" && op.key === "blocks";
 }

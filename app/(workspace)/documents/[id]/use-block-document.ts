@@ -44,9 +44,7 @@ export function useBlockDocument(
   /** Bumped by `replaceBlocks`, and part of every row's key — see there. A peer's
    *  restore bumps it too, below. */
   const [restoreCount, setRestoreCount] = useState(0);
-  /** A peer replaced the whole list and the rows have not remounted yet: until
-   *  they do, the textareas on screen are the old ones, so an edit is read from
-   *  the document rather than patched onto them (#276). */
+  /** A peer replaced the list and the rows have not remounted: edits are read, not patched (#276). */
   const replacingRef = useRef(false);
   useEffect(() => {
     replacingRef.current = false;
@@ -166,9 +164,7 @@ export function useBlockDocument(
         let needsRecompute = false;
 
         for (const op of event.value.operations) {
-          // A restore elsewhere. Its blocks keep their ids, so without a new key
-          // the rows on screen would stay, and the text inserted next would land
-          // on their old value (#276).
+          // A restore elsewhere keeps the block ids; a new key remounts the rows (#276).
           if (replacesBlockList(op)) {
             replacingRef.current = true;
             setRestoreCount((count) => count + 1);

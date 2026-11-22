@@ -1,20 +1,5 @@
-import type { Page } from "@playwright/test";
-
 import { expect, test } from "./fixtures";
-import { openChat, sendChatFile } from "./helpers";
-
-/** A 1×1 PNG — the smallest image the preview route serves inline. */
-const PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
-  "base64",
-);
-
-/** The file manager's row for `name`, on the tab of its kind. */
-async function fileRow(page: Page, tab: "이미지" | "PDF" | "기타", name: string) {
-  await page.goto("/files");
-  await page.getByRole("group", { name: "파일 종류" }).getByRole("button", { name: new RegExp(`^${tab} `) }).click();
-  return page.getByRole("row").filter({ hasText: name });
-}
+import { fileRow, openChat, PNG, sendChatFile } from "./helpers";
 
 /**
  * STC-061-002: the chat's file list names each file with its kind, who sent it and when.
@@ -82,7 +67,7 @@ test("미리보기 is offered only for the allowed types, and a disguised file i
   const { context, page } = await users.join(0);
   const api = context.request;
   const stamp = Date.now();
-  const files: Array<{ name: string; mimeType: string; tab: "이미지" | "PDF" | "기타"; previews: boolean }> = [
+  const files: Array<{ name: string; mimeType: string; tab: Parameters<typeof fileRow>[1]; previews: boolean }> = [
     { name: `e2e-${stamp}.png`, mimeType: "image/png", tab: "이미지", previews: true },
     { name: `e2e-${stamp}.jpg`, mimeType: "image/jpeg", tab: "이미지", previews: true },
     { name: `e2e-${stamp}.gif`, mimeType: "image/gif", tab: "이미지", previews: true },
@@ -92,8 +77,10 @@ test("미리보기 is offered only for the allowed types, and a disguised file i
     { name: `e2e-${stamp}.html`, mimeType: "text/html", tab: "기타", previews: false },
   ];
   for (const file of files) await sendChatFile(api, { name: file.name, mimeType: file.mimeType, buffer: PNG });
+  await page.goto("/files");
   for (const file of files) {
-    const row = await fileRow(page, file.tab, file.name);
+    await page.getByRole("group", { name: "파일 종류" }).getByRole("button", { name: new RegExp(`^${file.tab} `) }).click();
+    const row = page.getByRole("row").filter({ hasText: file.name });
     await expect(row).toHaveCount(1);
     await expect(row.getByRole("button", { name: `${file.name} 미리보기` }), file.name).toHaveCount(file.previews ? 1 : 0);
   }

@@ -1,16 +1,5 @@
-import type { Page } from "@playwright/test";
-
 import { expect, test } from "./fixtures";
-import { block, blockValues, createDocument, firstBlockId, insertAt, openDocument, selectRange } from "./helpers";
-
-/** A paste event as the browser fires one, so the editor's multi-line paste lays the blocks out. */
-async function paste(page: Page, id: string, text: string): Promise<void> {
-  await block(page, id).evaluate((el, value) => {
-    const data = new DataTransfer();
-    data.setData("text/plain", value);
-    el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
-  }, text);
-}
+import { block, blockValues, createDocument, firstBlockId, insertAt, openDocument, paste, selectRange } from "./helpers";
 
 const SAMPLE = [
   "## 1. 채용 개요",

@@ -231,7 +231,7 @@ test("a restored view of a deleted document says so once the catalogue answers, 
   await page.reload();
   const view = page.getByRole("region", { name: /^플로팅 뷰: / });
   await expect(view).toHaveCount(1);
-  await page.waitForTimeout(3_000);
+  await page.waitForTimeout(1_500);
   await expect(deleted).toHaveCount(0);
   await expect(page.getByRole("region", { name: "플로팅 뷰: 삭제된 문서" })).toHaveCount(0);
 

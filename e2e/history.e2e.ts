@@ -11,7 +11,6 @@ function history(page: Page) {
 async function openHistory(page: Page) {
   await page.getByRole("button", { name: "버전 히스토리", exact: true }).click();
   await expect(history(page)).toBeVisible();
-  return history(page);
 }
 
 /** The 수동 저장 dialog: its name field and its 저장 button. */
@@ -211,17 +210,13 @@ test("Yorkie refuses the revision calls without a session's token (FR-090-12)", 
   const outsider = await playwright.request.newContext();
   try {
     for (const [method, request] of captured) {
-      const headers = await request.allHeaders();
-      const token = headers.authorization;
+      const { authorization: token, ...rest } = await request.allHeaders();
       expect(token, `${method} carries the member's token`).toBeTruthy();
-      const replay = (authorization?: string) => {
-        const { authorization: _dropped, ...rest } = headers;
-        void _dropped;
-        return outsider.post(request.url(), {
+      const replay = (authorization?: string) =>
+        outsider.post(request.url(), {
           headers: { ...rest, ...(authorization ? { authorization } : {}) },
           data: request.postDataBuffer() ?? Buffer.alloc(0),
         });
-      };
       for (const refused of [await replay(), await replay("made-up")]) {
         expect(refused.status(), `${method} without a session`).toBe(401);
       }

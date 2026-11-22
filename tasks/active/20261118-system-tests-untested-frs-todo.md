@@ -285,6 +285,27 @@ building and revisit it for the final behavior.
     - Lifecycle events are logged: startup and the join address (`instrumentation.ts:78-94`, `server/index.mts:87`), the Yorkie auth webhook registration and the refusal to start without it (`instrumentation.ts:33-49`), and the admin password change (`lib/yorkie-admin.ts:177`).
     - Not logged on success: the workspace being set up, members joining, leaving or being removed, documents created, deleted or restored, and uploads. Whether those count as "major system events" is not settled by the SRS, which does not list them. **Decision (2026-11-22, the user): PASS with a note** — errors and lifecycle events are logged, and the unlogged success events are recorded as the note in D07. No issue.
 
+  **Before the PR** (2026-11-22, on f27ded3): `pnpm e2e:isolated` **80/80 pass** on Chromium (5.7 min); `pnpm e2e:isolated --lifecycle` **9/9** (49.5 s, on 972eb46 — the lifecycle file has not changed since); `pnpm lint` and `pnpm typecheck` clean.
+
+  **Review round** (2026-11-22): `/simplify` (four agents) and `/code-review low`. The code review found no correctness bug. From `/simplify`, applied:
+  - `paste`, `PNG`, `dotColour` and `fileRow` moved to `e2e/helpers.ts` (three, two and two copies before), and `holdSync` to `e2e/network.ts`
+  - the three auth errors folded into one `namedError` factory
+  - the #273 and #276 comments cut to one line each, per `docs/conventions.md`
+  - the lifecycle file's duplicated host bootstrap and join request shared, and the cap loop's flag dropped
+  - the replay header handling in `history.e2e.ts`
+  - `/files` loaded once in the 080-002 loop
+  - one 25 MB buffer, not two
+  - the 070-005 "not before" window 3 s → 1.5 s
+
+  Declined:
+  - clearing the handler maps instead of `replacingRef` (#276): less explicit, and already verified
+  - new block ids on restore: they would break block links, floating views and focus anchors
+  - reordering the ink draws to drop the 1.5 s wait: Yorkie does not order two clients' presence
+  - a condition wait after the move in 070-006: a tree-nesting locator for one second
+  - sharing helpers with `table`/`follow` specs: outside this diff
+
+  After it: `pnpm e2e:isolated` **80/80** (5.4 min), `--lifecycle` **9/9**, the auth and text-surface unit tests 107/107, typecheck and eslint clean.
+
 ## Acceptance
 
 - [x] Milestone 0 tables are complete: all 55 cases have a mark, a basis and a home (2026-11-18).

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 
 /** First line of a test that needs a CDP session — `yorkieCut`, `networkProbe` and the IME specs use
  *  one, and only Chromium has them. The other projects (`E2E_BROWSERS=all`) skip it, visibly. */
@@ -54,6 +54,21 @@ export async function yorkieCut(page: Page) {
       await expect.poll(() => endedWatches).toBeGreaterThan(endedBefore);
     },
     restore: () => page.context().setOffline(false),
+  };
+}
+
+/**
+ * Holds `page`'s Yorkie pushes and pulls until the returned release is called. Its Watch streams stay
+ * open, so to the others it stays in the room — no drop and return — while it sees none of their
+ * changes and sends none of its own.
+ */
+export async function holdSync(page: Page): Promise<() => Promise<void>> {
+  let held: Array<Route> | null = [];
+  await page.route(`**${YORKIE_SERVICE}PushPullChanges`, (route) => (held ? held.push(route) : route.continue()));
+  return async () => {
+    const routes = held ?? [];
+    held = null;
+    for (const route of routes) await route.continue();
   };
 }
 

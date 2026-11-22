@@ -1,8 +1,8 @@
-import type { Page, Route } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { createDocument, firstBlock, online, openDocument } from "./helpers";
-import { YORKIE_SERVICE } from "./network";
+import { createDocument, dotColour, firstBlock, online, openDocument } from "./helpers";
+import { holdSync } from "./network";
 
 function share(page: Page) {
   return page.getByRole("button", { name: "공유하기", exact: true });
@@ -33,33 +33,12 @@ async function documentOfLines(page: Page, name: string): Promise<string> {
   return id;
 }
 
-/** The colour of `nickname`'s dot in `page`'s header, as computed. */
-function dotColour(page: Page, nickname: string): Promise<string> {
-  return page.getByRole("banner").locator("li").filter({ hasText: nickname }).locator("span[style]").first()
-    .evaluate((element) => getComputedStyle(element).backgroundColor);
-}
-
 /** How many ink segments `page` draws in `colour` — marks are SVG polylines (`ink-overlay.tsx`). */
 function inkIn(page: Page, colour: string): Promise<number> {
   return page.locator("[data-focus-scroll] svg polyline").evaluateAll(
     (lines, wanted) => lines.filter((line) => getComputedStyle(line).stroke === wanted).length,
     colour,
   );
-}
-
-/**
- * Holds `page`'s Yorkie pushes and pulls until the returned release is called. Its Watch streams stay
- * open, so to the others it stays in the room — no drop and return — while it sees none of their
- * changes and sends none of its own.
- */
-async function holdSync(page: Page): Promise<() => Promise<void>> {
-  let held: Array<Route> | null = [];
-  await page.route(`**${YORKIE_SERVICE}PushPullChanges`, (route) => (held ? held.push(route) : route.continue()));
-  return async () => {
-    const routes = held ?? [];
-    held = null;
-    for (const route of routes) await route.continue();
-  };
 }
 
 /** Drags a highlight across the first block, as a presenter with the 형광펜 tool does. */

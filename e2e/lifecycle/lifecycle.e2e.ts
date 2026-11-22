@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import type { APIRequestContext } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
 
 import { expect, test, type Users } from "../fixtures";
-import { block, createDocument, firstBlockId, insertAt, openDocument, sendChatFile } from "../helpers";
+import { block, createDocument, fileRow, firstBlockId, insertAt, openDocument, sendChatFile } from "../helpers";
 import { appLog, appReady, compose, composeOutcome } from "../stack";
 
 /**
@@ -23,14 +23,17 @@ let blockId = "";
 
 type Visitor = Awaited<ReturnType<Users["visitor"]>>;
 
+const joinNamed = (request: APIRequestContext, nickname: string) =>
+  request.post("/api/workspace/join", { data: { nickname, password: accessPassword, force: true } });
+
 async function join(visitor: Visitor) {
-  const response = await visitor.context.request.post("/api/workspace/join", {
-    data: { nickname: visitor.name, password: accessPassword, force: true },
-  });
+  const response = await joinNamed(visitor.context.request, visitor.name);
   expect(response.ok(), await response.text()).toBe(true);
 }
 
-test("before setup a too-short password and a password change are refused, and the workspace stays closed (FR-010-02, FR-011-04)", async ({ page, users }) => {
+/** Signs `page` in as the host on a workspace nobody has set up — `bootstrapHost` waits for a sidebar
+ *  that does not exist yet. Browser-side navigation keeps the credential out of Playwright step titles. */
+async function bootstrapUnopened(page: Page) {
   const secret = process.env.E2E_HOST_SECRET;
   if (!secret) throw new Error("Run lifecycle specs with `pnpm e2e:isolated --lifecycle`.");
   await page.goto("/join");
@@ -38,6 +41,10 @@ test("before setup a too-short password and a password change are refused, and t
     window.location.assign(`/api/auth/host?secret=${encodeURIComponent(credential)}`);
   }, secret);
   await expect(page.getByRole("heading", { name: "워크스페이스 열기" })).toBeVisible();
+}
+
+test("before setup a too-short password and a password change are refused, and the workspace stays closed (FR-010-02, FR-011-04)", async ({ page, users }) => {
+  await bootstrapUnopened(page);
 
   const short = await page.request.post("/api/workspace", { data: { name: workspace, password: "abc" } });
   expect(short.status(), await short.text()).toBe(400);
@@ -71,14 +78,7 @@ test("an unopened workspace turns guests away, and the host's setup opens it (FR
   });
   expect(refused.status()).toBe(503);
 
-  const secret = process.env.E2E_HOST_SECRET;
-  if (!secret) throw new Error("Run lifecycle specs with `pnpm e2e:isolated --lifecycle`.");
-  await page.goto("/join");
-  // Browser-side navigation keeps the credential out of Playwright step titles.
-  await page.evaluate((credential) => {
-    window.location.assign(`/api/auth/host?secret=${encodeURIComponent(credential)}`);
-  }, secret);
-  await expect(page.getByRole("heading", { name: "워크스페이스 열기" })).toBeVisible();
+  await bootstrapUnopened(page);
 
   // FR-010-01/02: the setup screen takes a name and a password.
   await page.getByLabel("워크스페이스 이름").fill(workspace);
@@ -167,10 +167,10 @@ test("with Yorkie unreachable the file manager keeps the chat files, says why, a
 
   await compose("pause", "yorkie");
   try {
-    await visitor.page.goto("/files");
-    await expect(notice).toBeVisible({ timeout: 60_000 });
-    await visitor.page.getByRole("group", { name: "파일 종류" }).getByRole("button", { name: /^기타 / }).click();
-    await expect(visitor.page.getByRole("row").filter({ hasText: name })).toHaveCount(1);
+    // The listing waits out the app's limit on Yorkie (10 s) before the tabs appear.
+    const row = await fileRow(visitor.page, "기타", name);
+    await expect(notice).toBeVisible();
+    await expect(row).toHaveCount(1);
   } finally {
     await compose("unpause", "yorkie");
   }
@@ -198,24 +198,13 @@ test("when the app cannot register with Yorkie it refuses to start and prints wh
  * online, so filling it leaves the stack closed to every new nickname for good. That is why these
  * run last, on the stack this spec file owns.
  */
-const joinNamed = (request: APIRequestContext, nickname: string) =>
-  request.post("/api/workspace/join", { data: { nickname, password: accessPassword, force: true } });
-
 test("a full workspace turns a new nickname away and still admits a member who is already in (NFR-SEC-002)", async ({ request }) => {
   test.setTimeout(150_000);
   const names = Array.from({ length: 70 }, (_, index) => `e2e-cap-${index}`);
 
   let admitted = 0;
-  let refused = false;
-  for (const nickname of names) {
-    if ((await joinNamed(request, nickname)).ok()) {
-      admitted += 1;
-    } else {
-      refused = true;
-      break;
-    }
-  }
-  expect(refused, "70 new nicknames should have run into the cap").toBe(true);
+  while (admitted < names.length && (await joinNamed(request, names[admitted]!)).ok()) admitted += 1;
+  expect(admitted, "70 new nicknames should have run into the cap").toBeLessThan(names.length);
   // The earlier tests stored a handful of members; the rest of the 64 was this loop.
   expect(admitted).toBeGreaterThan(40);
   expect(admitted).toBeLessThan(64);

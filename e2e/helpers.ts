@@ -27,6 +27,15 @@ export function block(page: Page, id: string) {
   return page.locator(`[data-block-id="${id}"] textarea`);
 }
 
+/** A paste event as the browser fires one, so the editor's multi-line paste lays the blocks out. */
+export async function paste(page: Page, id: string, text: string): Promise<void> {
+  await block(page, id).evaluate((el, value) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", value);
+    el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  }, text);
+}
+
 export async function blockValues(page: Page): Promise<Array<{ id: string; text: string }>> {
   return page.locator("[data-block-id]").evaluateAll((rows) => rows.map((row) => ({
     id: row.getAttribute("data-block-id")!,
@@ -71,6 +80,12 @@ export async function bootstrapHost(page: Page): Promise<void> {
   await expect(page.getByRole("complementary").getByRole("textbox", { name: "문서 제목 검색" })).toBeVisible();
 }
 
+/** The colour of `nickname`'s dot in `page`'s header, as computed. */
+export function dotColour(page: Page, nickname: string): Promise<string> {
+  return page.getByRole("banner").locator("li").filter({ hasText: nickname }).locator("span[style]").first()
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
+}
+
 export function online(page: Page, count: number) {
   return expect(page.getByRole("banner").getByText(`${count}명 접속 중`, { exact: true })).toHaveCount(1);
 }
@@ -89,6 +104,19 @@ export async function sendChat(page: Page, text: string): Promise<void> {
 export function chatRow(page: Page, text: string) {
   const chat = page.getByRole("region", { name: "채팅" });
   return chat.locator("li").filter({ has: page.getByText(text, { exact: true }) });
+}
+
+/** A 1×1 PNG — the smallest image the preview route serves inline. */
+export const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+  "base64",
+);
+
+/** The file manager's row for `name`, on the tab of its kind. */
+export async function fileRow(page: Page, tab: "이미지" | "PDF" | "기타", name: string) {
+  await page.goto("/files");
+  await page.getByRole("group", { name: "파일 종류" }).getByRole("button", { name: new RegExp(`^${tab} `) }).click();
+  return page.getByRole("row").filter({ hasText: name });
 }
 
 /** Sends a chat message carrying a file, through the two requests the chat panel makes. */

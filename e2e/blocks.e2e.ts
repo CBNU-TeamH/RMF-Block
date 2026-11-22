@@ -1,16 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { block, blockTexts, blockValues, createDocument, firstBlockId, openDocument, selectRange } from "./helpers";
-
-/** A paste event as the browser fires one — the same as `markdown-paste.e2e.ts`. */
-async function paste(page: Page, id: string, text: string): Promise<void> {
-  await block(page, id).evaluate((el, value) => {
-    const data = new DataTransfer();
-    data.setData("text/plain", value);
-    el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
-  }, text);
-}
+import { block, blockTexts, blockValues, createDocument, dotColour, firstBlockId, openDocument, paste, selectRange } from "./helpers";
 
 /** A document whose first blocks hold `lines`, one per block, opened on `page`. */
 async function documentWith(page: Page, name: string, lines: Array<string>): Promise<string> {
@@ -117,9 +108,6 @@ test("an occupied block shows its occupant's colour and name to the others, and 
   await openDocument(b, id);
   const target = (await blockValues(a)).find((entry) => entry.text === "가운데")!.id;
 
-  const dotColour = (page: Page, nickname: string) =>
-    page.getByRole("banner").locator("li").filter({ hasText: nickname }).locator("span[style]").first()
-      .evaluate((element) => getComputedStyle(element).backgroundColor);
   const aColour = await dotColour(b, first.name);
   const bColour = await dotColour(a, second.name);
   expect(aColour).not.toBe(bColour);

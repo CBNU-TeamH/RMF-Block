@@ -32,13 +32,14 @@ test("a document upload is stored up to 25 MB, refused past it or empty, and typ
   const api = context.request;
   const documentId = await createDocument(page, `e2e uploads ${Date.now()}`);
 
-  const atLimit = await upload(api, documentId, "limit.png", "image/png", png(LIMIT));
+  const over = png(LIMIT + 1);
+  const atLimit = await upload(api, documentId, "limit.png", "image/png", over.subarray(0, LIMIT));
   expect(atLimit.status(), await atLimit.text()).toBe(201);
   expect(((await atLimit.json()) as Stored).size).toBe(LIMIT);
 
-  const over = await upload(api, documentId, "over.png", "image/png", png(LIMIT + 1));
-  expect(over.status()).toBe(413);
-  expect(await over.json()).toEqual({ error: "파일은 25MB 이하만 첨부할 수 있습니다." });
+  const tooBig = await upload(api, documentId, "over.png", "image/png", over);
+  expect(tooBig.status()).toBe(413);
+  expect(await tooBig.json()).toEqual({ error: "파일은 25MB 이하만 첨부할 수 있습니다." });
 
   const empty = await upload(api, documentId, "empty.png", "image/png", Buffer.alloc(0));
   expect(empty.status()).toBe(400);
