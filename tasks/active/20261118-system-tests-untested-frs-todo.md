@@ -227,6 +227,18 @@ building and revisit it for the final behavior.
 
   The preview-order break was not reached in build B (the same test failed earlier, on the order), so it rides the milestone 4 build.
 
+  **Milestone 4** (2026-11-22): `e2e/focus.e2e.ts`, 2 tests: the follower follows the presenter to another document, pauses on its own move and leaves quietly (030-004, 030-005); and with three people, 공유하기 only while nobody shares, a follower drawing only its presenter's marks, and the marks gone at the share's end (030-010, 030-009, 030-011). **2/2 pass**, and 3/3 again in the clean repeat below.
+  - The second test needs two presenters at once, the state two crossing clicks produce. The first version cut the second presenter off from Yorkie (`yorkieCut`) while it pressed 공유하기, and failed in 3 of 4 runs on one stack at the third user's share card. The cut drops that presenter from the others' rosters (`2명 접속 중`, logged), and a member who comes back already presenting is by design not a share that started (`focus-follow-provider.tsx:108-116`); whether it came back presenting depended on which of its watch and its presence change landed first. The test now holds only that page's `PushPullChanges` with `page.route` and keeps its Watch streams open (`holdSync`), so it never leaves the room and its share arrives as a start. No CDP, so no `chromiumOnly`.
+  - The presenter's own screen clears by construction: outside a share the overlay draws only what it received (`ink-overlay.tsx:431`). Removing `setMine([])` therefore changes nothing on screen, and the test asserts that screen only as the requirement's other half.
+
+  **Mutation check, milestone 4** (in the milestone 5 builds below):
+  - the presenter's document change not followed (`router.push` removed): the follower stays on the first document
+  - the follower's own move not pausing (`pause()` removed): no 일시 정지됨
+  - 공유하기 offered beside a presenter (`if (presenter)` short-circuited): 공유하기 still shown after the first share
+  - `inkFrom` drawing the presenter not followed: the follower shows none of its presenter's marks
+  - the version preview reversed (the break carried over from milestone 3): `첫째 둘째 셋째` not in order
+  - the follower keeping the last marks it received (`setReceived` only for a non-null value): marks still on the follower after the share ended in 2 of 4 runs. In the other two the presenter's `marks: null` publish (`ink-overlay.tsx:283-285`) cleared them first; the two paths are by design, and the break removes one.
+
 ## Acceptance
 
 - [x] Milestone 0 tables are complete: all 55 cases have a mark, a basis and a home (2026-11-18).
