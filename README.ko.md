@@ -107,8 +107,8 @@ clone한 저장소에서는 `pnpm docker:up`이 주소를 찾아 `.env`에 기�
 
 - `YORKIE_ADMIN_PASSWORD`: 8~30자이고 영문, 숫자, `-` 같은 기호가 모두 들어가야 합니다. 한 번 정하면
   바꾸지 마세요. Yorkie가 볼륨에 저장하기 때문에 나중에 다른 값을 넣으면 앱이 실행되지 않습니다.
-- `YORKIE_ADMIN_TOKEN_SECRET`: 길고 무작위인 아무 문자열. Yorkie 관리자 로그인에 서명하는 값이라,
-  나중에 바꾸면 그 로그인들만 풀립니다.
+- `YORKIE_ADMIN_TOKEN_SECRET`: 32자 이상의 무작위 문자열. 이보다 짧으면 Yorkie가 시작을 거부합니다.
+  Yorkie 관리자 로그인에 서명하는 값이라, 나중에 바꾸면 그 로그인들만 풀립니다.
 
 ```dotenv
 YORKIE_ADMIN_PASSWORD=choose-your-own-1
@@ -157,6 +157,10 @@ rmf-app  |   Guest: http://192.168.0.14:3000
   `docker compose down -v`를 하면 지워집니다.
 
 ### 업그레이드
+
+**Yorkie 0.7.28 이상을 쓰는 릴리즈로 올릴 때:** 어떤 방법으로 올리든 아래 명령을 실행하기 전에
+`YORKIE_ADMIN_TOKEN_SECRET`이 [32자 규칙](#yorkie-관리자-비밀-값-설정)을 지키는지 확인하고,
+**되돌리기(롤백)**에 적힌 백업을 해 두세요.
 
 새 릴리즈의 `docker-compose.yml`을 기존 파일 위에 내려받고, `.env`는 그대로 둔 채 실행합니다.
 
@@ -207,7 +211,11 @@ COMPOSE_PROJECT_NAME=rmf-block
 
 **되돌리기(롤백):** 이전 릴리즈의 `docker-compose.yml`을 폴더에 다시 두고 같은 업그레이드 명령을
 실행하면 됩니다. 볼륨은 유지됩니다. 새 버전이 저장 형식을 바꿨다면 이전 버전이 읽지 못할 수
-있으니, 업그레이드 전에 `app-data`와 `mongo-data` 볼륨을 백업하세요.
+있으니, 업그레이드 전에 `app-data`와 `mongo-data` 볼륨을 백업하세요. Yorkie 0.7.26 이상이
+`mongo-data`에서 한 번 실행된 뒤에는 그보다 오래된 Yorkie를 그 볼륨에 쓸 수 없으므로, 그 지점을 넘어
+되돌릴 때는 순서가 다릅니다. `docker compose down`으로 먼저 멈추고(`down -v`는 절대 쓰지 마세요),
+`mongo-data` 백업을 복원한 다음에야 이전 파일을 다시 두고 업그레이드 명령을 실행합니다. 백업 이후에
+저장된 내용은 모두 사라집니다.
 
 각 릴리즈 파일은 자기 버전을 가리킵니다. 정확한 이미지로 고정하려면 릴리즈 노트의 digest를
 붙이세요(`…:0.0.1@sha256:…`). 패키지 페이지의 digest는 아키텍처 하나만 고정하므로 쓰지 마세요.

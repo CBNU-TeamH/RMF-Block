@@ -69,6 +69,9 @@ no exception. Ten releases — including 0.7.18's "anchor Array.Add on the last 
 identity" — changed neither. Run by hand from a throwaway probe, which is the whole point of
 issue #42: nothing in CI would have told us.
 
+**Re-measured on `0.7.28` (2026-11-21)** by the invariants script on a Mongo volume written by
+0.7.23: both properties still hold.
+
 ## Consequences
 
 - **This choice is what makes undo/redo available at all today.** Yorkie's own guide lists
@@ -79,8 +82,8 @@ issue #42: nothing in CI would have told us.
   block's text is wrapped in `content.text` and why blocks are an `Array` rather than a `Tree`.
   They went unprotected until the 0.7.23 bump showed what that costs — every unit test passed
   while two measured SDK behaviours changed, because `pnpm test` runs against no server.
-  `scripts/verify-yorkie-invariants.mjs` asserts all four against a live Yorkie and runs as the
-  `yorkie invariants` job on every PR (issue #42).
+  `scripts/verify-yorkie-invariants.mjs` asserts all four (plus undo and the sync loop) against a
+  live Yorkie and runs as the `yorkie invariants` job on every PR (issue #42).
 
   A failure there is not a bug in this repository; it is the SDK moving, and the fix starts by
   re-reading this document. Case ④ is the unusual one — it asserts that re-parenting a CRDT

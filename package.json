@@ -30,7 +30,7 @@
     "perf:observe": "node e2e/perf/observe-up.mts"
   },
   "dependencies": {
-    "@yorkie-js/sdk": "0.7.23",
+    "@yorkie-js/sdk": "0.7.28",
     "next": "16.2.12",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -58,7 +58,7 @@
   },
   "pnpm": {
     "patchedDependencies": {
-      "@yorkie-js/sdk@0.7.23": "patches/@yorkie-js__sdk@0.7.23.patch"
+      "@yorkie-js/sdk@0.7.28": "patches/@yorkie-js__sdk@0.7.28.patch"
     }
   }
 }
