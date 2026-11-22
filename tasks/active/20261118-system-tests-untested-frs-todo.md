@@ -317,6 +317,9 @@ building and revisit it for the final behavior.
   - `lifecycle`: the cap test reads the stored member count from the container and needs exactly `64 - stored` admissions.
   - Mutation checks, each reverted: inverted ink filter → fails at the ignored-ink line; a paused follower that still follows later moves → fails at the new URL check; floating names cleared on restore → fails at the no-notice line; `document:changed` read as deletion → fails after the sidebar wait; `MAX_MEMBERS = 63` → `Expected: 56, Received: 55`.
   - Runs: the four changed specs `--repeat-each=3` 51/51 (5.5 min); `--lifecycle` 9/9 (54.4 s).
+  - Second CodeRabbit pass (review of 36ee588, 2 inline):
+    - Taken: the replacing mark was cleared by the first remount's commit even while a second remount was queued, so an edit in between could be patched into rows about to be replaced from an older list. `remountsRef` now counts every remount asked for (the two peer paths and the local `replaceBlocks`), and the mark clears only when `restoreCount` has caught up with it. `history`, `collaboration` and `table` `--repeat-each=3`: 42/42.
+    - Declined: making the cap test survive a rerun on the same stack. The lifecycle stack is single-use — `pnpm e2e:isolated --lifecycle` builds and removes it, and the file's first test needs a workspace nobody has opened — so `stored` is read from the run that filled it, and `names[0]` was admitted whenever `64 - stored` is positive.
 
 ## Acceptance
 

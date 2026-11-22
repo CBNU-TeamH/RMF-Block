@@ -44,10 +44,12 @@ export function useBlockDocument(
   /** Bumped by `replaceBlocks`, and part of every row's key — see there. A peer's
    *  restore bumps it too, below. */
   const [restoreCount, setRestoreCount] = useState(0);
+  /** How many remounts were asked for; `restoreCount` equals it once the newest has committed. */
+  const remountsRef = useRef(0);
   /** A peer replaced the list and the rows have not remounted: edits are read, not patched (#276). */
   const replacingRef = useRef(false);
   useEffect(() => {
-    replacingRef.current = false;
+    if (restoreCount === remountsRef.current) replacingRef.current = false;
   }, [restoreCount]);
   /** How deep the undo stack was once this document was ready — see where it is
    *  set. `canUndo` alone would let a person undo the document out of existence. */
@@ -167,13 +169,13 @@ export function useBlockDocument(
           // A restore elsewhere keeps the block ids; a new key remounts the rows (#276).
           if (replacesBlockList(op)) {
             replacingRef.current = true;
-            setRestoreCount((count) => count + 1);
+            setRestoreCount(++remountsRef.current);
             needsRecompute = true;
             continue;
           }
           // The new rows may already have mounted from an older list: remount them again.
           if (op.type === "edit" && replacingRef.current) {
-            setRestoreCount((count) => count + 1);
+            setRestoreCount(++remountsRef.current);
             needsRecompute = true;
             continue;
           }
@@ -345,7 +347,7 @@ export function useBlockDocument(
     setBlocks(readBlocks(doc.getRoot().blocks));
     // Remounts every row: a reused one keeps its pre-restore text and diff
     // baseline (`docs/design/version-history.md`, "Why the app restores").
-    setRestoreCount((count) => count + 1);
+    setRestoreCount(++remountsRef.current);
   }, []);
 
   return {
