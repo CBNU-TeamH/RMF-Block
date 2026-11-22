@@ -136,7 +136,8 @@ test("Yorkie's own revisions show as 자동 저장 only when asked for (FR-090-0
  */
 test("a restore saves the current state first and reaches the peer; a failed one changes nothing (FR-090-09~11, FR-090-13)", async ({ users }) => {
   test.setTimeout(120_000);
-  const a = (await users.join(0)).page;
+  const restorer = await users.join(0);
+  const a = restorer.page;
   const b = (await users.join(1)).page;
   const stamp = Date.now();
   const { id, blockId } = await documentWith(a, `e2e restore ${stamp}`, "원래 문장");
@@ -155,6 +156,8 @@ test("a restore saves the current state first and reaches the peer; a failed one
   await a.getByRole("dialog").filter({ hasText: "이 버전으로 복원할까요?" }).getByRole("button", { name: "복원", exact: true }).click();
   await expect(entry(a, "복원 직전 상태")).toHaveCount(1);
   await expect(entry(a, "복원 직전 상태")).toContainText("복원 전");
+  // FR-090-11: both the named version and the one the restore wrote carry who did it.
+  for (const title of [`base ${stamp}`, "복원 직전 상태"]) await expect(entry(a, title)).toContainText(`· ${restorer.name}`);
   await entry(a, "복원 직전 상태").click();
   await expect(history(a)).toContainText("바뀐 문장");
   await a.getByRole("button", { name: "버전 히스토리 닫기" }).click();

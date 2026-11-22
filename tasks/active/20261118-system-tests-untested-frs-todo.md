@@ -306,6 +306,8 @@ building and revisit it for the final behavior.
 
   After it: `pnpm e2e:isolated` **80/80** (5.4 min), `--lifecycle` **9/9**, the auth and text-surface unit tests 107/107, typecheck and eslint clean.
 
+  **After the PR opened** (2026-11-22, found while mapping D07's traceability table): the restore test named FR-090-11 in its title but did not assert it. It now checks that the named version and the 복원 직전 상태 entry both show `· <nickname>`. Passes; with the description dropped from the list (`version-history.tsx`, `entry.description` short-circuited) it fails at that line. Reverted.
+
 ## Acceptance
 
 - [x] Milestone 0 tables are complete: all 55 cases have a mark, a basis and a home (2026-11-18).
