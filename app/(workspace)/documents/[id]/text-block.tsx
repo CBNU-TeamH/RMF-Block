@@ -196,6 +196,9 @@ export function TextBlockView({
   // means — Enter splits.
   const slashOpen = slashItems.length > 0;
   const slashListRef = useRef<HTMLUListElement>(null);
+  // The query Escape closed. Without it the next keystroke recomputes the same
+  // query off the text and the menu is back (#148).
+  const dismissedSlashRef = useRef<string | null>(null);
 
   // Keeps the highlighted row on screen: the items can overflow the menu's max height, so
   // arrow keys used to move the highlight somewhere nobody could see. The
@@ -227,7 +230,14 @@ export function TextBlockView({
   const syncSlashQuery = (el: HTMLTextAreaElement) => {
     // Every type but code, where `/` is source text (`docs/design/
     // document-editing.md`, "Leaving a code block").
-    const query = cellBinding || variant.type === "code" ? null : detectSlashQuery(el.value);
+    const detected = cellBinding || variant.type === "code" ? null : detectSlashQuery(el.value);
+    // Stays closed while the text extends what was dismissed; deleting back
+    // past it, a space or a newline (no query at all) lets it open again.
+    const dismissed = dismissedSlashRef.current;
+    if (dismissed !== null && (detected === null || !detected.startsWith(dismissed))) {
+      dismissedSlashRef.current = null;
+    }
+    const query = dismissedSlashRef.current === null ? detected : null;
     if (query !== slashQuery) setSlash(query);
   };
 
@@ -425,6 +435,7 @@ export function TextBlockView({
         // Escape dismisses the no-results row as well as the menu.
         if (slashQuery !== null && event.key === "Escape") {
           event.preventDefault();
+          dismissedSlashRef.current = slashQuery;
           setSlash(null);
           return;
         }
@@ -617,6 +628,7 @@ export function TextBlockView({
       onBlur={(event) => {
         // Nothing to type into once focus leaves, so neither the menu nor its
         // 결과 없음 row should outlive it next to a block nobody is in.
+        dismissedSlashRef.current = null;
         setSlash(null);
         setFocused(false);
         setShown(event.currentTarget.value);

@@ -572,7 +572,9 @@ marker asks for a conversion that has already happened. The `/` menu opens in **
 block except code** (#145) — in code `/` is source text too, but elsewhere the menu's items are
 conversions *to* another type, so `/텍스트` is how a heading becomes a paragraph again. The `/`
 menu's query is recomputed from the text rather than tracked as a session, so deleting back
-through the slash closes it on its own. It is recomputed mid-composition too, and matched jamo by
+through the slash closes it on its own. The one thing remembered is a query Escape dismissed: while
+the text still extends it the menu stays closed, and deleting back past it, a space or newline, or
+blur clears it — otherwise the next keystroke brought the menu straight back ([#148](https://github.com/CBNU-TeamH/RMF-Block/issues/148)). It is recomputed mid-composition too, and matched jamo by
 jamo (`slashMenuItems`), so the menu narrows at each step an IME shows (`ㅈ`, `제`, `젬`, `제모`)
 instead of waiting for the word.
 
