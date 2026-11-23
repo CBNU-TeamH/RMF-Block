@@ -470,6 +470,14 @@ run's `release` (which waits for its own setup to settle), so the count goes 1â†
 re-attaches. When the count does reach 0, the next `acquire` of that key waits for the detach in
 flight (the chain above, held per key).
 
+### Leaving with edits Yorkie has not received
+
+An edit pushed a moment before a reload, a full navigation or a closed tab can be lost: nothing
+can finish a push while the page unloads. So while an attached document holds changes Yorkie has
+not acknowledged (`hasLocalChanges()`), the pool's `beforeunload` listener asks the browser to
+confirm leaving ([#221](https://github.com/CBNU-TeamH/RMF-Block/issues/221)). It is a warning, not a
+flush, and an in-app route change does not unload, so it never asks there.
+
 ### Seeding a brand-new document is a known race
 
 Two people opening the same empty document at once can both see it empty and both seed it. `blocks`

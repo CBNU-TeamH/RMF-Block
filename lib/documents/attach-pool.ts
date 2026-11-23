@@ -66,7 +66,19 @@ export function createAttachPool<D, I>(
 
 export type BlockDocument = Document<BlockDocumentRoot, BlockPresence>;
 
+/** Asks the browser to confirm leaving while `doc` holds edits Yorkie has not
+ *  acknowledged. Nothing can push them during unload, so a warning is as far as
+ *  this goes (#221). Returns the remover. */
+export function warnOnUnloadWhileUnsent(doc: Pick<BlockDocument, "hasLocalChanges">): () => void {
+  const warn = (event: Event) => {
+    if (doc.hasLocalChanges()) event.preventDefault();
+  };
+  window.addEventListener("beforeunload", warn);
+  return () => window.removeEventListener("beforeunload", warn);
+}
+
 const pools = new WeakMap<Client, AttachPool<BlockDocument, BlockPresence>>();
+const unloadWarnings = new WeakMap<BlockDocument, () => void>();
 
 function poolFor(client: Client): AttachPool<BlockDocument, BlockPresence> {
   let pool = pools.get(client);
@@ -75,9 +87,13 @@ function poolFor(client: Client): AttachPool<BlockDocument, BlockPresence> {
       async (key, initialPresence) => {
         const doc = new yorkie.Document<BlockDocumentRoot, BlockPresence>(key);
         await client.attach(doc, { initialPresence });
+        unloadWarnings.set(doc, warnOnUnloadWhileUnsent(doc));
         return doc;
       },
-      (doc) => client.detach(doc),
+      (doc) => {
+        unloadWarnings.get(doc)?.();
+        return client.detach(doc);
+      },
     );
     pools.set(client, pool);
   }

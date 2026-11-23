@@ -1,7 +1,8 @@
+// @vitest-environment happy-dom
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
-import { createAttachPool } from "./attach-pool.ts";
+import { createAttachPool, warnOnUnloadWhileUnsent } from "./attach-pool.ts";
 
 /** A pool over a fake client that records every call, with each attach and
  *  detach held open until the test lets it finish. */
@@ -111,5 +112,26 @@ describe("createAttachPool", () => {
     assert.equal(await a, "a#1");
     assert.equal(await b, "b#2");
     assert.equal(calls.length, 2);
+  });
+});
+
+describe("warnOnUnloadWhileUnsent (#221)", () => {
+  const unload = () => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+
+  it("asks to confirm leaving only while edits are unsent, and not once removed", () => {
+    let unsent = true;
+    const remove = warnOnUnloadWhileUnsent({ hasLocalChanges: () => unsent });
+
+    assert.equal(unload(), true);
+    unsent = false;
+    assert.equal(unload(), false);
+
+    unsent = true;
+    remove();
+    assert.equal(unload(), false);
   });
 });
