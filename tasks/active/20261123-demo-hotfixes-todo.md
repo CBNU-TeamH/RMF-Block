@@ -41,11 +41,16 @@ One commit per issue. All four are client-only; no server, protocol or REST chan
 - Vitest (logic / component / server / route): `chat-panel.test.tsx` (online reconnect), `attach-pool.test.mts` or a sibling (unload warning), `text-block.test.tsx` (dismissed query, three cases). #80 is a position class — checked by eye in the container, not pinned by a unit test.
 - Browser E2E (`e2e/`): no new specs and no local run (user's call for a pre-demo hotfix). The CI E2E step is `continue-on-error`; its result is read, not waited on. Specs that `reload()` right after an edit could meet the new prompt only in the brief window with unsent changes.
 - Container smoke (`.github/workflows/ci.yml`): no change — nothing touches startup, auth or networking on the server.
-- Commands and observed results (fill in before the PR):
+- Commands and observed results:
+  - `pnpm exec vitest run` on `chat-panel.test.tsx`, `text-block.test.tsx` and `attach-pool.test.mts`: 3 files, 40 tests passed (2026-11-24, after `/simplify`).
+  - `pnpm verify:docs`: clean.
+  - `/simplify`: one change (`syncSlashQuery`'s reset folded into one condition, `2bdb689`). `/code-review low`: no findings (a shallow pass — 3 tool calls).
+  - `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`: not run locally; the pre-push hook and CI cover them.
+  - No browser run for #241, #221 and #80: the offline/online toggle, Ctrl+R and the avatar position below were not checked by eye in this task.
 
 ## Acceptance
 
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
 - [ ] After a 20 s offline/online toggle in DevTools, chat reconnects within about a second and backfills.
 - [ ] Ctrl+R right after typing prompts; after the edit has synced it does not.
 - [ ] The occupant avatar sits right of the block and clears the gutter controls.
@@ -57,4 +62,6 @@ NFR-REL-001 (resync after recovery) for #241; UC-022 editing for #221 and #148; 
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+All four shipped as one commit each, plus one `refactor:` commit from `/simplify`. Each logic fix has a unit test (#241 online reconnect, #221 unload warning, #148 two cases); #80 is a position class with no test.
+
+Not done: the three browser acceptance checks (#241, #221, #80). Nothing was cut and nothing moved to another task. A spec that `reload()`s right after an edit could meet the new #221 prompt in the brief window with unsent changes; CI's E2E step will show whether any does.
