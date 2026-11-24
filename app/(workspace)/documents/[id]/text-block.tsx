@@ -234,9 +234,7 @@ export function TextBlockView({
     // Stays closed while the text extends what was dismissed; deleting back
     // past it, a space or a newline (no query at all) lets it open again.
     const dismissed = dismissedSlashRef.current;
-    if (dismissed !== null && (detected === null || !detected.startsWith(dismissed))) {
-      dismissedSlashRef.current = null;
-    }
+    if (dismissed !== null && !detected?.startsWith(dismissed)) dismissedSlashRef.current = null;
     const query = dismissedSlashRef.current === null ? detected : null;
     if (query !== slashQuery) setSlash(query);
   };
