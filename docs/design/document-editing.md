@@ -476,7 +476,8 @@ An edit pushed a moment before a reload, a full navigation or a closed tab can b
 can finish a push while the page unloads. So while an attached document holds changes Yorkie has
 not acknowledged (`hasLocalChanges()`), the pool's `beforeunload` listener asks the browser to
 confirm leaving ([#221](https://github.com/CBNU-TeamH/RMF-Block/issues/221)). It is a warning, not a
-flush, and an in-app route change does not unload, so it never asks there.
+flush, and an in-app route change does not unload, so it never asks there. The listener stays
+through the last release's detach in flight, whose final push is what delivers those changes, and goes once it settles.
 
 ### Seeding a brand-new document is a known race
 

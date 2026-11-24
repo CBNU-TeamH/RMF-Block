@@ -227,14 +227,21 @@ export function TextBlockView({
    *  too — it only moves the menu, never Yorkie — so `/제` narrows while 제 is
    *  still being composed. Behind the composing guard, a query typed through an
    *  IME never reached the menu at all (#103). */
-  const syncSlashQuery = (el: HTMLTextAreaElement) => {
+  const detectSlash = (value: string) =>
     // Every type but code, where `/` is source text (`docs/design/
     // document-editing.md`, "Leaving a code block").
-    const detected = cellBinding || variant.type === "code" ? null : detectSlashQuery(el.value);
-    // Stays closed while the text extends what was dismissed; deleting back
-    // past it, a space or a newline (no query at all) lets it open again.
+    cellBinding || variant.type === "code" ? null : detectSlashQuery(value);
+
+  // Stays closed while the text extends what was dismissed; deleting back
+  // past it, a space or a newline (no query at all) lets it open again.
+  const expireSlashDismissal = (detected: string | null) => {
     const dismissed = dismissedSlashRef.current;
     if (dismissed !== null && !detected?.startsWith(dismissed)) dismissedSlashRef.current = null;
+  };
+
+  const syncSlashQuery = (el: HTMLTextAreaElement) => {
+    const detected = detectSlash(el.value);
+    expireSlashDismissal(detected);
     const query = dismissedSlashRef.current === null ? detected : null;
     if (query !== slashQuery) setSlash(query);
   };
@@ -307,6 +314,9 @@ export function TextBlockView({
     el.value = el.value.slice(0, from) + value.content + el.value.slice(to);
     lastSyncedRef.current = el.value;
     if (el !== document.activeElement) setShown(el.value);
+    // A peer's edit can remove the dismissed query without any input event
+    // here, which would leave its dismissal suppressing a fresh `/`.
+    expireSlashDismissal(detectSlash(el.value));
 
     const insertedLength = value.content.length;
     const newStart = shiftCaret(selStart, { from, to, insertedLength });

@@ -90,9 +90,15 @@ function poolFor(client: Client): AttachPool<BlockDocument, BlockPresence> {
         unloadWarnings.set(doc, warnOnUnloadWhileUnsent(doc));
         return doc;
       },
-      (doc) => {
-        unloadWarnings.get(doc)?.();
-        return client.detach(doc);
+      async (doc) => {
+        // Kept until the detach settles: its final push is what delivers the
+        // unsent edits, and a reload before then would still lose them. Cleared
+        // either way — a rejected detach leaves a document nobody holds.
+        try {
+          await client.detach(doc);
+        } finally {
+          unloadWarnings.get(doc)?.();
+        }
       },
     );
     pools.set(client, pool);

@@ -2,7 +2,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
-import { createAttachPool, warnOnUnloadWhileUnsent } from "./attach-pool.ts";
+import type { Client } from "@yorkie-js/sdk";
+
+import { acquireBlockDocument, createAttachPool, releaseBlockDocument, warnOnUnloadWhileUnsent } from "./attach-pool.ts";
 
 /** A pool over a fake client that records every call, with each attach and
  *  detach held open until the test lets it finish. */
@@ -133,5 +135,42 @@ describe("warnOnUnloadWhileUnsent (#221)", () => {
     unsent = true;
     remove();
     assert.equal(unload(), false);
+  });
+});
+
+describe("the unload warning across a block document's detach (#221)", () => {
+  it("holds until the detach settles, and is gone after it, even when it fails", async () => {
+    const unload = () => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    for (const fails of [false, true]) {
+      let finish!: () => void;
+      const client = {
+        attach: async () => {},
+        detach: () =>
+          new Promise<void>((resolve, reject) => {
+            finish = fails ? () => reject(new Error("detach failed")) : resolve;
+          }),
+      } as unknown as Client;
+      const key = `doc-${fails}`;
+
+      const doc = await acquireBlockDocument(client, key, { activeBlockId: null } as never);
+      doc.update((root) => {
+        root.blocks = [];
+      });
+      assert.equal(unload(), true);
+
+      releaseBlockDocument(client, key);
+      await settle();
+      assert.equal(unload(), true, "still warns while the detach is pending");
+
+      finish();
+      await settle();
+      assert.equal(unload(), false, "no listener once the detach has settled");
+    }
   });
 });

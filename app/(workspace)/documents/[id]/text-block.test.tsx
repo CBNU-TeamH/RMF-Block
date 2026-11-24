@@ -117,6 +117,18 @@ describe("TextBlockView's / menu", () => {
     assert.ok(menuLabels().length > 0);
   });
 
+  it("opens on a fresh / after a peer's edit removed the dismissed query (#148)", () => {
+    const { textarea, remote } = renderBlock();
+    fireEvent.input(textarea, { target: { value: "/t" } });
+    fireEvent.keyDown(textarea, { key: "Escape" });
+
+    act(() => remote({ from: 0, to: 1, value: { content: "" } }));
+    assert.equal(textarea.value, "t");
+
+    fireEvent.input(textarea, { target: { value: "/t" } });
+    assert.ok(menuLabels().length > 0);
+  });
+
   it("opens again after Escape once the block has lost focus (#148)", () => {
     const { textarea } = renderBlock();
     fireEvent.input(textarea, { target: { value: "/" } });
