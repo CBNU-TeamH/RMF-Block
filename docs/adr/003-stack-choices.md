@@ -107,6 +107,16 @@ Three smaller reasons point the same way: the design tokens already exist once, 
 
 **If this were a client-rendered SPA, this section would say "either works, pick by taste."** It is the server-component architecture that makes it one-sided.
 
+### 6. fflate for the export zip
+
+A document's Markdown export is a zip when it carries files or sub-pages (FR-022-15/16,
+[`docs/design/document-export.md`](../design/document-export.md)). Node has no zip writer of its own: `node:zlib` compresses
+one stream, not an archive of named files. **fflate** is one dependency-free package, writes UTF-8 names (Korean
+document names), and its `zipSync` builds the archive in memory in one call, which is all a LAN workspace's
+export needs. **JSZip** does the same with a promise API and twice the size; **archiver** streams, which would
+matter only for exports larger than this workspace makes. A hand-written zip writer was not worth its CRC and
+header bugs.
+
 ## Consequences
 
 - **Our server is not on the realtime path**, and every design conversation should start there. Features that feel like they need a socket usually need a Yorkie document instead.

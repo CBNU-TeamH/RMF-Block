@@ -1,7 +1,7 @@
 # Document export — Module Design
 
 - **Status**: Built. Requirements: FR-022-15, FR-022-16, FR-022-17 and UC-022 E6 in `docs/SRS-ko.md`.
-- **Owns**: `lib/documents/export.ts`. A file-level claim inside a directory
+- **Owns**: `lib/documents/export.ts`, `app/api/documents/[id]/export/route.ts`. A file-level claim inside a directory
   [`document-editing.md`](document-editing.md) owns, so the more specific claim wins — the shape
   [`version-history.md`](version-history.md) uses.
 - **Related**: [`document-editing.md`](document-editing.md) ("Selecting and copying blocks" — the
@@ -64,6 +64,12 @@ the browser would mean attaching each sub-page: the exporter would show as prese
 sub-page nobody had opened would be created in Yorkie by being exported. The root comes back as plain
 JSON, read by `readRootBlocks` (`lib/blocks/revision-snapshot.ts`), the revision reader without its YSON
 step.
+
+`GET /api/documents/:id/export` ([`api.md`](api.md)) answers 401 without a session, 404 for a
+document not in the catalogue and 503 when Yorkie cannot be read. Both shapes go out as an attachment
+with `no-store`: an export is read fresh each time, unlike an upload. A link to a document left out of
+the export is written with the `Host` the browser sent, since the custom server builds `request.url`
+from its bind address.
 
 The zip is built in memory (fflate's `zipSync`): a LAN workspace's documents and its 25MB-per-file uploads
 fit, and nothing has to be cleaned up afterwards.
