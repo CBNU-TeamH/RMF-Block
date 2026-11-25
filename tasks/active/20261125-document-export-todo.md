@@ -86,15 +86,22 @@ One PR, a commit per milestone, reported after each.
 - Browser E2E (`e2e/export.e2e.ts`, new; `waitForEvent("download")` as in `e2e/safety.e2e.ts`): text document → `.md` that imports back to the same blocks; document with an image → zip holding the image byte for byte; parent with a child → dialog → zip with the child's `.md`; print media hides the chrome. `--repeat-each=3` on one stack.
 - Container smoke: no change expected. The route calls Yorkie's admin RPC from the server, so it is checked on `pnpm docker:up`, not `pnpm dev` (AGENTS §2).
 - By hand: open a zip on Windows (Korean names, nested folders); Chrome "PDF로 저장" of a long document with an image and a table.
-- Commands and observed results (fill in before the PR):
+- Commands and observed results:
+  - Spike settled without a capture: `docs/design/file-manager.md` records the `GetDocuments` root as plain JSON (measured on 0.7.23), and the E2E below reads real roots through `readRootBlocks` on 0.7.28 — so the export parses JSON, not YSON.
+  - The round trip is a unit test (`markdown.test.mts`: heading, text, ordered list, quote, code, divider → export → `blocksFromMarkdown` gives the same blocks), not an E2E through the 새 문서 dialog; the E2E checks the exported text itself.
+  - `pnpm exec vitest run`: 95 files, 995 tests passed (before the last fix; `markdown.test.mts` and `lib/documents` rerun after it: 95 tests passed). `pnpm typecheck`: clean. `eslint` on every touched file: clean. `pnpm verify:docs`: clean. `node scripts/comment-budget.mjs`: only inherited files over budget.
+  - E2E on an isolated container stack (`scripts/e2e-isolated.mjs`, `e2e/export.e2e.ts --repeat-each=3`, Chromium): 12 passed. The first attempt failed before any test: an ignored local `.ds-sync/` folder in the checkout broke Docker's build context, so the stack was built from `git archive HEAD` instead.
+  - `/simplify` (four reviewers): applied — `planExport` takes the ids and returns `markdown | zip`; attachments are stored (level 0), not deflated, and read in parallel without a copy; the sub-page count is computed on click; the editor's own prompts (`OVERLAY`) were missing `print:hidden`; `readRootBlocks` only swallows a `SyntaxError`. Skipped — making the copy path a link resolver too (no bug, moves ~15 lines), pointing `workspace-files.ts` `placesOf` at `readRootBlocks` (outside this task), exporting the disposition encoder from `serving.ts` (the overrides are commented).
+  - `/code-review low`: one finding, fixed — `%` and `#` in a name broke the relative link; they are percent-encoded now, with a test.
+  - Not done: a zip opened on Windows by hand, and a Chrome "PDF로 저장" of a long document by hand. The print E2E checks what is hidden, not how pages break.
 
 ## Acceptance
 
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] A text-only document downloads as one `.md`; one with an image or file downloads as a zip holding them.
-- [ ] A document with sub-pages asks first; "하위 문서 포함" gives a zip that mirrors the hierarchy, with relative links between exported documents.
-- [ ] Printing shows only the document content, all of it.
-- [ ] SRS-ko and SRS-en carry FR-022-15..17 and E6; `pnpm verify:docs` clean.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] A text-only document downloads as one `.md`; one with an image or file downloads as a zip holding them.
+- [x] A document with sub-pages asks first; "하위 문서 포함" gives a zip that mirrors the hierarchy, with relative links between exported documents.
+- [ ] Printing shows only the document content, all of it. (Chrome-hidden in the print E2E; a full printed document not checked by hand.)
+- [x] SRS-ko and SRS-en carry FR-022-15..17 and E6; `pnpm verify:docs` clean.
 
 ## Cross-cutting
 
@@ -105,4 +112,6 @@ One PR, a commit per milestone, reported after each.
 
 ## Review
 
-Filled in at the end.
+Shipped: a ··· menu at the end of the document bar with Markdown and PDF로 인쇄. Markdown is built on the server (`GET /api/documents/:id/export`) from one `GetDocuments` read and the file store: a bare `.md`, or a zip (fflate) with attachments and, after asking, sub-pages in nested folders with relative links. PDF is the browser's print with the workspace chrome hidden through `print:` utilities. SRS FR-022-15..17 and UC-022 E6 added to both languages.
+
+Cut, as agreed when benchmarking Notion: HTML/CSV, "exclude files", the folder toggle, sub-pages in print. Not checked by hand: a zip on Windows and a printed long document.
