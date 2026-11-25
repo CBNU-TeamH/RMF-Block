@@ -186,7 +186,7 @@ export function FloatingViewProvider({
       {refused !== null ? (
         <p
           role="status"
-          className="pointer-events-none fixed bottom-14 left-1/2 z-50 -translate-x-1/2 rounded-control bg-ink px-3 py-1.5 text-[13px] whitespace-nowrap text-paper shadow-elev"
+          className="pointer-events-none fixed bottom-14 left-1/2 z-50 print:hidden -translate-x-1/2 rounded-control bg-ink px-3 py-1.5 text-[13px] whitespace-nowrap text-paper shadow-elev"
         >
           플로팅 뷰는 최대 {MAX_VIEWS}개까지 열 수 있습니다.
         </p>

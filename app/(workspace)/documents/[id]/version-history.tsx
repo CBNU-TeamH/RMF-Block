@@ -258,7 +258,7 @@ function HistoryPanel({
   }, [entries, includeAutomatic]);
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-scrim p-6">
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-scrim p-6 print:hidden">
       <section
         aria-label="버전 히스토리"
         className="flex h-full max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-card bg-elev shadow-elev"

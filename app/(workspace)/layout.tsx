@@ -89,7 +89,7 @@ export default async function WorkspaceLayout({
                     shell has to be exactly the viewport's height, not merely at least
                     it, or the row below never bounds `<main>` and the editor's own
                     scroll container grows to fit its blocks instead of scrolling. */}
-                <div className="flex h-full flex-1 bg-paper">
+                <div className="flex h-full flex-1 bg-paper print:block print:h-auto">
                   {member ? <SessionWatch /> : null}
 
                   <Sidebar
@@ -105,14 +105,14 @@ export default async function WorkspaceLayout({
                         path, who is in it, and its actions — as Obsidian, Notion and
                         wafflebase arrange it (`app-shell.md`). */}
                     <DocumentTabs documents={documents} />
-                    <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4">
+                    <header className="flex h-[46px] flex-none items-center gap-2 pr-2.5 pl-4 print:hidden">
                       <Breadcrumb documents={documents} />
                       <PresenceStack memberId={me.id} known={known} />
                       <FocusShare memberId={me.id} />
                       <div id={DOCUMENT_ACTIONS_ID} className="flex items-center empty:hidden" />
                       <DocumentExport documents={documents} />
                     </header>
-                    <main id={MAIN_ID} className="min-h-0 flex-1 overflow-hidden">{children}</main>
+                    <main id={MAIN_ID} className="min-h-0 flex-1 overflow-hidden print:overflow-visible">{children}</main>
                   </div>
                 </div>
               </ChatWindow>

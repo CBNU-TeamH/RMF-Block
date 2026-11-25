@@ -89,3 +89,23 @@ from its bind address.
 The zip is built in memory (fflate's `zipSync`): a LAN workspace's documents and its 25MB-per-file uploads
 fit, and nothing has to be cleaned up afterwards.
 
+## Printing
+
+PDF is the browser's own: **PDF로 인쇄** calls `window.print()` and the person picks "PDF로 저장" in the
+dialog, so there is no PDF library and nothing to download. What the app owns is how the page looks in
+print, through Tailwind's `print:` variant:
+
+- **The workspace around the document is hidden**: the sidebar, the tab strip, the document bar, the chat
+  window and its bar, floating views, the focus-share notices, toasts, the presenter's ink and its
+  toolbar, the history overlay and open menus.
+- **So is each block's gutter**: drag handle, ··· menu, float button, occupant avatar and outline, and the
+  "파일 추가" row under the document. Most gutter controls are already transparent unless hovered, but
+  the focused block shows its own, and Ctrl+P can come from inside one.
+- **A PDF block prints as its card.** Its embedded viewer is an `<iframe>`, which a browser prints blank or
+  as one page, so the viewer and the card's buttons are hidden and the name and size remain.
+- **The whole document prints, not one screen of it.** The shell is exactly the viewport's height and the
+  editor scrolls inside it (`app-shell.md`), so in print the root, the shell and `<main>` drop their fixed
+  height and the editor's scroll container shows its overflow; the column loses its screen padding.
+
+One document per print: sub-pages are not printed. Notion makes sub-page PDF a paid feature and nothing
+asked for it here.

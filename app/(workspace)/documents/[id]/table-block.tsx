@@ -225,7 +225,7 @@ export function TableBlockView({ block, docRef, registerCellHandler, onChangeAxi
         <div ref={menuRef} role="menu" aria-label={`${menu.axis === "rows" ? "행" : "열"} 작업`}
           style={{ top: menu.top, left: menu.left, width: MENU_WIDTH_PX }}
           onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setMenu(null); }}
-          className="fixed z-40 flex flex-col gap-px rounded-card bg-elev p-1 shadow-elev">
+          className="fixed z-40 flex flex-col gap-px rounded-card bg-elev p-1 shadow-elev print:hidden">
           {MENU_ITEMS[menu.axis].map((item) => (
             <button key={item.label} type="button" role="menuitem" className={MENU_ITEM}
               onClick={() => { setMenu(null); add(menu.axis, menu.id, item.before); }}>{item.label}</button>

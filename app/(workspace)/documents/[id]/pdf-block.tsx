@@ -65,14 +65,14 @@ export function PdfBlockView({
           <button
             type="button"
             onClick={() => setExpanded(true)}
-            className="h-7 rounded-control px-2 text-[13px] font-medium text-ink-soft hover:bg-hover hover:text-ink"
+            className="h-7 rounded-control print:hidden px-2 text-[13px] font-medium text-ink-soft hover:bg-hover hover:text-ink"
           >
             전체 화면
           </button>
         ) : null}
         <a
           href={download}
-          className="flex items-center h-7 rounded-control px-2 text-[13px] font-medium text-ink-soft hover:bg-hover hover:text-ink"
+          className="flex items-center h-7 print:hidden rounded-control px-2 text-[13px] font-medium text-ink-soft hover:bg-hover hover:text-ink"
         >
           내려받기
         </a>
@@ -102,7 +102,7 @@ export function PdfBlockView({
             type="button"
             onClick={() => setConfirmingDelete(true)}
             aria-label={`${name} 블록 삭제`}
-            className="h-7 rounded-control px-2 text-[13px] font-medium text-ink-faint hover:bg-hover hover:text-danger"
+            className="h-7 rounded-control print:hidden px-2 text-[13px] font-medium text-ink-faint hover:bg-hover hover:text-danger"
           >
             삭제
           </button>
@@ -115,7 +115,7 @@ export function PdfBlockView({
           이 파일을 찾을 수 없습니다. 다른 워크스페이스에서 온 블록일 수 있습니다.
         </p>
       ) : (
-        <iframe src={preview} title={name} className="block h-[460px] w-full border-0 bg-paper" />
+        <iframe src={preview} title={name} className="block h-[460px] w-full border-0 bg-paper print:hidden" />
       )}
 
       <FilePreviewDialog
