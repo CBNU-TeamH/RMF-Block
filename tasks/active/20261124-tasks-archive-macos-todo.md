@@ -19,14 +19,19 @@
 - Browser E2E (`e2e/`): no change — no UI or server code.
 - Container smoke (`.github/workflows/ci.yml`): no change — nothing touches startup, auth or networking.
 - By hand, in a throwaway copy of the repo, recorded below: a strict `sed` shim that fails on any `-i`, then a scratch task pair run through `scripts/tasks-archive.sh`. Also `shellcheck` if it is installed, and `pnpm verify:docs`.
-- Commands and observed results (fill in before the PR):
+- Commands and observed results:
+  - A `sed` shim first on `PATH` that exits 1 on any `-i` argument, then a scratch task pair (a relative link to `docs/x.md` written two levels up in both files, plus a root file linking `tasks/active/<slug>-todo.md`) in a throwaway copy of `scripts/` and `tasks/`.
+  - The previous script: `strict-sed: refusing -i`, exit 1.
+  - The new script: exit 0; both moved files' relative links gained two more directory levels; the referrer now points at `tasks/archive/2026/11/…`; the archive index lists the task; no `*.tmp.*` left behind; the moved files stay `-rw-r--r--`.
+  - `shellcheck`: not installed here, so not run. `bash -n scripts/tasks-archive.sh`: clean. `pnpm verify:docs`: clean.
+  - Not run on a real Mac, and not with two slugs in one run (the loop is unchanged).
 
 ## Acceptance
 
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] No `sed -i` is left in `scripts/`.
-- [ ] The archive run under the strict-`sed` shim ends with exit 0 and the three results above.
-- [ ] Not run on a real Mac — the shim stands in for BSD sed's argument parsing, and the PR says so.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] No `sed -i` is left in `scripts/` (the only hits are the two comments explaining why).
+- [x] The archive run under the strict-`sed` shim ends with exit 0 and the three results above.
+- [x] Not run on a real Mac — the shim stands in for BSD sed's argument parsing, and the PR says so.
 
 ## Cross-cutting
 
@@ -34,4 +39,6 @@ No SRS, storage or API change. `AGENTS.md` §2 and `tasks/active/README.md` name
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+Shipped: `sed_in_place` in `scripts/tasks-archive.sh`, used at both call sites; it removes its temp file when `sed` fails, so a failed run leaves nothing for `git add` to pick up. Cut: nothing. Moved: nothing.
+
+Only a real macOS run would show that BSD `sed` accepts the remaining plain `sed SCRIPT FILE` form; it is standard to both, so the risk is low, but it was not exercised.
