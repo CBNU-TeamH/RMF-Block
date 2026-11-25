@@ -34,8 +34,11 @@ export function documentToMarkdown(blocks: Array<Block>, origin: string, links: 
 }
 
 /** A link destination in `<>`, so spaces and brackets in a name need no
- *  escaping; an export's names never hold `<` or `>`. The label escapes `[` and `]`. */
-const link = (label: string, path: string) => `[${label.replace(/[[\]]/g, "\\$&")}](<${path}>)`;
+ *  escaping; an export's names never hold `<` or `>`. A reader still takes `%`
+ *  as an escape and `#` as a fragment, so those two are encoded — only those,
+ *  so a Korean name stays readable. The label escapes `[` and `]`. */
+const link = (label: string, path: string) =>
+  `[${label.replace(/[[\]]/g, "\\$&")}](<${path.replaceAll("%", "%25").replaceAll("#", "%23")}>)`;
 
 function writeBlocks(
   blocks: Array<Block>,

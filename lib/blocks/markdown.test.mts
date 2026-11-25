@@ -152,6 +152,16 @@ describe("documentToMarkdown", () => {
     );
   });
 
+  it("encodes % and # in a path, which a reader would take as an escape and a fragment", () => {
+    assert.equal(
+      documentToMarkdown([{ id: "1", type: "file", fileId: "f1", fileName: "50% #3.txt", fileType: "x", size: 1 }], ORIGIN, {
+        file: () => "문서/50% #3.txt",
+        document: () => null,
+      }),
+      "[50% #3.txt](<문서/50%25 %233.txt>)",
+    );
+  });
+
   it("reads back through the import as the same blocks", () => {
     const blocks: Array<Block> = [
       { id: "1", type: "heading", level: 2, text: "제목" },

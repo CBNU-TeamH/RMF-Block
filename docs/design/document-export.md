@@ -60,7 +60,7 @@ and which files still have bytes. It is pure, so the layout and the names are un
   spaces the list out. The import drops blank lines, so an export reads back as the same blocks.
 - **Links.** An image, PDF or file block points at its file in the zip; a document or block link to an
   exported document points at that document's `.md` (a block link loses its block: a `.md` has no address
-  for one). Both are relative, with the destination in angle brackets so spaces need no escaping. A link to a document
+  for one). Both are relative, with the destination in angle brackets so spaces need no escaping; only `%` and `#`, which a reader takes as an escape and a fragment, are percent-encoded, so a Korean name stays readable. A link to a document
   that is not exported keeps the workspace address, as copying writes it. A file whose bytes are gone is
   written as its name, without a link.
 - **Each file once**, in the folder of the first document that embeds it; a later one links back to it.
