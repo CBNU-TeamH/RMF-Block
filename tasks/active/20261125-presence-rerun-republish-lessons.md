@@ -11,10 +11,12 @@ that the next person does not rediscover this.
 
 ## What we would do differently
 
-- ...
+- A hook test that needs presence can't read it back from a local `yorkie.Document`; wrapping `update` to record each `presence.set` tests what the hook publishes without faking the SDK.
+
 
 ## Worth extracting
 
 Things that should become a convention, a helper, or a line in `AGENTS.md`.
 
-- ...
+- Nothing yet.
+
