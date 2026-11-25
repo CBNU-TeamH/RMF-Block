@@ -42,8 +42,9 @@ One commit per issue. All four are client-only; no server, protocol or REST chan
 - Browser E2E (`e2e/`): no new specs and no local run (user's call for a pre-demo hotfix). The CI E2E step is `continue-on-error`; its result is read, not waited on. Specs that `reload()` right after an edit could meet the new prompt only in the brief window with unsent changes.
 - Container smoke (`.github/workflows/ci.yml`): no change — nothing touches startup, auth or networking on the server.
 - Commands and observed results:
-  - `pnpm exec vitest run` on `chat-panel.test.tsx`, `text-block.test.tsx` and `attach-pool.test.mts`: 3 files, 40 tests passed (2026-11-24, after `/simplify`).
+  - `pnpm exec vitest run` on `chat-panel.test.tsx`, `text-block.test.tsx` and `attach-pool.test.mts`: 3 files, 42 tests passed (2026-11-24, after the CodeRabbit fixes in `791e364`).
   - `pnpm verify:docs`: clean.
+  - CodeRabbit on #287: two fixed in `791e364` (the unload warning now outlasts the detach in flight; a peer's edit expires a stale `/` dismissal), each with a test that fails without the change. Filed, not fixed: #288 (presence-only pending changes still prompt) and #289 (a queued remote edit during an IME composition leaves a stale dismissal). One withdrawn by CodeRabbit (a pasted `/t` over a selected `/`).
   - `/simplify`: one change (`syncSlashQuery`'s reset folded into one condition, `2bdb689`). `/code-review low`: no findings (a shallow pass — 3 tool calls).
   - `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`: not run locally; the pre-push hook and CI cover them.
   - No browser run for #241, #221 and #80: the offline/online toggle, Ctrl+R and the avatar position below were not checked by eye in this task.
