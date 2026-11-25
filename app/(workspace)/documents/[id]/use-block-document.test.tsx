@@ -21,25 +21,14 @@ function recordingClient(published: Array<Published>): Client {
     attach: async (doc: BlockDocument) => {
       const update = doc.update.bind(doc);
       doc.update = ((updater, message) =>
-        update(
-          (root, presence) =>
-            updater(
-              root,
-              new Proxy(presence, {
-                get(target, key) {
-                  if (key === "set") {
-                    return (value: Published, options?: unknown) => {
-                      published.push(value);
-                      return target.set(value as never, options as never);
-                    };
-                  }
-                  const member = Reflect.get(target, key) as unknown;
-                  return typeof member === "function" ? member.bind(target) : member;
-                },
-              }),
-            ),
-          message,
-        )) as BlockDocument["update"];
+        update((root, presence) => {
+          const recorded = Object.create(presence) as typeof presence;
+          recorded.set = (value, options) => {
+            published.push(value as Published);
+            return presence.set(value, options);
+          };
+          return updater(root, recorded);
+        }, message)) as BlockDocument["update"];
     },
     detach: async () => undefined,
   } as unknown as Client;
