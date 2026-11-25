@@ -90,6 +90,42 @@ describe("ChatPanel", () => {
   });
 });
 
+describe("ChatPanel — reconnect (#241)", () => {
+  /** Closes as soon as it is made, the way a socket does while the network is down. */
+  class ClosingSocket {
+    static made = 0;
+    constructor() {
+      ClosingSocket.made += 1;
+    }
+    addEventListener(type: string, listener: () => void) {
+      if (type === "close") queueMicrotask(listener);
+    }
+    close() {}
+  }
+
+  it("reconnects at once when the network returns, not after the backoff", async () => {
+    ClosingSocket.made = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json([])));
+    vi.stubGlobal("WebSocket", ClosingSocket);
+    vi.useFakeTimers();
+    try {
+      render(<ChatPanel me="지은" {...shell} />);
+      await vi.advanceTimersByTimeAsync(0);
+      assert.equal(ClosingSocket.made, 1);
+
+      window.dispatchEvent(new Event("online"));
+      assert.equal(ClosingSocket.made, 2);
+
+      // The 1 s retry the event replaced does not fire on top of it; the
+      // next one, after the new socket's own close, is 2 s out.
+      await vi.advanceTimersByTimeAsync(1500);
+      assert.equal(ClosingSocket.made, 2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("ChatPanel — links (FR-060-01/03/06)", () => {
   const history = [
     { id: "m1", sender: "민수", text: "참고 https://example.com/a. 끝", sentAt: "2026-10-19T00:00:00.000Z" },

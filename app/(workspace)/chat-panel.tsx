@@ -142,15 +142,35 @@ export function ChatPanel({
       // exactly while it is coming back up.
       socket.addEventListener("close", () => {
         if (cancelled) return;
-        retry = setTimeout(connect, Math.min(1000 * 2 ** attempt++, 15000));
+        retry = setTimeout(() => {
+          retry = undefined;
+          connect();
+        }, Math.min(1000 * 2 ** attempt++, 15000));
       });
     };
+
+    // The backoff is for a server coming back up. A network coming back is
+    // something the browser announces, and waiting out a 15 s step after it
+    // left chat silent for ~10 s while the document had caught up (#241).
+    const reconnectNow = () => {
+      if (retry === undefined) return;
+      clearTimeout(retry);
+      retry = undefined;
+      connect();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") reconnectNow();
+    };
+    window.addEventListener("online", reconnectNow);
+    document.addEventListener("visibilitychange", onVisible);
 
     connect();
 
     return () => {
       cancelled = true;
       clearTimeout(retry);
+      window.removeEventListener("online", reconnectNow);
+      document.removeEventListener("visibilitychange", onVisible);
       socket?.close();
     };
   }, [merge, receive]);

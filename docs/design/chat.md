@@ -82,8 +82,10 @@ The panel tracks each
 send as pending or failed so a failure reaches the sender (FR-060-07). A resend after a failed send
 reuses the already-uploaded `fileId` instead of uploading again.
 
-The socket reconnects with exponential backoff up to 15 s, and every (re)open backfills history,
-deduped by message id and ordered by `sentAt`.
+The socket reconnects with exponential backoff up to 15 s — the server restarting is the case it
+waits out — but skips the wait when the browser fires `online` or the tab becomes visible again, so
+chat no longer lags a returned network by up to one backoff step (#241). Every (re)open backfills
+history, deduped by message id and ordered by `sentAt`.
 
 **`ChatService` depends on two small interfaces, not concrete classes**:
 

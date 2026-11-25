@@ -1070,12 +1070,12 @@ export function DocumentEditor({
               <circle cx="8" cy="12" r="1.2" />
             </svg>
           </span>
-          {/* Always visible, unlike the drag handle above it — the point is
-           * noticing someone else mid-scroll, not only on hover. `top-6`
-           * keeps it clear of the handle's `top-0.5` on a block that is both
-           * draggable-by-you and occupied-by-someone-else at once. */}
+          {/* Always visible, unlike the gutter controls — the point is
+           * noticing someone else mid-scroll, not only on hover. On the right
+           * edge, at the first line, because under the drag handle it sat
+           * over the next block's controls (#80). */}
           {occupant ? (
-            <span className="absolute top-8 -left-[24px]">
+            <span className="absolute top-[5px] -right-[28px]">
               <Avatar
                 colorTag={occupant.colorTag}
                 label={occupant.nickname.slice(0, 1)}

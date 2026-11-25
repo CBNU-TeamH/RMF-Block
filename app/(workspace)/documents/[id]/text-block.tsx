@@ -196,6 +196,9 @@ export function TextBlockView({
   // means — Enter splits.
   const slashOpen = slashItems.length > 0;
   const slashListRef = useRef<HTMLUListElement>(null);
+  // The query Escape closed. Without it the next keystroke recomputes the same
+  // query off the text and the menu is back (#148).
+  const dismissedSlashRef = useRef<string | null>(null);
 
   // Keeps the highlighted row on screen: the items can overflow the menu's max height, so
   // arrow keys used to move the highlight somewhere nobody could see. The
@@ -224,10 +227,22 @@ export function TextBlockView({
    *  too — it only moves the menu, never Yorkie — so `/제` narrows while 제 is
    *  still being composed. Behind the composing guard, a query typed through an
    *  IME never reached the menu at all (#103). */
-  const syncSlashQuery = (el: HTMLTextAreaElement) => {
+  const detectSlash = (value: string) =>
     // Every type but code, where `/` is source text (`docs/design/
     // document-editing.md`, "Leaving a code block").
-    const query = cellBinding || variant.type === "code" ? null : detectSlashQuery(el.value);
+    cellBinding || variant.type === "code" ? null : detectSlashQuery(value);
+
+  // Stays closed while the text extends what was dismissed; deleting back
+  // past it, a space or a newline (no query at all) lets it open again.
+  const expireSlashDismissal = (detected: string | null) => {
+    const dismissed = dismissedSlashRef.current;
+    if (dismissed !== null && !detected?.startsWith(dismissed)) dismissedSlashRef.current = null;
+  };
+
+  const syncSlashQuery = (el: HTMLTextAreaElement) => {
+    const detected = detectSlash(el.value);
+    expireSlashDismissal(detected);
+    const query = dismissedSlashRef.current === null ? detected : null;
     if (query !== slashQuery) setSlash(query);
   };
 
@@ -299,6 +314,9 @@ export function TextBlockView({
     el.value = el.value.slice(0, from) + value.content + el.value.slice(to);
     lastSyncedRef.current = el.value;
     if (el !== document.activeElement) setShown(el.value);
+    // A peer's edit can remove the dismissed query without any input event
+    // here, which would leave its dismissal suppressing a fresh `/`.
+    expireSlashDismissal(detectSlash(el.value));
 
     const insertedLength = value.content.length;
     const newStart = shiftCaret(selStart, { from, to, insertedLength });
@@ -425,6 +443,7 @@ export function TextBlockView({
         // Escape dismisses the no-results row as well as the menu.
         if (slashQuery !== null && event.key === "Escape") {
           event.preventDefault();
+          dismissedSlashRef.current = slashQuery;
           setSlash(null);
           return;
         }
@@ -617,6 +636,7 @@ export function TextBlockView({
       onBlur={(event) => {
         // Nothing to type into once focus leaves, so neither the menu nor its
         // 결과 없음 row should outlive it next to a block nobody is in.
+        dismissedSlashRef.current = null;
         setSlash(null);
         setFocused(false);
         setShown(event.currentTarget.value);

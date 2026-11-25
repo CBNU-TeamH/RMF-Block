@@ -103,6 +103,43 @@ describe("TextBlockView's / menu", () => {
     assert.equal(screen.queryByRole("status"), null);
   });
 
+  it("stays closed after Escape while the query goes on, and opens on a fresh / (#148)", () => {
+    const { textarea } = renderBlock();
+    fireEvent.input(textarea, { target: { value: "/" } });
+    fireEvent.keyDown(textarea, { key: "Escape" });
+
+    fireEvent.input(textarea, { target: { value: "/usr" } });
+    assert.deepEqual(menuLabels(), []);
+    assert.equal(screen.queryByRole("status"), null);
+
+    fireEvent.input(textarea, { target: { value: "" } });
+    fireEvent.input(textarea, { target: { value: "/" } });
+    assert.ok(menuLabels().length > 0);
+  });
+
+  it("opens on a fresh / after a peer's edit removed the dismissed query (#148)", () => {
+    const { textarea, remote } = renderBlock();
+    fireEvent.input(textarea, { target: { value: "/t" } });
+    fireEvent.keyDown(textarea, { key: "Escape" });
+
+    act(() => remote({ from: 0, to: 1, value: { content: "" } }));
+    assert.equal(textarea.value, "t");
+
+    fireEvent.input(textarea, { target: { value: "/t" } });
+    assert.ok(menuLabels().length > 0);
+  });
+
+  it("opens again after Escape once the block has lost focus (#148)", () => {
+    const { textarea } = renderBlock();
+    fireEvent.input(textarea, { target: { value: "/" } });
+    fireEvent.keyDown(textarea, { key: "Escape" });
+    fireEvent.blur(textarea);
+    fireEvent.focus(textarea);
+
+    fireEvent.input(textarea, { target: { value: "/t" } });
+    assert.ok(menuLabels().length > 0);
+  });
+
   it("leaves Escape to an open IME composition", () => {
     const { textarea } = renderBlock();
     fireEvent.input(textarea, { target: { value: "/" } });
