@@ -10,6 +10,20 @@ shopt -s nullglob
 
 cd "$(dirname "$0")/.."
 
+# `sed -i 'SCRIPT' FILE` is GNU only: BSD sed (macOS) takes the next argument as
+# a backup suffix and reads the script as the file name, which killed the run
+# partway through (#233). Rewrite through a sibling temp file instead, as
+# `scripts/detect-host-ip.sh` does.
+sed_in_place() {
+  local script=$1 file=$2 tmp="$2.tmp.$$"
+  if sed "$script" "$file" >"$tmp"; then
+    mv "$tmp" "$file"
+  else
+    rm -f "$tmp"
+    return 1
+  fi
+}
+
 if [ $# -eq 0 ]; then
   echo "usage: $0 <task-slug>..." >&2
   echo >&2
@@ -79,7 +93,7 @@ for slug in "${slugs[@]}"; do
   # compound command non-zero and kills the script.
   for moved in "$dest/$slug-todo.md" "$dest/$slug-lessons.md"; do
     if [ -f "$moved" ]; then
-      sed -i 's#](\.\./\.\./#](../../../../#g' "$moved"
+      sed_in_place 's#](\.\./\.\./#](../../../../#g' "$moved"
     fi
   done
 
@@ -93,7 +107,7 @@ for slug in "${slugs[@]}"; do
   referrers=$(grep -rl --include='*.md' "tasks/active/$slug_re-" . 2>/dev/null || true)
   if [ -n "$referrers" ]; then
     echo "$referrers" | while IFS= read -r ref; do
-      sed -i "s#tasks/active/$slug_re-#$dest/$slug-#g" "$ref"
+      sed_in_place "s#tasks/active/$slug_re-#$dest/$slug-#g" "$ref"
     done
   fi
 
