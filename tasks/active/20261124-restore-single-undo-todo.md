@@ -25,6 +25,7 @@
   - Spike (a throwaway test, deleted): with the current two updates, one `undo()` left the document different from before the restore; with both steps in one update, one `undo()` returned it exactly and `redo()` returned the restored blocks. So a `yorkie.Text` re-read from `root.blocks` inside the same update can be edited — the old comment held only for the object before it is assigned.
   - `lib/blocks/restore.test.mts`: a heading, a 2×2 table with two filled cells and a text block replace one text block; one `undo()` gives back the original, `redo()` the restored blocks and cells. The test calls `replaceAllBlocks` inside one update, so it cannot run against the old two-update hook; the spike above is that comparison.
   - `pnpm exec vitest run` on `restore`, `table`, `operations`, `revision-snapshot` and `version-history`: 5 files, 57 tests passed. `tsc --noEmit`: clean. `eslint` on the three touched files: clean. `pnpm verify:docs`: clean.
+  - `/simplify`: no change. It noted that the seed path in `use-block-document.ts` could use `replaceAllBlocks` too; skipped as outside #185 (below the undo floor, and it would touch the documented seeding race). `/code-review low`: no findings, from reading `01e3448` only.
   - No container or browser restore was run (the check this task said to ask about first); the E2E `history.e2e.ts` restore spec runs in CI.
 
 ## Acceptance
