@@ -12,6 +12,7 @@ import { yorkieClientConfig } from "@/lib/yorkie-address";
 import { SessionWatch } from "../session-watch";
 import { Breadcrumb } from "./breadcrumb";
 import { ChatWindow } from "./chat-window";
+import { DocumentExport } from "./document-export";
 import { DocumentList } from "./document-list";
 import { DocumentTabs } from "./document-tabs";
 import { FloatingViewProvider } from "./floating-views";
@@ -109,6 +110,7 @@ export default async function WorkspaceLayout({
                       <PresenceStack memberId={me.id} known={known} />
                       <FocusShare memberId={me.id} />
                       <div id={DOCUMENT_ACTIONS_ID} className="flex items-center empty:hidden" />
+                      <DocumentExport documents={documents} />
                     </header>
                     <main id={MAIN_ID} className="min-h-0 flex-1 overflow-hidden">{children}</main>
                   </div>

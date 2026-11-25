@@ -1,7 +1,8 @@
 # Document export — Module Design
 
 - **Status**: Built. Requirements: FR-022-15, FR-022-16, FR-022-17 and UC-022 E6 in `docs/SRS-ko.md`.
-- **Owns**: `lib/documents/export.ts`, `app/api/documents/[id]/export/route.ts`. A file-level claim inside a directory
+- **Owns**: `lib/documents/export.ts`, `app/api/documents/[id]/export/route.ts`,
+  `app/(workspace)/document-export.tsx`. A file-level claim inside a directory
   [`document-editing.md`](document-editing.md) owns, so the more specific claim wins — the shape
   [`version-history.md`](version-history.md) uses.
 - **Related**: [`document-editing.md`](document-editing.md) ("Selecting and copying blocks" — the
@@ -25,6 +26,20 @@ as a zip. This keeps the parts asked for and drops the rest:
   one file, not a zip of one file.
 - **The sub-page question only when there are sub-pages**, and always as folders — no folder toggle.
 - **No "exclude files".** A file block without its file is a dead link.
+
+## The menu
+
+A ··· at the right end of the document bar (`document-export.tsx`), after version history, with
+**Markdown (.md)** and **PDF로 인쇄**. The layout renders it beside the breadcrumb and hands it the same
+catalogue: it needs only the open document's id and its sub-page count, so unlike version history it is
+not drawn by the editor into the bar's slot.
+
+- **Markdown** with no sub-pages downloads at once. With sub-pages a dialog asks "하위 문서 N개도 함께
+  내보낼까요?" — N counts every level, as the delete warning does — with **이 문서만** and **하위 문서 포함**.
+- The download goes through `fetch` and a blob URL rather than a plain link, so a failed export (Yorkie
+  down) is a message in a dialog, not an error page in place of the editor. The file name is the one the
+  server put in `Content-Disposition`, since only the server knows whether it built a `.md` or a zip.
+- **PDF로 인쇄** is `window.print()`; Ctrl+P does the same. See [Printing](#printing).
 
 ## Markdown: what the export holds
 
@@ -73,3 +88,4 @@ from its bind address.
 
 The zip is built in memory (fflate's `zipSync`): a LAN workspace's documents and its 25MB-per-file uploads
 fit, and nothing has to be cleaned up afterwards.
+
