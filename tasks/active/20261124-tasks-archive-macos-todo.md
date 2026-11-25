@@ -25,6 +25,7 @@
   - The new script: exit 0; both moved files' relative links gained two more directory levels; the referrer now points at `tasks/archive/2026/11/…`; the archive index lists the task; no `*.tmp.*` left behind; the moved files stay `-rw-r--r--`.
   - `shellcheck`: not installed here, so not run. `bash -n scripts/tasks-archive.sh`: clean. `pnpm verify:docs`: clean.
   - Not run on a real Mac, and not with two slugs in one run (the loop is unchanged).
+  - `/simplify`: no change (a 14-line diff, read directly rather than through four agents). `/code-review low`: one nit (the `mv` resets a file's mode to the umask default), declined — git tracks only the executable bit and the files are `.md`. The review also listed files outside this diff, so it is not evidence the diff was read closely.
 
 ## Acceptance
 
