@@ -120,6 +120,11 @@ export function useBlockDocument(
 
       // Not trusted to `acquire` — `docs/design/floating-view.md`.
       doc.update((_root, presence) => presence.set({ colorTag, nickname }));
+      // A re-run (Strict Mode's second pass, a changed nickname) follows the
+      // cleanup that cleared this browser's block. Put it back now, not at the
+      // next heartbeat (#127).
+      const focused = focusedBlockIdRef.current;
+      if (focused) publishActiveBlock(doc, focused);
 
       // Two peers can both seed an empty document — a known `#42`-material race
       // (`docs/design/document-editing.md`). One made from a Markdown file is

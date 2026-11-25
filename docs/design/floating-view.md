@@ -47,7 +47,9 @@ never drawn on anyone's block. Sharing imposes three rules on the editor:
   (`use-block-document.ts`), because a release no longer detaches. With a floating view still
   holding it, peers would otherwise see this browser on its last block until the 30 s occupancy
   TTL, and followers would see a presenter's old ink on returning to a document the presenter's
-  own screen had already cleared.
+  own screen had already cleared. When the effect only re-runs (Strict Mode's second pass, a changed
+  color or nickname), the next run republishes the focused block as soon as it re-acquires, so peers
+  do not lose the highlight until the next heartbeat ([#127](https://github.com/CBNU-TeamH/RMF-Block/issues/127)).
 - **`docRef` is cleared in the cleanup itself, not once setup settles.** Every run gets the same
   document, so a late `docRef.current === held` check would clear the *next* run's ref, and under
   Strict Mode that drops every edit.
