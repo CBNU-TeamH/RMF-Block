@@ -8,6 +8,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Demo hotfixes: chat reconnect, unsent-edit warning, occupant avatar, dismissed / menu](2026/11/20261123-demo-hotfixes-todo.md) | [lessons](2026/11/20261123-demo-hotfixes-lessons.md) |
 | [Say 미리보기 불가 where a file cannot be previewed](2026/11/20261122-preview-unavailable-notice-todo.md) | [lessons](2026/11/20261122-preview-unavailable-notice-lessons.md) |
 | [System tests for the requirements the D07 test report left unexercised](2026/11/20261118-system-tests-untested-frs-todo.md) | [lessons](2026/11/20261118-system-tests-untested-frs-lessons.md) |
 | [Perf harness: don't race the follower's release at share end](2026/11/20261118-perf-present-race-todo.md) | [lessons](2026/11/20261118-perf-present-race-lessons.md) |

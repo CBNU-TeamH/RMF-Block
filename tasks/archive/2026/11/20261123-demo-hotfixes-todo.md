@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-23
 **Issue**: #241, #221, #80, #148 — bundled as one task ahead of recording the demo video
-**Design**: [chat.md](../../docs/design/chat.md), [document-editing.md](../../docs/design/document-editing.md), [presence-and-focus.md](../../docs/design/presence-and-focus.md)
+**Design**: [chat.md](../../../../docs/design/chat.md), [document-editing.md](../../../../docs/design/document-editing.md), [presence-and-focus.md](../../../../docs/design/presence-and-focus.md)
 
 ## Milestones
 
