@@ -91,6 +91,16 @@ describe("GET /api/documents/[id]/export", () => {
     assert.deepEqual([...files["회의록/1차/도표.png"]!], [1, 2, 3]);
   });
 
+  it("fails rather than leave out a file the store could not read", async () => {
+    vi.mocked(currentMember).mockResolvedValue(MEMBER);
+    vi.mocked(readDocumentRoots).mockResolvedValue(
+      new Map([["doc-a", root({ id: "b1", type: "image", content: { fileId: "f1", fileName: "a.png", size: 3 } })]]),
+    );
+    vi.mocked(fileRepository.read).mockRejectedValueOnce(Object.assign(new Error("permission denied"), { code: "EACCES" }));
+
+    await assert.rejects(get("doc-a"), /permission denied/);
+  });
+
   it("writes a file the store no longer lists as its name, without fetching it", async () => {
     vi.mocked(currentMember).mockResolvedValue(MEMBER);
     vi.mocked(readDocumentRoots).mockResolvedValue(

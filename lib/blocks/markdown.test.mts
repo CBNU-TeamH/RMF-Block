@@ -152,13 +152,13 @@ describe("documentToMarkdown", () => {
     );
   });
 
-  it("encodes % and # in a path, which a reader would take as an escape and a fragment", () => {
+  it("encodes %, # and & in a path, which a reader would take as an escape, a fragment and an entity", () => {
     assert.equal(
-      documentToMarkdown([{ id: "1", type: "file", fileId: "f1", fileName: "50% #3.txt", fileType: "x", size: 1 }], ORIGIN, {
-        file: () => "문서/50% #3.txt",
+      documentToMarkdown([{ id: "1", type: "file", fileId: "f1", fileName: "50% #3 &copy;.txt", fileType: "x", size: 1 }], ORIGIN, {
+        file: () => "문서/50% #3 &copy;.txt",
         document: () => null,
       }),
-      "[50% #3.txt](<문서/50%25 %233.txt>)",
+      "[50% #3 &copy;.txt](<문서/50%25 %233 %26copy;.txt>)",
     );
   });
 

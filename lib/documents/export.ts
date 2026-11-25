@@ -63,15 +63,18 @@ export function planExport({
   const exported = new Set(ids);
   const rootName = safeName(byId.get(rootId)?.name ?? "");
 
-  // Names already used in each folder, compared without case as Windows does.
+  // Names already used in each folder, compared without case as Windows does and
+  // in one Unicode form as macOS does — a Korean name uploaded from a Mac is
+  // decomposed, the same name from Windows is not.
   const taken = new Map<string, Set<string>>();
+  const key = (name: string) => name.normalize("NFC").toLowerCase();
   const claim = (folder: string, candidates: (n: number) => Array<string>): string => {
     const used = taken.get(folder) ?? new Set<string>();
     taken.set(folder, used);
     for (let n = 1; ; n += 1) {
       const names = candidates(n);
-      if (names.some((name) => used.has(name.toLowerCase()))) continue;
-      for (const name of names) used.add(name.toLowerCase());
+      if (names.some((name) => used.has(key(name)))) continue;
+      for (const name of names) used.add(key(name));
       return names[0]!;
     }
   };

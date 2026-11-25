@@ -25,6 +25,8 @@ test("a text-only document downloads as one .md in the import's own Markdown (FR
   await openDocument(page, id);
   await paste(page, await firstBlockId(page), "## 제목\n본문입니다.\n- 하나\n- 둘");
   await expect.poll(async () => (await blockValues(page)).map((row) => row.text).slice(0, 4)).toEqual(["제목", "본문입니다.", "하나", "둘"]);
+  // The export reads what Yorkie stored, which the paste reaches a moment after the screen does.
+  await expect.poll(async () => (await page.request.get(`/api/documents/${id}/export`)).text()).toContain("- 둘");
 
   const { name: fileName, bytes } = await exportMarkdown(page);
 
@@ -75,9 +77,12 @@ test("print media shows the document and hides the workspace around it (FR-022-1
   const id = await createDocument(page, `e2e print ${Date.now()}`);
   await openDocument(page, id);
   const first = await firstBlockId(page);
-  await insertAt(page, first, 0, "인쇄할 본문");
+  await insertAt(page, first, 0, "인쇄할 본문 ".repeat(40));
 
   await page.emulateMedia({ media: "print" });
+  // A page is narrower than the screen the block was sized on: every wrapped line still has to fit.
+  await page.setViewportSize({ width: 500, height: 800 });
+  await expect.poll(() => block(page, first).evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
 
   await expect(block(page, first)).toBeVisible();
   await expect(page.getByRole("complementary")).toBeHidden();

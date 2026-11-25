@@ -8,6 +8,7 @@ import { embeddedFileIds, planExport } from "@/lib/documents/export";
 import { subtreeIds } from "@/lib/documents/tree";
 import { fileRepository } from "@/lib/files/file-repository";
 import { attachmentHeaders } from "@/lib/files/serving";
+import { InvalidFileIdError } from "@/lib/files/types";
 import { readDocumentRoots, yorkieAdminAddr } from "@/lib/yorkie-admin";
 
 /** A document as Markdown (FR-022-15/16): one `.md`, or a zip with its files and,
@@ -41,7 +42,17 @@ export async function GET(
   // Only files the store still lists — a trashed document's are hidden from it.
   const listed = new Set((await fileRepository.list()).map((file) => file.id));
   const wanted = [...embeddedFileIds(blocks)].filter((fileId) => listed.has(fileId));
-  const read = await Promise.all(wanted.map((fileId) => fileRepository.read(fileId).catch(() => null)));
+  // A missing file (`null`) or an id the store could not have issued is left out
+  // of the export; any other read failure fails it, rather than sending a zip
+  // that is quietly short of a file.
+  const read = await Promise.all(
+    wanted.map((fileId) =>
+      fileRepository.read(fileId).catch((error: unknown) => {
+        if (error instanceof InvalidFileIdError) return null;
+        throw error;
+      }),
+    ),
+  );
   const bytes = new Map(wanted.flatMap((fileId, index) => (read[index] ? [[fileId, read[index]] as const] : [])));
 
   const plan = planExport({

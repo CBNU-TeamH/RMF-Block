@@ -600,7 +600,7 @@ flowchart LR
 **E6. Export a document**
   1. User 1 chooses Markdown or Print to PDF from the export menu in the document bar.
   2. (Markdown) If the document has sub-pages, the system asks whether to export them too.
-  3. (Markdown) With no attachments and no sub-pages the system downloads one .md file; otherwise it downloads a .zip holding the .md file with its attachments and sub-pages.
+  3. (Markdown) With no attachments and no sub-pages included, the system downloads one .md file; otherwise it downloads a .zip holding the .md file with its attachments and the included sub-pages.
   4. (PDF) The system opens a print view holding only the document content, so the browser can save it as PDF. |
 | Outcome |  • The modified block's information (block position, text content, modification time) is shown on every user's screen in real time. |
 | Notes |  • The grace period is set to 30000 ms (30 seconds). |

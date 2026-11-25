@@ -173,15 +173,15 @@ export function TableBlockView({ block, docRef, registerCellHandler, onChangeAxi
       ) : (
         <button type="button" className={`absolute -top-1 right-0 z-10 h-5 ${BUTTON} ${REVEAL}`} onClick={() => setConfirmingDelete(true)}>표 삭제</button>
       )}
-      <div className="mb-5 mr-5 overflow-x-auto pl-5 pt-5">
-        <table aria-label="표" className="w-full border-collapse text-ink">
+      <div className="mb-5 mr-5 overflow-x-auto pl-5 pt-5 print:overflow-visible">
+        <table aria-label="표" className="w-full border-collapse text-ink print:table-fixed">
           <tbody>{block.rows.map((rowId, rowIndex) => (
             <tr key={rowId} data-table-row-id={rowId}>{block.columns.map((columnId, columnIndex) => {
               const key = cellKey(rowId, columnId);
               return (
                 <td key={columnId} data-table-column-id={columnId}
                   role={rowIndex === 0 ? "columnheader" : "cell"}
-                  className={`relative border border-line px-3 py-2 align-top ${rowIndex === 0 ? "bg-hover font-semibold" : ""}`}
+                  className={`relative border border-line px-3 py-2 align-top print:min-w-0! ${rowIndex === 0 ? "bg-hover font-semibold" : ""}`}
                   style={{ minWidth: 140 }}>
                   {rowIndex === 0 && (
                     <>

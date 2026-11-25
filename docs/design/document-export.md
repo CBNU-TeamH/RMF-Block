@@ -57,7 +57,9 @@ and which files still have bytes. It is pure, so the layout and the names are un
 
 - **The text** is `documentToMarkdown` (`lib/blocks/markdown.ts`) — the writer copying uses, with blocks a
   blank line apart so a reader keeps each its own paragraph. List items stay one line apart, or a reader
-  spaces the list out. The import drops blank lines, so an export reads back as the same blocks.
+  spaces the list out. The import drops blank lines, so the text blocks — paragraphs, headings, lists,
+  checklists, quotes, code, dividers — read back as the same blocks. Files and document links do not: the
+  import has no file store to point into, and a link into the export is a path, not a workspace address.
 - **Links.** An image, PDF or file block points at its file in the zip; a document or block link to an
   exported document points at that document's `.md` (a block link loses its block: a `.md` has no address
   for one). Both are relative, with the destination in angle brackets so spaces need no escaping; only `%` and `#`, which a reader takes as an escape and a fragment, are percent-encoded, so a Korean name stays readable. A link to a document
@@ -67,7 +69,8 @@ and which files still have bytes. It is pure, so the layout and the names are un
 - **Names** come from the catalogue and the blocks, and are made safe for every common file system
   (`safeName`): `\ / : * ? " < > |` and control characters become `_`, trailing dots and spaces go, a
   Windows device name (`CON`, `NUL`…) gets a leading `_`, an empty one is `제목 없음`. A name repeated in
-  one folder — compared without case, as Windows does — gets ` (2)`; a sub-page claims both its `.md` and
+  one folder — compared without case, as Windows does, and in one Unicode form (NFC), as macOS does —
+  gets ` (2)`; a sub-page claims both its `.md` and
   its folder's name, so an attachment cannot take the folder's.
 - **Trashed documents** are not in the catalogue, so they are not exported, and neither are their files.
 
@@ -109,6 +112,10 @@ print, through Tailwind's `print:` variant:
 - **The whole document prints, not one screen of it.** The shell is exactly the viewport's height and the
   editor scrolls inside it (`app-shell.md`), so in print the root, the shell and `<main>` drop their fixed
   height and the editor's scroll container shows its overflow; the column loses its screen padding.
+- **Every line of a block prints.** A textarea's height is set by script to the lines it wrapped into on
+  screen, and a page is narrower, so in print it sizes to its own text instead (`field-sizing: content`
+  in `app/globals.css`; a browser without it keeps the screen's height). A wide table drops its
+  scrolling and its cells' minimum width in print, so every column fits the page.
 
 One document per print: sub-pages are not printed. Notion makes sub-page PDF a paid feature and nothing
 asked for it here.

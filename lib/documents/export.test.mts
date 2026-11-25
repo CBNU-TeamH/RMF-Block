@@ -115,6 +115,15 @@ describe("planExport", () => {
       "루트/X (2).png",
     ]);
   });
+
+  it("treats a name's composed and decomposed Unicode forms as the same name", () => {
+    const composed = "회의.png";
+    const result = plan([{ id: "a", name: "루트" }], {
+      a: [image("1", "f1", composed), image("2", "f2", composed.normalize("NFD"))],
+    });
+
+    assert.deepEqual(paths(result), ["루트.md", `루트/${composed}`, `루트/${"회의 (2)".normalize("NFD")}.png`]);
+  });
 });
 
 describe("safeName", () => {
