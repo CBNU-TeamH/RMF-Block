@@ -33,6 +33,7 @@ So the cleanup stays as it is. The re-run republishes what it just cleared. Deci
   - The risk above came true: a document no server attached keeps no presence (`getMyPresence()` stays empty), so the new `use-block-document.test.tsx` records what the hook publishes instead — the fake client wraps the real local document's `update` and logs each `presence.set`. Nothing moved out of the hook.
   - The test: focus a block, change the nickname (an effect re-run), and within a fifth of `OCCUPANCY_TICK_MS` see the cleanup's clear followed by a publish of the same block under the new nickname; with nothing focused, no block is published. Without the new two lines the first case fails with "the re-run republished it"; with them both pass.
   - `pnpm exec vitest run "app/(workspace)/documents/[id]/" lib/documents`: 13 files, 125 tests passed (before the new test's type fix; the file alone passes after it). `tsc --noEmit`: clean. `eslint` on the two touched files: clean. `pnpm verify:docs`: clean.
+  - `/simplify`: the test's recording presence now uses `Object.create(presence)` with only `set` replaced, instead of a `Proxy` (`b5b4ce3`); rechecked that the test still fails without the fix. Skipped: folding the identity update into `publishActiveBlock` when a block is focused — one presence write saved, only on a re-run. `/code-review low` on `upstream/main...HEAD`: no findings, a one-call pass.
   - No browser run: the flicker was never reproduced there (the issue says so).
 
 ## Acceptance
