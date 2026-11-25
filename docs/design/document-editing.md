@@ -293,7 +293,7 @@ during IME composition. A final text snapshot reconciles structural fragment rem
 replacement; it is not used to infer ordinary edit positions. Scalar block text keeps its existing
 operation routing.
 Version snapshots flatten nested cell Text nodes; restore creates empty CRDT nodes first and
-then fills them, following the existing two-update restore path (including issue #185).
+then fills them in the same update, so a restore is one undo step (#185).
 
 `/table` or `/표` inserts a 3×3 table above the command paragraph and focuses its first cell.
 The first visible row is always a header. Controls stay out of the way until the pointer is over

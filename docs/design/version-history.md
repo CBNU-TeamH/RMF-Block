@@ -4,7 +4,7 @@
   [Verification](#verification). Requirements: UC-090 and FR-090-01..13 in `docs/SRS-ko.md`,
   added with team agreement (`AGENTS.md` §5), closing the gap
   [issue #23](https://github.com/CBNU-TeamH/RMF-Block/issues/23) recorded.
-- **Owns**: `lib/blocks/revision-snapshot.ts`, `lib/documents/revisions.ts`,
+- **Owns**: `lib/blocks/revision-snapshot.ts`, `lib/blocks/restore.ts`, `lib/documents/revisions.ts`,
   `app/(workspace)/documents/[id]/version-history.tsx`. Each is a file-level claim inside a
   directory [`document-editing.md`](document-editing.md) owns, so the more specific claim wins —
   the same shape [`presence-and-focus.md`](presence-and-focus.md) already uses.
@@ -56,11 +56,13 @@ while the same edits without the restore undo cleanly. On 0.7.23 the re-parse al
 [the 0.7.28 bump's task](../../tasks/active/20261117-yorkie-0728-todo.md).
 
 So the app does the restore itself: `getRevision` returns a correct snapshot, `revision-snapshot.ts` reads it,
-and the blocks are written back with two `doc.update()` calls — the array first with empty
-`yorkie.Text` values (`toStoredBlock` already does exactly this), then each text filled, because a
-`Text` cannot be edited before it is in the tree.
+and the blocks are written back in one `doc.update()` (`replaceAllBlocks`, `lib/blocks/restore.ts`) —
+the array first with empty `yorkie.Text` values (`toStoredBlock` already does exactly this), then each
+text filled through the re-read array, since a `Text` can only be edited once it is in the tree. One
+update is one step on the undo stack, so one Ctrl+Z takes a restore back; two updates took two
+([#185](https://github.com/CBNU-TeamH/RMF-Block/issues/185)).
 
-A table block keeps each cell's `Text` nested under `content.table.cells`. `revision-snapshot.ts` flattens those nodes into the cell strings, and the second update fills them with `fillTable` after the empty nodes exist ([`document-editing.md`](document-editing.md), "Table block").
+A table block keeps each cell's `Text` nested under `content.table.cells`. `revision-snapshot.ts` flattens those nodes into the cell strings, and the same update fills them with `fillTable` after the empty nodes exist ([`document-editing.md`](document-editing.md), "Table block").
 
 Four consequences, all of them simplifications:
 
