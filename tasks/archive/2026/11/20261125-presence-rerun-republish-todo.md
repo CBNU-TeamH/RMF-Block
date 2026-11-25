@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-25
 **Issue**: #127
-**Design**: [floating-view.md](../../docs/design/floating-view.md) ("One attachment per document, shared", the second rule); [presence-and-focus.md](../../docs/design/presence-and-focus.md).
+**Design**: [floating-view.md](../../../../docs/design/floating-view.md) ("One attachment per document, shared", the second rule); [presence-and-focus.md](../../../../docs/design/presence-and-focus.md).
 
 ## Plan
 

@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-24
 **Issue**: #185
-**Design**: [version-history.md](../../docs/design/version-history.md) ("Why the app restores instead of calling `restoreRevision`"); [document-editing.md](../../docs/design/document-editing.md) ("Undo is per person").
+**Design**: [version-history.md](../../../../docs/design/version-history.md) ("Why the app restores instead of calling `restoreRevision`"); [document-editing.md](../../../../docs/design/document-editing.md) ("Undo is per person").
 
 ## Milestones
 
