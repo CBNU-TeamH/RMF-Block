@@ -184,4 +184,6 @@ automatic-revision label are in `tasks/archive/2026/09/20260922-version-history-
 `lib/blocks/revision-snapshot.test.mts` asserts the reader against a snapshot captured from a
 running server rather than a hand-written one, because the characters the reader exists for — a
 paren, an unbalanced bracket, an escaped quote — are the ones a hand-written sample would leave
-out.
+out. The same file reads a live document's root for an export (`readRootBlocks`): that root is plain
+JSON rather than YSON, so it shares everything after the unwrap
+([`document-export.md`](document-export.md)).
