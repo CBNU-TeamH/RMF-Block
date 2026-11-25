@@ -19,14 +19,14 @@ export type MarkdownLinks = {
  *  "Selecting and copying blocks". `only` picks the blocks written; list numbers
  *  still count from the whole of `blocks`, so item 3 is copied as `3.`. */
 export function blocksToMarkdown(blocks: Array<Block>, origin: string, only?: Set<Block["id"]>): string {
-  return writeBlocks(blocks, origin, only).map(({ text }) => text).join("\n");
+  return writeBlocks(blocks, origin, { only }).map(({ text }) => text).join("\n");
 }
 
 /** A whole document as a `.md` file. Blocks are a blank line apart, so a reader
  *  keeps each its own paragraph — the import drops those lines again — except
  *  between list items, which a blank line would space out. */
 export function documentToMarkdown(blocks: Array<Block>, origin: string, links: MarkdownLinks): string {
-  const written = writeBlocks(blocks, origin, undefined, links);
+  const written = writeBlocks(blocks, origin, { links });
   const listLike = (type: Block["type"]) => type === "list" || type === "checklist";
   return written
     .map(({ type, text }, index) => (index > 0 && !(listLike(type) && listLike(written[index - 1]!.type)) ? `\n${text}` : text))
@@ -40,8 +40,7 @@ const link = (label: string, path: string) => `[${label.replace(/[[\]]/g, "\\$&"
 function writeBlocks(
   blocks: Array<Block>,
   origin: string,
-  only?: Set<Block["id"]>,
-  links?: MarkdownLinks,
+  { only, links }: { only?: Set<Block["id"]>; links?: MarkdownLinks } = {},
 ): Array<{ type: Block["type"]; text: string }> {
   const numbers = orderedListNumbers(blocks);
   const written: Array<{ type: Block["type"]; text: string }> = [];
@@ -96,13 +95,13 @@ function writeBlocks(
       case "image":
       case "pdf":
       case "file": {
+        const bang = block.type === "image" ? "!" : "";
         if (links) {
           const path = links.file(block.fileId);
-          push(path ? `${block.type === "image" ? "!" : ""}${link(block.fileName, path)}` : block.fileName);
-          return;
+          push(path ? `${bang}${link(block.fileName, path)}` : block.fileName);
+        } else {
+          push(`${bang}[${block.fileName}](${origin}/api/files/${block.fileId}/${bang ? "preview" : "download"})`);
         }
-        const href = `${origin}/api/files/${block.fileId}/${block.type === "image" ? "preview" : "download"}`;
-        push(`${block.type === "image" ? "!" : ""}[${block.fileName}](${href})`);
         return;
       }
       case "doc-link":

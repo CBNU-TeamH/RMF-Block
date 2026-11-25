@@ -1,6 +1,6 @@
 import { documentToMarkdown } from "../blocks/markdown.ts";
 import type { Block } from "../blocks/types.ts";
-import { childrenOf, subtreeIds, type TreeNode } from "./tree.ts";
+import { childrenOf, type TreeNode } from "./tree.ts";
 
 /** What a Markdown export holds and where (FR-022-15/16). The layout, the
  *  naming rules and why the server builds it: `docs/design/document-export.md`. */
@@ -9,18 +9,12 @@ export type ExportDocument = TreeNode & { name: string };
 
 export type ExportEntry = { path: string; text: string } | { path: string; fileId: string };
 
-export type ExportPlan = {
-  /** `<name>.md` when the export is that one file, `<name>.zip` otherwise. */
-  fileName: string;
-  entries: Array<ExportEntry>;
-};
+/** One `.md` when that is all there is, a zip otherwise. */
+export type ExportPlan =
+  | { kind: "markdown"; fileName: string; text: string }
+  | { kind: "zip"; fileName: string; entries: Array<ExportEntry> };
 
 const UNTITLED = "제목 없음";
-
-/** The documents an export holds: `rootId`, and with `includeSubpages` everything under it. */
-export function exportedIds(documents: Array<TreeNode>, rootId: string, includeSubpages: boolean): Array<string> {
-  return includeSubpages ? subtreeIds(documents, rootId) : [rootId];
-}
 
 /** Every file id the exported documents' blocks embed, for the caller to look up. */
 export function embeddedFileIds(blocks: Map<string, Array<Block>>): Set<string> {
@@ -47,26 +41,25 @@ export function safeName(name: string): string {
  * and sub-pages — sits in a `<name>/` folder beside it, and each sub-page does
  * the same inside that. One entry means a bare `.md`, more mean a zip.
  *
- * `blocks` has an entry for each exported document (an empty list for one never
- * opened); `hasFile` says whether a file's bytes can still be read.
+ * `ids` are the exported documents, the root first and each parent before its
+ * children (`subtreeIds`' order); `blocks` holds their blocks (an empty list for
+ * one never opened); `hasFile` says whether a file's bytes can still be read.
  */
 export function planExport({
   documents,
-  rootId,
-  includeSubpages,
+  ids,
   blocks,
   hasFile,
   origin,
 }: {
   documents: Array<ExportDocument>;
-  rootId: string;
-  includeSubpages: boolean;
+  ids: Array<string>;
   blocks: Map<string, Array<Block>>;
   hasFile: (fileId: string) => boolean;
   origin: string;
 }): ExportPlan {
   const byId = new Map(documents.map((document) => [document.id, document]));
-  const ids = exportedIds(documents, rootId, includeSubpages);
+  const [rootId] = ids as [string];
   const exported = new Set(ids);
   const rootName = safeName(byId.get(rootId)?.name ?? "");
 
@@ -84,8 +77,7 @@ export function planExport({
   };
   const numbered = (name: string, n: number) => (n === 1 ? name : `${name} (${n})`);
 
-  // Where each document's `.md` and folder go. `subtreeIds` is breadth-first,
-  // so a parent is placed before its children.
+  // Where each document's `.md` and folder go, a parent before its children.
   const markdownPath = new Map([[rootId, `${rootName}.md`]]);
   const folderOf = new Map([[rootId, rootName]]);
   for (const id of ids) {
@@ -129,7 +121,10 @@ export function planExport({
   });
   for (const [fileId, path] of filePath) entries.push({ path, fileId });
 
-  return { fileName: entries.length === 1 ? `${rootName}.md` : `${rootName}.zip`, entries };
+  const [only] = entries;
+  return entries.length === 1 && only && "text" in only
+    ? { kind: "markdown", fileName: `${rootName}.md`, text: only.text }
+    : { kind: "zip", fileName: `${rootName}.zip`, entries };
 }
 
 /** `to` as seen from the file `from`, both paths in the export. */

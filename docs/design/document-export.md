@@ -87,7 +87,9 @@ the export is written with the `Host` the browser sent, since the custom server 
 from its bind address.
 
 The zip is built in memory (fflate's `zipSync`): a LAN workspace's documents and its 25MB-per-file uploads
-fit, and nothing has to be cleaned up afterwards.
+fit, and nothing has to be cleaned up afterwards. Only the `.md` files are deflated; attachments are stored
+as they are, since images and PDFs are compressed already and deflating them would only hold the process
+that also serves the workspace's sockets.
 
 ## Printing
 
@@ -97,7 +99,8 @@ print, through Tailwind's `print:` variant:
 
 - **The workspace around the document is hidden**: the sidebar, the tab strip, the document bar, the chat
   window and its bar, floating views, the focus-share notices, toasts, the presenter's ink and its
-  toolbar, the history overlay and open menus.
+  toolbar, the history overlay, the editor's own prompts (a new page's name, the link picker) and open
+  menus.
 - **So is each block's gutter**: drag handle, ··· menu, float button, occupant avatar and outline, and the
   "파일 추가" row under the document. Most gutter controls are already transparent unless hovered, but
   the focused block shows its own, and Ctrl+P can come from inside one.

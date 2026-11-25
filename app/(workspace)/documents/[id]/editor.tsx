@@ -63,7 +63,7 @@ import { useFileUpload } from "./use-file-upload";
  *  64px either side for the block handles. */
 const COLUMN = "mx-auto flex w-full max-w-[888px] flex-1 flex-col px-16 pt-16 pb-[200px] print:p-0";
 /** The editor's two in-page overlays share the workspace dialog look. */
-const OVERLAY = "fixed inset-0 z-30 flex items-start justify-center bg-scrim px-5 pt-[18vh]";
+const OVERLAY = "fixed inset-0 z-30 flex items-start justify-center bg-scrim px-5 pt-[18vh] print:hidden";
 /** `pl-8`: a text block's 24px marker slot (`INDENT_STEP`) plus its 8px gap,
  *  so the title lines up with the text under it. */
 const TITLE_ROW = "mb-7 flex items-start gap-2 pl-8";

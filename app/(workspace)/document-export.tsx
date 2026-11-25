@@ -40,8 +40,7 @@ export function DocumentExport({ documents }: { documents: Array<WorkspaceDocume
 
   if (!target) return null;
 
-  async function download(includeSubpages: boolean) {
-    if (!target) return;
+  const download = async (includeSubpages: boolean) => {
     setPending(includeSubpages ? "all" : "only");
     try {
       const response = await fetch(`/api/documents/${encodeURIComponent(target.id)}/export?subpages=${includeSubpages ? 1 : 0}`);
@@ -55,7 +54,7 @@ export function DocumentExport({ documents }: { documents: Array<WorkspaceDocume
       const url = URL.createObjectURL(await response.blob());
       const link = window.document.createElement("a");
       link.href = url;
-      link.download = fileNameOf(response.headers.get("Content-Disposition")) ?? `${target.name}.md`;
+      link.download = fileNameOf(response.headers.get("Content-Disposition")) ?? target.name;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), REVOKE_AFTER_MS);
       setPrompt(null);
@@ -64,9 +63,7 @@ export function DocumentExport({ documents }: { documents: Array<WorkspaceDocume
     } finally {
       setPending(null);
     }
-  }
-
-  const subpages = subtreeIds(documents, target.id).length - 1;
+  };
 
   return (
     <>
@@ -76,7 +73,11 @@ export function DocumentExport({ documents }: { documents: Array<WorkspaceDocume
           {
             label: "Markdown (.md)",
             icon: icon(<path d="M8 2.5v8M4.5 7L8 10.5 11.5 7M3 13.5h10" />),
-            onSelect: () => (subpages > 0 ? setPrompt({ kind: "subpages", count: subpages }) : void download(false)),
+            onSelect: () => {
+              const count = subtreeIds(documents, target.id).length - 1;
+              if (count > 0) setPrompt({ kind: "subpages", count });
+              else void download(false);
+            },
           },
           {
             label: "PDF로 인쇄",
@@ -131,10 +132,5 @@ export function DocumentExport({ documents }: { documents: Array<WorkspaceDocume
 /** The name `attachmentHeaders` (`lib/files/serving.ts`) wrote into `filename*`. */
 function fileNameOf(disposition: string | null): string | null {
   const encoded = disposition?.match(/filename\*=UTF-8''([^;]+)/)?.[1];
-  if (!encoded) return null;
-  try {
-    return decodeURIComponent(encoded);
-  } catch {
-    return null;
-  }
+  return encoded ? decodeURIComponent(encoded) : null;
 }

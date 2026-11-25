@@ -56,8 +56,9 @@ export function readRevisionBlocks(snapshot: string): Array<Block> {
 export function readRootBlocks(root: string): Array<Block> {
   try {
     return blocksOfRoot(JSON.parse(root));
-  } catch {
-    return [];
+  } catch (error) {
+    if (error instanceof SyntaxError) return [];
+    throw error;
   }
 }
 
