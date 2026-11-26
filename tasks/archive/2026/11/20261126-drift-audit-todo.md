@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-26
 **Issue**: #260
-**Design**: [`.claude/skills/doc-drift-audit/SKILL.md`](../../.claude/skills/doc-drift-audit/SKILL.md) — the procedure; this task is one run of it
+**Design**: [`.claude/skills/doc-drift-audit/SKILL.md`](../../../../.claude/skills/doc-drift-audit/SKILL.md) — the procedure; this task is one run of it
 
 ## Milestones
 

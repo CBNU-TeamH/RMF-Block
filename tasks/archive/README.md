@@ -8,6 +8,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 
 | Task | Lessons |
 | :--- | :--- |
+| [Drift audit: the design docs against the code since #228](2026/11/20261126-drift-audit-todo.md) | [lessons](2026/11/20261126-drift-audit-lessons.md) |
 | [Republish the focused block when the editor's effect re-runs](2026/11/20261125-presence-rerun-republish-todo.md) | [lessons](2026/11/20261125-presence-rerun-republish-lessons.md) |
 | [Export a document as Markdown (.md / .zip) or print it to PDF](2026/11/20261125-document-export-todo.md) | [lessons](2026/11/20261125-document-export-lessons.md) |
 | [tasks:archive on macOS: edit files without `sed -i`](2026/11/20261124-tasks-archive-macos-todo.md) | [lessons](2026/11/20261124-tasks-archive-macos-lessons.md) |
