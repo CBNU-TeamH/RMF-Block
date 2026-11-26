@@ -100,7 +100,7 @@ Set `COMPOSE_PROJECT_NAME` in the copied `.env` to the name printed above, for e
 COMPOSE_PROJECT_NAME=rmf-block
 ```
 
-Run the [README's upgrade commands](README.md#upgrading) from that folder. It must contain no
+Run the [upgrade steps](docs/upgrading.md#upgrade) from that folder. It must contain no
 `docker-compose.override.yml`, because a clone's override selects a source build. Keeping the
 project name reuses the existing containers and the `app-data` and `mongo-data` volumes.
 `docker compose down` alone does not move data between project names; changing the name selects
@@ -181,10 +181,10 @@ To cut `X.Y.Z`:
    package public (package settings → Change visibility). A new organisation package starts private,
    and the change is refused ("Setting is disabled by organization administrators") until the
    organisation allows public packages: Settings → Packages → Package creation → Public.
-5. Run the README's Getting started from an empty folder with that prerelease's two files,
+5. Run the README's Setup from an empty folder with that prerelease's two files,
    and verify that the image can be pulled anonymously.
 6. Release: `git tag vX.Y.Z upstream/main && git push upstream vX.Y.Z`.
 
 Never re-push a published version tag; publish a new version instead. A failed run is retried by
 re-running it. A faulty release is not deleted or re-tagged; publish a fixed version, and hosts can
-roll back meanwhile (README, Upgrading).
+roll back meanwhile ([`docs/upgrading.md`](docs/upgrading.md#roll-back)).
