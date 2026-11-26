@@ -30,6 +30,10 @@ had tests* (`serving.test.mts`, `upload.test.mts`). The missing thing was never 
 was a boundary value inside one. A layer having tests at all says nothing about whether the one
 value that mattered was checked.
 
+**A check that a bug no longer reproduces counts only beside a control run** — the same script,
+reproducing it on the version or build that still has the bug. Without one, a green run cannot
+tell a fixed bug from a script that never reached it.
+
 ## Select tests for each change
 
 For every feature or bug fix, record the changed behavior and its success criteria in the task,
