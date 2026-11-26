@@ -2,6 +2,7 @@
 
 import type { Document } from "@yorkie-js/sdk";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { cellKey, editTableCell, type CellAddress, type CellChange } from "@/lib/blocks/table";
 import { hasMarks, parseInline, SHORTCUT_MARKERS, toggleMarker } from "@/lib/blocks/inline-markdown";
@@ -302,6 +303,17 @@ export function TextBlockView({
       autoGrow(el);
     };
   }, [formatted]);
+
+  // `shown` lags the textarea while it has focus, and Ctrl+P can come from
+  // inside a block: the print copy below has to say what the textarea says.
+  useEffect(() => {
+    const sync = () => {
+      const el = textareaRef.current;
+      if (el) flushSync(() => setShown(el.value));
+    };
+    window.addEventListener("beforeprint", sync);
+    return () => window.removeEventListener("beforeprint", sync);
+  }, []);
 
 
   /** Outside a composition the textarea and Yorkie hold the same text, so a
@@ -648,7 +660,7 @@ export function TextBlockView({
       // it marks the one block being typed in rather than every empty one —
       // the `/` menu shipped in #63 with nothing in the UI naming it.
       placeholder={!cellBinding && variant.type === "text" ? "'/'를 입력해 명령어 사용" : undefined}
-      className={`${cellBinding ? "w-full" : ""} min-w-0 flex-1 resize-none overflow-hidden ${TEXT_INSET} outline-none placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
+      className={`${cellBinding ? "w-full" : ""} min-w-0 flex-1 resize-none overflow-hidden ${TEXT_INSET} outline-none print:hidden placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
       />
 
       {formatted ? (
@@ -657,11 +669,23 @@ export function TextBlockView({
           aria-hidden
           // Placed at the textarea's own offset, so a heading's top margin is not added twice.
           style={{ margin: 0 }}
-          className={`pointer-events-none absolute ${TEXT_INSET} break-words whitespace-pre-wrap ${textareaClass(variant)}`}
+          className={`pointer-events-none absolute ${TEXT_INSET} break-words whitespace-pre-wrap print:hidden ${textareaClass(variant)}`}
         >
           <InlineText text={shown} />
         </div>
       ) : null}
+
+      {/* What prints instead of the textarea (FR-022-17): a textarea's height is
+       *  set by script to the lines it wrapped into on screen, and a page is
+       *  narrower, so the extra lines would be cut off. A div wraps at any width
+       *  in every browser — `docs/design/document-export.md`, "Printing". */}
+      <div
+        aria-hidden
+        data-print-copy
+        className={`${cellBinding ? "w-full" : ""} hidden min-h-[1lh] min-w-0 flex-1 ${TEXT_INSET} break-words whitespace-pre-wrap print:block ${textareaClass(variant)}`}
+      >
+        {drawsInline ? <InlineText text={shown} /> : shown}
+      </div>
 
       {/* Absolutely positioned against the block row, which is already
        * `relative`. That is what keeps this component's contract intact: the

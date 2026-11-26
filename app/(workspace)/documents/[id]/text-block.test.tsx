@@ -265,7 +265,22 @@ describe("pasting a block address", () => {
 });
 
 describe("inline formatting", () => {
-  const strong = () => document.querySelector("strong")?.textContent ?? null;
+  // The overlay's, not the print copy's, which draws the same text at all times.
+  const strong = () =>
+    [...document.querySelectorAll("strong")].find((element) => !element.closest("[data-print-copy]"))?.textContent ?? null;
+
+  it("keeps a print copy of the text, current even while the block has focus", () => {
+    const { textarea } = renderBlock({ type: "text" }, null, "**a** b");
+    const copy = () => document.querySelector("[data-print-copy]");
+    assert.equal(copy()?.querySelector("strong")?.textContent, "a");
+
+    fireEvent.focus(textarea);
+    fireEvent.change(textarea, { target: { value: "**a** b 추가" } });
+    act(() => {
+      window.dispatchEvent(new Event("beforeprint"));
+    });
+    assert.equal(copy()?.textContent, "a b 추가");
+  });
 
   it("draws inline Markdown while the block is not being edited, and shows the markers while it is", () => {
     const { textarea } = renderBlock({ type: "text" }, null, "**a** b");

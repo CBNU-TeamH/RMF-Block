@@ -55,17 +55,3 @@ body {
   font-size: 14.5px;
   color: var(--color-ink);
 }
-
-/* Print (FR-022-17): a block's textarea is sized by script to the line width it
-   had on screen (`autoGrow`, text-block.tsx), and a page is narrower, so the
-   extra wrapped lines would be cut off. In print it sizes to its own text
-   instead. Gated, because without `field-sizing` an auto height falls back to
-   two rows — worse than the screen's height. `docs/design/document-export.md`. */
-@media print {
-  @supports (field-sizing: content) {
-    [data-block-id] textarea {
-      field-sizing: content;
-      height: auto !important;
-    }
-  }
-}

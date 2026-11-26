@@ -4,7 +4,7 @@ import { strFromU8, unzipSync } from "fflate";
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { PNG, block, blockValues, createDocument, firstBlockId, insertAt, openDocument, paste } from "./helpers";
+import { PNG, block, blockValues, createDocument, firstBlockId, openDocument, paste } from "./helpers";
 
 /** FR-022-15~17 in a browser: the layout and names are `lib/documents/export.test.mts`'s, the
  *  route's shapes its own test's; this proves the menu, the download and print media end to end. */
@@ -77,14 +77,24 @@ test("print media shows the document and hides the workspace around it (FR-022-1
   const id = await createDocument(page, `e2e print ${Date.now()}`);
   await openDocument(page, id);
   const first = await firstBlockId(page);
-  await insertAt(page, first, 0, "인쇄할 본문 ".repeat(40));
+  const text = "인쇄할 본문 ".repeat(40).trim();
+  await paste(page, first, `${text}\n| ${"긴 열 제목".repeat(3)} | b | c | d | e | f | g | h |\n|---|---|---|---|---|---|---|---|\n| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |`);
+  const table = page.locator("[data-block-id] table");
+  await expect(table).toHaveCount(1);
 
   await page.emulateMedia({ media: "print" });
-  // A page is narrower than the screen the block was sized on: every wrapped line still has to fit.
+  // A page is narrower than the screen the blocks were sized on.
   await page.setViewportSize({ width: 500, height: 800 });
-  await expect.poll(() => block(page, first).evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
 
-  await expect(block(page, first)).toBeVisible();
+  // The textarea gives way to its print copy, which wraps at the page's width.
+  const row = page.locator(`[data-block-id="${first}"]`);
+  await expect(block(page, first)).toBeHidden();
+  await expect(row.locator("[data-print-copy]")).toBeVisible();
+  await expect(row.locator("[data-print-copy]")).toHaveText(text);
+  // Every column of a wide table fits inside the document's column.
+  const [tableBox, rowBox] = await Promise.all([table.boundingBox(), row.boundingBox()]);
+  expect(tableBox!.x + tableBox!.width).toBeLessThanOrEqual(rowBox!.x + rowBox!.width + 1);
+
   await expect(page.getByRole("complementary")).toBeHidden();
   await expect(page.getByRole("navigation", { name: "열린 문서" })).toBeHidden();
   await expect(page.getByRole("button", { name: "문서 내보내기 메뉴" })).toBeHidden();

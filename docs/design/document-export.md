@@ -58,7 +58,10 @@ and which files still have bytes. It is pure, so the layout and the names are un
 - **The text** is `documentToMarkdown` (`lib/blocks/markdown.ts`) — the writer copying uses, with blocks a
   blank line apart so a reader keeps each its own paragraph. List items stay one line apart, or a reader
   spaces the list out. The import drops blank lines, so the text blocks — paragraphs, headings, lists,
-  checklists, quotes, code, dividers — read back as the same blocks. Files and document links do not: the
+  checklists, quotes, code, dividers — read back as the same blocks, with two limits. A paragraph is
+  written as typed, so one that itself starts with Markdown block syntax (`## `, `- `, `> `, `---`) or
+  holds a line break reads back as that syntax or as two blocks; the import decodes no backslash escape
+  to write it with, and copying has the same limit. Files and document links do not read back: the
   import has no file store to point into, and a link into the export is a path, not a workspace address.
 - **Links.** An image, PDF or file block points at its file in the zip; a document or block link to an
   exported document points at that document's `.md` (a block link loses its block: a `.md` has no address
@@ -113,9 +116,14 @@ print, through Tailwind's `print:` variant:
   editor scrolls inside it (`app-shell.md`), so in print the root, the shell and `<main>` drop their fixed
   height and the editor's scroll container shows its overflow; the column loses its screen padding.
 - **Every line of a block prints.** A textarea's height is set by script to the lines it wrapped into on
-  screen, and a page is narrower, so in print it sizes to its own text instead (`field-sizing: content`
-  in `app/globals.css`; a browser without it keeps the screen's height). A wide table drops its
-  scrolling and its cells' minimum width in print, so every column fits the page.
+  screen, and a page is narrower, so the extra lines would be cut off. Each text block therefore keeps a
+  print-only copy of its text (`text-block.tsx`, `data-print-copy`), drawn the way the block draws its
+  inline Markdown, and in print the textarea is hidden and the copy shown: a div wraps at any width in
+  every browser. `field-sizing: content` would have done it in CSS alone, but Firefox 148 and Safari 26,
+  which the SRS supports, lack it, and Firefox prints a static copy of the page, so a script cannot
+  re-measure for it. The copy is synced on `beforeprint`, since Ctrl+P can come from inside a block
+  whose text has not been redrawn yet. A wide table drops its scrolling and its cells' minimum width in
+  print, so every column fits the page.
 
 One document per print: sub-pages are not printed. Notion makes sub-page PDF a paid feature and nothing
 asked for it here.
