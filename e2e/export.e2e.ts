@@ -78,25 +78,38 @@ test("print media shows the document and hides the workspace around it (FR-022-1
   await openDocument(page, id);
   const first = await firstBlockId(page);
   const text = "인쇄할 본문 ".repeat(40).trim();
-  await paste(page, first, `${text}\n| ${"긴 열 제목".repeat(3)} | b | c | d | e | f | g | h |\n|---|---|---|---|---|---|---|---|\n| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |`);
-  const table = page.locator("[data-block-id] table");
-  await expect(table).toHaveCount(1);
+  await paste(page, first, `${text}\n끝`);
+  const copy = page.locator(`[data-block-id="${first}"] [data-print-copy]`);
 
   await page.emulateMedia({ media: "print" });
-  // A page is narrower than the screen the blocks were sized on.
+  // A page is narrower than the screen the block was sized on.
   await page.setViewportSize({ width: 500, height: 800 });
 
   // The textarea gives way to its print copy, which wraps at the page's width.
-  const row = page.locator(`[data-block-id="${first}"]`);
   await expect(block(page, first)).toBeHidden();
-  await expect(row.locator("[data-print-copy]")).toBeVisible();
-  await expect(row.locator("[data-print-copy]")).toHaveText(text);
-  // Every column of a wide table fits inside the document's column.
-  const [tableBox, rowBox] = await Promise.all([table.boundingBox(), row.boundingBox()]);
-  expect(tableBox!.x + tableBox!.width).toBeLessThanOrEqual(rowBox!.x + rowBox!.width + 1);
-
+  await expect(copy).toBeVisible();
+  await expect(copy).toHaveText(text);
   await expect(page.getByRole("complementary")).toBeHidden();
   await expect(page.getByRole("navigation", { name: "열린 문서" })).toBeHidden();
   await expect(page.getByRole("button", { name: "문서 내보내기 메뉴" })).toBeHidden();
   await expect(page.getByText("파일 추가")).toBeHidden();
+});
+
+test("a wide table fits the printed page (FR-022-17)", async ({ users }) => {
+  const { page } = await users.join(0);
+  const id = await createDocument(page, `e2e print table ${Date.now()}`);
+  await openDocument(page, id);
+  const first = await firstBlockId(page);
+  const header = `| ${"긴 열 제목".repeat(3)} | b | c | d | e | f | g | h |`;
+  await paste(page, first, [header, "|---|---|---|---|---|---|---|---|", "| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |"].join("\n"));
+  const table = page.locator("[data-block-id] table");
+  await expect(table).toHaveCount(1);
+
+  await page.emulateMedia({ media: "print" });
+  await page.setViewportSize({ width: 500, height: 800 });
+
+  // Every column fits inside the document's column rather than scrolling out of it.
+  const row = page.locator("[data-block-id]").filter({ has: table });
+  const [tableBox, rowBox] = await Promise.all([table.boundingBox(), row.boundingBox()]);
+  expect(tableBox!.x + tableBox!.width).toBeLessThanOrEqual(rowBox!.x + rowBox!.width + 1);
 });

@@ -266,8 +266,9 @@ describe("pasting a block address", () => {
 
 describe("inline formatting", () => {
   // The overlay's, not the print copy's, which draws the same text at all times.
-  const strong = () =>
-    [...document.querySelectorAll("strong")].find((element) => !element.closest("[data-print-copy]"))?.textContent ?? null;
+  const drawn = (tag: string) =>
+    [...document.querySelectorAll(tag)].find((element) => !element.closest("[data-print-copy]")) ?? null;
+  const strong = () => drawn("strong")?.textContent ?? null;
 
   it("keeps a print copy of the text, current even while the block has focus", () => {
     const { textarea } = renderBlock({ type: "text" }, null, "**a** b");
@@ -297,9 +298,9 @@ describe("inline formatting", () => {
 
   it("redraws after a peer's edit", () => {
     const { remote } = renderBlock({ type: "text" }, null, "plain");
-    assert.equal(document.querySelector("em"), null);
+    assert.equal(drawn("em"), null);
     act(() => remote({ from: 0, to: 0, value: { content: "*x* " } }));
-    assert.equal(document.querySelector("em")?.textContent, "x");
+    assert.equal(drawn("em")?.textContent, "x");
   });
 
   it("leaves a code block as typed", () => {

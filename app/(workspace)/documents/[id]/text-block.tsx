@@ -276,8 +276,14 @@ export function TextBlockView({
   const lastSyncedRef = useRef(initialText);
 
   // `document-editing.md`, "Inline formatting". `shown` is the text drawn while
-  // the block is not focused; it is not kept in step while it is.
+  // the block is not focused, and what it prints; it is not kept in step while
+  // focused, except just before a print.
   const drawsInline = !cellBinding && variant.type !== "code";
+  // The text's box, shared by the textarea, the inline drawing over it and the
+  // print copy, so a printout matches the screen.
+  const box = `${TEXT_INSET} ${textareaClass(variant)}`;
+  // Where the textarea and the print copy sit in the block's row.
+  const flow = `${cellBinding ? "w-full" : ""} min-w-0 flex-1`;
   const [focused, setFocused] = useState(false);
   const [shown, setShown] = useState(initialText);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -304,16 +310,17 @@ export function TextBlockView({
     };
   }, [formatted]);
 
-  // `shown` lags the textarea while it has focus, and Ctrl+P can come from
-  // inside a block: the print copy below has to say what the textarea says.
+  // Ctrl+P can come from inside a block, whose `shown` lags its textarea; every
+  // other block's is current. Synchronous, or the print would be laid out first.
   useEffect(() => {
+    if (!focused) return;
     const sync = () => {
       const el = textareaRef.current;
       if (el) flushSync(() => setShown(el.value));
     };
     window.addEventListener("beforeprint", sync);
     return () => window.removeEventListener("beforeprint", sync);
-  }, []);
+  }, [focused]);
 
 
   /** Outside a composition the textarea and Yorkie hold the same text, so a
@@ -660,7 +667,7 @@ export function TextBlockView({
       // it marks the one block being typed in rather than every empty one —
       // the `/` menu shipped in #63 with nothing in the UI naming it.
       placeholder={!cellBinding && variant.type === "text" ? "'/'를 입력해 명령어 사용" : undefined}
-      className={`${cellBinding ? "w-full" : ""} min-w-0 flex-1 resize-none overflow-hidden ${TEXT_INSET} outline-none print:hidden placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${textareaClass(variant)}`}
+      className={`${flow} resize-none overflow-hidden outline-none print:hidden placeholder:text-ink-faint placeholder:opacity-0 focus:placeholder:opacity-100 ${box}`}
       />
 
       {formatted ? (
@@ -669,7 +676,7 @@ export function TextBlockView({
           aria-hidden
           // Placed at the textarea's own offset, so a heading's top margin is not added twice.
           style={{ margin: 0 }}
-          className={`pointer-events-none absolute ${TEXT_INSET} break-words whitespace-pre-wrap print:hidden ${textareaClass(variant)}`}
+          className={`pointer-events-none absolute break-words whitespace-pre-wrap print:hidden ${box}`}
         >
           <InlineText text={shown} />
         </div>
@@ -682,7 +689,7 @@ export function TextBlockView({
       <div
         aria-hidden
         data-print-copy
-        className={`${cellBinding ? "w-full" : ""} hidden min-h-[1lh] min-w-0 flex-1 ${TEXT_INSET} break-words whitespace-pre-wrap print:block ${textareaClass(variant)}`}
+        className={`${flow} hidden min-h-[1lh] break-words whitespace-pre-wrap print:block ${box}`}
       >
         {drawsInline ? <InlineText text={shown} /> : shown}
       </div>
