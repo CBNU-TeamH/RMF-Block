@@ -259,12 +259,10 @@ a browser run costs seconds per test against milliseconds.
 - **CI.** Expanded tests run after the existing smoke test on its container, with E2E's
   `continue-on-error` policy preserved. CI masks the bootstrap secret and uploads failure traces,
   the HTML report and redacted server logs.
-- **Follow-up.** Unseeded admin setup and restart persistence need a stack started without
-  `WORKSPACE_PASSWORD` and an app restart mid-test; they are tracked in [the admin E2E task](../tasks/archive/2026/10/20261007-admin-e2e-todo.md). Long-running load, 1-second propagation, 500MB client memory and real LAN
+- **Follow-up.** Long-running load, 1-second propagation, 500MB client memory and real LAN
   devices are the performance harness's (`e2e/perf/`, #189): `pnpm perf` on the measurement rig, outside `pnpm e2e`
   and CI, run by hand from [the runbook](perf/runbook-ko.md); its arithmetic (`e2e/perf/stats.mts`, the result charts' curve included), NFR-PER-003's join attempt and the port check have Vitest tests.
   The observation stack (`pnpm perf:observe`, #192) is diagnostics only and is checked by hand with an observed round.
-  Firefox/WebKit remain uncovered.
 
 
 ## Vitest worker count

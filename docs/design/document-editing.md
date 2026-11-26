@@ -687,7 +687,7 @@ empty document.
 **A single-line paste is not a block operation.** It goes through the textarea's own default,
 which already lands at the caret, mid-word, and fires `onInput` after. Only a newline in the
 clipboard makes a paste structural — which keeps the common paste on the path that already works,
-and means the code below is never reached by the ordinary case. (The exception is a block address pasted into an empty block; see "The document link block" below.)
+and means the code below is never reached by the ordinary case. (The exception is a block address pasted into an empty block; see "The document link block" above.)
 
 A multi-line paste becomes one block per line. **The first line reuses the block being pasted
 into** rather than inserting above it: that block already holds the caret, and making a new one to
@@ -762,8 +762,7 @@ text block after the run, or to the trailing block.
 Markdown goes through the same `copy` handler as Ctrl/Cmd+C, and deletes only when the copy reports
 success: a cut whose copy failed would lose the blocks.
 
-`lib/blocks/markdown.ts` writes one block per line, the shape the paste above reads (it does not
-yet read back GFM checklists or indented items), and text as stored, without escaping: whatever Markdown a person typed or pasted is copied as such.
+`lib/blocks/markdown.ts` writes one block per line, the shape the paste above reads, and text as stored, without escaping: whatever Markdown a person typed or pasted is copied as such.
 Lists are numbered and nested by `depth` (four spaces a level, opened at the left margin when the
 selection starts inside a nested list), checklists are GFM `- [ ]`/`- [x]`, code is fenced with
 more backticks than it contains, a table is a GFM table whose first row is the header, an image
