@@ -2,39 +2,41 @@
 
 **English** · [한국어](README.ko.md)
 
-A real-time block editor for a team on one local network — no cloud service, no accounts.
+A real-time block editor for a team on one local network. One person, the host, runs it with
+Docker; teammates on the same subnet join from a browser and edit documents together.
 
-One person, the **host**, runs RMF-Block as a Docker container. Everyone else on the **same
-subnet** opens a link in their browser, joins with a nickname and the workspace password, and edits
-the same documents together. CBNU Team H capstone project.
+| Document editing | Floating views and chat |
+| :---: | :---: |
+| <img src="docs/images/editing.png" width="420" alt="A meeting-notes document open in a tab; a guest's block is outlined in red"> | <img src="docs/images/floating.png" width="420" alt="A shared image in a floating view above a document, beside the chat's file list"> |
+| **Screen sharing** | **Admin** |
+| <img src="docs/images/screen-share.png" width="420" alt="A guest following the host's shared view, with the follow indicator in the header"> | <img src="docs/images/admin.png" width="420" alt="The admin page with the password form, connected guests and the trash"> |
 
 ## Features
 
-| Feature | What it does | Screenshot |
-| :--- | :--- | :--- |
-| **Document editing** | Text, headings, lists, checklists, quotes, code, images, PDFs, files and links to other documents, from a `/` menu or Markdown shortcuts. Edits reach everyone as they type, Hangul composition included, and the block someone is in is outlined in their colour. Documents nest in a tree, open as tabs, and keep a version history you can name and restore. | <img src="docs/images/editing.png" width="360" alt="Host's view of a meeting-notes document open in a tab; a guest's block is outlined in red"> |
-| **Floating views and chat** | Chat with attachments, and a file list grouped into images, PDFs and other files. Pin a text, image or PDF block, or a file from chat, in a window that stays put while you move between documents. | <img src="docs/images/floating.png" width="360" alt="A shared image in a floating view above a document, beside the chat's file list"> |
-| **Screen sharing** | Share your position in a document; others join with one click and follow it as you scroll and move between documents, until either side ends it. | <img src="docs/images/screen-share.png" width="360" alt="A guest following the host's shared view, with the follow indicator in the header"> |
-| **Admin** | Host only: open the workspace with a name and password, change the password, remove a guest, and restore deleted documents from the trash. | <img src="docs/images/admin.png" width="360" alt="The admin page with the password form, connected guests and the trash"> |
+- **Real-time editing** — text, headings, lists, checklists, quotes, code, tables, images, PDFs,
+  files and document links from a `/` menu or Markdown shortcuts. Edits appear as they are typed,
+  Hangul included, and each person's block is outlined in their colour.
+- **Documents** — a nested tree with title search, tabs, multi-block copy, cut and delete,
+  Markdown import, and a version history you can name and restore.
+- **Chat and floating views** — chat with attachments and a file list; pin blocks or files in a
+  window that stays open as you move between documents.
+- **Following** — share your view for others to follow, see who is in which document, and jump to
+  them.
+- **Admin** — the host sets the workspace password, removes guests and restores deleted documents.
 
-## How it works
+## Quick start
 
-The host machine runs three containers: the app — a Next.js custom server for pages, REST and
-WebSockets — and a self-hosted [Yorkie](https://yorkie.dev) server with MongoDB behind it. Yorkie
-syncs every document as a CRDT and keeps its content and history; the app keeps its own state as
-JSON under `.data/`. Documents, chat and uploaded files are stored on the host and shared over
-the LAN.
+The host needs Docker with Compose 2.20 or newer (x86-64 or Apple Silicon).
 
-[`ARCHITECTURE.md`](ARCHITECTURE.md) has the diagram; [`docs/design/architecture.md`](docs/design/architecture.md)
-the contracts.
+1. [Download](#1-download) `docker-compose.yml` and `.env` from the latest release.
+2. [Set the host's LAN address](#2-set-the-host-lan-address) in `.env`.
+3. [Set the two Yorkie secrets](#3-set-the-yorkie-secrets) in `.env`.
+4. [Open ports 3000 and 8080](#4-open-the-ports).
+5. [Run `docker compose up`](#5-start-it), open the `Host:` link, and share the `Guest:` link.
 
-## Getting started
+## Setup
 
-You need Docker with Compose 2.20 or newer — nothing else: no clone, no Node.js. Each
-[release](https://github.com/CBNU-TeamH/RMF-Block/releases) runs a published image built for both
-x86-64 and Apple Silicon.
-
-On Linux or macOS:
+### 1. Download
 
 ```bash
 mkdir rmf-block && cd rmf-block
@@ -42,215 +44,105 @@ curl -LO https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/docker
 curl -L -o .env https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/env.sample
 ```
 
-On Windows PowerShell 5.1:
+Windows PowerShell 5.1:
 
 ```powershell
-mkdir rmf-block
-Set-Location rmf-block
+mkdir rmf-block; Set-Location rmf-block
 curl.exe -LO https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/docker-compose.yml
 curl.exe -L -o .env https://github.com/CBNU-TeamH/RMF-Block/releases/latest/download/env.sample
 ```
 
-### Set the host's LAN address
+In `.env`, fill in the three values from steps 2 and 3 and leave the rest as it is.
 
-Set `HOST_LAN_IP` in `.env` to this machine's IPv4 address on the guests' LAN. Each command
-below prints the address of the connection your machine uses to reach the internet, which is
-usually that one. Run it on the **host machine**, outside the containers:
+### 2. Set the host LAN address
 
-Windows (PowerShell, in Windows rather than WSL):
+Set `HOST_LAN_IP` to the host's IPv4 address on the guests' LAN, e.g. `HOST_LAN_IP=192.168.0.14`.
+Find it on the host itself, not in a container or WSL:
 
-```powershell
-(Get-NetIPConfiguration | Where-Object IPv4DefaultGateway).IPv4Address.IPAddress
-```
+| OS | Command |
+| :--- | :--- |
+| Windows (PowerShell) | `(Get-NetIPConfiguration \| Where-Object IPv4DefaultGateway).IPv4Address.IPAddress` |
+| Linux | `ip -4 route get 1.1.1.1` (the address after `src`) |
+| macOS | `ipconfig getifaddr "$(route -n get default \| awk '/interface:/{print $2}')"` |
 
-Linux — the address after `src`:
+If the address changes later, update `.env` and run `docker compose up -d`.
 
-```bash
-ip -4 route get 1.1.1.1
-```
+### 3. Set the Yorkie secrets
 
-macOS:
+Compose will not start without them, since Yorkie's defaults would let anyone on the LAN read or
+delete every document.
 
-```bash
-ipconfig getifaddr "$(route -n get default | awk '/interface:/{print $2}')"
-```
+- `YORKIE_ADMIN_PASSWORD` — 8 to 30 characters with letters, digits and a symbol such as `-`. Keep
+  it once set; a different value later stops the app from starting.
+- `YORKIE_ADMIN_TOKEN_SECRET` — any random string of 32 characters or more.
 
-Nothing is sent to `1.1.1.1`; the command only asks which route would be used. If it prints
-nothing, or a VPN address because a VPN is on, list every address instead — `ipconfig` on
-Windows, `ip -4 addr show scope global` on Linux, `networksetup -listallhardwareports` and then
-`ipconfig getifaddr <device>` on macOS — and take the Wi-Fi or Ethernet adapter's IPv4 address.
-Docker, WSL, VPN and loopback interfaces may be listed too; they are not the one.
+### 4. Open the ports
 
-For example, if the LAN address is `192.168.0.14`, save this in `.env` (use your own address,
-not this example):
+Guests use TCP **3000** (the app) and **8080** (live edits). A page that loads but never shows edits
+usually means 8080 is blocked.
 
-```dotenv
-HOST_LAN_IP=192.168.0.14
-```
-
-For this Docker setup, set `HOST_LAN_IP` here and the two Yorkie values below, and leave the
-other sample settings as supplied. Choose the workspace name and password in the browser after startup.
-The commented Yorkie addresses are for native development; Compose supplies its
-own internal addresses and does not use those values from `.env`.
-
-From a clone, `pnpm docker:up` detects it and writes `.env`
-([`scripts/detect-host-ip.sh`](scripts/detect-host-ip.sh), not part of a release). If the
-address changes, update `.env` and run `docker compose up -d` again; a DHCP reservation for the
-host on the router keeps it from changing.
-
-### Set the Yorkie admin secrets
-
-Port 8080 also serves Yorkie's admin API, and Yorkie's built-in defaults would let anyone on the
-LAN read or delete every document, so Compose refuses to start until `.env` has two values of your
-own. Nobody types them in — they are for Yorkie and the app.
-
-- `YORKIE_ADMIN_PASSWORD`: 8 to 30 characters with letters, digits and a symbol such as `-`. Keep
-  it once set: Yorkie stores it in its volume, and a different value later stops the app from
-  starting.
-- `YORKIE_ADMIN_TOKEN_SECRET`: any random string of 32 characters or more — Yorkie refuses to start
-  on a shorter one. It signs Yorkie's admin logins; changing it later only signs those out.
-
-```dotenv
-YORKIE_ADMIN_PASSWORD=choose-your-own-1
-YORKIE_ADMIN_TOKEN_SECRET=any-long-random-string-of-your-own
-```
-
-From a clone, `pnpm docker:up` generates both when they are empty.
-
-### Open the ports
-
-Guests connect to **TCP 3000** (the app) and **TCP 8080** (Yorkie, which carries the live edits).
-A page that opens but never shows edits usually means 8080 is blocked.
-
-- **Windows**: set the Wi-Fi or Ethernet network's profile to **Private**, and allow Docker
-  Desktop when Windows Defender Firewall asks. If it did not ask, add a rule in PowerShell run as
-  administrator:
+- **Windows** — set the network profile to Private and allow Docker Desktop when asked. If it did
+  not ask, run in PowerShell as administrator:
   `New-NetFirewallRule -DisplayName "RMF-Block" -Direction Inbound -Protocol TCP -LocalPort 3000,8080 -Action Allow -Profile Private`
-- **macOS**: if the firewall is on (System Settings → Network → Firewall), allow incoming
-  connections for Docker.
-- **Linux**: if `ufw` is active, `sudo ufw allow 3000,8080/tcp`.
+- **macOS** — if the firewall is on, allow incoming connections for Docker.
+- **Linux** — if `ufw` is active, `sudo ufw allow 3000,8080/tcp`.
 
-### Start it
+### 5. Start it
 
 ```bash
 docker compose up
 ```
-
-Among the startup output are these two lines:
 
 ```
 rmf-app  |   Host:  http://localhost:3000/api/auth/host?secret=…
 rmf-app  |   Guest: http://192.168.0.14:3000
 ```
 
-- **Open the `Host:` link yourself.** It makes you the host and drops the secret from the address
-  bar. Treat the line as a credential: it stays valid until the container restarts.
-- **The first time, it opens the setup screen.** Choose the workspace name and the access password
-  there, then tell guests the password. Until then the startup output says
-  `host user의 workspace setting이 완료되지 않았습니다.` and guests cannot join. The **관리자** link (with
-  a shield) at the foot of the sidebar, shown only to the host, is where you change the password later
-  or remove a guest. The settings persist on the volume — emptying `.env` does not reset them; startup prints
-  `Workspace "<name>" — saved settings …` when they exist. To see the setup screen again, stop the
-  stack and delete `workspace.json` from the `app-data` volume.
-- **Give everyone else the `Guest:` address.**
-- **Restarting the container signs everyone out**; removing one guest is the admin page's 퇴장
-  ([`docs/design/api.md`](docs/design/api.md)).
-- **Documents and app state survive** restarts and upgrades on named volumes — members keep their
-  colours — and `docker compose down -v` wipes them.
+- Open the **`Host:`** link yourself; it makes you the host. Keep it private: it works until the
+  container restarts.
+- The first visit opens the setup screen. Choose the workspace name and password and tell guests
+  the password; change it later under **관리자** at the foot of the sidebar.
+- Share the **`Guest:`** link with everyone else.
+- Restarting the container signs everyone out but keeps documents and settings;
+  `docker compose down -v` deletes them.
 
-### Upgrading
+## If a guest cannot connect
 
-**To a release on Yorkie 0.7.28 or later:** before the commands below, however you upgrade, make sure
-`YORKIE_ADMIN_TOKEN_SECRET` meets [the 32-character rule](#set-the-yorkie-admin-secrets), and take the
-backup under **Rolling back**.
+Test the `Guest:` link from another device, such as a phone — the host itself proves nothing. Then
+check:
 
-Download the new release's `docker-compose.yml` over the old one, keep `.env`, and run:
+1. **Wi-Fi isolation** — campus and guest Wi-Fi often block devices from reaching each other; try a
+   phone hotspot.
+2. **Ports** — 3000 and 8080 must both be open ([step 4](#4-open-the-ports)).
+3. **Windows hosts** — Docker Desktop on WSL2 may forward ports only to `127.0.0.1`. Turn on
+   [mirrored networking](https://learn.microsoft.com/windows/wsl/networking#mirrored-mode-networking)
+   (Windows 11 22H2+) or forward them with `netsh interface portproxy`.
+4. **Wrong address** — set `HOST_LAN_IP` to the Wi-Fi or Ethernet adapter's IPv4 from `ipconfig`,
+   `ip -4 addr` or `ifconfig`, not a Docker, WSL or VPN one.
 
-```bash
-docker compose pull && docker compose up -d
-```
+## Upgrading
 
-On Windows PowerShell 5.1, run `up` only if `pull` succeeds:
-
-```powershell
-docker compose pull
-if ($LASTEXITCODE -eq 0) { docker compose up -d }
-```
-
-**From 0.0.1:** add both Yorkie values to `.env` first ([Set the Yorkie admin
-secrets](#set-the-yorkie-admin-secrets)). The first start moves Yorkie's existing administrator off
-`admin`/`admin` onto `YORKIE_ADMIN_PASSWORD`.
-
-The documents and settings stay when the Compose project name stays the same. The release file
-defaults to `rmf-block`; an older installation may have used its folder name instead.
-
-**Switching an existing clone to a release:** before changing folders or removing containers,
-find the current project name. On Linux or macOS:
-
-```bash
-docker inspect rmf-app --format '{{ index .Config.Labels "com.docker.compose.project" }}'
-```
-
-On Windows PowerShell 5.1:
-
-```powershell
-docker inspect rmf-app | ConvertFrom-Json | ForEach-Object { $_.Config.Labels.'com.docker.compose.project' }
-```
-
-Download the new release's `docker-compose.yml` into a separate folder and copy your existing
-`.env` there, keeping `HOST_LAN_IP` and the other settings. Do not download `env.sample` over it.
-Set `COMPOSE_PROJECT_NAME` in the copied `.env` to the name printed above, for example:
-
-```dotenv
-COMPOSE_PROJECT_NAME=rmf-block
-```
-
-Run the upgrade commands from that folder. It must contain no `docker-compose.override.yml`,
-because a clone's override selects a source build. Keeping the project name reuses the existing
-containers and the `app-data` and `mongo-data` volumes. `docker compose down` alone does not
-move data between project names; changing the name selects different volumes. Do not use
-`down -v`, which deletes them.
-
-**Rolling back:** put the previous release's `docker-compose.yml` back in the folder and run the
-same upgrade commands; the volumes stay. A newer version may have changed what it stores, which an
-older one cannot always read, so back up the `app-data` and `mongo-data` volumes before upgrading.
-Once Yorkie 0.7.26 or later has run on `mongo-data`, an older Yorkie is not supported on it, so
-rolling back past that goes in another order: stop the stack with `docker compose down` (never
-`down -v`), restore the `mongo-data` backup, and only then put the previous file back and run the
-upgrade commands. Everything written since the backup is lost.
-
-Each release's file names its own version. To pin the exact image, append the digest from the
-release notes (`…:0.0.1@sha256:…`). Use that one and not a digest from the package page, which pins
-a single architecture.
-
-### If a guest cannot connect
-
-Test from another device on the LAN — a phone works — by opening the `Guest:` address. Opening it
-on the host proves nothing about the network. If it fails, check in this order:
-
-1. **Client/AP isolation.** Campus and guest Wi-Fi often block devices from reaching each other even
-   on one network. It is a router setting no script here can detect; try a phone hotspot or
-   another network to rule it out.
-2. **Ports and firewall.** Both 3000 and 8080 must be open ([Open the ports](#open-the-ports)).
-3. **Windows hosts.** Docker Desktop's WSL2 backend may forward the port only to `127.0.0.1`. From a
-   clone, `pnpm docker:up` checks whether WSL mirrored networking is enabled and prints configuration
-   guidance. Mirrored networking needs Windows 11 22H2+; on older Windows, forward the port to
-   the host's LAN address yourself (`netsh interface portproxy`).
-4. **Wrong address in the `Guest:` line**: see [Set the host's LAN address](#set-the-hosts-lan-address).
+Back up, download the new release's `docker-compose.yml` over the old one, then run
+`docker compose pull` and `docker compose up -d`. Backups, rollback and moving from a clone:
+[`docs/upgrading.md`](docs/upgrading.md).
 
 ## Documentation
 
 | Read | For |
 | :--- | :--- |
-| [`AGENTS.md`](AGENTS.md) | The working rules — workflow, coding principles, which doc answers what |
-| [`docs/SRS-ko.md`](docs/SRS-ko.md) · [`docs/SRS-en.md`](docs/SRS-en.md) | Requirements: the agreed Korean text and its English translation |
+| [`docs/SRS-ko.md`](docs/SRS-ko.md) · [`docs/SRS-en.md`](docs/SRS-en.md) | Requirements (the agreed Korean text and its English translation) |
 | [`docs/design/`](docs/design/) · [`docs/adr/`](docs/adr/) | Module design and architecture decisions |
 | [`ROADMAP.md`](ROADMAP.md) | What is built and what comes next |
+| [`AGENTS.md`](AGENTS.md) | Working rules and which doc answers what |
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the development setup, the checks, and how a change
-becomes a pull request.
+Development setup, checks and the path to a pull request: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+## Team
+
+CBNU (Chungbuk National University) capstone design, Team H. Maintained by
+[TaeTaeJin](https://github.com/TaeTaeJin) and [ujin999](https://github.com/ujin999).
 
 ## License
 

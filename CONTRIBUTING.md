@@ -70,11 +70,41 @@ empty, then `docker compose up --build`. In a clone, Compose merges
 `docker-compose.override.yml` over `docker-compose.yml` and builds the app from this checkout; a host
 running a release has only `docker-compose.yml`, which pulls the published image. Both use the
 Compose project `rmf-block` by default, and so the same volumes. For an older installation with a
-different project name, follow the [README migration steps](README.md#upgrading).
+different project name, see [Switching a clone to a release](#switching-a-clone-to-a-release).
 
 **Older Docker Compose refuses the file.** `docker-compose.yml` uses `attach: false` on the mongo
 service; Compose before 2.20 (2.13 was measured) rejects the whole file with `services.mongo
 Additional property attach is not allowed`.
+
+### Switching a clone to a release
+
+The documents and settings stay when the Compose project name stays the same. The release file
+defaults to `rmf-block`; an older installation may have used its folder name instead. Before
+changing folders or removing containers, find the current project name. On Linux or macOS:
+
+```bash
+docker inspect rmf-app --format '{{ index .Config.Labels "com.docker.compose.project" }}'
+```
+
+On Windows PowerShell 5.1:
+
+```powershell
+docker inspect rmf-app | ConvertFrom-Json | ForEach-Object { $_.Config.Labels.'com.docker.compose.project' }
+```
+
+Download the new release's `docker-compose.yml` into a separate folder and copy your existing
+`.env` there, keeping `HOST_LAN_IP` and the other settings. Do not download `env.sample` over it.
+Set `COMPOSE_PROJECT_NAME` in the copied `.env` to the name printed above, for example:
+
+```dotenv
+COMPOSE_PROJECT_NAME=rmf-block
+```
+
+Run the [upgrade steps](docs/upgrading.md#upgrade) from that folder. It must contain no
+`docker-compose.override.yml`, because a clone's override selects a source build. Keeping the
+project name reuses the existing containers and the `app-data` and `mongo-data` volumes.
+`docker compose down` alone does not move data between project names; changing the name selects
+different volumes. Do not use `down -v`, which deletes them.
 
 ## Where things are
 
@@ -151,10 +181,10 @@ To cut `X.Y.Z`:
    package public (package settings → Change visibility). A new organisation package starts private,
    and the change is refused ("Setting is disabled by organization administrators") until the
    organisation allows public packages: Settings → Packages → Package creation → Public.
-5. Run the README's Getting started from an empty folder with that prerelease's two files,
+5. Run the README's Setup from an empty folder with that prerelease's two files,
    and verify that the image can be pulled anonymously.
 6. Release: `git tag vX.Y.Z upstream/main && git push upstream vX.Y.Z`.
 
 Never re-push a published version tag; publish a new version instead. A failed run is retried by
 re-running it. A faulty release is not deleted or re-tagged; publish a fixed version, and hosts can
-roll back meanwhile (README, Upgrading).
+roll back meanwhile ([`docs/upgrading.md`](docs/upgrading.md#roll-back)).
