@@ -292,8 +292,7 @@ replays the event in order, so disjoint edits and repeated characters retain the
 during IME composition. A final text snapshot reconciles structural fragment removals or wholesale
 replacement; it is not used to infer ordinary edit positions. Scalar block text keeps its existing
 operation routing.
-Version snapshots flatten nested cell Text nodes; restore creates empty CRDT nodes first and
-then fills them in the same update, so a restore is one undo step (#185).
+How a version restore rebuilds a table's cells in one undo step: [`version-history.md`](version-history.md#why-the-app-restores-instead-of-calling-restorerevision).
 
 `/table` or `/표` inserts a 3×3 table above the command paragraph and focuses its first cell.
 The first visible row is always a header. Controls stay out of the way until the pointer is over
@@ -687,7 +686,7 @@ empty document.
 **A single-line paste is not a block operation.** It goes through the textarea's own default,
 which already lands at the caret, mid-word, and fires `onInput` after. Only a newline in the
 clipboard makes a paste structural — which keeps the common paste on the path that already works,
-and means the code below is never reached by the ordinary case. (The exception is a block address pasted into an empty block; see "The document link block" below.)
+and means the code below is never reached by the ordinary case. (The exception is a block address pasted into an empty block; see "The document link block" above.)
 
 A multi-line paste becomes one block per line. **The first line reuses the block being pasted
 into** rather than inserting above it: that block already holds the caret, and making a new one to
@@ -751,19 +750,7 @@ text block after the run, or to the trailing block.
 Markdown goes through the same `copy` handler as Ctrl/Cmd+C, and deletes only when the copy reports
 success: a cut whose copy failed would lose the blocks.
 
-**Backspace or Delete removes the selected blocks** (`removeBlocks`) and re-makes the empty trailing
-text block if that went with them (`keepTrailingText`), both in one `doc.update`; a block's own
-delete button does the same. Two updates would be two undo steps, and after deleting every block
-the first undo would take away the only block left, the one holding the caret, leaving nowhere to
-press the second. A block a peer removed first is skipped. The caret goes to the start of the first
-text block after the run, or to the trailing block.
-
-**Ctrl/Cmd+X is that copy and then that delete.** It calls `document.execCommand("copy")`, so the
-Markdown goes through the same `copy` handler as Ctrl/Cmd+C, and deletes only when the copy reports
-success: a cut whose copy failed would lose the blocks.
-
-`lib/blocks/markdown.ts` writes one block per line, the shape the paste above reads (it does not
-yet read back GFM checklists or indented items), and text as stored, without escaping: whatever Markdown a person typed or pasted is copied as such.
+`lib/blocks/markdown.ts` writes one block per line, the shape the paste above reads, and text as stored, without escaping: whatever Markdown a person typed or pasted is copied as such.
 Lists are numbered and nested by `depth` (four spaces a level, opened at the left margin when the
 selection starts inside a nested list), checklists are GFM `- [ ]`/`- [x]`, code is fenced with
 more backticks than it contains, a table is a GFM table whose first row is the header, an image
