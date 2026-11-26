@@ -292,8 +292,7 @@ replays the event in order, so disjoint edits and repeated characters retain the
 during IME composition. A final text snapshot reconciles structural fragment removals or wholesale
 replacement; it is not used to infer ordinary edit positions. Scalar block text keeps its existing
 operation routing.
-Version snapshots flatten nested cell Text nodes; restore creates empty CRDT nodes first and
-then fills them in the same update, so a restore is one undo step (#185).
+How a version restore rebuilds a table's cells in one undo step: [`version-history.md`](version-history.md#why-the-app-restores-instead-of-calling-restorerevision).
 
 `/table` or `/표` inserts a 3×3 table above the command paragraph and focuses its first cell.
 The first visible row is always a header. Controls stay out of the way until the pointer is over
@@ -739,17 +738,6 @@ Escape returns the caret to the block the selection ended on; a plain click anyw
 moving to another control, ends it. Selection is local: nothing is published to other people.
 A selected row's float button opens the selection in one floating view and keeps it
 ([floating-view.md](floating-view.md#several-blocks-in-one-window)).
-
-**Backspace or Delete removes the selected blocks** (`removeBlocks`) and re-makes the empty trailing
-text block if that went with them (`keepTrailingText`), both in one `doc.update`; a block's own
-delete button does the same. Two updates would be two undo steps, and after deleting every block
-the first undo would take away the only block left, the one holding the caret, leaving nowhere to
-press the second. A block a peer removed first is skipped. The caret goes to the start of the first
-text block after the run, or to the trailing block.
-
-**Ctrl/Cmd+X is that copy and then that delete.** It calls `document.execCommand("copy")`, so the
-Markdown goes through the same `copy` handler as Ctrl/Cmd+C, and deletes only when the copy reports
-success: a cut whose copy failed would lose the blocks.
 
 **Backspace or Delete removes the selected blocks** (`removeBlocks`) and re-makes the empty trailing
 text block if that went with them (`keepTrailingText`), both in one `doc.update`; a block's own
