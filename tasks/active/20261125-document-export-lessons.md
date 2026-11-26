@@ -12,6 +12,7 @@ that the next person does not rediscover this.
 
 ## What we would do differently
 
+- Check a new CSS property against the SRS's browser floor (Firefox 148, Safari 26) before relying on it. `field-sizing: content` looked like a one-line print fix and skipped two supported browsers; CodeRabbit caught it in round 2.
 - Hide floating UI in print from one place. Tagging each `fixed` overlay with `print:hidden` missed the editor's own prompts until `/simplify` found them.
 
 ## Worth extracting
