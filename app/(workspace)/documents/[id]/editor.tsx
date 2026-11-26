@@ -61,9 +61,9 @@ import { useFileUpload } from "./use-file-upload";
 
 /** The page column (`docs/ui/redesign/HANDOFF.md` §2): 760px of content, with
  *  64px either side for the block handles. */
-const COLUMN = "mx-auto flex w-full max-w-[888px] flex-1 flex-col px-16 pt-16 pb-[200px]";
+const COLUMN = "mx-auto flex w-full max-w-[888px] flex-1 flex-col px-16 pt-16 pb-[200px] print:p-0";
 /** The editor's two in-page overlays share the workspace dialog look. */
-const OVERLAY = "fixed inset-0 z-30 flex items-start justify-center bg-scrim px-5 pt-[18vh]";
+const OVERLAY = "fixed inset-0 z-30 flex items-start justify-center bg-scrim px-5 pt-[18vh] print:hidden";
 /** `pl-8`: a text block's 24px marker slot (`INDENT_STEP`) plus its 8px gap,
  *  so the title lines up with the text under it. */
 const TITLE_ROW = "mb-7 flex items-start gap-2 pl-8";
@@ -966,7 +966,7 @@ export function DocumentEditor({
       // deliberately *not* positioned, so that stays true, and its 64px side
       // padding is where the block handles at `-left-[50px]` live: an
       // `overflow-y-auto` here clips anything left of the container itself.
-      className="relative flex min-h-0 flex-1 flex-col overflow-y-auto"
+      className="relative flex min-h-0 flex-1 flex-col overflow-y-auto print:overflow-visible"
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes("Files")) {
           event.preventDefault();
@@ -1021,7 +1021,7 @@ export function DocumentEditor({
           key={`${block.id}:${restoreCount}`}
           data-block-id={block.id}
           data-selected={selectedBlocks?.has(block.id) || undefined}
-          className={`group relative ${
+          className={`group relative print:border-0 ${
             block.id === draggedId ? "rounded-control bg-sky-soft opacity-50" : ""
           } data-selected:rounded-control data-selected:bg-sky-soft ${
             dropIndicator?.targetId === block.id
@@ -1054,7 +1054,7 @@ export function DocumentEditor({
               setDraggedId(null);
               setDropIndicator(null);
             }}
-            className="absolute top-[3px] -left-[26px] flex h-6 w-5 cursor-grab items-center justify-center rounded text-ink-faint opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-hover hover:text-ink-soft"
+            className="absolute top-[3px] -left-[26px] flex h-6 w-5 cursor-grab print:hidden items-center justify-center rounded text-ink-faint opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-hover hover:text-ink-soft"
           >
             {/* A Unicode glyph (⠿ and friends) depends on the guest's font
              * having that specific block — Braille Patterns is one of the
@@ -1075,7 +1075,7 @@ export function DocumentEditor({
            * edge, at the first line, because under the drag handle it sat
            * over the next block's controls (#80). */}
           {occupant ? (
-            <span className="absolute top-[5px] -right-[28px]">
+            <span className="absolute top-[5px] -right-[28px] print:hidden">
               <Avatar
                 colorTag={occupant.colorTag}
                 label={occupant.nickname.slice(0, 1)}
@@ -1085,7 +1085,7 @@ export function DocumentEditor({
             </span>
           ) : null}
           {/* FR-060-03: the block's ··· menu, left of the floating view's button. */}
-          <span className="absolute top-[4px] -left-[74px]">
+          <span className="absolute top-[4px] -left-[74px] print:hidden">
             <BlockMenu documentId={documentId} blockId={block.id} readExcerpt={() => excerptFor(block)} />
           </span>
           {/* UC-070's entry point — left of the drag handle, shown the way it is. */}
@@ -1099,7 +1099,7 @@ export function DocumentEditor({
               }
               aria-label={floatLabel}
               title={floatLabel}
-              className="absolute top-[3px] -left-[50px] flex size-6 items-center justify-center rounded text-ink-faint opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-hover hover:text-ink-soft focus:opacity-100"
+              className="absolute top-[3px] -left-[50px] flex size-6 items-center print:hidden justify-center rounded text-ink-faint opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-hover hover:text-ink-soft focus:opacity-100"
             >
               <svg aria-hidden width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round">
                 <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
@@ -1122,7 +1122,7 @@ export function DocumentEditor({
         // clicked: an I-beam over blank page is the convention for "there is
         // writing here to land in". The button inside sets its own
         // `cursor-pointer`, which wins over this on the part that is not empty.
-        className="mt-4 flex flex-1 cursor-text flex-wrap items-center gap-2 pt-1"
+        className="mt-4 flex flex-1 cursor-text flex-wrap items-center gap-2 pt-1 print:hidden"
         // Only a click on this div itself, never one that landed on the button
         // or the hint inside it — `currentTarget` is the empty space, `target`
         // is whatever was actually under the pointer.

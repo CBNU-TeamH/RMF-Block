@@ -5,7 +5,7 @@ import type { ReadableBlock } from "./document.ts";
 import type { Block } from "./types.ts";
 
 /** Reads a Yorkie revision's YSON snapshot into blocks, for a read-only preview
- *  and as the source a restore writes back. Why the app restores instead of
+ *  and as the source a restore writes back — and a live root, for an export. Why the app restores instead of
  *  calling `restoreRevision`: `docs/design/version-history.md`. */
 
 /** One `yorkie.Text` node as the snapshot spells it. */
@@ -45,7 +45,24 @@ function unwrapYson(value: unknown): unknown {
  * `docs/design/api.md` §2 trusts none of it.
  */
 export function readRevisionBlocks(snapshot: string): Array<Block> {
-  const parsed = unwrapYson(YSON.parse(snapshot));
+  return blocksOfRoot(unwrapYson(YSON.parse(snapshot)));
+}
+
+/** A live document's blocks from the root `GetDocuments` returns
+ *  (`lib/yorkie-admin.ts`), for an export. That root is plain JSON with each
+ *  `yorkie.Text` as its nodes — `docs/design/file-manager.md` — so only the
+ *  YSON unwrap is skipped. Unreadable JSON is an empty document, as it is to
+ *  `workspace-files.ts`. */
+export function readRootBlocks(root: string): Array<Block> {
+  try {
+    return blocksOfRoot(JSON.parse(root));
+  } catch (error) {
+    if (error instanceof SyntaxError) return [];
+    throw error;
+  }
+}
+
+function blocksOfRoot(parsed: unknown): Array<Block> {
   const blocks = (parsed as { blocks?: unknown })?.blocks;
   if (!Array.isArray(blocks)) return [];
 

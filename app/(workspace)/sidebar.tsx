@@ -54,7 +54,7 @@ export function Sidebar({
   return (
     <aside
       ref={asideRef}
-      className={`flex flex-none flex-col border-r border-line bg-paper-2 pt-2 ${
+      className={`flex flex-none flex-col border-r border-line bg-paper-2 pt-2 print:hidden ${
         collapsed ? "w-12 items-center gap-1 px-1" : "w-[260px] px-1.5"
       }`}
     >

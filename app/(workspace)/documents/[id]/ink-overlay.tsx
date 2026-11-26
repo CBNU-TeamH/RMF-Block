@@ -451,7 +451,7 @@ export function InkOverlay({
         aria-hidden
         width="100%"
         height={height}
-        className={`absolute left-0 top-0 ${tool ? "z-20 touch-none" : "z-10 pointer-events-none"}`}
+        className={`absolute left-0 top-0 print:hidden ${tool ? "z-20 touch-none" : "z-10 pointer-events-none"}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -469,7 +469,7 @@ export function InkOverlay({
         // `fixed`, so the bar takes no layout space — a sticky one would shift
         // every block's `offsetTop` for the presenter alone. `editor.tsx`'s
         // modals already use `fixed` inside this container for the same reason.
-        <div className="fixed bottom-6 left-1/2 z-30 flex -translate-x-1/2 gap-0.5 rounded-card bg-elev p-1 shadow-elev">
+        <div className="fixed bottom-6 left-1/2 z-30 flex -translate-x-1/2 gap-0.5 rounded-card bg-elev p-1 shadow-elev print:hidden">
           {TOOLS.map((item) => (
             <button
               key={item.kind}

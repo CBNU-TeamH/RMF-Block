@@ -595,7 +595,13 @@ flowchart LR
   3. User 1 selects the file to upload.
   4. The system saves the file to the server file system and creates a block matching the file type (image/PDF/Word/PPT/Excel).
   5. The system sends the created file block to other users in real time.
-  6. The system shows the created file block on other users' screens. |
+  6. The system shows the created file block on other users' screens.
+
+**E6. Export a document**
+  1. User 1 chooses Markdown or Print to PDF from the export menu in the document bar.
+  2. (Markdown) If the document has sub-pages, the system asks whether to export them too.
+  3. (Markdown) With no attachments and no sub-pages included, the system downloads one .md file; otherwise it downloads a .zip holding the .md file with its attachments and the included sub-pages.
+  4. (PDF) The system opens a print view holding only the document content, so the browser can save it as PDF. |
 | Outcome |  • The modified block's information (block position, text content, modification time) is shown on every user's screen in real time. |
 | Notes |  • The grace period is set to 30000 ms (30 seconds). |
 
@@ -1286,6 +1292,9 @@ Each functional requirement is numbered FR-[UC number]-[sequence] for traceabili
 | FR-022-12 | The user shall be able to keep editing the selected block while the network is down, and the system shall resynchronize those edits through Yorkie on reconnect. | UC-022 |
 | FR-022-13 | The user shall be able to upload a file and add it to the document as a file block. | UC-022 |
 | FR-022-14 | The system shall create a block matching the uploaded file's type (image/PDF/Word/PPT/Excel). | UC-022 |
+| FR-022-15 | The user shall be able to export a document as Markdown. Without attachments it downloads as one .md file; with image or file blocks, as a .zip holding the .md file and its attachments. | UC-022 |
+| FR-022-16 | When exporting a document that has sub-pages, the system shall ask whether to include them; if included, it shall build a .zip whose folders mirror the document hierarchy and rewrite links between exported documents as relative paths. | UC-022 |
+| FR-022-17 | The user shall be able to print a document and save it as PDF; when printing, the system shall hide the sidebar, document bar, chat, floating windows and block controls and print the whole document content. | UC-022 |
 
 The gaps in numbering (05, 07, 08, 10, 11) are confirmed intentional — no requirement is missing.
 

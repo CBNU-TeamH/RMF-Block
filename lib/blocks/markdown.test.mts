@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
-import { blocksToMarkdown } from "./markdown.ts";
+import { blocksFromMarkdown } from "./markdown-import.ts";
+import { blocksToMarkdown, documentToMarkdown, type MarkdownLinks } from "./markdown.ts";
 import { parsePaste } from "./paste.ts";
 import type { Block } from "./types.ts";
 
@@ -103,5 +104,76 @@ describe("blocksToMarkdown", () => {
         { type: "text", text: "plain" },
       ],
     );
+  });
+});
+
+describe("documentToMarkdown", () => {
+  const links: MarkdownLinks = {
+    file: (fileId) => (fileId === "f1" ? "회의록/도표 [1].png" : null),
+    document: (documentId) => (documentId === "d2" ? { path: "회의록/하위 [안].md", name: "하위 [안]" } : null),
+  };
+
+  it("puts a blank line between blocks but keeps a list together", () => {
+    assert.equal(
+      documentToMarkdown(
+        [
+          { id: "1", type: "heading", level: 1, text: "제목" },
+          { id: "2", type: "list", style: "unordered", depth: 0, text: "a" },
+          { id: "3", type: "checklist", checked: false, text: "b" },
+          { id: "4", type: "text", text: "끝" },
+        ],
+        ORIGIN,
+        links,
+      ),
+      "# 제목\n\n- a\n- [ ] b\n\n끝",
+    );
+  });
+
+  it("points files and exported documents at their paths, and drops a missing file's link", () => {
+    assert.deepEqual(
+      documentToMarkdown(
+        [
+          { id: "1", type: "image", fileId: "f1", fileName: "도표 [1].png", size: 1 },
+          { id: "2", type: "file", fileId: "gone", fileName: "옛 파일.docx", fileType: "x", size: 1 },
+          { id: "3", type: "doc-link", documentId: "d2" },
+          { id: "4", type: "block-link", documentId: "d2", blockId: "b9" },
+          { id: "5", type: "doc-link", documentId: "elsewhere" },
+        ],
+        ORIGIN,
+        links,
+      ).split("\n\n"),
+      [
+        "![도표 \\[1\\].png](<회의록/도표 [1].png>)",
+        "옛 파일.docx",
+        "[하위 \\[안\\]](<회의록/하위 [안].md>)",
+        "[하위 \\[안\\]](<회의록/하위 [안].md>)",
+        `${ORIGIN}/documents/elsewhere`,
+      ],
+    );
+  });
+
+  it("encodes %, # and & in a path, which a reader would take as an escape, a fragment and an entity", () => {
+    assert.equal(
+      documentToMarkdown([{ id: "1", type: "file", fileId: "f1", fileName: "50% #3 &copy;.txt", fileType: "x", size: 1 }], ORIGIN, {
+        file: () => "문서/50% #3 &copy;.txt",
+        document: () => null,
+      }),
+      "[50% #3 &copy;.txt](<문서/50%25 %233 %26copy;.txt>)",
+    );
+  });
+
+  it("reads back through the import as the same blocks", () => {
+    const blocks: Array<Block> = [
+      { id: "1", type: "heading", level: 2, text: "제목" },
+      { id: "2", type: "text", text: "본문" },
+      { id: "3", type: "list", style: "ordered", depth: 0, text: "하나" },
+      { id: "4", type: "list", style: "ordered", depth: 0, text: "둘" },
+      { id: "5", type: "quote", text: "인용" },
+      { id: "6", type: "code", text: "x = 1" },
+      { id: "7", type: "divider" },
+    ];
+    const strip = (list: Array<Block>) => list.map((block) => ({ ...block, id: "" }));
+
+    assert.deepEqual(strip(blocksFromMarkdown(documentToMarkdown(blocks, ORIGIN, links))), strip(blocks));
   });
 });

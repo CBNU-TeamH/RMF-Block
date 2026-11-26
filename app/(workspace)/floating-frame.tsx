@@ -81,7 +81,7 @@ export function FloatingFrame({
         onClose();
       }}
       // The ring marks the window you're working in (HANDOFF's "active window").
-      className="fixed flex flex-col overflow-hidden rounded-card bg-elev shadow-elev outline-none focus-within:shadow-[0_0_0_2px_var(--color-sky-ring),var(--shadow-elev)]"
+      className="fixed flex flex-col overflow-hidden rounded-card bg-elev shadow-elev outline-none print:hidden focus-within:shadow-[0_0_0_2px_var(--color-sky-ring),var(--shadow-elev)]"
     >
       <header
         onPointerDown={begin("move")}

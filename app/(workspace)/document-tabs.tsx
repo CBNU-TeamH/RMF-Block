@@ -92,7 +92,7 @@ export function DocumentTabs({ documents }: { documents: Array<WorkspaceDocument
     // one piece (Chrome, Obsidian). Drawn even with no tabs, so nothing below
     // jumps. Tabs share the width and shrink as more open, as a browser's do;
     // only past their minimum does the strip scroll.
-    <nav aria-label="열린 문서" className="flex h-11 flex-none items-end gap-1 bg-paper-2 px-2">
+    <nav aria-label="열린 문서" className="flex h-11 flex-none items-end gap-1 bg-paper-2 px-2 print:hidden">
       <ul className="flex h-full min-w-0 items-end gap-px overflow-x-auto">
         {shown.map((doc, index) => {
           const active = doc.id === currentId;

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
-import { readRevisionBlocks } from "./revision-snapshot.ts";
+import { readRevisionBlocks, readRootBlocks } from "./revision-snapshot.ts";
 
 /**
  * Captured from a running Yorkie 0.7.13 by `createRevision` + `getRevision`, not
@@ -114,5 +114,35 @@ describe("readRevisionBlocks", () => {
     const yson = `{"blocks":[{"id":"b1","type":"text","content":{"text":Text([{"val":null},{"val":"tail"}])}}]}`;
 
     assert.throws(() => readRevisionBlocks(yson));
+  });
+});
+
+describe("readRootBlocks", () => {
+  // The shape `GetDocuments` returns, as `workspace-files.test.mts` records it
+  // (measured on Yorkie 0.7.23): plain JSON, a `yorkie.Text` as its nodes.
+  const root = JSON.stringify({
+    blocks: [
+      { id: "b1", type: "heading", content: { level: 2, text: [{ val: "회의" }, { val: "록" }] } },
+      {
+        id: "b2",
+        type: "table",
+        content: { table: { rows: [{ id: "r1" }], columns: [{ id: "c1" }], cells: [{ rowId: "r1", columnId: "c1", text: [{ val: "칸" }] }] } },
+      },
+      { id: "b3", type: "image", content: { fileId: "f1", fileName: "a.png", size: 3 } },
+    ],
+  });
+
+  it("reads a live root's blocks, text and table cells included", () => {
+    const [heading, table, image] = readRootBlocks(root);
+
+    assert.deepEqual(heading, { id: "b1", type: "heading", level: 2, text: "회의록" });
+    assert.equal(table?.type, "table");
+    assert.deepEqual(table?.type === "table" ? Object.values(table.cells) : null, ["칸"]);
+    assert.deepEqual(image, { id: "b3", type: "image", fileId: "f1", fileName: "a.png", size: 3 });
+  });
+
+  it("returns nothing for a root that is not JSON, or has no blocks", () => {
+    assert.deepEqual(readRootBlocks("not json"), []);
+    assert.deepEqual(readRootBlocks("{}"), []);
   });
 });

@@ -135,7 +135,7 @@ export function ChatWindow({
             button that opens it. */}
         <div
           style={{ height: BAR_HEIGHT }}
-          className="fixed right-3 bottom-0 z-30 flex items-center"
+          className="fixed right-3 bottom-0 z-30 flex items-center print:hidden"
         >
           <button
             type="button"

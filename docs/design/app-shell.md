@@ -112,6 +112,8 @@ wafflebase (`SiteHeader` with the history toggle and presence) share:
   document's actions. Version history is an icon there. The editor owns the trigger, because the trigger needs the
   editor's attachment and restore function, so the editor draws it into the bar's
   `DOCUMENT_ACTIONS_ID` slot with `createPortal`.
+  Export is the ··· after it; the layout renders that one itself, since it needs only the document's
+  id ([`document-export.md`](document-export.md)).
 - **The content** starts with the title alone.
 
 Things that belong to the whole workspace, not the open document, go in the sidebar, as Notion's

@@ -265,7 +265,28 @@ describe("pasting a block address", () => {
 });
 
 describe("inline formatting", () => {
-  const strong = () => document.querySelector("strong")?.textContent ?? null;
+  // The overlay's, not the print copy's, which draws the same text at all times.
+  const drawn = (tag: string) =>
+    [...document.querySelectorAll(tag)].find((element) => !element.closest("[data-print-copy]")) ?? null;
+  const strong = () => drawn("strong")?.textContent ?? null;
+
+  it("keeps a print copy of the text, current even while the block has focus", () => {
+    const { textarea } = renderBlock({ type: "text" }, null, "**a** b");
+    const copy = () => document.querySelector("[data-print-copy]");
+    assert.equal(copy()?.querySelector("strong")?.textContent, "a");
+
+    fireEvent.focus(textarea);
+    fireEvent.change(textarea, { target: { value: "**a** b 추가" } });
+    act(() => {
+      window.dispatchEvent(new Event("beforeprint"));
+    });
+    assert.equal(copy()?.textContent, "a b 추가");
+  });
+
+  it("prints text with no marks as typed, backslashes included", () => {
+    renderBlock({ type: "text" }, null, "\\\\server\\share");
+    assert.equal(document.querySelector("[data-print-copy]")?.textContent, "\\\\server\\share");
+  });
 
   it("draws inline Markdown while the block is not being edited, and shows the markers while it is", () => {
     const { textarea } = renderBlock({ type: "text" }, null, "**a** b");
@@ -282,9 +303,9 @@ describe("inline formatting", () => {
 
   it("redraws after a peer's edit", () => {
     const { remote } = renderBlock({ type: "text" }, null, "plain");
-    assert.equal(document.querySelector("em"), null);
+    assert.equal(drawn("em"), null);
     act(() => remote({ from: 0, to: 0, value: { content: "*x* " } }));
-    assert.equal(document.querySelector("em")?.textContent, "x");
+    assert.equal(drawn("em")?.textContent, "x");
   });
 
   it("leaves a code block as typed", () => {

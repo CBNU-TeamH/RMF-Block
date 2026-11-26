@@ -733,6 +733,8 @@ every block). A table cell keeps Ctrl/Cmd+A as its own. Selected rows are marked
 a short label as its text, selected. Ctrl/Cmd+C is then the browser's ordinary copy, which works
 on a plain-HTTP LAN address where `navigator.clipboard` does not exist, and its `copy` handler
 writes the Markdown, read from the live document at that moment.
+The same writer makes a document's `.md` when it is exported, with blank lines between blocks
+and links pointed into the export ([document-export.md](document-export.md)).
 Escape returns the caret to the block the selection ended on; a plain click anywhere, or focus
 moving to another control, ends it. Selection is local: nothing is published to other people.
 A selected row's float button opens the selection in one floating view and keeps it

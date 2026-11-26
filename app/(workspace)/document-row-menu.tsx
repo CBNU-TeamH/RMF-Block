@@ -128,7 +128,7 @@ export function DocumentRowMenu({ label, items }: { label: string; items: Array<
           role="menu"
           aria-label={`${label} 작업`}
           style={{ top: at.top, left: at.left, width: MENU_WIDTH_PX }}
-          className="fixed z-40 flex flex-col gap-px rounded-card bg-elev p-1 shadow-elev"
+          className="fixed z-40 flex flex-col gap-px rounded-card bg-elev p-1 shadow-elev print:hidden"
         >
           {items.map((item) => (
             <div key={item.label}>
