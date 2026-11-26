@@ -102,14 +102,14 @@ test("a wide table fits the printed page (FR-022-17)", async ({ users }) => {
   const first = await firstBlockId(page);
   const header = `| ${"긴 열 제목".repeat(3)} | b | c | d | e | f | g | h |`;
   await paste(page, first, [header, "|---|---|---|---|---|---|---|---|", "| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |"].join("\n"));
-  const table = page.locator("[data-block-id] table");
+  const row = page.locator("[data-block-id]").filter({ has: page.locator("table") });
+  const table = row.locator("table");
   await expect(table).toHaveCount(1);
 
   await page.emulateMedia({ media: "print" });
   await page.setViewportSize({ width: 500, height: 800 });
 
   // Every column fits inside the document's column rather than scrolling out of it.
-  const row = page.locator("[data-block-id]").filter({ has: table });
   const [tableBox, rowBox] = await Promise.all([table.boundingBox(), row.boundingBox()]);
   expect(tableBox!.x + tableBox!.width).toBeLessThanOrEqual(rowBox!.x + rowBox!.width + 1);
 });
