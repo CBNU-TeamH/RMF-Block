@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-18
 **Issue**: none — requested directly ("여러 블록을 드래그해서 삭제하는 기능은 안되네?", then "잘라내기도 같이 넣어주고")
-**Design**: [document-editing.md, "Selecting and copying blocks"](../../docs/design/document-editing.md#selecting-and-copying-blocks)
+**Design**: [document-editing.md, "Selecting and copying blocks"](../../../../docs/design/document-editing.md#selecting-and-copying-blocks)
 
 ## Milestones
 

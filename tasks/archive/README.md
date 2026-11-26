@@ -9,12 +9,16 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 | Task | Lessons |
 | :--- | :--- |
 | [Republish the focused block when the editor's effect re-runs](2026/11/20261125-presence-rerun-republish-todo.md) | [lessons](2026/11/20261125-presence-rerun-republish-lessons.md) |
+| [Export a document as Markdown (.md / .zip) or print it to PDF](2026/11/20261125-document-export-todo.md) | [lessons](2026/11/20261125-document-export-lessons.md) |
 | [tasks:archive on macOS: edit files without `sed -i`](2026/11/20261124-tasks-archive-macos-todo.md) | [lessons](2026/11/20261124-tasks-archive-macos-lessons.md) |
 | [Undo a version restore in one Ctrl+Z](2026/11/20261124-restore-single-undo-todo.md) | [lessons](2026/11/20261124-restore-single-undo-lessons.md) |
 | [Demo hotfixes: chat reconnect, unsent-edit warning, occupant avatar, dismissed / menu](2026/11/20261123-demo-hotfixes-todo.md) | [lessons](2026/11/20261123-demo-hotfixes-lessons.md) |
 | [Say 미리보기 불가 where a file cannot be previewed](2026/11/20261122-preview-unavailable-notice-todo.md) | [lessons](2026/11/20261122-preview-unavailable-notice-lessons.md) |
 | [System tests for the requirements the D07 test report left unexercised](2026/11/20261118-system-tests-untested-frs-todo.md) | [lessons](2026/11/20261118-system-tests-untested-frs-lessons.md) |
 | [Perf harness: don't race the follower's release at share end](2026/11/20261118-perf-present-race-todo.md) | [lessons](2026/11/20261118-perf-present-race-lessons.md) |
+| [Several selected blocks in one floating view](2026/11/20261118-floating-block-group-todo.md) | [lessons](2026/11/20261118-floating-block-group-lessons.md) |
+| [Delete and cut a whole-block selection](2026/11/20261118-block-selection-delete-todo.md) | [lessons](2026/11/20261118-block-selection-delete-lessons.md) |
+| [Upgrade Yorkie and the JS SDK 0.7.23 → 0.7.28](2026/11/20261117-yorkie-0728-todo.md) | [lessons](2026/11/20261117-yorkie-0728-lessons.md) |
 | [Serialize the Yorkie sync loop's per-document pushes](2026/11/20261116-yorkie-sync-serialize-todo.md) | [lessons](2026/11/20261116-yorkie-sync-serialize-lessons.md) |
 | [Time out the Yorkie admin requests at startup](2026/11/20261116-yorkie-admin-timeout-todo.md) | [lessons](2026/11/20261116-yorkie-admin-timeout-lessons.md) |
 | [Security, safety and reliability E2E](2026/11/20261116-security-safety-e2e-todo.md) | [lessons](2026/11/20261116-security-safety-e2e-lessons.md) |
@@ -37,6 +41,7 @@ Finished tasks, newest month first. See [`../README.md`](../README.md) for how t
 | [Pause a follower who scrolls, edits or moves on, and resume (UC-030)](2026/10/20261019-follow-pause-todo.md) | [lessons](2026/10/20261019-follow-pause-lessons.md) |
 | [Chat links: document and block links that jump, URLs, and a 링크 tab](2026/10/20261019-chat-links-todo.md) | [lessons](2026/10/20261019-chat-links-lessons.md) |
 | [Workspace file manager (UC-050)](2026/10/20261018-file-manager-todo.md) | [lessons](2026/10/20261018-file-manager-lessons.md) |
+| [Simple collaborative table blocks](2026/10/20261016-table-block-todo.md) | [lessons](2026/10/20261016-table-block-lessons.md) |
 | [Perf campaign on an internet Wi-Fi, run with Claude](2026/10/20261016-perf-internet-wifi-todo.md) | [lessons](2026/10/20261016-perf-internet-wifi-lessons.md) |
 | [Perf harness measures v0.0.2](2026/10/20261015-perf-pin-0.0.2-todo.md) | [lessons](2026/10/20261015-perf-pin-0.0.2-lessons.md) |
 | [Observation stack and result charts for the perf campaign](2026/10/20261013-perf-observability-todo.md) | [lessons](2026/10/20261013-perf-observability-lessons.md) |

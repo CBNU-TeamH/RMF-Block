@@ -53,7 +53,7 @@ while the same edits without the restore undo cleanly. On 0.7.23 the re-parse al
 `type` key our stored blocks carry; 0.7.28 fixed that. The measurements are in
 `tasks/archive/2026/09/20260922-yorkie-0723-lessons.md`,
 `tasks/archive/2026/09/20260922-version-history-lessons.md` and
-[the 0.7.28 bump's task](../../tasks/active/20261117-yorkie-0728-todo.md).
+[the 0.7.28 bump's task](../../tasks/archive/2026/11/20261117-yorkie-0728-todo.md).
 
 So the app does the restore itself: `getRevision` returns a correct snapshot, `revision-snapshot.ts` reads it,
 and the blocks are written back in one `doc.update()` (`replaceAllBlocks`, `lib/blocks/restore.ts`) —

@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-25
 **Issue**: none — requested by the maintainer after the exhibition; Markdown import exists, export does not.
-**Design**: a new `docs/design/document-export.md` (milestone 0), linked from [app-shell.md](../../docs/design/app-shell.md) ("Tabs, then one bar for the document") and [document-editing.md](../../docs/design/document-editing.md) ("Selecting and copying blocks").
+**Design**: a new `docs/design/document-export.md` (milestone 0), linked from [app-shell.md](../../../../docs/design/app-shell.md) ("Tabs, then one bar for the document") and [document-editing.md](../../../../docs/design/document-editing.md) ("Selecting and copying blocks").
 
 Benchmarked on Notion's ••• → Export ([help page](https://www.notion.com/help/export-your-content)): format choice, `Include subpages`, `Create folders for subpages`, `Include content`. Kept: Markdown, sub-page choice, PDF. Dropped: HTML/CSV, "exclude files", the folder toggle (always nested folders). Unlike Notion, a text-only document downloads as a bare `.md`, not a zip.
 

@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-16
 **Issue**: No dedicated issue found; related: #145, #148, #185. Local-only delivery requested.
-**Design**: [Document editing](../../docs/design/document-editing.md)
+**Design**: [Document editing](../../../../docs/design/document-editing.md)
 
 ## Milestones
 
