@@ -51,14 +51,16 @@
 - Vitest (logic / component / server / route): no change expected, since this is documentation only. A stale code comment fixed under F is checked by `pnpm lint` and `pnpm test`.
 - Browser E2E (`e2e/`): no change, since this is documentation only.
 - Container smoke (`.github/workflows/ci.yml`): no change.
-- Commands and observed results (fill in before the PR):
+- Commands and observed results:
+  - `pnpm verify:docs` (all checks) and `pnpm comments`: clean on the base `61a2461` and again on `bc60d58`, after the three category commits.
+  - Before/after (`baseline.mjs` over the six measured parts, 22 files): 310,111 bytes and 4,348 lines on `61a2461`; 309,240 bytes and 4,337 lines on `bc60d58`. That is −871 bytes and −11 lines: C removed text and B added some.
 
 ## Acceptance
 
-- [ ] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
-- [ ] Every approved A/B/C/D/F item is applied, or the PR says why not.
-- [ ] `pnpm verify:docs` and `pnpm comments` pass; a review round finds nothing blocking.
-- [ ] The audit task is archived in the audit PR, so merging resets the count.
+- [x] Required test changes are included with the implementation; relevant checks and any gaps are recorded.
+- [x] Every approved A/B/C/D/F item is applied, or the PR says why not.
+- [x] `pnpm verify:docs` and `pnpm comments` pass; a review round finds nothing blocking.
+- [x] The audit task is archived in the audit PR, so merging resets the count.
 
 ## Cross-cutting
 
@@ -66,4 +68,8 @@ Closes #260. Code bugs the audit finds are filed as issues, not fixed here. Requ
 
 ## Review
 
-Filled in at the end: what shipped, what was cut, what moved to another task.
+- 7 findings: A 4 · B 1 · C 2 · D 0 · F 0. E was not audited: the SRS was not compared against the code this run. A verifier sub-agent confirmed all four A findings; the maintainer approved every B/C item in chat, recorded at the top of the checklist comment on #260.
+- Applied, one commit per category: A `0f07c1e`, B `b03e4bf`, C `bc60d58`. Nothing approved was left out.
+- workflow-testing-03 is not drift: it promotes the yorkie-0728 lessons' "Worth extracting" item, which #296 left for this audit.
+- One review round, by a sub-agent covering all three lenses at once because the diff is two files and about 20 lines: nothing blocking.
+- Not run: `/code-review low` and `/simplify`. The diff is documentation only, and the review round above checked it against the code.
