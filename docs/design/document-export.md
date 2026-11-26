@@ -58,10 +58,12 @@ and which files still have bytes. It is pure, so the layout and the names are un
 - **The text** is `documentToMarkdown` (`lib/blocks/markdown.ts`) — the writer copying uses, with blocks a
   blank line apart so a reader keeps each its own paragraph. List items stay one line apart, or a reader
   spaces the list out. The import drops blank lines, so the text blocks — paragraphs, headings, lists,
-  checklists, quotes, code, dividers — read back as the same blocks, with two limits. A paragraph is
-  written as typed, so one that itself starts with Markdown block syntax (`## `, `- `, `> `, `---`) or
-  holds a line break reads back as that syntax or as two blocks; the import decodes no backslash escape
-  to write it with, and copying has the same limit. Files and document links do not read back: the
+  checklists, quotes, code, dividers — read back as the same blocks, with two limits, which copying
+  shares. A block whose text holds a line break (Shift+Enter) reads back as one block per line: a quote
+  as two quotes, a heading as a heading and a paragraph; only a code block keeps its lines, inside its
+  fence. And a paragraph is written as typed, so one that itself starts with Markdown block syntax
+  (`## `, `- `, `> `, `---`) reads back as that syntax; the import decodes no backslash escape to write
+  it with. Files and document links do not read back: the
   import has no file store to point into, and a link into the export is a path, not a workspace address.
 - **Links.** An image, PDF or file block points at its file in the zip; a document or block link to an
   exported document points at that document's `.md` (a block link loses its block: a `.md` has no address

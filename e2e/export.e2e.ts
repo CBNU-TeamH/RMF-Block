@@ -112,4 +112,6 @@ test("a wide table fits the printed page (FR-022-17)", async ({ users }) => {
   // Every column fits inside the document's column rather than scrolling out of it.
   const [tableBox, rowBox] = await Promise.all([table.boundingBox(), row.boundingBox()]);
   expect(tableBox!.x + tableBox!.width).toBeLessThanOrEqual(rowBox!.x + rowBox!.width + 1);
+  // And inside the page itself, in case the row overflows with it.
+  expect(tableBox!.x + tableBox!.width).toBeLessThanOrEqual(500);
 });

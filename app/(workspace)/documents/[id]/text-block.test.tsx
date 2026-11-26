@@ -283,6 +283,11 @@ describe("inline formatting", () => {
     assert.equal(copy()?.textContent, "a b 추가");
   });
 
+  it("prints text with no marks as typed, backslashes included", () => {
+    renderBlock({ type: "text" }, null, "\\\\server\\share");
+    assert.equal(document.querySelector("[data-print-copy]")?.textContent, "\\\\server\\share");
+  });
+
   it("draws inline Markdown while the block is not being edited, and shows the markers while it is", () => {
     const { textarea } = renderBlock({ type: "text" }, null, "**a** b");
     assert.equal(strong(), "a");

@@ -691,7 +691,8 @@ export function TextBlockView({
         data-print-copy
         className={`${flow} hidden min-h-[1lh] break-words whitespace-pre-wrap print:block ${box}`}
       >
-        {drawsInline ? <InlineText text={shown} /> : shown}
+        {/* As on screen: text with no marks stays literal, its escapes included. */}
+        {drawsInline && marked ? <InlineText text={shown} /> : shown}
       </div>
 
       {/* Absolutely positioned against the block row, which is already
