@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-18
 **Issue**: none — requested directly ("여러개 한번에 묶어서 하나의 탭으로 띄워두고 싶어"); the maintainer chose the selected blocks as the way in and one document as the scope.
-**Design**: [floating-view.md, "Several blocks in one window"](../../docs/design/floating-view.md#several-blocks-in-one-window)
+**Design**: [floating-view.md, "Several blocks in one window"](../../../../docs/design/floating-view.md#several-blocks-in-one-window)
 
 ## Milestones
 
